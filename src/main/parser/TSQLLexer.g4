@@ -162,6 +162,7 @@ CHECKSUM:                                        C H E C K S U M;
 CHECKSUM_AGG:                                    C H E C K S U M  UNDERLINE  A G G;
 CHECK_EXPIRATION:                                C H E C K  UNDERLINE  E X P I R A T I O N;
 CHECK_POLICY:                                    C H E C K  UNDERLINE  P O L I C Y;
+CLASSIFIER:                                      C L A S S I F I E R;
 CLASSIFIER_FUNCTION:                             C L A S S I F I E R  UNDERLINE  F U N C T I O N;
 CLEANUP:                                         C L E A N U P;
 CLEANUP_POLICY:                                  C L E A N U P  UNDERLINE  P O L I C Y;

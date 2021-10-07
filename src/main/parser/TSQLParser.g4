@@ -174,6 +174,7 @@ ddl_statement
     | create_type
     | create_user
     | create_user_azure_sql_dw
+    | create_workload_classifier
     | create_workload_group
     | create_xml_index
     | create_selective_xml_index
@@ -238,6 +239,7 @@ ddl_statement
     | drop_type
     | drop_user
     | drop_view
+    | drop_workload_classifier
     | drop_workload_group
     | drop_xml_schema_collection
     | disable_trigger
@@ -1433,7 +1435,7 @@ alter_server_role
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/create-server-role-transact-sql
 create_server_role
-    : CREATE SERVER ROLE server_role=id (AUTHORIZATION server_principal=id)?
+    : CREATE SERVER ROLE server_role_name=id (AUTHORIZATION server_principal=id)?
     ;    
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-service-transact-sql
@@ -1564,6 +1566,14 @@ create_workload_group
       )?
     ;
 
+create_workload_classifier
+    : CREATE WORKLOAD CLASSIFIER id WITH LR_BRACKET?.+? RR_BRACKET EOF   // quick & dirty, good enough for now
+    ;
+    
+drop_workload_classifier
+    : DROP WORKLOAD CLASSIFIER id 
+    ;
+    
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/create-xml-schema-collection-transact-sql
 create_xml_schema_collection
     : CREATE XML SCHEMA COLLECTION simple_name AS  (char_string|id|LOCAL_ID)
@@ -2119,7 +2129,7 @@ alter_table
 	    | SET LR_BRACKET FILESTREAM_ON EQUAL storage_partition_clause RR_BRACKET
 	    | SET LR_BRACKET file_table_option (COMMA file_table_option)* RR_BRACKET
 	    | SET LR_BRACKET LOCK_ESCALATION EQUAL (AUTO | TABLE | DISABLE) RR_BRACKET
-	    | REBUILD table_options
+	    | REBUILD table_options?
        )
     ;
    
@@ -3401,13 +3411,11 @@ update_elem
     : LOCAL_ID  EQUAL  full_column_name ( EQUAL  | assignment_operator) expression //Combined variable and column update
     | (full_column_name | LOCAL_ID) ( EQUAL  | assignment_operator) expression
     | udt_column_name=id DOT method_name=id LR_BRACKET expression_list RR_BRACKET
-    //| full_column_name DOT WRITE (expression, )
     ;
 
 update_elem_merge
     : (full_column_name | LOCAL_ID) ( EQUAL  | assignment_operator) expression
     | udt_column_name=id DOT method_name=id LR_BRACKET expression_list RR_BRACKET
-    //| full_column_name DOT WRITE (expression, )
     ;
 
 search_condition
@@ -3756,7 +3764,7 @@ spatial_methods  // we could expand the entire list here, but it is very long
     ;
         
 hierarchyid_methods
-    : ( GETANCESTOR | GETDESCENDANT | GETLEVEL | ISDESCENDANTOF | READ | GETREPARENTEDVALUE | TOSTRING ) LR_BRACKET expression_list? RR_BRACKET
+    : method=( GETANCESTOR | GETDESCENDANT | GETLEVEL | ISDESCENDANTOF | READ | GETREPARENTEDVALUE | TOSTRING ) LR_BRACKET expression_list? RR_BRACKET
     ;
 
 hierarchyid_coloncolon_methods
@@ -4191,6 +4199,7 @@ keyword
     | CHECKSUM_AGG
     | CHECK_EXPIRATION
     | CHECK_POLICY
+    | CLASSIFIER
     | CLASSIFIER_FUNCTION
     | CLEANUP
     | CLEANUP_POLICY
