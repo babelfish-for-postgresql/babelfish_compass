@@ -1,11 +1,8 @@
-## My Project
+## Babelfish Compass
 
-TODO: Fill this README out!
+Babelfish Compass is a compatibility assessment tool for Babelfish for PostgreSQL.
+With Babelfish Compass, users can quickly analyze T-SQL DDL/SQL scripts for compatibility with Babelfish.
 
-Be sure to:
-
-* Change the title in this README
-* Edit your repository description on GitHub
 
 ## Security
 
