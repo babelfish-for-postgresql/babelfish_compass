@@ -1293,7 +1293,7 @@ create_security_policy
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-sequence-transact-sql
 alter_sequence
-    : ALTER SEQUENCE (schema_name=id DOT)? sequence_name=id ( RESTART (WITH sign? DECIMAL)? )? (INCREMENT BY sign? DECIMAL )? ( MINVALUE sign? DECIMAL| NO MINVALUE)? (MAXVALUE sign? DECIMAL| NO MAXVALUE)? (CYCLE|NO CYCLE)? (CACHE DECIMAL | NO CACHE)?
+    : ALTER SEQUENCE (schema_name=id DOT)? sequence_name=id ( RESTART (WITH sign? DECIMAL)? )? (INCREMENT BY sign? DECIMAL )? ( MINVALUE sign? DECIMAL| NO MINVALUE)? (MAXVALUE sign? DECIMAL| NO MAXVALUE)? (CYCLE|NO CYCLE)? (cache_kwd=CACHE cache_value=DECIMAL? | no_cache=NO CACHE)?
     ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/create-sequence-transact-sql
@@ -1305,7 +1305,7 @@ create_sequence
         (MINVALUE sign? DECIMAL? | NO MINVALUE)?
         (MAXVALUE sign? DECIMAL? | NO MAXVALUE)?
         (CYCLE|NO CYCLE)?
-        (CACHE DECIMAL? | NO CACHE)?
+        (cache_kwd=CACHE cache_value=DECIMAL? | no_cache=NO CACHE)?
     ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-server-audit-transact-sql
@@ -2786,7 +2786,7 @@ execute_statement
     ;
 
 execute_body_batch
-    : func_proc_name_server_database_schema (execute_statement_arg (COMMA execute_statement_arg)*)? SEMI?
+    : func_proc_name_server_database_schema (execute_statement_arg (COMMA execute_statement_arg)*)? (WITH execute_option (COMMA execute_option)* )? SEMI?
     ;
 
 execute_body
@@ -3743,7 +3743,7 @@ odbc_scalar_function
     | EXTRACT LR_BRACKET (YEAR | MONTH | DAY | HOUR | MINUTE | SECOND) FROM expression RR_BRACKET
 	| INSERT LR_BRACKET expression (COMMA expression)+ RR_BRACKET
 	| POSITION LR_BRACKET expression IN expression RR_BRACKET
-	| TRUNCATE LR_BRACKET (COMMA expression)+ RR_BRACKET
+	| TRUNCATE LR_BRACKET expression (COMMA expression)+ RR_BRACKET
 	| CURRENT_DATE LR_BRACKET expression? RR_BRACKET
 	| CURRENT_TIME LR_BRACKET expression? RR_BRACKET
     | id (LR_BRACKET (COMMA? expression)* RR_BRACKET)?
