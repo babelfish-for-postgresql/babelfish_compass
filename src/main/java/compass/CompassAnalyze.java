@@ -18,6 +18,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.*;
@@ -28,10 +30,6 @@ import parser.*;
 public class CompassAnalyze {
 	public static CompassConfig cfg;
 	public static CompassUtilities u = CompassUtilities.getInstance();
-
-	// variables/parameters only for current object
-	static Map<String, String> localVars = new HashMap<String, String>();
-	static  Map<String, String> localAtAtErrorVars = new HashMap<String, String>();
 
 	// user-visible reporting groups: some of these are also in the .cfg file so must match exactly
 	static final String DDLReportGroup         = "DDL";
@@ -48,6 +46,7 @@ public class CompassAnalyze {
 	static final String CursorsReportGroup     = "Cursors";
 	static final String UsersReportGroup       = "Users";
 	static final String PermissionsReportGroup = "Permissions";
+	static final String TransitionTableMultiDMLTrigFmt = "INSERTED/DELETED cannot be referenced in trigger with >1 action";
 
 	// for reporting items that do not fit elsewhere
 	static final String MiscReportGroup       = "Miscellaneous SQL Features";
@@ -55,15 +54,17 @@ public class CompassAnalyze {
 	// sections in the .cfg file: string must match exactly
 	static final String AggregateFunctions    = "Aggregate functions";
 	static final String BuiltInFunctions      = "Built-in functions";
-	static final String ProcVersionDeclare    = "Procedure versioning (declaration)";
-	static final String ProcVersionExecute    = "Procedure versioning (execution)";
+	static final String ProcVersionBase       = "Procedure versioning ";
+	static final String ProcVersionDeclare    = ProcVersionBase+"(declaration)";
+	static final String ProcVersionExecute    = ProcVersionBase+"(execution)";
 	static final String NumericAsDateTime     = "Numeric representation of datetime";
-	static final String NumericDateTimeVarAssign = "Numeric assignment to datetime variable/parameter";
+	static final String NumericDateTimeVarAssign = "Numeric assignment to datetime variable/parameter/column";
 	static final String Datatypes             = "Datatypes";
 	static final String UDDatatypes           = "User-Defined Datatypes";
 	static final String DatatypeConversion    = "Datatype conversion";
 	static final String TableVariables        = "Table variables";
 	static final String TableVariablesType    = "Table variables/Table types";
+	static final String TableValueConstructor = "Table value constructor";
 	static final String ParamValueDEFAULT     = "Parameter value DEFAULT";
 	static final String ProcedureOptions      = "Procedure options";
 	static final String ExecProcedureOptions  = "Execute procedure options";
@@ -79,6 +80,9 @@ public class CompassAnalyze {
 	static final String DisableTrigger        = "DISABLE TRIGGER";
 	static final String ProcExecAsVariable    = "Variable procedure name";
 	static final String DynamicSQL            = "Dynamic SQL";
+	static final String DynamicSQLEXECStringReview = "EXECUTE(string): dynamic SQL statements must be analyzed manually";
+	static final String DynamicSQLEXECStringReviewKey = "EXECUTEstring";
+	static final String DynamicSQLEXECSPReview     = "sp_executesql: dynamic SQL statements must be analyzed manually";
 	static final String SystemStoredProcs     = "System Stored Procedures";
 	static final String SystemFunctions       = "System Functions";
 	static final String Catalogs              = "Catalogs";
@@ -90,6 +94,7 @@ public class CompassAnalyze {
 	static final String GlobalTmpTable        = "Global Temporary Tables";
 	static final String DropMultipleObjects   = "DROP multiple objects";
 	static final String DropIfExists          = "DROP IF EXISTS";
+	static final String DropIndex             = "DROP INDEX";
 	static final String SetOptions            = "SET options";
 	static final String SetMultipleOptions    = "SET, multiple options combined";
 	static final String SelectTopWithTies     = "SELECT TOP WITH TIES";
@@ -109,6 +114,7 @@ public class CompassAnalyze {
 	static final String ViewOptions           = "View options";
 	static final String IndexAttribute        = "Index attribute";
 	static final String IgnoreDupkeyIndex     = "IGNORE_DUP_KEY index";
+	static final String UniqueOnNullableCol   = "Nullable column";
 	static final String ConstraintAttribute   = "Constraint attribute";
 	static final String ColumnAttribute       = "Column attribute";
 	static final String SQLGraph              = "SQL graph";
@@ -128,7 +134,9 @@ public class CompassAnalyze {
 	static final String TableHint             = "Table hint";
 	static final String JoinHint              = "Join hint";
 	static final String DoubleQuotedString    = "Double-quoted string";
+	static final String UnQuotedString        = "Unquoted string";
 	static final String SetQuotedIdInBatch    = "SET QUOTED_IDENTIFIER in batch";
+    static final String SetXactIsolationLevel = "SET TRANSACTION ISOLATION LEVEL";
 	static final String GroupByAll            = "GROUP BY ALL";
 	static final String RollupCubeOldSyntax   = "GROUP BY ROLLUP/CUBE (old syntax)";
 	static final String ODBCScalarFunction    = "ODBC scalar function";
@@ -175,10 +183,14 @@ public class CompassAnalyze {
 	static final String LoginOptions          = "Login options";
 	static final String UserOptions           = "User options";
 	static final String SchemaOptions         = "Schema options";
+	static final String SequenceOptions       = "Sequence options";
 	static final String AlterSchema           = "ALTER SCHEMA";
 	static final String DbRoleOptions         = "DB role options";
 	static final String AlterDbRole           = "ALTER ROLE";
+	static final String CreateDbRole          = "CREATE ROLE";
 	static final String SrvRoleOptions        = "Server role options";
+	static final String AlterSrvRole          = "ALTER SERVER ROLE";
+	static final String CreateSrvRole         = "CREATE SERVER ROLE";
 	static final String ServiceBroker         = "Service Broker";
 	static final String OpenKeyStmt           = "OPEN KEY";
 	static final String CloseKeyStmt          = "CLOSE KEY";
@@ -208,50 +220,83 @@ public class CompassAnalyze {
 	// use when there's no name
 	static final String noName = "-unnamed-";
 
+	// display string, if we don't want to use the section names in the .cfg file
+	static Map<String, String> displayString = new HashMap<String, String>();
+
+	// variables/parameters only for current object
+	static Map<String, String> localVars = new HashMap<String, String>();
+	static Map<String, String> localAtAtErrorVars = new HashMap<String, String>();
+
 	// DATExxx BIFs
 	static final List<String> dateBIFs = Arrays.asList("DATENAME", "DATEPART", "DATEDIFF", "DATEADD");
 
+	// result types of BIFs. This list is 99% complete
+	static final List<String> stringBIFs   = Arrays.asList("DATENAME", "SUBSTRING", "STR", "REPLICATE", "SPACE", "CHAR", "NCHAR", "APP_NAME", "COL_NAME", "CONCAT", "CONCAT_WS", "CURRENT_TIMEZONE", "CURRENT_USER", "USER", "SYSTEM_USER", "SESSION_USER", "FORMAT", "FORMATMESSAGE", "LEFT", "RIGHT", "LOWER", "UPPER", "LTRIM", "RTRIM", "TRIM", "INDEX_COL", "OBJECT_NAME", "OBJECT_SCHEMA_NAME", "ORIGINAL_DB_NAME", "QUOTENAME", "REPLACE", "REVERSE", "TRANSLATE", "DB_NAME", "ERROR_MESSAGE", "ERROR_PROCEDURE", "SCHEMA_NAME", "ORIGINAL_LOGIN", "STRING_AGG", "STRING_ESCAPE", "STUFF", "SUSER_NAME", "USER_NAME", "SUSER_SNAME", "TYPE_NAME");
+	static final List<String> numericBIFs  = Arrays.asList("DATEPART", "DATEDIFF", "DATEDIFF_BIG", "ASCII", "LEN", "DATALENGTH", "SUM", "AVG", "ABS", "ACOS", "ASIN", "ATAN", "ATN2", "COS", "COT", "DEGREES", "RADIANS", "SIN", "TAN", "EXP", "LOG", "LOG10", "CHECKSUM", "CEILING", "FLOOR", "COL_LENGTH", "CHARINDEX", "PATINDEX", "CURRENT_TRANSACTION_ID", "DAY", "MONTH", "YEAR", "DB_ID", "ERROR_SEVERITY", "ERROR_STATE", "ERROR_LINE", "ERROR_NUMBER", "IDENT_CURRENT", "IDENT_INCR", "IDENT_SEED", "ISNUMERIC", "ISDATE", "OBJECT_ID", "PI", "POWER", "RAND", "ROUND", "ROUND", "ROWCOUNT_BIG", "SCHEMA_ID", "SCOPE_IDENTITY", "SIGN", "SQRT", "SQUARE", "USER_ID", "SUSER_ID", "TRIGGER_NESTLEVEL", "TYPE_ID", "UNICODE");
+	static final List<String> datetimeBIFs = Arrays.asList("DATEADD", "GETDATE", "GETUTCDATE", "CURRENT_TIMESTAMP", "DATEFROMPARTS", "DATETIME2FROMPARTS", "DATETIMEFROMPARTS", "DATETIMEOFFSETFROMPARTS", "EOMONTH", "SMALLDATEFROMPARTS", "SMALLDATETIMEFROMPARTS", "STATS_DATE", "SYSDATETIME", "SYSDATETIMEOFFSET", "SYSUTCDATETIME", "TIMEFROMPARTS", "TODATETIMEOFFSET");
+	static final List<String> binaryBIFs   = Arrays.asList("HASHBYTES", "BINARY_CHECKSUM", "COLUMNS_UPDATED", "NEWID", "NEWSEQUENTIALID", "SID_BINARY", "SUSER_SID");
+
+	// result types of ODBC calls. This list is 99% complete
+	static final List<String> stringODBCs   = Arrays.asList("HOUR");
+	static final List<String> numericODBCs  = Arrays.asList("OCTET_LENGTH");
+	static final List<String> datetimeODBCs = Arrays.asList("CURRENT_DATE");
+	static final List<String> binaryODBCs   = Arrays.asList("");
+
 	// datatypes
 	static final List<String> baseNumericTypes  = Arrays.asList("INT", "INTEGER", "TINYINT", "SMALLINT", "BIGINT", "NUMERIC", "DECIMAL", "FLOAT", "DOUBLE", "DOUBLE PRECISION", "BIT");
-	static final List<String> baseStringTypes   = Arrays.asList("CHAR", "VARCHAR", "NCHAR", "NVARCHAR", "TEXT", "NTEXT");  // todo: handle VARYING
+	static final List<String> baseStringTypes   = Arrays.asList("CHAR", "VARCHAR", "NCHAR", "NVARCHAR", "TEXT", "NTEXT", "SYSNAME");  // todo: handle VARYING
 	static final List<String> baseDateTimeTypes = Arrays.asList("DATE", "TIME", "DATETIME", "SMALLDATETIME", "DATETIME2", "DATETIMEOFFSET");
 	static final List<String> baseBinaryTypes   = Arrays.asList("UNIQUEIDENTIFIER", "BINARY", "VARBINARY", "IMAGE", "TIMESTAMP", "ROWVERSION");
 
 	// flags
 	static boolean inCompCol = false;
 
+	//--- init -----------------------------------------------------------------
+	private static final CompassAnalyze instance = new CompassAnalyze();
+
+	private CompassAnalyze() {}
+
+	public static CompassAnalyze getInstance() {
+		initVarious();
+		return instance;
+	}
+
+	private static void initVarious() {
+		displayString.put(TransitionTableMultiDMLTrig, TransitionTableMultiDMLTrigFmt);
+	}
+
 	//--- wrappers ------------------------------------------------------------
-	public static boolean featureExists(String section) {
+	private static boolean featureExists(String section) {
 		return cfg.featureExists(section);
 	}
-	public static boolean featureExists(String section, String name) {
+	private static boolean featureExists(String section, String name) {
 		return cfg.featureExists(section, name);
 	}
-	public static String featureArgSupportedInVersion(String section, String arg, String argValue) {
+	private static String featureArgSupportedInVersion(String section, String arg, String argValue) {
 		return cfg.featureArgSupportedInVersion(u.targetBabelfishVersion, section, arg, argValue);
 	}
-	public static String featureSupportedInVersion(String section) {
+	private static String featureSupportedInVersion(String section) {
 		return cfg.featureSupportedInVersion(u.targetBabelfishVersion, section);
 	}
-	public static String featureSupportedInVersion(String section, String name) {
+	private static String featureSupportedInVersion(String section, String name) {
 		return cfg.featureSupportedInVersion(u.targetBabelfishVersion, section, name);
 	}
-	public static String featureSupportedInVersion(String defaultStatus, String section, String name, String optionValue) {
+	private static String featureSupportedInVersion(String defaultStatus, String section, String name, String optionValue) {
 		return cfg.featureSupportedInVersion(u.targetBabelfishVersion, defaultStatus, section, name, optionValue);
 	}
-	public static int featureIntValueSupportedInVersion(String section) {
+	private static int featureIntValueSupportedInVersion(String section) {
 		return cfg.featureIntValueSupportedInVersion(u.targetBabelfishVersion, section);
 	}
-	public static String featureValueSupportedInVersion(String section) {
+	private static String featureValueSupportedInVersion(String section) {
 		return cfg.featureValueSupportedInVersion(u.targetBabelfishVersion, section);
 	}
-	public static List<String> featureValueList(String section) {
+	private static List<String> featureValueList(String section) {
 		return cfg.featureValueList(section);
 	}
-	public static String featureGroup(String section) {
+	private static String featureGroup(String section) {
 		return cfg.featureGroup(section);
 	}
-	public static String featureGroup(String section, String name) {
+	private static String featureGroup(String section, String name) {
 		return cfg.featureGroup(section, name);
 	}
 
@@ -262,12 +307,12 @@ public class CompassAnalyze {
 
 	void dbgTraceVisitEntry(String s) {
 		nestingLevel++;
-		dbgVisitOutput(s+ " entry");
+		dbgVisitOutput(s+ " entry ");
 		dbgTraceIndent.append(dbgTraceBasicIndent);
 	}
 	void dbgTraceVisitExit(String s) {
 		dbgTraceIndent.delete(dbgTraceIndent.length() - dbgTraceBasicIndentLength, dbgTraceIndent.length());
-		dbgVisitOutput(s + " exit");
+		dbgVisitOutput(s + " exit ");
 		nestingLevel--;
 	}
 	void dbgVisitOutput(String s) {
@@ -335,49 +380,6 @@ public class CompassAnalyze {
 		return u.BBFNumericType;
 	}
 
-	// eval the datatype of an expression
-	private String expressionDataType(String s) {
-		if (isNumeric(s)) return u.BBFNumericType;
-		if (isString(s)) return u.BBFStringType;
-		if (isDateTime(s)) return u.BBFDateTimeType;
-		if (isBinary(s)) return u.BBFBinaryType;
-		return u.BBFUnknownType;
-	}
-
-	private String expressionDataType(TSQLParser.ExpressionContext expr) {
-		// to be written - only look at the string for now (Dev only)
-		String s = expr.getText();
-		if (u.debugging) u.dbgOutput(u.thisProc()+"expr=["+s+"] ", u.debugPtree);
-
-		// basic checks only at this time
-		if (s.charAt(0) == '\'') return u.BBFStringType;
-		if ((s.charAt(0) == '"') && (!TSQLLexer.QUOTED_IDENTIFIER_FLAG)) return u.BBFStringType;
-
-		try {
-			Integer i = Integer.parseInt(s);
-			return u.BBFNumericType;
-		} catch (Exception e) { /*nothing,proceed*/ }
-
-
-		if (s.charAt(0) == '0') {
-			if (Character.toUpperCase(s.charAt(1)) == 'X') {
-				// ToDo: can this be done more efficiently? NB: it may be a long binary string, exceeding any numeric type's capacity
-				if (!u.getPatternGroup(s, "^0x([0-9A-F]*)$", 1).isEmpty()) {
-					return u.BBFBinaryType;
-				}
-			}
-		}
-
-		if (s.equalsIgnoreCase("NULL")) return u.BBFNullType;
-
-		if (s.charAt(0) == '@') {
-			// look up datatype of this variable or parameter
-			return expressionDataType(varDataType(s));
-		}
-		return u.BBFUnknownType;
-	}
-
-
 	// get base scalar datatype for checking against .cfg file
 	private String getBaseDataType(String s) {
 		// ToDo: find base type for UDD
@@ -438,6 +440,7 @@ public class CompassAnalyze {
 		if (u.objTypeSymTab.containsKey(resolvedName)) {
 			objType = u.objTypeSymTab.get(resolvedName);
 		}
+		//u.appOutput(u.thisProc()+"name=["+name+"]  resolvedName=["+resolvedName+"]  objType=["+objType+"] ");
 		return objType;
 	}
 
@@ -457,6 +460,17 @@ public class CompassAnalyze {
 		String resolvedName = u.resolveName(name.toUpperCase());
 		if (u.TUDFSymTab.containsKey(resolvedName)) {
 			resultType = u.TUDFSymTab.get(resolvedName);
+		}
+		return resultType;
+	}
+
+	// lookup a column
+	private String lookupCol(String name) {
+		String resultType = "";
+		//String resolvedName = u.resolveName(name.toUpperCase());
+		String resolvedName = name.toUpperCase();
+		if (u.colSymTab.containsKey(resolvedName)) {
+			resultType = u.colSymTab.get(resolvedName);
 		}
 		return resultType;
 	}
@@ -535,7 +549,7 @@ public class CompassAnalyze {
 			s = u.applyPatternAll(s, u.varPattern, "@v");
 		}
 		else if (s.toUpperCase().contains("0X")) {
-			s = u.applyPatternAll(s, "\\b"+u.hexPattern+"\\b", "0x<hex>");
+			s = u.applyPatternAll(s, "\\b"+u.hexPattern+"\\b", u.escapeHTMLChars("0x<hex>"));
 		}
 		return s;
 	}
@@ -606,6 +620,12 @@ public class CompassAnalyze {
 		String currentContext = u.currentObjectType + " " + u.currentObjectName;
 		String subContext = u.currentObjectTypeSub + " " + u.currentObjectNameSub;
 
+		// check if an item has a presentation string
+		item = item.trim();
+		if (displayString.containsKey(item)) {
+			item = displayString.get(item);
+		}
+
 		// determine report group for this item
 		//   - default = section as specified
 		//   - when section+feature found, use report group specified (if any)
@@ -641,21 +661,30 @@ public class CompassAnalyze {
 		}
 
 		// check for separator in text
-		// ToDo: is it faster to check existence with contains() first?
-		item = item.replaceAll(u.captureFileSeparator, u.captureFileSeparatorMarker);
-		itemDetail = itemDetail.replaceAll(u.captureFileSeparator, u.captureFileSeparatorMarker);
-		itemGroup = itemGroup.replaceAll(u.captureFileSeparator, u.captureFileSeparatorMarker);
-		subContext = subContext.replaceAll(u.captureFileSeparator, u.captureFileSeparatorMarker);
-		currentContext = currentContext.replaceAll(u.captureFileSeparator, u.captureFileSeparatorMarker);
+		if (item.contains(separator)) item = item.replaceAll(separator, u.captureFileSeparatorMarker);
+		if (itemDetail.contains(separator)) itemDetail = itemDetail.replaceAll(separator, u.captureFileSeparatorMarker);
+		if (itemGroup.contains(separator)) itemGroup = itemGroup.replaceAll(separator, u.captureFileSeparatorMarker);
+		if (currentContext.contains(separator)) currentContext = currentContext.replaceAll(separator, u.captureFileSeparatorMarker);
+		if (subContext.contains(separator)) subContext = subContext.replaceAll(separator, u.captureFileSeparatorMarker);
 
 		// create the record
-		String itemLine = item.trim() +separator+ itemDetail.trim() +separator+ itemGroup.trim() +separator+ status +separator+ lineNr +separator+ u.currentAppName +separator+ u.currentSrcFile  +separator+ u.batchNrInFile +separator+ u.lineNrInFile +separator+ currentContext.trim() +separator+ subContext.trim() +separator+ misc + separator + "~" + separator;
+		String itemLine = item +separator+ itemDetail.trim() +separator+ itemGroup.trim() +separator+ status +separator+ lineNr +separator+ u.currentAppName +separator+ u.currentSrcFile  +separator+ u.batchNrInFile +separator+ u.lineNrInFile +separator+ currentContext.trim() +separator+ subContext.trim() +separator+ misc + separator + "~" + separator;
 
 		// check for newlines -- these will mess everything up
-		// should also check for \r, \f, VT, etc.
+		// ToDo: also check for \r, \f, VT, etc.
 		if (itemLine.contains(u.newLine)) {
 			u.appOutput("Newline found in capture line: ["+itemLine+"] ");
-			u.errorExitStackTrace();
+			if (u.devOptions) {			
+				u.errorExitStackTrace();
+				// we'll never get here
+			}
+			u.appOutput("Continuing, but ignoring this item.");
+			return;
+		}
+
+		// avoid end-of-input chars (\.) , for later loading into PG through COPY
+		if (itemLine.contains("\\")) {
+			itemLine = u.applyPatternAll(itemLine, "\\\\", "\\\\\\\\");
 		}
 
 		//write record
@@ -665,13 +694,10 @@ public class CompassAnalyze {
 			u.appOutput("Error writing to capture file");
 		}
 
-	    if (u.echoCapture) {
-			u.appOutput("captured: itemLine=["+itemLine+"] ");
-	    }
-
 	    // debug
 	    if (u.echoCapture) {
-			u.printStackTrace();
+			u.appOutput("captured: itemLine=["+itemLine+"] ");
+//		   	u.printStackTrace();
 		}
 
 	    return;
@@ -702,6 +728,9 @@ public class CompassAnalyze {
 
 			captureItem(item, "", DMLReportGroup, "", u.Supported, sel.getLineNr());
 
+			if (sel.getAttributes().contains(" VIEW ")) return;  //cases below do not apply
+			if (sel.getAttributes().contains(" RETURNS ")) return;  //cases below do not apply
+
 			if ((sel.getAttributes().contains(" TOP ")) && (!sel.getAttributes().contains(" ORDERBY "))) {
 				// flag TOP without ORDER-BY, but not when it is in an EXISTS predicate
 				if (!sel.getAttributes().contains(" EXISTS ")) {
@@ -710,12 +739,19 @@ public class CompassAnalyze {
 				}
 			}
 
-			if (!(sel.getAttributes().contains(" INTO ")) && (!sel.getAttributes().contains(" SUBQUERY ")) && (!sel.getAttributes().contains(" INSERT ")) && (!sel.getAttributes().contains(" ORDERBY "))) {
-				// SELECT-to-client without ORDER-BY, but not in EXISTS-predicate or subquery
-				if (!sel.getAttributes().contains(" EXISTS ")) {
-					String statusClient = featureSupportedInVersion(SelectToClientWoOrderBy);
-					captureItem(SelectToClientWoOrderBy, "", DMLReportGroup, "", statusClient, sel.getLineNr());
-				}
+			if ( !(sel.getAttributes().contains(" INTO ")) &&
+			    (!sel.getAttributes().contains(" SUBQUERY ")) &&
+			    (!sel.getAttributes().contains(" INSERT ")) &&
+			    (!sel.getAttributes().contains(" VARIABLE_ASSIGN ")) &&
+			    (!sel.getAttributes().contains(" ORDERBY ")) &&
+			    (!sel.getAttributes().contains(" EXISTS "))  ) {
+				// SELECT-to-client without ORDER-BY
+
+				// commented out because many of these case appear to be single-row SELECTs, or cases where the sorting is done in the client
+				// we might want to offer this as an optional feature to detect, but then we should also report on all cases of 'SELECT @v = column'
+
+				//String statusClient = featureSupportedInVersion(SelectToClientWoOrderBy);
+				//captureItem(SelectToClientWoOrderBy, "", DMLReportGroup, "", statusClient, sel.getLineNr());
 			}
 		}
 		else {
@@ -762,6 +798,8 @@ public class CompassAnalyze {
 				status = statusUDF;
 			}
 		}
+		// method names are case-sensitive, apply correct case
+		feature = u.HIERARCHYIDmethodsFmt.get(u.HIERARCHYIDmethods.indexOf(feature.toUpperCase()));
 		captureItem(stmt+feature+fmt+compCol, "", HIERARCHYIDFeatures, feature, status, lineNr, "0");
 	}
 
@@ -779,118 +817,6 @@ public class CompassAnalyze {
 		}
 		String status = featureSupportedInVersion(DoubleQuotedString, item);
 		captureItem(DoubleQuotedString+xtra, "", "", "", status, lineNr);
-	}
-
-	// common code for BIFs
-	private void captureBIF(String funcName, int lineNr) {
-		captureBIF(funcName, lineNr, "", 0, null);
-	}
-	private void captureBIF(String funcName, int lineNr, String options) {
-		captureBIF(funcName, lineNr, options, 0, null);
-	}
-	private void captureBIF(String funcName, int lineNr, String options, int nrArgs, List<TSQLParser.ExpressionContext> argList) {
-		String status = u.NotSupported;
-		funcName = funcName.toUpperCase();
-		String funcNameReport = funcName;
-		String funcDetail = "";
-		if (!options.contains("nobracket")) {
-			funcNameReport = funcName + "()";
-		}
-
-		if (featureExists(BuiltInFunctions, funcName)) {
-			status = featureSupportedInVersion(BuiltInFunctions, funcName);
-
-			// any argument needs to be validated?
-			String argN = cfg.featureExistsArg(funcName);
-			if (!argN.isEmpty()) {
-				if (u.debugging) u.dbgOutput(u.thisProc()+"validating arg=["+argN+"] for BIF=["+funcName+"()]", u.debugPtree);
-				int argNum = Integer.parseInt(argN.substring(3));
-				assert (argNum <= argList.size()) : u.thisProc()+"argN argNum out of range: "+argNum+", should be <="+argList.size();
-
-				String argStr = argList.get(argNum-1).getText();
-				status = featureArgSupportedInVersion(funcName, argN, argStr);
-				funcNameReport = funcName + "("+ argStr.toLowerCase()+")";
-
-				if (u.debugging) u.dbgOutput(u.thisProc()+"funcName=["+funcName+"] funcNameReport=["+funcNameReport+"] argN=["+argN+"] nrArgs=["+nrArgs+"] status=["+status+"] ", u.debugPtree);
-			}
-
-			// check for numeric-as-date
-			if (dateBIFs.contains(funcName)) {
-				String statusNumDate = u.NotSupported;
-
-				// report the unit used
-				String unit = argList.get(0).getText().toLowerCase();
-				funcNameReport = funcName + "()";
-				funcDetail = unit;
-
-				for (int i = 2; i <= 3; i++) {
-					if (funcName.equals("DATEADD")) {
-						if (i == 2) continue;
-					}
-					if (funcName.equals("DATENAME") || funcName.equals("DATEPART")) {
-						if (i == 3) continue;
-					}
-
-					// check for numeric-as-date
-					if (u.debugging) u.dbgOutput(u.thisProc()+"dateBIFs: funcName=["+funcName+"] i=["+i+"] argi=["+argList.get(i-1).getText()+"] argtype=["+expressionDataType(argList.get(i-1))+"] ", u.debugPtree);
-					checkNumericAsDate("DATETIME", funcName, funcNameReport, argList.get(i-1), lineNr);
-				}
-			}
-		}
-		else {
-			// missing entry in the .cfg file?
-			assert false: u.thisProc()+"funcName=["+funcName+"] not found under ["+BuiltInFunctions+"] ";
-		}
-
-		if (inCompCol) {
-			// this is a BIF call inside a computed column
-			funcNameReport += ", in computed column";
-			String statusCC = u.Supported;
-			if (featureExists(CompColFeatures, funcName)) {
-				statusCC = featureSupportedInVersion(CompColFeatures, funcName);
-			}
-			if (!statusCC.equals(u.Supported)) {
-				if (!status.equals(u.Supported)) {
-					status = statusCC;
-				}
-			}
-		}
-
-		if (funcName.equals("NEWSEQUENTIALID")) {
-			if (status.equals(u.ReviewSemantics)) {
-				funcNameReport += ", implemented as NEWID(): sequential values not guaranteed";
-			}
-		}
-		captureItem(funcNameReport, funcDetail, BuiltInFunctions, funcName, status, lineNr);
-	}
-
-	// check for numeric-as-date
-	private void checkNumericAsDate(String dataType, String funcName, String funcNameReport, TSQLParser.ExpressionContext expr, int lineNr) {
-		// ToDo: handle UDD
-		if (dataType.equals("DATETIME") || dataType.equals("SMALLDATETIME")) {
-			if (isNumeric(expressionDataType(expr))) {
-				String statusNumDate = featureSupportedInVersion(NumericAsDateTime, funcName);
-				if (u.debugging) u.dbgOutput(u.thisProc()+"funcName=["+funcName+"] expr=["+expr.getText()+"]  statusNumDate=["+statusNumDate+"]  ", u.debugPtree);
-				funcNameReport = u.applyPatternFirst(funcNameReport, "^(.*\\().*?(\\).*)$", "$1$2");
-				String funcNameReportNumDate = NumericAsDateTime + " in " + funcNameReport;
-				captureItem(funcNameReportNumDate, "", NumericAsDateTime, "", statusNumDate, lineNr);
-			}
-		}
-	}
-
-	// check for numeric-as-date
-	private void checkNumericDateVarAssign(String varName, TSQLParser.ExpressionContext expr, int lineNr) {
-		// ToDo: handle UDD
-		varName = varName.toUpperCase();
-		String dataType = varDataType(varName);
-		if (u.debugging) u.dbgOutput(u.thisProc()+"varName=["+varName+"] dataType=["+dataType+"] ", u.debugPtree);
-		if (dataType.equals("DATETIME") || dataType.equals("SMALLDATETIME")) {
-			if (isNumeric(expressionDataType(expr))) {
-				String statusNumDate = featureSupportedInVersion(NumericDateTimeVarAssign);
-				if (u.debugging) u.dbgOutput(u.thisProc()+"varName=["+varName+"]  expr=["+expr.getText()+"]  statusNumDate=["+statusNumDate+"]  ", u.debugPtree);
-				captureItem(NumericDateTimeVarAssign, varName, NumericAsDateTime, "", statusNumDate, lineNr);
-			}
-		}
 	}
 
 	// --- handling SET QUOTED_IDENTIFIER ----------------------------------------------
@@ -1182,6 +1108,342 @@ public class CompassAnalyze {
 					}
 				}
 			}
+
+			// --- eval the datatype of an expression ----------------------------------------------------------------------
+			private String expressionDataType(String s) {
+				if (isNumeric(s)) return u.BBFNumericType;
+				if (isString(s)) return u.BBFStringType;
+				if (isDateTime(s)) return u.BBFDateTimeType;
+				if (isBinary(s)) return u.BBFBinaryType;
+				return u.BBFUnknownType;
+			}
+
+			private String expressionDataType(TSQLParser.ExpressionContext expr) {
+				String s = expr.getText();
+				if (u.debugging) u.dbgOutput(u.thisProc()+"expr=["+s+"] ", u.debugPtree);
+
+				if ((expr instanceof TSQLParser.Constant_exprContext))  {
+					TSQLParser.Constant_exprContext x = (TSQLParser.Constant_exprContext) expr;
+					if (x.constant().char_string() != null) return u.BBFStringType;
+					else if (x.constant().BINARY() != null) return u.BBFBinaryType;
+					else if (x.constant().NULL() != null) return u.BBFNullType;
+					else return u.BBFNumericType;
+				}
+
+				if ((expr instanceof TSQLParser.Collate_exprContext))  {
+					return u.BBFStringType;
+				}
+
+				if ((expr instanceof TSQLParser.Time_zone_exprContext))  {
+					return u.BBFDateTimeType;
+				}
+
+				if ((expr instanceof TSQLParser.Mult_div_percent_exprContext))  {
+					return u.BBFNumericType;
+				}
+
+				if ((expr instanceof TSQLParser.Plus_minus_bit_exprContext))  {
+					TSQLParser.Plus_minus_bit_exprContext x = (TSQLParser.Plus_minus_bit_exprContext) expr;
+					// ToDo: this can be optimized
+					String expr0 = expressionDataType(x.expression().get(0));
+					String expr1 = expressionDataType(x.expression().get(1));
+					if (x.PLUS() != null) {
+						if (isDateTime(expr0) || isDateTime(expr1)) return u.BBFDateTimeType;
+						if (isString(expr0) && isString(expr1)) return u.BBFStringType;
+						if (isBinary(expr0) || isBinary(expr1)) return u.BBFBinaryType;
+						return u.BBFNumericType;
+					}
+
+					if (x.MINUS() != null) {
+						if (isDateTime(expr0) || isDateTime(expr1)) return u.BBFDateTimeType;
+						return u.BBFNumericType;
+					}
+
+					if (isBinary(expr0) || isBinary(expr1)) return u.BBFBinaryType;
+					return u.BBFNumericType;
+				}
+
+				if ((expr instanceof TSQLParser.Unary_op_exprContext))  {
+					return u.BBFNumericType;
+				}
+
+				if ((expr instanceof TSQLParser.Unary_op_exprContext))  {
+					return u.BBFNumericType;
+				}
+
+				if ((expr instanceof TSQLParser.Default_exprContext))  {
+					// don't know the datatype, would have to look up the proc/func. Assume numeric type as default since we have nothing better
+					return u.BBFNumericType;
+				}
+
+				if ((expr instanceof TSQLParser.Full_col_name_exprContext))  {
+					// ToDo: look up the column, but we don;t have a symbol table for columns yet. Assume it's a numeric type
+					return u.BBFNumericType;
+				}
+
+				if ((expr instanceof TSQLParser.Dollar_action_exprContext))  {
+					// Assume integer as default since we have nothing better; this is unlikely to occur anyway
+					return u.BBFNumericType;
+				}
+
+				if ((expr instanceof TSQLParser.Local_id_exprContext))  {
+					TSQLParser.Local_id_exprContext x = (TSQLParser.Local_id_exprContext) expr;
+					if (x.DOT().size() > 0) return u.BBFStringType;  // assume string for all method calls
+
+					// look up datatype of this variable or parameter
+					if (u.debugging) u.dbgOutput(u.thisProc()+"looking up var=["+s+"] varDataType(s)=["+varDataType(s)+"]  ", u.debugPtree);
+					return expressionDataType(varDataType(s));
+				}
+
+				if ((expr instanceof TSQLParser.Local_id_exprContext))  {
+					TSQLParser.Local_id_exprContext x = (TSQLParser.Local_id_exprContext) expr;
+					if (x.DOT().size() > 0) return u.BBFStringType;  // assume string for all method calls
+
+					// look up datatype of this variable or parameter
+					if (u.debugging) u.dbgOutput(u.thisProc()+"looking up var=["+s+"] varDataType(s)=["+varDataType(s)+"] ", u.debugPtree);
+					return expressionDataType(varDataType(s));
+				}
+
+				if ((expr instanceof TSQLParser.Func_call_exprContext))  {
+					TSQLParser.Func_call_exprContext x = (TSQLParser.Func_call_exprContext) expr;
+					if (x.DOT().size() > 0) return u.BBFStringType;  // assume string for all method calls
+
+					// look up datatype of this function
+					String funcCall = x.function_call().getText();
+					boolean isODBC = false;
+					if (funcCall.toUpperCase().startsWith("{FN")) {
+						isODBC = true;
+						funcCall = funcCall.substring(3);
+					}		
+					String funcName = funcCall;
+					if (funcCall.indexOf("(") != -1) funcName = funcCall.substring(0,funcCall.indexOf("("));
+					if (u.debugging) u.dbgOutput(u.thisProc()+"funcCall=["+funcCall+"] funcName=["+funcName+"] ", u.debugPtree);
+					if (funcName.isEmpty()) return u.BBFUnknownType;
+
+					if (isODBC) {
+						String odbcDataType = "";
+						if (stringODBCs.contains(funcName)) odbcDataType = u.BBFStringType;
+						else if (numericODBCs.contains(funcName)) odbcDataType = u.BBFNumericType;
+						else if (datetimeODBCs.contains(funcName)) odbcDataType = u.BBFDateTimeType;
+						else if (binaryODBCs.contains(funcName)) odbcDataType = u.BBFBinaryType;
+						else odbcDataType = u.BBFUnknownType;
+						if (u.debugging) u.dbgOutput(u.thisProc()+"ODBC: funcCall=["+funcCall+"] funcName=["+funcName+"] odbcDataType=["+odbcDataType+"] ", u.debugPtree);
+						return odbcDataType;
+					}
+
+					funcName = u.normalizeName(funcName).toUpperCase();
+					String sudfDataType = lookupSUDF(funcName);
+					if (u.debugging) u.dbgOutput(u.thisProc()+"funcCall=["+funcCall+"] funcName=["+funcName+"] sudfDataType=["+sudfDataType+"] ", u.debugPtree);
+					if (!sudfDataType.isEmpty()) expressionDataType(sudfDataType);
+
+					// ToDo: handle variable-type cases like MIN/MAX, ISNULL, IIF, CHOOSE
+					if (stringBIFs.contains(funcName)) sudfDataType = u.BBFStringType;
+					else if (numericBIFs.contains(funcName)) sudfDataType = u.BBFNumericType;
+					else if (datetimeBIFs.contains(funcName)) sudfDataType = u.BBFDateTimeType;
+					else if (binaryBIFs.contains(funcName)) sudfDataType = u.BBFBinaryType;
+					else sudfDataType = u.BBFUnknownType;
+					if (u.debugging) u.dbgOutput(u.thisProc()+"BIF: funcCall=["+funcCall+"] funcName=["+funcName+"] sudfDataType=["+sudfDataType+"] ", u.debugPtree);
+					return sudfDataType;
+				}
+
+				if ((expr instanceof TSQLParser.Odbc_literal_exprContext)) {
+					TSQLParser.Odbc_literal_exprContext x = (TSQLParser.Odbc_literal_exprContext) expr;
+					String op = x.odbc_literal().op.getText().toUpperCase();
+					if (op.equals("GUID")) return u.BBFBinaryType;
+					return u.BBFDateTimeType;
+				}
+
+				if ((expr instanceof TSQLParser.Bracket_exprContext))  {
+					TSQLParser.Bracket_exprContext x = (TSQLParser.Bracket_exprContext) expr;
+					if (x.DOT().size() > 0) return u.BBFStringType;  // assume string for all method calls
+					return expressionDataType(x.expression());
+				}
+
+				if ((expr instanceof TSQLParser.Subquery_exprContext))  {
+					TSQLParser.Subquery_exprContext x = (TSQLParser.Subquery_exprContext) expr;
+					if (x.DOT().size() > 0) return u.BBFStringType;  // assume string for all method calls
+
+					// ToDo:  determine the result type of the result set column
+					// just return numeric for now
+					return u.BBFNumericType;
+				}
+
+				if ((expr instanceof TSQLParser.Case_exprContext))  {
+					TSQLParser.Case_exprContext x = (TSQLParser.Case_exprContext) expr;
+
+					// ToDo: determine the result type of the CASE expression
+					// just return numeric for now
+					return u.BBFNumericType;
+				}
+
+				if ((expr instanceof TSQLParser.Over_clause_exprContext))  {
+					TSQLParser.Over_clause_exprContext x = (TSQLParser.Over_clause_exprContext) expr;
+
+					// ToDo: determine the result type of the OVER() clause expression
+					// just return numeric for now
+					return u.BBFNumericType;
+				}
+
+				if ((expr instanceof TSQLParser.Hierarchyid_coloncolonContext))  {
+					// Todo what to return? let's do binary
+					return u.BBFBinaryType;
+				}
+
+				return u.BBFUnknownType;
+			}
+
+			private String expressionDataTypeOld(TSQLParser.ExpressionContext expr) {
+				// to be written - only look at the string for now (Dev only)
+
+				String s = expr.getText();
+				if (u.debugging) u.dbgOutput(u.thisProc()+"expr=["+s+"] ", u.debugPtree);
+
+				// basic checks only at this time
+				if (s.charAt(0) == '\'') return u.BBFStringType;
+				if ((s.charAt(0) == '"') && (!TSQLLexer.QUOTED_IDENTIFIER_FLAG)) return u.BBFStringType;
+
+				try {
+					Integer i = Integer.parseInt(s);
+					return u.BBFNumericType;
+				} catch (Exception e) { /*nothing,proceed*/ }
+
+
+				if (s.charAt(0) == '0') {
+					if (Character.toUpperCase(s.charAt(1)) == 'X') {
+						// ToDo: can this be done more efficiently? NB: it may be a long binary string, exceeding any numeric type's capacity
+						if (!u.getPatternGroup(s, "^0x([0-9A-F]*)$", 1).isEmpty()) {
+							return u.BBFBinaryType;
+						}
+					}
+				}
+
+				if (s.equalsIgnoreCase("NULL")) return u.BBFNullType;
+
+				if (s.charAt(0) == '@') {
+					// look up datatype of this variable or parameter
+					return expressionDataType(varDataType(s));
+				}
+				return u.BBFUnknownType;
+			}
+
+			// ---- common code for BIFs ------------------------------------------------------------------
+			private void captureBIF(String funcName, int lineNr) {
+				captureBIF(funcName, lineNr, "", 0, null);
+			}
+			private void captureBIF(String funcName, int lineNr, String options) {
+				captureBIF(funcName, lineNr, options, 0, null);
+			}
+			private void captureBIF(String funcName, int lineNr, String options, int nrArgs, List<TSQLParser.ExpressionContext> argList) {
+				String status = u.NotSupported;
+				funcName = funcName.toUpperCase();
+				String funcNameReport = funcName;
+				String funcDetail = "";
+				if (!options.contains("nobracket")) {
+					funcNameReport = funcName + "()";
+				}
+
+				if (featureExists(BuiltInFunctions, funcName)) {
+					status = featureSupportedInVersion(BuiltInFunctions, funcName);
+
+					// any argument needs to be validated?
+					String argN = cfg.featureExistsArg(funcName);
+					if (!argN.isEmpty()) {
+						if (u.debugging) u.dbgOutput(u.thisProc()+"validating arg=["+argN+"] for BIF=["+funcName+"()]", u.debugPtree);
+						int argNum = Integer.parseInt(argN.substring(3));
+						assert (argNum <= argList.size()) : u.thisProc()+"argN argNum out of range: "+argNum+", should be <="+argList.size();
+
+						String argStr = argList.get(argNum-1).getText();
+						status = featureArgSupportedInVersion(funcName, argN, argStr);
+						funcNameReport = funcName + "("+ argStr.toLowerCase()+")";
+
+						if (u.debugging) u.dbgOutput(u.thisProc()+"funcName=["+funcName+"] funcNameReport=["+funcNameReport+"] argN=["+argN+"] nrArgs=["+nrArgs+"] status=["+status+"] ", u.debugPtree);
+					}
+
+					// check for numeric-as-date
+					if (dateBIFs.contains(funcName)) {
+						String statusNumDate = u.NotSupported;
+
+						// report the unit used
+						String unit = argList.get(0).getText().toLowerCase();
+						funcNameReport = funcName + "()";
+						funcDetail = unit;
+
+						for (int i = 2; i <= 3; i++) {
+							if (funcName.equals("DATEADD")) {
+								if (i == 2) continue;
+							}
+							if (funcName.equals("DATENAME") || funcName.equals("DATEPART")) {
+								if (i == 3) continue;
+							}
+
+							// check for numeric-as-date
+							//if (u.debugging) u.dbgOutput(u.thisProc()+"dateBIFs: funcName=["+funcName+"] i=["+i+"] argi=["+argList.get(i-1).getText()+"] argtype=["+expressionDataType(argList.get(i-1))+"] ", u.debugPtree);
+							checkNumericAsDate("DATETIME", funcName, funcNameReport, argList.get(i-1), lineNr);
+						}
+					}
+				}
+				else {
+					// missing entry in the .cfg file?
+					assert false: u.thisProc()+"funcName=["+funcName+"] not found under ["+BuiltInFunctions+"] ";
+				}
+
+				if (inCompCol) {
+					// this is a BIF call inside a computed column
+					funcNameReport += ", in computed column";
+					String statusCC = u.Supported;
+					if (featureExists(CompColFeatures, funcName)) {
+						statusCC = featureSupportedInVersion(CompColFeatures, funcName);
+					}
+					if (!statusCC.equals(u.Supported)) {
+						if (!status.equals(u.Supported)) {
+							status = statusCC;
+						}
+					}
+				}
+
+				if (funcName.equals("NEWSEQUENTIALID")) {
+					if (status.equals(u.ReviewSemantics)) {
+						funcNameReport += ", implemented as NEWID(): sequential values not guaranteed";
+					}
+				}
+				captureItem(funcNameReport, funcDetail, BuiltInFunctions, funcName, status, lineNr);
+			}
+
+			// check for numeric-as-date
+			private void checkNumericAsDate(String dataType, String funcName, String funcNameReport, TSQLParser.ExpressionContext expr, int lineNr) {
+				// ToDo: handle UDD
+				if (dataType.equals("DATETIME") || dataType.equals("SMALLDATETIME")) {
+					if (isNumeric(expressionDataType(expr))) {
+						String statusNumDate = featureSupportedInVersion(NumericAsDateTime, funcName);
+						if (u.debugging) u.dbgOutput(u.thisProc()+"funcName=["+funcName+"] expr=["+expr.getText()+"]  statusNumDate=["+statusNumDate+"]  ", u.debugPtree);
+						funcNameReport = u.applyPatternFirst(funcNameReport, "^(.*\\().*?(\\).*)$", "$1$2");
+						String funcNameReportNumDate = NumericAsDateTime + " in " + funcNameReport;
+						captureItem(funcNameReportNumDate, "", NumericAsDateTime, "", statusNumDate, lineNr);
+					}
+				}
+			}
+
+			// check for numeric-as-date
+			private void checkNumericDateVarAssign(String varName, TSQLParser.ExpressionContext expr, int lineNr) {
+				// ToDo: handle UDD
+				varName = varName.toUpperCase();
+				String dataType = varDataType(varName);
+				checkNumericDateVarAssign(varName, dataType, expr, lineNr);
+			}
+
+			private void checkNumericDateVarAssign(String name, String dataType, TSQLParser.ExpressionContext expr, int lineNr) {
+				// ToDo: handle UDD
+				if (u.debugging) u.dbgOutput(u.thisProc()+"name=["+name+"] dataType=["+dataType+"] ", u.debugPtree);
+				if (dataType.equals("DATETIME") || dataType.equals("SMALLDATETIME")) {
+					if (isNumeric(expressionDataType(expr))) {
+						String statusNumDate = featureSupportedInVersion(NumericDateTimeVarAssign);
+						if (u.debugging) u.dbgOutput(u.thisProc()+"name=["+name+"]  expr=["+expr.getText()+"]  statusNumDate=["+statusNumDate+"]  ", u.debugPtree);
+						captureItem(NumericDateTimeVarAssign, name, NumericAsDateTime, "", statusNumDate, lineNr);
+					}
+				}
+			}
+
+
 			// --- visit the tree nodes ----------------------------------------
 
 			@Override public String visitUse_statement(TSQLParser.Use_statementContext ctx) {
@@ -1224,7 +1486,6 @@ public class CompassAnalyze {
 				else {
 					createdNew = true;
 					newSelectStmt("SELECT", ctx.start.getLine());
-					if (u.debugging) u.dbgOutput(u.thisProc()+"added SELECT in stmt", u.debugPtree);
 				}
 
 				if (ctx.order_by_clause() != null) {
@@ -1233,12 +1494,16 @@ public class CompassAnalyze {
 				if (inCTE) {
 					addStmtAttribute("CTE");
 					inCTE = false;
-					if (u.debugging) u.dbgOutput(u.thisProc()+"added CTE", u.debugPtree);
 				}
 
 				if (hasParent(ctx.parent,"insert_statement")) {
 					addStmtAttribute("INSERT");
-					if (u.debugging) u.dbgOutput(u.thisProc()+"added CTE", u.debugPtree);
+				}
+				else if (hasParent(ctx.parent,"create_or_alter_view")) {
+					addStmtAttribute("VIEW");
+				}
+				else if (hasParent(ctx.parent,"func_body_returns_select")) {
+					addStmtAttribute("RETURNS");
 				}
 
 				visitChildren(ctx);
@@ -1268,7 +1533,7 @@ public class CompassAnalyze {
 					topClauseText = topClauseText.substring(3);
 
 					boolean hasPercent = false;
-					if (topClauseText.contains("PERCENT")) { // ToDo: is this really faster than a regex directly?
+					if (topClauseText.contains("PERCENT")) {
 						if (!u.getPatternGroup(topClauseText, "\\b(PERCENT)\\b", 1).isEmpty()) {
 							topClauseText = u.applyPatternFirst(topClauseText, "\\bPERCENT\\b", "");
 							hasPercent = true;
@@ -1294,7 +1559,7 @@ public class CompassAnalyze {
 					if (!u.getPatternGroup(topClauseText, "^(\\d+)$", 1).isEmpty()) {
 						if (!topClauseText.equals("0") && !(topClauseText.equals("100")&&(hasPercent))) {
 							topClauseTest = CfgNonZero;
-							topClauseText = "<number>";
+							topClauseText = u.escapeHTMLChars("<number>");
 						}
 					}
 					else if (!u.getPatternGroup(topClauseText, "^("+u.varPattern+")$", 1).isEmpty()) {
@@ -1303,7 +1568,7 @@ public class CompassAnalyze {
 					}
 					else {
 						topClauseTest = CfgExpression;
-						topClauseText = "(<expression>)";
+						topClauseText = u.escapeHTMLChars("(<expression>)");
 					}
 					if (hasPercent) {
 						String status = featureSupportedInVersion(SelectTopPercent, topClauseTest);
@@ -1384,6 +1649,17 @@ public class CompassAnalyze {
 					addStmtAttribute("EXISTS");
 					if (u.debugging) u.dbgOutput(u.thisProc()+"added EXISTS", u.debugPtree);
 				}
+
+				if (hasParent(ctx.parent,"insert_statement")) {
+					addStmtAttribute("INSERT");
+				}
+				else if (hasParent(ctx.parent,"create_or_alter_view")) {
+					addStmtAttribute("VIEW");
+				}
+				else if (hasParent(ctx.parent,"func_body_returns_select")) {
+					addStmtAttribute("RETURNS");
+				}
+
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
@@ -1400,6 +1676,16 @@ public class CompassAnalyze {
 					if (!hasParent(ctx.parent,"insert_statement"))  {
 						addStmtAttribute("SUBQUERY");
 						if (u.debugging) u.dbgOutput(u.thisProc()+"added SELECT SUBQUERY for derived_tb", u.debugPtree);
+					}
+
+					if (hasParent(ctx.parent,"insert_statement")) {
+						addStmtAttribute("INSERT");
+					}
+					else if (hasParent(ctx.parent,"create_or_alter_view")) {
+						addStmtAttribute("VIEW");
+					}
+					else if (hasParent(ctx.parent,"func_body_returns_select")) {
+						addStmtAttribute("RETURNS");
 					}
 				}
 
@@ -1456,10 +1742,30 @@ public class CompassAnalyze {
 					if (s.charAt(0) == '"') {
 						captureDoubleQuotedString(s, ctx.start.getLine());
 					}
+					else {
+						captureUnquotedString(s, "parameter value", ctx.start.getLine());
+					}
 				}
 
 				visitChildren(ctx);
 				return null;
+			}
+
+			private void captureUnquotedString(String s, String type, int lineNr) {
+				// check for unquoted char string
+				if ((s.charAt(0) != '"') && (s.charAt(0) != '\'')) {
+					if (!s.startsWith("N'")) {
+						if (Arrays.asList("CURRENT_TIMESTAMP", "CURRENT_USER", "SESSION_USER", "SYSTEM_USER", "USER").contains(s.toUpperCase())) {
+							// skip BIFs
+						}
+						else if (!s.equalsIgnoreCase("NULL")) {
+							if (!u.getPatternGroup(s, "^([A-Z\\#][\\w\\#\\$\\@]*)$", 1).isEmpty()) {
+								String status = featureSupportedInVersion(UnQuotedString, type);
+								captureItem(UnQuotedString +" as " + type, s, UnQuotedString, "", status, lineNr);
+							}
+						}
+					}
+				}
 			}
 
 			private void captureAtAtErrorValue(Integer exprInt, String via, String op, int lineNr) {
@@ -1472,7 +1778,7 @@ public class CompassAnalyze {
 			private void captureAtAtErrorValueRef (String varName, TSQLParser.PredicateContext ctx) {
 				// capturing @@ERROR = 999, ERROR_NUMBER() = 999 , as well as via variable assignment
 				// not captured: more than 1 variable assignment level; 999 = @@ERROR; assignment or comparison through CASE expressions; column = @@ERROR/ERROR_NUMBER()
-
+				// Use sp_mapped_system_error_list() to get a list of currently supproted error values
 				String via = "";
 				String via2 = "";
 				if (varName.equalsIgnoreCase("@@ERROR"))
@@ -1625,6 +1931,16 @@ public class CompassAnalyze {
 					addStmtAttribute("ORDERBY");
 				}
 
+				if (hasParent(ctx.parent,"insert_statement")) {
+					addStmtAttribute("INSERT");
+				}
+				else if (hasParent(ctx.parent,"create_or_alter_view")) {
+					addStmtAttribute("VIEW");
+				}
+				else if (hasParent(ctx.parent,"func_body_returns_select")) {
+					addStmtAttribute("RETURNS");
+				}
+
 				visitChildren(ctx);
 				popSelectLevel();
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
@@ -1660,6 +1976,38 @@ public class CompassAnalyze {
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
+			}
+
+			@Override public String visitDrop_index(TSQLParser.Drop_indexContext ctx) {
+				captureDropObject("INDEX", ctx.drop_relational_or_xml_or_spatial_index().size()+ctx.drop_backward_compatible_index().size(), ctx.if_exists(), "", ctx.start.getLine()); 
+				
+				if (ctx.drop_relational_or_xml_or_spatial_index().size() > 0) {
+					for (TSQLParser.Drop_relational_or_xml_or_spatial_indexContext ix : ctx.drop_relational_or_xml_or_spatial_index()) {
+						String objName = u.normalizeName(ix.full_object_name().getText());
+						String ixName = u.normalizeName(ix.index_name.getText());
+						String schema = "";
+						if (objName.indexOf(".") != -1) schema = "schema.";
+						String Chk = "index ON "+schema+"table";
+						String status = featureSupportedInVersion(DropIndex, Chk);
+						captureItem(DropIndex + " " + Chk, ixName + " ON " +objName, DropIndex, "", status, ix.start.getLine());
+					}
+				}
+				
+				if (ctx.drop_backward_compatible_index().size() > 0) {
+					for (TSQLParser.Drop_backward_compatible_indexContext ix : ctx.drop_backward_compatible_index()) {
+						String objName = u.normalizeName(ix.table_or_view_name.getText());
+						String ixName = u.normalizeName(ix.index_name.getText());			
+						String Chk = "table.index";
+						if (ix.owner_name != null) {
+							objName = u.normalizeName(ix.owner_name.getText()) + "." + objName;
+							Chk = "schema.table.index";
+						}
+						String status = featureSupportedInVersion(DropIndex, Chk);
+						captureItem(DropIndex + " " + Chk, ixName + " ON " +objName, DropIndex, "", status, ix.start.getLine());
+					}
+				}
+				
+				visitChildren(ctx); return null;
 			}
 
 			@Override public String visitDrop_table(TSQLParser.Drop_tableContext ctx) {
@@ -1808,6 +2156,18 @@ public class CompassAnalyze {
 					String status = featureSupportedInVersion(FKrefDBname);
 					captureItem(FKrefDBname, riName, FKrefDBname, "", status, ctx.REFERENCES().getSymbol().getLine());
 				}
+				
+				if (ctx.UNIQUE() != null) {
+					// check for constraint on nullable column
+					ParserRuleContext parentRule = ctx.getParent();
+					if (parentRule instanceof TSQLParser.Column_definitionContext) {
+						// parent = column_definition
+        				TSQLParser.Column_definitionContext parentCtx = (TSQLParser.Column_definitionContext)parentRule;
+        				String colName = parentCtx.id().getText();
+        				captureUniqueOnNullableCol(colName, ctx.UNIQUE().getSymbol().getLine(), null, "UNIQUE constraint");	
+					}					
+				}
+				
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
@@ -1856,10 +2216,62 @@ public class CompassAnalyze {
 						captureItem(FKrefDBname, riName, FKrefDBname, "", status, ctx.REFERENCES().getSymbol().getLine());
 					}
 				}
-
+				
+				if (ctx.UNIQUE() != null) {
+					// skip CREATE TYPE/tabvar cases for now; we don't have the symbol table to resolve this
+					if (!hasParent(ctx.parent,"create_type") && !hasParent(ctx.parent,"declare_statement")) {
+						captureUniqueOnNullableCol("", 0, ctx.column_name_list_with_order(), "UNIQUE constraint");	
+					}
+				}
+				
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
+			}
+							
+										
+			private void captureUniqueOnNullableCol(String colName, int lineNr, TSQLParser.Column_name_list_with_orderContext collist, String type) {
+				captureUniqueOnNullableCol(colName, lineNr, collist, type, u.currentObjectName);
+			}
+			private void captureUniqueOnNullableCol(String colName, int lineNr, TSQLParser.Column_name_list_with_orderContext collist, String type, String tableName) {
+				if ((collist == null) && colName.isEmpty()) return;				
+				assert !tableName.isEmpty() : "tableName should not be blank";
+				u.appOutput(u.thisProc()+"tableName=["+tableName+"] type=["+type+"] colName=["+colName+"] lineNr=["+lineNr+"] ");
+				String n = " SINGLE";	
+				String typeChk = type + n;	
+				
+				if (!colName.isEmpty()) {
+					String tabcol = tableName + "." + colName;
+					String colDataType = lookupCol(tabcol);
+					u.appOutput(u.thisProc()+"colName=["+colName+"] colDataType=["+colDataType+"] ");
+					if (colDataType.endsWith(" NULL")) {
+						String status = featureSupportedInVersion(UniqueOnNullableCol, typeChk);
+						String typeFmt = type;					
+						captureItem(UniqueOnNullableCol+" with "+typeFmt, tabcol, "", UniqueOnNullableCol, status, lineNr);						
+						u.appOutput(u.thisProc()+"found typeChk=["+typeChk+"] on nullable column tabcol=["+tabcol+"] status=["+status+"] ");
+					}	
+					return;				
+				}
+				
+				List<TSQLParser.IdContext> cols = collist.id();						
+				if (cols.size() > 1) n = " MULTIPLE";	
+				typeChk = type + n;	
+				for (TSQLParser.IdContext col : cols) {
+					String colName2 = u.normalizeName(col.getText());
+					u.appOutput(u.thisProc()+"colname2=["+colName2+"] ");	
+
+					String tabcol = tableName + "." + colName2;
+					String colDataType = lookupCol(tabcol);
+					u.appOutput(u.thisProc()+"colDataType=["+colDataType+"] ");
+					if (colDataType.endsWith(" NULL")) {
+						String status = featureSupportedInVersion(UniqueOnNullableCol, typeChk);
+						String typeFmt = "";
+						if (status.equals(u.ReviewSemantics)) typeFmt = type + " (review)";  // this suffix drives the tooltip; needs to be changed when supproted status changes
+						else typeFmt = type;
+						captureItem(UniqueOnNullableCol+" with "+typeFmt, tabcol, "", UniqueOnNullableCol, status, col.start.getLine());						
+						u.appOutput(u.thisProc()+"found typeChk=["+typeChk+"] on nullable column tabcol=["+tabcol+"] status=["+status+"] ");
+					}
+				}
 			}
 
 			public String fkOnClause(List<TSQLParser.On_updateContext> on_update, List<TSQLParser.On_deleteContext> on_delete) {
@@ -1901,12 +2313,12 @@ public class CompassAnalyze {
 					int maxCols = featureIntValueSupportedInVersion(MaxColumnsIndex);
 					if (nrCols+nrIncludeCols > maxCols) {
 						captureItem("Index exceeds "+maxCols+" columns("+nrCols+", +"+nrIncludeCols+ " included)" , "", DDLReportGroup, MaxColumnsIndex, u.NotSupported, 0, 0);
-					}
+					}									
 				}
 
 				if (ctx.COLUMNSTORE() != null) {
 					String status = featureSupportedInVersion(IndexAttribute, "COLUMNSTORE");
-					captureItem("COLUMNSTORE index: created as regular index", ixName, DDLReportGroup, "COLUMNSTORE", status, 0, 0);
+					captureItem("COLUMNSTORE index: created as regular index in PG", ixName, DDLReportGroup, "COLUMNSTORE", status, 0, 0);
 				}
 
 				//ptns
@@ -1916,6 +2328,11 @@ public class CompassAnalyze {
 					}
 				}
 
+				// check for UNIQUE index on nullable column
+				if (ctx.UNIQUE() != null) {
+					captureUniqueOnNullableCol("", 0, ctx.column_name_list_with_order(), "UNIQUE index", tableName);						
+				}	
+					
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
@@ -2060,7 +2477,7 @@ public class CompassAnalyze {
 							status = featureSupportedInVersion(ClusteredIndex);
 							if (!status.equals(u.Supported)) {
 								type += ", CLUSTERED";
-								userHint += " : created as NONCLUSTERED, no physical row order";
+								userHint += " : created as NONCLUSTERED, no physical row order in PG";
 							}
 						}
 					}
@@ -2082,7 +2499,7 @@ public class CompassAnalyze {
 					if (status.equals(u.Supported)) {
 						status = featureSupportedInVersion(DescConstraint);
 						type += ", with DESC order";
-						userHint += " : created as ASC";
+						userHint += " : created as ASC in PG";
 					}
 				}
 
@@ -2187,7 +2604,7 @@ public class CompassAnalyze {
 						else {
 							// if we get here, something is missing from the .cfg file
 							u.appOutput("["+IndexOptions+"] feature '"+option+"' not found in .cfg file");
-							u.errorExitStackTrace();    // in production, we should probably just continue
+							if (u.devOptions) u.errorExitStackTrace();   
 						}
 					}
 				}
@@ -2208,40 +2625,71 @@ public class CompassAnalyze {
 				if (u.debugging) u.dbgOutput(u.thisProc()+"colName=["+colName+"] colType=["+colType+"] ", u.debugPtree);
 
 	            if (ctx.data_type() != null) {
-			// regular column
-			String dataType = u.normalizeName(ctx.data_type().getText().toUpperCase(), "datatype");
+	            	// regular column
+	            	String dataType = u.normalizeName(ctx.data_type().getText().toUpperCase(), "datatype");
+	            	if (ctx.data_type().IDENTITY() != null) {
+	            		dataType = u.applyPatternFirst(dataType, "^(.*)(IDENTITY.*?)$", "$1 $2");
+	            		dataType = u.applyPatternFirst(dataType, "((NOT)?\\s+NULL)?$", "");
+	            		String identityCol = u.getPatternGroup(dataType, "^.*?(IDENTITY(\\(.*?\\))?)((NOT)?\\s+NULL)?$", 1);
+	            		if (u.debugging) u.dbgOutput(u.thisProc()+"IDENTITY in data_type: colName=["+colName+"] dataType=["+dataType+"] identityCol=["+identityCol+"] ", u.debugPtree);
 
-			if (ctx.data_type().IDENTITY() != null) {
-				dataType = u.applyPatternFirst(dataType, "^(.*)(IDENTITY.*?)$", "$1 $2");
-				dataType = u.applyPatternFirst(dataType, "((NOT)?\\s+NULL)?$", "");
-				String identityCol = u.getPatternGroup(dataType, "^.*?(IDENTITY(\\(.*?\\))?)((NOT)?\\s+NULL)?$", 1);
-				if (u.debugging) u.dbgOutput(u.thisProc()+"IDENTITY in data_type: colName=["+colName+"] dataType=["+dataType+"] identityCol=["+identityCol+"] ", u.debugPtree);
+	            		// find a NOT FOR REPLICATION clause, it's under special_column_option
+	            		List<TSQLParser.Special_column_optionContext> specialOption = ctx.special_column_option();
+	            		TSQLParser.For_replicationContext forReplication = null;
+	            		for (TSQLParser.Special_column_optionContext s : specialOption) {
+	            			if (s.for_replication() != null) {
+	            				forReplication = s.for_replication();
+	            				break;
+	            			}
+	            		}
+	            		captureForReplication(colName, "IDENTITY", "", forReplication);
+	            	}
+	            	// not sure if IDENTITY can really occur at this level (it is usually inside data_type), but check anyway
+	            	else if (ctx.IDENTITY() != null) {
+	            		String identityCol = "IDENTITY";
+	            		if (ctx.seed != null) {
+	            			identityCol = u.getPatternGroup(ctx.getText(), "^.*?(IDENTITY\\(.*?\\)).*$", 1);
+	            		}
+	            		dataType += " " + identityCol;
+	            		if (u.debugging) u.dbgOutput(u.thisProc()+"IDENTITY in column_definition: colName=["+colName+"] dataType=["+dataType+"] identityCol=["+identityCol+"] ", u.debugPtree);
 
-				// find a NOT FOR REPLICATION clause, it's under special_column_option
-				List<TSQLParser.Special_column_optionContext> specialOption = ctx.special_column_option();
-				TSQLParser.For_replicationContext forReplication = null;
-				for (TSQLParser.Special_column_optionContext s : specialOption) {
-					if (s.for_replication() != null) {
-						forReplication = s.for_replication();
-						break;
-					}
-				}
-				captureForReplication(colName, "IDENTITY", "", forReplication);
-			}
-			// not sure if IDENTITY can really occur at this level (it is usually inside data_type), but check anyway
-			else if (ctx.IDENTITY() != null) {
-				String identityCol = "IDENTITY";
-				if (ctx.seed != null) {
-					identityCol = u.getPatternGroup(ctx.getText(), "^.*?(IDENTITY\\(.*?\\)).*$", 1);
-				}
-				dataType += " " + identityCol;
-				if (u.debugging) u.dbgOutput(u.thisProc()+"IDENTITY in column_definition: colName=["+colName+"] dataType=["+dataType+"] identityCol=["+identityCol+"] ", u.debugPtree);
+	            		captureForReplication(colName, "IDENTITY", "", ctx.for_replication());
+	            	}
+	            	else if (getBaseDataType(dataType).contains("DATETIME")) {
+	            		if (ctx.column_constraint().size() > 0)  {
+	            			if (ctx.column_constraint().get(0).DEFAULT() != null)  {   // assuming the DEFAULT is for indexid=0
+								// check for numeric-as-date
+								checkNumericDateVarAssign(colName, getBaseDataType(dataType), ctx.column_constraint().get(0).expression(), ctx.start.getLine());
+							}
+						}
+	            	}
 
-				captureForReplication(colName, "IDENTITY", "", ctx.for_replication());
-			}
+	            	if (u.debugging) u.dbgOutput(u.thisProc()+"column: colName=["+colName+"] dataType=["+dataType+"]", u.debugPtree);
 
-			if (u.debugging) u.dbgOutput(u.thisProc()+"column: colName=["+colName+"] dataType=["+dataType+"]", u.debugPtree);
+	            	// add to symbol table (experimental; should best be done in pass 1)
+	            	// only do this fro CREATE/ALTER TABLE
+	            	// Todo: handle table-in-proc
+	            	if (hasParent(ctx.parent,"create_table") || hasParent(ctx.parent,"alter_table")) {
+		            	boolean nullable = false;
+		            	if (ctx.null_notnull().size() == 0) {
+		            		if (ctx.column_constraint().size() > 0) {
+		            			if (ctx.column_constraint().get(0).null_notnull() != null) {
+		            				if (ctx.column_constraint().get(0).null_notnull().NOT() == null) nullable = true;
+		            			}
+		            			else if (ctx.column_constraint().size() > 1) {
+		            				if (ctx.column_constraint().get(1).null_notnull() != null) {
+			            				if (ctx.column_constraint().get(1).null_notnull().NOT() == null) nullable = true;
+			            			}
+		            			}
+		            		}
+		            	}
+		            	else if (ctx.null_notnull().size() > 0) {
+		            		if (ctx.null_notnull().get(0).NOT() == null) nullable = true;
+		            	}
+		            	u.addColSymTab(u.currentObjectName, colName, dataType, nullable, true);
+		            }
 
+					// check the datatype
 					String status = u.Supported;
 					if (featureExists(Datatypes, getBaseDataType(dataType))) {
 						status = featureSupportedInVersion(Datatypes, getBaseDataType(dataType));
@@ -2253,26 +2701,26 @@ public class CompassAnalyze {
 	            }
 
 	            if (ctx.AS() != null) {
-			// computed column
-			isCompCol = true;
-			String status = u.Supported;
-			String persisted = "";
-			String expression = ctx.expression().getText().toUpperCase();
-			if (u.debugging) u.dbgOutput(u.thisProc()+"compcol: colName=["+colName+"] expression=["+expression+"] ", u.debugPtree);
+	            	// computed column
+	            	isCompCol = true;
+	            	String status = u.Supported;
+	            	String persisted = "";
+	            	String expression = ctx.expression().getText().toUpperCase();
+	            	if (u.debugging) u.dbgOutput(u.thisProc()+"compcol: colName=["+colName+"] expression=["+expression+"] ", u.debugPtree);
 
-			if (ctx.PERSISTED() == null) {
-				status = featureSupportedInVersion(NonPersistedCompCol);
-				if (status.equals(u.Supported)) {
-					persisted = " (not persisted)";
-				}
-				else {
-					// BBF will create the column if it can
-					persisted = " (not persisted, but created as persisted)";
-				}
-			}
-			else {
-				persisted = " (persisted)";
-			}
+	            	if (ctx.PERSISTED() == null) {
+	            		status = featureSupportedInVersion(NonPersistedCompCol);
+	            		if (status.equals(u.Supported)) {
+	            			persisted = " (not persisted)";
+	            		}
+	            		else {
+	            			// BBF will create the column if it can
+	            			persisted = " (not persisted, but created as persisted in PG)";
+	            		}
+	            	}
+	            	else {
+	            		persisted = " (persisted)";
+	            	}
 					captureItem("Computed column"+persisted+colType, colName, NonPersistedCompCol, "", status, ctx.start.getLine());
 	            }
 
@@ -2297,16 +2745,16 @@ public class CompassAnalyze {
 					ParserRuleContext parentRule = ctx.getParent();
 					if (parentRule instanceof TSQLParser.Column_definitionContext) {
 						// parent = column_definition
-					TSQLParser.Column_definitionContext parentCtx = (TSQLParser.Column_definitionContext)parentRule;
-					colName = parentCtx.id().getText();
+        				TSQLParser.Column_definitionContext parentCtx = (TSQLParser.Column_definitionContext)parentRule;
+        				colName = parentCtx.id().getText();
 					}
 					else {
 						// parent = alter_table
-					TSQLParser.Alter_tableContext parentCtx = (TSQLParser.Alter_tableContext)parentRule;
-					if (parentCtx.column_definition() != null)
-						colName = parentCtx.column_definition().id().getText();
-					else
-						colName = parentCtx.colname.getText();
+        				TSQLParser.Alter_tableContext parentCtx = (TSQLParser.Alter_tableContext)parentRule;
+        				if (parentCtx.column_definition() != null)
+        					colName = parentCtx.column_definition().id().getText();
+        				else
+        					colName = parentCtx.colname.getText();
 					}
 
 					String status = featureSupportedInVersion(ColumnAttribute);
@@ -2367,7 +2815,7 @@ public class CompassAnalyze {
 					status = featureSupportedInVersion(AlterTable, subcmd);
 				}
 				else if (ctx.file_table_option().size() >0) {
-					subcmd = "SET <filetable>";
+					subcmd = u.escapeHTMLChars("SET <filetable>");
 					status = featureSupportedInVersion(AlterTable, "SET FILETABLE");
 				}
 				else if (ctx.REBUILD() != null) {
@@ -2391,7 +2839,7 @@ public class CompassAnalyze {
 					status = featureSupportedInVersion(AlterTable, subcmd);
 				}
 				else if (ctx.column_def_table_constraints() != null) {
-					int nrAdd = ctx.column_def_table_constraints().COMMA().size() + 1;
+					int nrAdd = ctx.column_def_table_constraints().column_def_table_constraint().size();
 					if (nrAdd > 1) {
 						subcmd = "ADD multiple columns/constraints";
 						status = featureSupportedInVersion(AlterTable, subcmd);
@@ -2437,7 +2885,7 @@ public class CompassAnalyze {
 								else if (d.alter_table_drop_constraint_id() != null) {
 									subcmd = "DROP CONSTRAINT_BY_NAME_ONLY";
 									status = featureSupportedInVersion(AlterTable, subcmd);
-									subcmd = "DROP <constraint-name>";
+									subcmd = u.escapeHTMLChars("DROP <constraint-name>");
 								}
 								else if (d.alter_table_drop_constraint() != null) {
 									subcmd = "DROP CONSTRAINT";
@@ -2572,7 +3020,11 @@ public class CompassAnalyze {
 					option = getOptionName(option);
 					if (option.equals("SCHEMABINDING")) schemabindingFound = true;  	// need to check for absence of SCHEMABINDING
 					String trigStatus = featureSupportedInVersion("", TriggerOptions, option, optionValue);
-					captureItem("Trigger, option WITH "+formatOptionDisplay(option,optionValue), trigName, TriggerOptions, option, trigStatus, lineNr);
+					String hint = "";
+					if (option.startsWith("EXECUTE AS") && (!trigStatus.equals(u.Supported))) {
+						hint = ": name resolution aspect not included in PG";
+					}
+					captureItem("Trigger, option WITH "+formatOptionDisplay(option,optionValue)+hint, trigName, TriggerOptions, option, trigStatus, lineNr);
 				}
 				if (type.equals("DML")) {
 					captureNoSchemabinding(schemabindingFound, "Trigger", trigName, TriggerOptions, lineNr);
@@ -2627,6 +3079,10 @@ public class CompassAnalyze {
 			@Override public String visitCreate_or_alter_function(TSQLParser.Create_or_alter_functionContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
 				String funcName = u.normalizeName(ctx.func_proc_name_schema().getText());
+
+				// set context
+				u.setContext("FUNCTION", funcName);
+
 				String udfType = "";
 				String udfType2 = "";
 				List<TSQLParser.Function_optionContext> options = null;
@@ -2691,8 +3147,6 @@ public class CompassAnalyze {
 					captureItem(kwd + " FUNCTION, " + udfType, funcName, FunctionOptions, udfType, status, ctx.start.getLine(), batchLines.toString());
 				}
 
-				// set context
-				u.setContext("FUNCTION", funcName);
 				captureParameters("function", ctx.procedure_param());
 
 				// options
@@ -2705,7 +3159,11 @@ public class CompassAnalyze {
 					option = getOptionName(option);
 					if (option.equals("SCHEMABINDING")) schemabindingFound = true;  	// need to check for absence of SCHEMABINDING
 					String funcStatus = featureSupportedInVersion("", FunctionOptions, option, optionValue);
-					captureItem("Function, option WITH "+formatOptionDisplay(option,optionValue), funcName, FunctionOptions, option, funcStatus, ctx.start.getLine());
+					String hint = "";
+					if (option.startsWith("EXECUTE AS") && (!funcStatus.equals(u.Supported))) {
+						hint = ": name resolution aspect not included in PG";
+					}
+					captureItem("Function, option WITH "+formatOptionDisplay(option,optionValue)+hint, funcName, FunctionOptions, option, funcStatus, ctx.start.getLine());
 				}
 				captureNoSchemabinding(schemabindingFound, "Function", funcName, FunctionOptions, ctx.start.getLine());
 
@@ -2779,7 +3237,11 @@ public class CompassAnalyze {
 					if (option.equals("SCHEMABINDING")) schemabindingFound = true;  	// need to check for absence of SCHEMABINDING
 					String procStatus = featureSupportedInVersion("", ProcedureOptions, option, optionValue);
 					if (option.equals("RECOMPILE") && (!procStatus.equals(u.Supported))) procStatus = u.ReviewPerformance;
-					captureItem("Procedure, option WITH "+formatOptionDisplay(option,optionValue), procName, ProcedureOptions, option, procStatus, ctx.start.getLine());
+					String hint = "";
+					if (option.startsWith("EXECUTE AS") && (!procStatus.equals(u.Supported))) {
+						hint = ": name resolution aspect not included in PG";
+					}
+					captureItem("Procedure, option WITH "+formatOptionDisplay(option,optionValue)+hint, procName, ProcedureOptions, option, procStatus, ctx.start.getLine());
 				}
 				captureNoSchemabinding(schemabindingFound, "Procedure", procName, ProcedureOptions, ctx.start.getLine());
 
@@ -2809,14 +3271,17 @@ public class CompassAnalyze {
 					}
 
 		            String parItem = dataType + " " + UDDfmt + objType +  " parameter";
-					if (!parDft.isEmpty()) {
-						parItem += " (with default value)";
+				  	if (!parDft.isEmpty()) {
+				  		parItem += " (with default value)";
 						// check for numeric-as-date
 						checkNumericDateVarAssign(parName, params.get(i).default_val, params.get(i).start.getLine());
-					}
 
-					if (parOpt.equals("OUT") || parOpt.equals("OUTPUT")) parItem += " (OUTPUT)";
-					parItem = parItem.replaceFirst("value\\) \\(", "value, ");
+						// check for unquoted string
+						captureUnquotedString(parDft, "parameter default", params.get(i).start.getLine());
+				  	}
+
+				  	if (parOpt.equals("OUT") || parOpt.equals("OUTPUT")) parItem += " (OUTPUT)";
+				  	parItem = parItem.replaceFirst("value\\) \\(", "value, ");
 
 					String statusDataType = u.Supported;
 					if (featureExists(Datatypes, getBaseDataType(dataType))) {
@@ -2832,7 +3297,7 @@ public class CompassAnalyze {
 		        // check max # parameters
 		        String maxParSection = MaxProcParameters;
 		        if (objType.equalsIgnoreCase("FUNCTION")) {
-				maxParSection = MaxFuncParameters;
+		        	maxParSection = MaxFuncParameters;
 		        }
 				Integer maxPars = featureIntValueSupportedInVersion(maxParSection);
 				if (params.size() > maxPars) {
@@ -2844,7 +3309,7 @@ public class CompassAnalyze {
 			private void captureNoSchemabinding (boolean schemabindingFound, String objType, String objName, String section, int lineNr) {
 				if (schemabindingFound) return;
 				String option = "without SCHEMABINDING";
-				String hint = ": created as WITH SCHEMABINDING";
+				String hint = ": created as WITH SCHEMABINDING in PG";
 				String status = featureSupportedInVersion(section, option);
 				captureItem(objType+", "+option+hint, objName, section, option, status, lineNr);
 			}
@@ -2934,7 +3399,7 @@ public class CompassAnalyze {
 				else {
 					// this means we're missing an item in the list= key in the .cfg file
 					u.appOutput("Function ["+aggFuncName+"] not found in section ["+AggregateFunctions+"] in .cfg file");
-					u.errorExitStackTrace(); // in production, we should probably just continue
+					if (u.devOptions) u.errorExitStackTrace(); 
 				}
 				captureItem(aggFuncName+"()", "", AggregateFunctions, aggFuncName, status, lineNr);
 			}
@@ -2947,13 +3412,15 @@ public class CompassAnalyze {
 					if (u.debugging) u.dbgOutput(u.thisProc()+"scalar fname ["+ ctx.getText()+"], funcName=["+funcName+"] ", u.debugPtree);
 
 					boolean done = false;
-					String funcSchemaName = u.getSchemaNameFromID(funcName);
-					String funcObjName = u.getObjectNameFromID(funcName);
+					String funcSchemaName = u.getSchemaNameFromID(funcName).toUpperCase();
+					String funcObjName = u.getObjectNameFromID(funcName).toUpperCase();
 					if (funcSchemaName.equals("SYS") || funcSchemaName.isEmpty() || funcObjName.startsWith("FN_")) {
 						// is this a system function?
 						if (featureExists(SystemFunctions, funcObjName)) {
 							String status = featureSupportedInVersion(SystemFunctions, funcObjName);
-							captureItem(funcObjName, "", SystemFunctions, funcObjName, status, ctx.start.getLine());
+							String funcNameFmt = funcObjName.toLowerCase()+"()";
+							if (funcNameFmt.startsWith("dm_")) funcNameFmt = "sys." + funcNameFmt;
+							captureItem(funcNameFmt, "", SystemFunctions, funcObjName, status, ctx.start.getLine());
 							done = true;
 						}
 						else {
@@ -2997,7 +3464,7 @@ public class CompassAnalyze {
 							else {
 								// check for XML/HIERARCHYID methods, these can be parsed as UDF calls
 								if (udfIsBifMethod(funcName, u.XMLmethods, u.SUDFNamesLikeXML, u.SUDFSymTab)) {
-									captureXMLFeature("XML.", u.getObjectNameFromID(funcName), "()", ctx.start.getLine());
+									captureXMLFeature("XML.", u.getObjectNameFromID(funcName).toLowerCase(), "()", ctx.start.getLine());
 
 									// check for EVENTDATA(), in case of EVENTDATA().VALUE(...)
 									if (u.currentObjectType.equals("TRIGGER")) {
@@ -3074,9 +3541,16 @@ public class CompassAnalyze {
 				return isMethod;
 			}
 
+			@Override public String visitHierarchyid_methods(TSQLParser.Hierarchyid_methodsContext ctx) {
+				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
+				captureHIERARCHYIDFeature("HIERARCHYID.", ctx.method.getText().toUpperCase(), "()", ctx.start.getLine());
+				visitChildren(ctx);
+				if (u.debugging) dbgTraceVisitExit(u.thisProc());
+				return null;
+			}
+
 			@Override public String visitHierarchyid_coloncolon_methods(TSQLParser.Hierarchyid_coloncolon_methodsContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
-				String funcType = "";
 				captureHIERARCHYIDFeature("HIERARCHYID.", ctx.method.getText().toUpperCase(), "()", ctx.start.getLine());
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
@@ -3236,27 +3710,27 @@ public class CompassAnalyze {
 			}
 
 			@Override public String visitXml_exist_call(TSQLParser.Xml_exist_callContext ctx) {
-				captureXMLFeature("XML.", "EXIST", "()", ctx.start.getLine());
+				captureXMLFeature("XML.", "exist", "()", ctx.start.getLine());
 				visitChildren(ctx);
 				return null;
 			}
 			@Override public String visitXml_modify_call(TSQLParser.Xml_modify_callContext ctx) {
-				captureXMLFeature("XML.", "MODIFY", "()", ctx.start.getLine());
+				captureXMLFeature("XML.", "modify", "()", ctx.start.getLine());
 				visitChildren(ctx);
 				return null;
 			}
 			@Override public String visitXml_query_call(TSQLParser.Xml_query_callContext ctx) {
-				captureXMLFeature("XML.", "QUERY", "()", ctx.start.getLine());
+				captureXMLFeature("XML.", "query", "()", ctx.start.getLine());
 				visitChildren(ctx);
 				return null;
 			}
 			@Override public String visitXml_value_call(TSQLParser.Xml_value_callContext ctx) {
-				captureXMLFeature("XML.", "VALUE", "()", ctx.start.getLine());
+				captureXMLFeature("XML.", "value", "()", ctx.start.getLine());
 				visitChildren(ctx);
 				return null;
 			}
 			@Override public String visitXml_nodes_method(TSQLParser.Xml_nodes_methodContext ctx) {
-				captureXMLFeature("XML.", "NODES", "()", ctx.start.getLine());
+				captureXMLFeature("XML.", "nodes", "()", ctx.start.getLine());
 				visitChildren(ctx);
 				return null;
 			}
@@ -3346,7 +3820,6 @@ public class CompassAnalyze {
 					else {
 						// datatype is not listed, means: supported
 					}
-					//u.appOutput("dataType=["+dataType+"] isNumeric=["+isNumeric(dataType)+"] isString=["+isString(dataType)+"] isDateTime=["+isDateTime(dataType)+"] ");
 					addLocalVars(varName, dataType);
 
 					if (!varDft.isEmpty()) {
@@ -3419,7 +3892,7 @@ public class CompassAnalyze {
 					}
 
 					if (isXMLMethod) {
-						captureXMLFeature("XML.", u.getObjectNameFromID(TUDFname), "()", ctx.start.getLine());
+						captureXMLFeature("XML.", u.getObjectNameFromID(TUDFname).toLowerCase(), "()", ctx.start.getLine());
 					}
 					else {
 						// the TUDF call is captured in visitFunction_call()
@@ -3603,7 +4076,7 @@ public class CompassAnalyze {
 
 				String procName = "";
 				if (ctx.func_proc_name_server_database_schema() != null) {
-					procName = ctx.func_proc_name_server_database_schema().getText().toUpperCase();
+					procName = ctx.func_proc_name_server_database_schema().getText();
 					if (!lookupSUDF(procName).isEmpty()) {
 						String status = featureSupportedInVersion(ExecuteSQLFunction);
 						captureItem(ExecuteSQLFunction, procName, ExecuteSQLFunction, "", status, ctx.start.getLine());
@@ -3612,47 +4085,7 @@ public class CompassAnalyze {
 
 				if (u.debugging) u.dbgOutput(u.thisProc()+"EXECUTE: "+ ctx.getText()+", procName=["+procName+"] return_status=["+return_status+"] proc_var=["+proc_var+"] execImm=["+execImm+"] ", u.debugPtree);
 
-				String section = ProceduresReportGroup;
-				String sysProcName = "";
-				if (procName.equalsIgnoreCase("SP_EXECUTESQL"))  {
-					// todo: also report OUTPUT parameters for sp_executesql?
-					sysProcName = " SP_EXECUTESQL";
-					section = DynamicSQL;
-					captureItem(sysProcName+": dynamic SQL statements must be analyzed manually", "", DynamicSQL, "", u.ReviewManually, ctx.start.getLine());
-					captureItem("EXECUTE"+sysProcName+return_status, "", DynamicSQL, "", u.Supported, ctx.start.getLine());
-				}
-				else {
-					if ((procName.toUpperCase().contains("SP_")) || (procName.toUpperCase().contains("XP_")))  {
-						// is this a system sproc?
-						sysProcName = u.getObjectNameFromID(procName);
-						if (u.debugging) u.dbgOutput(u.thisProc()+"sysProcName=["+sysProcName+"]  ", u.debugPtree);
-						if (featureExists(SystemStoredProcs, sysProcName)) {
-							if (u.debugging) u.dbgOutput(u.thisProc()+"featureExists: "+ ctx.getText()+" sysProcName=["+sysProcName+"]  ", u.debugPtree);
-							section = SystemStoredProcs;
-							String procStatus = featureSupportedInVersion(SystemStoredProcs, sysProcName);
-							if (u.debugging) u.dbgOutput(u.thisProc()+"procStatus=["+procStatus+"]  sysProcName=["+sysProcName+"] ", u.debugPtree);
-
-							captureItem("EXECUTE procedure "+sysProcName+return_status, procName, SystemStoredProcs, sysProcName, procStatus, ctx.start.getLine());
-						}
-						else {
-							//not found as a system proc, so it's a user-defined proc
-							sysProcName = "";
-						}
-					}
-				}
-
-				if ((!procName.isEmpty()) && (sysProcName.isEmpty())) {
-					// proc versioning?
-					if (ctx.proc_version != null) {
-						String procStatus = featureSupportedInVersion(ProcVersionExecute);
-						captureItem("EXECUTE proc;version"+return_status, procName+";"+ctx.proc_version.getText(), ProcVersionExecute, "", procStatus, ctx.start.getLine());
-					}
-					else {
-						captureItem("EXECUTE procedure"+return_status, procName, section, "", u.Supported, ctx.start.getLine());
-					}
-
-					CaptureIdentifier(procName, procName, "EXECUTE procedure", ctx.start.getLine());
-				}
+				captureSystemproc(procName, return_status, u.grammarRuleNames[ctx.getRuleIndex()], ctx.proc_version, ctx.start.getLine());
 
 				if (!proc_var.isEmpty()) {
 					String procStatus = featureSupportedInVersion(ProcExecAsVariable);
@@ -3661,24 +4094,11 @@ public class CompassAnalyze {
 
 				if (!execImm.isEmpty()) {
 					captureItem("EXECUTE(string)"+return_status, "", DynamicSQL, "", u.Supported, ctx.start.getLine());
-					captureItem("EXECUTE(string): dynamic SQL statements must be analyzed manually", "", DynamicSQL, "", u.ReviewManually, ctx.start.getLine());
+					captureItem(DynamicSQLEXECStringReview, "", DynamicSQL, "", u.ReviewManually, ctx.start.getLine());
 				}
 
 				// process any options
-				List<TSQLParser.Execute_optionContext> execOptions = ctx.execute_option();
-				for (int i = 0; i <execOptions.size(); i++) {
-					String optionRaw = execOptions.get(i).getText().toUpperCase();
-					String option = optionRaw;
-					if (optionRaw.startsWith("RESULTSETS")) {
-						if (optionRaw.startsWith("RESULTSETSNONE")) option = "RESULT SETS NONE";
-						else if (optionRaw.startsWith("RESULTSETSUNDEFINED")) option = "RESULT SETS UNDEFINED";
-						else option = "RESULT SETS";
-					}
-					if (u.debugging) u.dbgOutput(u.thisProc()+"execOptions i=["+i+"] option=["+option+"]  optionRaw=["+optionRaw+"]", u.debugPtree);
-					String status = featureSupportedInVersion(ExecProcedureOptions,option);
-					if (option.equals("RECOMPILE") && (!status.equals(u.Supported))) status = u.ReviewPerformance;
-					captureItem("EXECUTE procedure, WITH "+option, procName, ExecProcedureOptions, option, status, ctx.start.getLine());
-				}
+				captureExecOptions(procName, ctx.execute_option(), ctx.start.getLine());
 
 				List<TSQLParser.Execute_var_string_optionContext> execVarOptions = ctx.execute_var_string_option();
 				for (int i = 0; i <execVarOptions.size(); i++) {
@@ -3690,12 +4110,12 @@ public class CompassAnalyze {
 						if (optionRaw.startsWith("ATDATA_SOURCE")) {
 							option = "AT DATA_SOURCE";
 							optionValue = optionRaw.substring("ATDATA_SOURCE".length());
-							optionFmt = " <data-source>";
+							optionFmt = u.escapeHTMLChars(" <data-source>");
 						}
 						else {
 							option = "AT";
 							optionValue = optionRaw.substring("AT".length());
-							optionFmt = " <linked-server>";
+							optionFmt = u.escapeHTMLChars(" <linked-server>");
 						}
 					}
 					else if (optionRaw.startsWith("AS")) {
@@ -3716,6 +4136,87 @@ public class CompassAnalyze {
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
+			}
+
+
+			@Override public String visitExecute_body_batch(TSQLParser.Execute_body_batchContext ctx) {
+				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
+
+				String return_status = "";
+				String procName = "";
+				if (ctx.func_proc_name_server_database_schema() != null) {
+					procName = ctx.func_proc_name_server_database_schema().getText();
+				}
+				captureSystemproc(procName, return_status, u.grammarRuleNames[ctx.getRuleIndex()], null, ctx.start.getLine());
+
+				captureExecOptions(procName, ctx.execute_option(), ctx.start.getLine());
+
+				visitChildren(ctx);
+				if (u.debugging) dbgTraceVisitExit(u.thisProc());
+				return null;
+			}
+
+			private void captureSystemproc(String procName, String return_status, String rule, Token proc_version, int lineNr) {
+				String section = ProceduresReportGroup;
+				String sysProcName = "";
+				String firstStmt = "";
+				if (rule.equals("execute_body_batch")) firstStmt = " (without EXECUTE keyword)";
+
+				if (procName.equalsIgnoreCase("SP_EXECUTESQL"))  {
+					// todo: also report OUTPUT parameters for sp_executesql?
+					sysProcName = " sp_executesql";
+					section = DynamicSQL;
+					captureItem(DynamicSQLEXECSPReview, "", DynamicSQL, "", u.ReviewManually, lineNr);
+					captureItem("EXECUTE"+sysProcName+firstStmt+return_status, "", DynamicSQL, "", u.Supported, lineNr);
+				}
+				else {
+					if ((procName.toUpperCase().contains("SP_")) || (procName.toUpperCase().contains("XP_")))  {
+						// is this a system sproc?
+						sysProcName = u.getObjectNameFromID(procName).toLowerCase();
+						if (u.debugging) u.dbgOutput(u.thisProc()+"sysProcName=["+sysProcName+"]  ", u.debugPtree);
+						if (featureExists(SystemStoredProcs, sysProcName)) {
+							if (u.debugging) u.dbgOutput(u.thisProc()+"featureExists: "+ " sysProcName=["+sysProcName+"]  ", u.debugPtree);
+							section = SystemStoredProcs;
+							String procStatus = featureSupportedInVersion(SystemStoredProcs, sysProcName);
+							if (u.debugging) u.dbgOutput(u.thisProc()+"procStatus=["+procStatus+"]  sysProcName=["+sysProcName+"] ", u.debugPtree);
+
+							captureItem("EXECUTE procedure "+sysProcName+firstStmt+return_status, procName, SystemStoredProcs, sysProcName, procStatus, lineNr);
+						}
+						else {
+							//not found as a system proc, so it's a user-defined proc
+							sysProcName = "";
+						}
+					}
+				}
+
+				if ((!procName.isEmpty()) && (sysProcName.isEmpty())) {
+					// proc versioning?
+					if (proc_version != null) {
+						String procStatus = featureSupportedInVersion(ProcVersionExecute);
+						captureItem("EXECUTE proc;version"+firstStmt+return_status, procName+";"+proc_version.getText(), ProcVersionExecute, "", procStatus, lineNr);
+					}
+					else {
+						captureItem("EXECUTE procedure"+firstStmt+return_status, procName, section, "", u.Supported, lineNr);
+					}
+
+					CaptureIdentifier(procName, procName, "EXECUTE procedure", lineNr);
+				}
+			}
+
+			private void captureExecOptions(String procName, List<TSQLParser.Execute_optionContext> execOptions, int lineNr) {
+				for (int i = 0; i <execOptions.size(); i++) {
+					String optionRaw = execOptions.get(i).getText().toUpperCase();
+					String option = optionRaw;
+					if (optionRaw.startsWith("RESULTSETS")) {
+						if (optionRaw.startsWith("RESULTSETSNONE")) option = "RESULT SETS NONE";
+						else if (optionRaw.startsWith("RESULTSETSUNDEFINED")) option = "RESULT SETS UNDEFINED";
+						else option = "RESULT SETS";
+					}
+					if (u.debugging) u.dbgOutput(u.thisProc()+"execOptions i=["+i+"] option=["+option+"]  optionRaw=["+optionRaw+"]", u.debugPtree);
+					String status = featureSupportedInVersion(ExecProcedureOptions,option);
+					if (option.equals("RECOMPILE") && (!status.equals(u.Supported))) status = u.ReviewPerformance;
+					captureItem("EXECUTE procedure, WITH "+option, procName, ExecProcedureOptions, option, status, lineNr);
+				}
 			}
 
 			@Override public String visitSet_special(TSQLParser.Set_specialContext ctx) {
@@ -3750,7 +4251,7 @@ public class CompassAnalyze {
 						}
 						else {
 							setValue = CfgNonZero;
-							setValueFmt = "<number>";
+							setValueFmt = u.escapeHTMLChars("<number>");
 						}
 					}
 					else {
@@ -3761,7 +4262,7 @@ public class CompassAnalyze {
 					captureSEToption("SET ROWCOUNT", setValue, setValueFmt, ctx.start.getLine(), setValueOrig);
 				}
 				else if (ctx.TEXTSIZE() != null) {
-					String setValueFmt = "<number>";
+					String setValueFmt = u.escapeHTMLChars("<number>");
 					String setValueOrig = ctx.DECIMAL().getText();
 					captureSEToption("SET TEXTSIZE", setValueOrig, setValueFmt, ctx.start.getLine(), setValueOrig);
 				}
@@ -3818,7 +4319,7 @@ public class CompassAnalyze {
 								setValueFmt = setValue;
 							}
 							else {
-								setValueFmt = "<number>";
+								setValueFmt = u.escapeHTMLChars("<number>");
 								setValue = CfgNonZero;
 							}
 						}
@@ -3833,7 +4334,7 @@ public class CompassAnalyze {
 					captureSEToption(feature, setValue, setValueFmt, ctx.start.getLine(), setValueOrig);
 				}
 				else if (ctx.ISOLATION() != null) {
-					String feature = "SET TRANSACTION ISOLATION LEVEL";
+					String feature = SetXactIsolationLevel;
 					String setValue = ctx.getText().toUpperCase();
 					setValue = setValue.substring(setValue.indexOf("LEVEL")+5);
 					setValue = setValue.replaceFirst("READ", " READ ").trim();
@@ -3908,10 +4409,10 @@ public class CompassAnalyze {
 
 				ParserRuleContext parentRule = ctx.getParent();
 				if (parentRule instanceof TSQLParser.Query_specificationContext) {
-				TSQLParser.Query_specificationContext parentCtx = (TSQLParser.Query_specificationContext)parentRule;
-				if (parentCtx.FROM() != null) {
-					hasTable = true;
-				}
+    				TSQLParser.Query_specificationContext parentCtx = (TSQLParser.Query_specificationContext)parentRule;
+    				if (parentCtx.FROM() != null) {
+    					hasTable = true;
+    				}
 				}
 
 				variableAssignDepends.clear();
@@ -3947,6 +4448,9 @@ public class CompassAnalyze {
 					if (ctx.LOCAL_ID() != null) {
 						addVariableAssignDepends(ctx.LOCAL_ID(), ctx.expression());
 					}
+
+					addStmtAttribute("VARIABLE_ASSIGN");
+					if (u.debugging) u.dbgOutput(u.thisProc()+"added VARIABLE_ASSIGN", u.debugPtree);
 
 				}
 				visitChildren(ctx);
@@ -4159,7 +4663,6 @@ public class CompassAnalyze {
 					boolean captured = false;
 					if (option.startsWith("CATALOG_COLLATION=")) {
 						String catalogCollation = getOptionValue(option);
-						u.appOutput(u.thisProc()+"catalogCollation=["+catalogCollation+"] ");
 						if (catalogCollation.toUpperCase().contains("_CS_")) {
 							status = featureSupportedInVersion(CaseSensitiveCollation,"CATALOG_COLLATION");
 							if (!status.equals(u.Supported)) {
@@ -4241,8 +4744,19 @@ public class CompassAnalyze {
 
 			@Override public String visitId(TSQLParser.IdContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
-				String id = u.normalizeName(ctx.getText().toUpperCase());
-				// for cross-DB: table-source_item
+
+				// it is not an identifier if this is an actual argument in a proc call
+				if (hasParent(ctx.parent,"execute_parameter")) return null;
+
+				// it is not an identifier if this is in a parameter default
+				if (hasParent(ctx.parent,"procedure_param")) {
+					if (!hasParent(ctx.parent,"data_type")) {
+						return null;
+					}
+				}
+
+				String idOrig = ctx.getText();
+				String id = u.normalizeName(idOrig).toUpperCase();
 
 				if (featureExists(SpecialColumNames,id)) {
 					String status = featureSupportedInVersion(SpecialColumNames,id);
@@ -4250,15 +4764,26 @@ public class CompassAnalyze {
 				}
 
 				int maxIdLen = featureIntValueSupportedInVersion(MaxIdentifierLength);
-				if (id.length() > maxIdLen) {
-					captureItem("Identifier > 63 characters", id, MaxIdentifierLength, ""+id.length()+"", u.Supported, ctx.start.getLine());
+				if (id.length() > maxIdLen) { // quick first filter
+					String idDecoded = u.decodeIdentifier(id);
+					int idLen = idDecoded.length();
+					if (idLen > maxIdLen) {
+						// identifier delimiters do not count towards the max. PG length of 63
+						if (idDecoded.startsWith("[") || idDecoded.startsWith("\"")) {
+							// don't know what to do if not ending in a delimiter, so just assume it is correct
+							idLen -= 2;
+						}
+						if (idLen > maxIdLen) {
+							captureItem("Identifier > 63 characters", idOrig, MaxIdentifierLength, ""+id.length()+"", u.Supported, ctx.start.getLine());
+						}
+					}
 				}
 
 				// test for special chars in identifiers not currently supported
 				List<String> specialChars = featureValueList(SpecialCharsIdentifier);
 				for (int i=0; i<specialChars.size(); i++) {
 					String c = specialChars.get(i);
-					CaptureSpecialCharIdentifier(id, c, ctx.start.getLine());
+					CaptureSpecialCharIdentifier(idOrig, c, ctx.start.getLine());
 				}
 
 				visitChildren(ctx);
@@ -4268,6 +4793,7 @@ public class CompassAnalyze {
 
 			public void CaptureSpecialCharIdentifier (String id, String SpecialChar, int lineNr) {
 				if (SpecialChar.isEmpty()) return;
+				if (id.startsWith("[")) return;
 				if (id.startsWith("@")) id = id.substring(1);
 				if (id.startsWith("#")) id = id.substring(1);
 				if (id.startsWith("#")) id = id.substring(1); // for global temp tabs
@@ -4286,10 +4812,10 @@ public class CompassAnalyze {
 				if (ctx.BEGIN() != null) {
 					stmt = "BEGIN TRANSACTION";
 				}
-				else if (ctx.COMMIT() != null) {
+				else if (ctx.ROLLBACK() != null) {
 					stmt = "ROLLBACK TRANSACTION";
 				}
-				else if (ctx.ROLLBACK() != null) {
+				else if (ctx.COMMIT() != null) {
 					stmt = "COMMIT TRANSACTION";
 				}
 				else if (ctx.SAVE() != null) {
@@ -4389,6 +4915,17 @@ public class CompassAnalyze {
 				return null;
 			}
 
+			@Override public String visitTable_value_constructor(TSQLParser.Table_value_constructorContext ctx) {
+				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
+				if (hasParent(ctx.parent,"table_source_item")) {
+					String status = featureSupportedInVersion(TableValueConstructor);
+					captureItem(TableValueConstructor+": VALUES(...)", "", TableValueConstructor, "", status, ctx.start.getLine());
+				}
+				visitChildren(ctx);
+				if (u.debugging) dbgTraceVisitExit(u.thisProc());
+				return null;
+			}
+
 			@Override public String visitInsert_statement(TSQLParser.Insert_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
 				String tableName = "";
@@ -4436,8 +4973,8 @@ public class CompassAnalyze {
 					status = featureSupportedInVersion(InsertStmt,type);
 				}
 
-				String outputClause = getOutputClause(ctx.output_clause(), status, InsertStmt, "text");
-				status = getOutputClause(ctx.output_clause(), status, InsertStmt, "status");
+				String outputClause = getOutputClause(ctx.output_clause(), status, InsertStmt, "text", tableName);
+				status = getOutputClause(ctx.output_clause(), status, InsertStmt, "status", tableName);
 
 				String CTE = "";
 				if (ctx.with_expression() != null) {
@@ -4458,8 +4995,10 @@ public class CompassAnalyze {
 				return null;
 			}
 
-
 			public String getOutputClause(TSQLParser.Output_clauseContext opClause, String status, String section, String callType) {
+				return getOutputClause(opClause, status, section, callType, "");
+			}
+			public String getOutputClause(TSQLParser.Output_clauseContext opClause, String status, String section, String callType, String baseTableName) {
 				assert (callType.equals("text") || callType.equals("status")) : u.thisProc()+"invalid callType=["+callType+"] ";
 				if (opClause == null) {
 					if (callType.equals("text")) return "";
@@ -4491,9 +5030,35 @@ public class CompassAnalyze {
 				if (opClause.output_clause() != null) {
 					tmp.add(getOutputClause(opClause.output_clause(), "", "", "text"));
 				}
+
+				// experimental
+				//getOutputDmlListElem(opClause.output_dml_list_elem(), section, baseTableName);
+
 				result = String.join("", tmp.stream().sorted().collect(Collectors.toList()));
 				return result;
 			}
+
+			// experimental: identify cases where the OUTPTU clause references a joined table other than the base table (UPDATE/DELETE only)
+//			public void getOutputDmlListElem(List<TSQLParser.Output_dml_list_elemContext> opDmlElemList, String section, String tableName) {
+//				//u.appOutput(u.thisProc()+"section=["+section+"] size=["+opDmlElemList.size()+"] tableName=["+tableName+"] ");
+//				String baseTable = u.getObjectNameFromID(tableName);
+//				for (TSQLParser.Output_dml_list_elemContext e : opDmlElemList) {
+//					if (e.output_column_name() == null) continue;
+//					String c = e.output_column_name().getText();
+//					String obj = u.getObjectNameFromColumnID(c);
+//					//u.appOutput(u.thisProc()+"opDmlElemList=["+c+"] obj=["+obj+"] baseTable=["+baseTable+"] section=["+section+"] ");
+//					if (!baseTable.equalsIgnoreCase(obj)) {
+//						if ((section.equalsIgnoreCase("UPDATE") || section.equalsIgnoreCase("DELETE")) ) {
+//							if (obj.equalsIgnoreCase("INSERTED") || obj.equalsIgnoreCase("DELETED") || obj.equalsIgnoreCase("$ACTION")) {
+//								// not interested right now
+//							}
+//							else {
+//								u.appOutput("OUTPUT column table=["+obj+"] differs from base table=["+baseTable+"] section=["+section+"] context=["+u.currentObjectType + " " + u.currentObjectName+"] ");
+//							}
+//						}
+//					}
+//				}
+//			}
 
 			public void CaptureIdentifier(String objNameRaw, String objName, String stmt, int lineNr) {
 				CaptureIdentifier(objNameRaw, objName, stmt, lineNr, "");
@@ -4535,18 +5100,18 @@ public class CompassAnalyze {
 				if (name.startsWith("SYS")) {
 					if (schema.isEmpty() || schema.equals("DBO") || schema.equals("SYS")) {
 						if (featureExists(Catalogs, name)) {
-							catName = name;
+							catName = name.toLowerCase();
 						}
 					}
 				}
 				else if (schema.equals("SYS") && (!name.startsWith("SYS"))) {
 					if (featureExists(Catalogs, name)) {
-						catName = "SYS." + name;
+						catName = "sys." + name.toLowerCase();
 					}
 				}
 				else if (schema.equals("INFORMATION_SCHEMA")) {
 					if (featureExists(InformationSchema, name)) {
-						catName = "INFORMATION_SCHEMA." + name;
+						catName = "INFORMATION_SCHEMA." + name.toUpperCase();
 						reportGroup = InformationSchema;
 					}
 				}
@@ -4597,8 +5162,8 @@ public class CompassAnalyze {
 					status = featureSupportedInVersion(UpdateStmt,"TOP");
 				}
 
-				String outputClause = getOutputClause(ctx.output_clause(), status, UpdateStmt, "text");
-				status = getOutputClause(ctx.output_clause(), status, UpdateStmt, "status");
+				String outputClause = getOutputClause(ctx.output_clause(), status, UpdateStmt, "text", tableName);
+				status = getOutputClause(ctx.output_clause(), status, UpdateStmt, "status", tableName);
 
 				String CTE = "";
 				if (ctx.with_expression() != null) {
@@ -4620,9 +5185,10 @@ public class CompassAnalyze {
 
 				CaptureXMLNameSpaces(ctx.parent, "UPDATE", ctx.start.getLine());
 
-				if (ctx.FROM() != null) {
-					captureUpdDelFromBug("UPDATE", tableName, ctx.table_sources(), ctx.table_sources().table_source_item(), ctx.start.getLine());
-				}
+				// this bug was fixed
+//				if (ctx.FROM() != null) {
+//					captureUpdDelFromBug("UPDATE", tableName, ctx.table_sources(), ctx.table_sources().table_source_item(), ctx.start.getLine());
+//				}
 
 				variableAssignDepends.clear();
 				updVarAssign = "";
@@ -4642,6 +5208,9 @@ public class CompassAnalyze {
 					if (updVarAssign.isEmpty()) updVarAssign = " SET @v = expression";
 					if (ctx.EQUAL().size() > 1) updVarAssign = " SET @v = column = expression";
 					addVariableAssignDepends(ctx.LOCAL_ID(), ctx.expression());
+				}
+				else if (ctx.method_name != null) {
+					captureXMLFeature("XML.", ctx.method_name.getText().toLowerCase(), "()", ctx.start.getLine());
 				}
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
@@ -4670,12 +5239,12 @@ public class CompassAnalyze {
 				Map<String, String> tmp = new HashMap<String, String>();
 				String allValues = "";
 				for (Map.Entry<String, TSQLParser.ExpressionContext> entry : variableAssignDepends.entrySet()) {
-					//u.appOutput(u.thisProc()+stmt+ "("+variableAssignDepends.size()+") :"+ entry.getKey()+" = "+entry.getValue());
+					if (u.debugging) u.dbgOutput(u.thisProc()+stmt+ "("+variableAssignDepends.size()+") :"+ entry.getKey()+" = "+entry.getValue(), u.debugPtree);
 					String expr = entry.getValue().getText().toUpperCase();
 					if (expr.contains(entry.getKey())) {
 						// some variable names can perhaps be constructed that are not detected here, but that would be pretty exotic
 						String varRegex = "([^@\\$\\w])" + entry.getKey() + "([^@\\$\\w])";
-						String v = u.applyPatternAll(expr, varRegex, "$1 $2");
+						String v = u.applyPatternAll(" " + expr + " ", varRegex, "$1 $2");
 						if (v.contains("@")) {
 							tmp.put(entry.getKey(), v);
 							allValues += " " + v;
@@ -4690,21 +5259,23 @@ public class CompassAnalyze {
 					}
 				}
 				allValues += " ";
+				if (u.debugging) u.dbgOutput(u.thisProc()+" allValues=["+allValues+"]", u.debugPtree);
 
 				for (Map.Entry<String, String> entry : tmp.entrySet()) {
 					String varRegex = "([^@\\$\\w]" + entry.getKey() + "[^@\\$\\w])";
+					if (u.debugging) u.dbgOutput(u.thisProc()+" k=["+entry.getKey()+"]  v=["+entry.getValue()+"]  ", u.debugPtree);
 					if (allValues.contains(entry.getKey())) { // quicker test but not less accurate
 						if (!u.getPatternGroup(allValues, varRegex, 1).isEmpty()) { // slower test but accurate
 							// find variable on lhs for this case
 							String v = "";
 							for (Map.Entry<String, String> e2 : tmp.entrySet()) {
 								if (e2.getKey().equals(entry.getKey())) continue;
-								String v2 = u.getPatternGroup(e2.getValue(), varRegex, 1);
-								if (!u.getPatternGroup(e2.getValue(), varRegex, 1).isEmpty()) {
+								if (!u.getPatternGroup(" " +e2.getValue()+" ", varRegex, 1).isEmpty()) {
 									v = e2.getKey();
 									break;
 								}
 							}
+							if (u.debugging) u.dbgOutput(u.thisProc()+"k=["+entry.getKey()+"] =["+entry.getKey()+"] ", u.debugPtree);
 							captureItem("Variable assignment dependency in "+stmt+": order of assignments not guaranteed", v+"->"+entry.getKey(), "DML", "", u.ReviewSemantics, lineNr);
 							break;
 						}
@@ -4733,8 +5304,8 @@ public class CompassAnalyze {
 					status = featureSupportedInVersion(DeleteStmt,"TOP");
 				}
 
-				String outputClause = getOutputClause(ctx.output_clause(), status, DeleteStmt, "text");
-				status = getOutputClause(ctx.output_clause(), status, DeleteStmt, "status");
+				String outputClause = getOutputClause(ctx.output_clause(), status, DeleteStmt, "text", tableName);
+				status = getOutputClause(ctx.output_clause(), status, DeleteStmt, "status", tableName);
 
 				String CTE = "";
 				if (ctx.with_expression() != null) {
@@ -4757,53 +5328,54 @@ public class CompassAnalyze {
 
 				CaptureXMLNameSpaces(ctx.parent, "DELETE", ctx.start.getLine());
 
-				if (ctx.table_sources() != null) {
-					captureUpdDelFromBug("DELETE", tableName, ctx.table_sources(), ctx.table_sources().table_source_item(), ctx.start.getLine());
-				}
+				// this bug was fixed
+//				if (ctx.table_sources() != null) {
+//					captureUpdDelFromBug("DELETE", tableName, ctx.table_sources(), ctx.table_sources().table_source_item(), ctx.start.getLine());
+//				}
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
 			}
 
-			// detect specific bugs
+			// this bug was fixed
 			// happens only for FROM clause with a single table or comma-join syntax , not with ANSI join syntax
-			private void captureUpdDelFromBug(String stmt, String tableName, TSQLParser.Table_sourcesContext ts, List<TSQLParser.Table_source_itemContext> tabs, int lineNr) {
-				String section = UpdateStmt;
-				if (stmt.equals("DELETE")) section = DeleteStmt;
-				String comma = ts.COMMA().size()>0?"null":"COMMA";
-				tableName = u.resolveName(tableName);
-				if (u.debugging) u.dbgOutput(u.thisProc()+stmt+" ["+tableName+"] FROM, nr_tabs=["+tabs.size()+"] COMMA=["+comma+"],["+ts.COMMA().size()+"] ", u.debugPtree);
-				if ((tabs.size() == 1) || (ts.COMMA().size() > 0)) {
-					boolean is_comma_join = true;
-					for (TSQLParser.Table_source_itemContext t : tabs) {
-						if (t.full_object_name() == null) {
-							is_comma_join = false;
-							break;
-						}
-					}
-					if (u.debugging) u.dbgOutput(u.thisProc()+"is_comma_join=["+is_comma_join+"] ", u.debugPtree);
-					if (is_comma_join) {
-						for (TSQLParser.Table_source_itemContext t : tabs) {
-							String fromTableName = u.resolveName(t.full_object_name().getText());
-							String corrName      = "";
-							if (t.as_table_alias().size() > 0) corrName = u.normalizeName(t.as_table_alias().get(0).table_alias().getText());
-							if (u.debugging) u.dbgOutput(u.thisProc()+"   fromTableName=["+fromTableName+"] corrName=["+corrName+"] ", u.debugPtree);
-							if (tableName.equalsIgnoreCase(fromTableName)) {
-								if (u.debugging) u.dbgOutput(u.thisProc()+stmt+" ["+tableName+"]  FROM with itself table in FROM clause ", u.debugPtree);
-
-								String SelfInFromClause = "TARGET_IN_FROM_CLAUSE"; // matches .cfg file item
-								String status = featureSupportedInVersion(section,SelfInFromClause);
-								if (!status.equals(u.Supported)) {
-									String join = "";
-									if (tabs.size() > 1) join = " ("+Integer.toString(tabs.size())+"-way join)";
-									captureItem(stmt+", target table in FROM"+join, tableName, section, SelfInFromClause, status, lineNr);
-								}
-							}
-						}
-					}
-				}
-			}
+//			private void captureUpdDelFromBug(String stmt, String tableName, TSQLParser.Table_sourcesContext ts, List<TSQLParser.Table_source_itemContext> tabs, int lineNr) {
+//				String section = UpdateStmt;
+//				if (stmt.equals("DELETE")) section = DeleteStmt;
+//				String comma = ts.COMMA().size()>0?"null":"COMMA";
+//				tableName = u.resolveName(tableName);
+//				if (u.debugging) u.dbgOutput(u.thisProc()+stmt+" ["+tableName+"] FROM, nr_tabs=["+tabs.size()+"] COMMA=["+comma+"],["+ts.COMMA().size()+"] ", u.debugPtree);
+//				if ((tabs.size() == 1) || (ts.COMMA().size() > 0)) {
+//					boolean is_comma_join = true;
+//					for (TSQLParser.Table_source_itemContext t : tabs) {
+//						if (t.full_object_name() == null) {
+//							is_comma_join = false;
+//							break;
+//						}
+//					}
+//					if (u.debugging) u.dbgOutput(u.thisProc()+"is_comma_join=["+is_comma_join+"] ", u.debugPtree);
+//					if (is_comma_join) {
+//						for (TSQLParser.Table_source_itemContext t : tabs) {
+//							String fromTableName = u.resolveName(t.full_object_name().getText());
+//							String corrName      = "";
+//							if (t.as_table_alias().size() > 0) corrName = u.normalizeName(t.as_table_alias().get(0).table_alias().getText());
+//							if (u.debugging) u.dbgOutput(u.thisProc()+"   fromTableName=["+fromTableName+"] corrName=["+corrName+"] ", u.debugPtree);
+//							if (tableName.equalsIgnoreCase(fromTableName)) {
+//								if (u.debugging) u.dbgOutput(u.thisProc()+stmt+" ["+tableName+"]  FROM with itself table in FROM clause ", u.debugPtree);
+//
+//								String SelfInFromClause = "TARGET_IN_FROM_CLAUSE"; // matches .cfg file item
+//								String status = featureSupportedInVersion(section,SelfInFromClause);
+//								if (!status.equals(u.Supported)) {
+//									String join = "";
+//									if (tabs.size() > 1) join = " ("+Integer.toString(tabs.size())+"-way join)";
+//									captureItem(stmt+", target table in FROM"+join, tableName, section, SelfInFromClause, status, lineNr);
+//								}
+//							}
+//						}
+//					}
+//				}
+//			}
 
 			@Override public String visitMerge_statement(TSQLParser.Merge_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
@@ -4823,8 +5395,8 @@ public class CompassAnalyze {
 					status = featureSupportedInVersion(MergeStmt,"TOP");
 				}
 
-				String outputClause = getOutputClause(ctx.output_clause(), status, MergeStmt, "text");
-				status = getOutputClause(ctx.output_clause(), status, MergeStmt, "status");
+				String outputClause = getOutputClause(ctx.output_clause(), status, MergeStmt, "text", tableName);
+				status = getOutputClause(ctx.output_clause(), status, MergeStmt, "status", tableName);
 
 				String CTE = "";
 				if (ctx.with_expression() != null) {
@@ -5011,7 +5583,7 @@ public class CompassAnalyze {
 				if (ctx.throw_error_number() != null) {
 					errno = ctx.throw_error_number().getText();
 					Integer exprInt	= getNumericConstant(errno, true);
-					xtra = " <error-nr>";
+					xtra = u.escapeHTMLChars(" <error-nr>");
 					if (exprInt != null) {
 						captureAtAtErrorValue(exprInt, ", via THROW", "", ctx.start.getLine());
 					}
@@ -5120,8 +5692,8 @@ public class CompassAnalyze {
 
 			@Override public String visitFetch_cursor(TSQLParser.Fetch_cursorContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
-				String stmt = "FETCH";
-				String kwd = "";
+ 				String stmt = "FETCH";
+ 				String kwd = "";
 				if (ctx.NEXT() != null) kwd = "NEXT";
 				else if (ctx.PRIOR() != null) kwd = "PRIOR";
 				else if (ctx.FIRST() != null) kwd = "FIRST";
@@ -5147,7 +5719,7 @@ public class CompassAnalyze {
 			@Override public String visitCursor_statement(TSQLParser.Cursor_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
 				if ((ctx.declare_cursor() != null) && (ctx.fetch_cursor() != null)) {
-					String stmt = "";
+	 				String stmt = "";
 					if (ctx.OPEN() != null) stmt = "OPEN";
 					if (ctx.CLOSE() != null) stmt = "CLOSE";
 					if (ctx.DEALLOCATE() != null) stmt = "DEALLOCATE CURSOR";
@@ -5216,14 +5788,19 @@ public class CompassAnalyze {
 
 			// generic test-and-capture in case of 'options'
 			private void captureOption(String section, String option, int lineNr) {
-				captureOption(section, option, lineNr, "");
+				captureOption(section, option, lineNr, "", "", "");
 			}
 			private void captureOption(String section, String option, int lineNr, String fmt2) {
-				//u.appOutput(u.thisProc()+"section=["+section+"] option=["+option+"] fmt2=["+fmt2+"] ");
+				captureOption(section, option, lineNr, fmt2, "", "");
+			}
+			private void captureOption(String section, String option, int lineNr, String fmt2, String fmt3, String sectionReport) {
+				//u.appOutput(u.thisProc()+"section=["+section+"] option=["+option+"] fmt2=["+fmt2+"] fmt3=["+fmt3+"] sectionReport=["+sectionReport+"]  ");
 				if (option.trim().isEmpty()) return;
 				String fmt = section;
 				if (fmt.endsWith("options")) fmt = u.removeLastChar(fmt);
 				String status = featureSupportedInVersion(section, option);
+				if (!fmt3.isEmpty()) fmt = fmt3;
+				if (!sectionReport.isEmpty()) section = sectionReport;
 				captureItem(fmt+" " + option+fmt2, option, section, option, status, lineNr);
 			}
 
@@ -5241,7 +5818,7 @@ public class CompassAnalyze {
 
 			@Override public String visitAlter_login(TSQLParser.Alter_loginContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
-				String name = u.normalizeName(ctx.login_name.getText(), ", in ALTER LOGIN");
+ 				String name = u.normalizeName(ctx.login_name.getText(), ", in ALTER LOGIN");
 
 				if (ctx.ENABLE() != null)
 					captureOption(LoginOptions, "ENABLE", ctx.start.getLine(), ", in ALTER LOGIN");
@@ -5262,22 +5839,31 @@ public class CompassAnalyze {
 				List<TSQLParser.Alter_login_set_optionContext> options = ctx.alter_login_set_option();
 				for (TSQLParser.Alter_login_set_optionContext optionX : options) {
 					String option = optionX.getText().toUpperCase();
+					String optionValue = getOptionValue(option);
 					option = getOptionName(option);
 					if (option.equals("NOCREDENTIAL")) option = "NO CREDENTIAL";
 					if (option.equals("PASSWORD")) {
-						if (optionX.HASHED() != null) option = "PASSWORD HASHED";
-						else option = "PASSWORD";
+						if (optionX.HASHED() != null) {
+							option = "PASSWORD HASHED";
+						}
+						else {
+							option = "PASSWORD";
+						}
 					}
 					captureOption(LoginOptions, option, ctx.start.getLine(), ", in ALTER LOGIN");
 
-					if (optionX.MUST_CHANGE() != null)
+					if (optionX.MUST_CHANGE().size() > 0)
 						captureOption(LoginOptions, "MUST_CHANGE", ctx.start.getLine(), ", in ALTER LOGIN");
 
-					if (optionX.UNLOCK() != null)
+					if (optionX.UNLOCK().size() > 0)
 						captureOption(LoginOptions, "UNLOCK", ctx.start.getLine(), ", in ALTER LOGIN");
 
 					if (optionX.OLD_PASSWORD() != null)
 						captureOption(LoginOptions, "OLD_PASSWORD", ctx.start.getLine(), ", in ALTER LOGIN");
+
+					if (optionX.DEFAULT_LANGUAGE() != null) {
+						captureOption("SET LANGUAGE", optionValue, ctx.start.getLine(), ", in ALTER LOGIN", "DEFAULT_LANGUAGE=", UsersReportGroup);
+					}
 				}
 
 				captureItem("ALTER LOGIN", name, UsersReportGroup, "", u.Supported, ctx.start.getLine());
@@ -5289,7 +5875,7 @@ public class CompassAnalyze {
 
 			@Override public String visitCreate_login(TSQLParser.Create_loginContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
-				String name = u.normalizeName(ctx.login_name.getText());
+ 				String name = u.normalizeName(ctx.login_name.getText());
 
 				if (ctx.HASHED() != null)
 					captureOption(LoginOptions, "PASSWORD HASHED", ctx.start.getLine(), ", in CREATE LOGIN");
@@ -5324,14 +5910,14 @@ public class CompassAnalyze {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
 
 				//ToDO: detect special cases of users, like for contained databases
-				String name = "";
-				if (ctx.user_name != null) name = u.normalizeName(ctx.user_name.getText());
+ 				String name = "";
+ 				if (ctx.user_name != null) name = u.normalizeName(ctx.user_name.getText());
 
-				// find out if USER objects are supported at all
-				String status = featureSupportedInVersion(MiscObjects, "USER");
-				captureItem("CREATE USER", name, UsersReportGroup, "", status, ctx.start.getLine());
+ 				// find out if USER objects are supported at all
+ 				String status = featureSupportedInVersion(MiscObjects, "USER");
+ 				captureItem("CREATE USER", name, UsersReportGroup, "", status, ctx.start.getLine());
 
-				if (status.equals(u.Supported)) {
+ 				if (status.equals(u.Supported)) {
 					if (ctx.ALLOW_ENCRYPTED_VALUE_MODIFICATIONS() != null)
 						captureOption(UserOptions, "ALLOW_ENCRYPTED_VALUE_MODIFICATIONS", ctx.start.getLine(), ", in CREATE USER");
 
@@ -5359,13 +5945,13 @@ public class CompassAnalyze {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
 
 				//ToDO: detect special cases of users, like for contained databases
-				String name = u.normalizeName(ctx.username.getText());
+ 				String name = u.normalizeName(ctx.username.getText());
 
-				// find out if USER objects are supported at all
-				String status = featureSupportedInVersion(MiscObjects, "USER");
-				captureItem("ALTER USER", name, UsersReportGroup, "", status, ctx.start.getLine());
+ 				// find out if USER objects are supported at all
+ 				String status = featureSupportedInVersion(MiscObjects, "USER");
+ 				captureItem("ALTER USER", name, UsersReportGroup, "", status, ctx.start.getLine());
 
-				if (status.equals(u.Supported)) {
+ 				if (status.equals(u.Supported)) {
 					if (ctx.ALLOW_ENCRYPTED_VALUE_MODIFICATIONS() != null)
 						captureOption(UserOptions, "ALLOW_ENCRYPTED_VALUE_MODIFICATIONS", ctx.start.getLine(), ", in ALTER USER");
 
@@ -5396,10 +5982,13 @@ public class CompassAnalyze {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
 
 				String name = u.normalizeName(ctx.role_name.getText());
-				captureItem("CREATE ROLE", name, UsersReportGroup, "", u.Supported, ctx.start.getLine());
-
-				if (ctx.AUTHORIZATION() != null)
-					captureOption(DbRoleOptions, "AUTHORIZATION", ctx.start.getLine(), ", in CREATE ROLE");
+ 				// find out if CREATE ROLE is supported at all
+ 				String status = featureSupportedInVersion(CreateDbRole);
+ 				captureItem(CreateDbRole, name, UsersReportGroup, "", status, ctx.start.getLine());
+				if (status.equals(u.Supported)) {
+					if (ctx.AUTHORIZATION() != null)
+						captureOption(DbRoleOptions, "AUTHORIZATION", ctx.start.getLine(), ", in "+CreateDbRole);
+				}
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
@@ -5409,21 +5998,21 @@ public class CompassAnalyze {
 			@Override public String visitAlter_db_role(TSQLParser.Alter_db_roleContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
 
-				String name = u.normalizeName(ctx.role_name.getText());
+ 				String name = u.normalizeName(ctx.role_name.getText());
 
-				// find out if ALTER ROLE is supported at all
-				String status = featureSupportedInVersion(AlterDbRole);
-				captureItem(AlterDbRole, name, UsersReportGroup, "", status, ctx.start.getLine());
+ 				// find out if ALTER ROLE is supported at all
+ 				String status = featureSupportedInVersion(AlterDbRole);
+ 				captureItem(AlterDbRole, name, UsersReportGroup, "", status, ctx.start.getLine());
 
-				if (status.equals(u.Supported)) {
+ 				if (status.equals(u.Supported)) {
 					if (ctx.ADD() != null)
-						captureOption(SchemaOptions, "ADD MEMBER", ctx.start.getLine(), ", in ALTER ROLE");
+						captureOption(DbRoleOptions, "ADD MEMBER", ctx.start.getLine(), ", in "+AlterDbRole);
 
 					else if (ctx.DROP() != null)
-						captureOption(SchemaOptions, "DROP MEMBER", ctx.start.getLine(), ", in ALTER ROLE");
+						captureOption(DbRoleOptions, "DROP MEMBER", ctx.start.getLine(), ", in "+AlterDbRole);
 
 					else if (ctx.NAME() != null)
-						captureOption(SchemaOptions, "NAME", ctx.start.getLine(), ", in ALTER ROLE");
+						captureOption(DbRoleOptions, "NAME", ctx.start.getLine(), ", in "+AlterDbRole);
 				}
 
 				visitChildren(ctx);
@@ -5437,7 +6026,17 @@ public class CompassAnalyze {
 
 			@Override public String visitCreate_server_role(TSQLParser.Create_server_roleContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine());
+
+				String name = u.normalizeName(ctx.server_role_name.getText());
+
+ 				// find out if CREATE SERVER ROLE is supported at all
+ 				String status = featureSupportedInVersion(CreateSrvRole);
+ 				captureItem(CreateSrvRole, name, UsersReportGroup, "", status, ctx.start.getLine());
+				if (status.equals(u.Supported)) {
+					if (ctx.AUTHORIZATION() != null)
+						captureOption(SrvRoleOptions, "AUTHORIZATION", ctx.start.getLine(), ", in "+CreateSrvRole);
+				}
+
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
@@ -5445,8 +6044,23 @@ public class CompassAnalyze {
 
 			@Override public String visitAlter_server_role(TSQLParser.Alter_server_roleContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
-				// toDo: when supported, handle stmt options
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine());
+				String name = u.normalizeName(ctx.server_role_name.getText());
+
+ 				// find out if ALTER SERVER ROLE is supported at all
+ 				String status = featureSupportedInVersion(AlterSrvRole);
+ 				captureItem(AlterSrvRole, name, UsersReportGroup, "", status, ctx.start.getLine());
+				if (status.equals(u.Supported)) {
+					if (ctx.ADD() != null)
+						captureOption(SrvRoleOptions, "ADD MEMBER", ctx.start.getLine(), ", in "+AlterSrvRole);
+
+					else if (ctx.DROP() != null)
+						captureOption(SrvRoleOptions, "DROP MEMBER", ctx.start.getLine(), ", in "+AlterSrvRole);
+
+					else if (ctx.NAME() != null)
+						captureOption(SrvRoleOptions, "NAME", ctx.start.getLine(), ", in "+AlterSrvRole);
+
+				}
+
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
@@ -5458,27 +6072,27 @@ public class CompassAnalyze {
 			@Override public String visitCreate_schema(TSQLParser.Create_schemaContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
 
-				String name = "";
-				if (ctx.schema_name != null) name = u.normalizeName(ctx.schema_name.getText());
-				captureItem("CREATE ROLE", name, UsersReportGroup, "", u.Supported, ctx.start.getLine());
+ 				String name = "";
+ 				if (ctx.schema_name != null) name = u.normalizeName(ctx.schema_name.getText());
+ 				captureItem("CREATE SCHEMA", name, UsersReportGroup, "", u.Supported, ctx.start.getLine());
 
 				if (ctx.AUTHORIZATION() != null)
-					captureOption(SchemaOptions, "AUTHORIZATION", ctx.start.getLine(), ", in CREATE ROLE");
+					captureOption(SchemaOptions, "AUTHORIZATION", ctx.start.getLine(), ", in CREATE SCHEMA");
 
 				if (ctx.create_table().size() > 0)
-					captureOption(SchemaOptions, "CREATE TABLE", ctx.start.getLine(), ", in CREATE ROLE");
+					captureOption(SchemaOptions, "CREATE TABLE", ctx.start.getLine(), ", in CREATE SCHEMA");
 
 				if (ctx.create_or_alter_view().size() > 0)
-					captureOption(SchemaOptions, "CREATE VIEW", ctx.start.getLine(), ", in CREATE ROLE");
+					captureOption(SchemaOptions, "CREATE VIEW", ctx.start.getLine(), ", in CREATE SCHEMA");
 
 				if (ctx.grant_statement().size() > 0)
-					captureOption(SchemaOptions, "GRANT", ctx.start.getLine(), ", in CREATE ROLE");
+					captureOption(SchemaOptions, "GRANT", ctx.start.getLine(), ", in CREATE SCHEMA");
 
 				if (ctx.revoke_statement().size() > 0)
-					captureOption(SchemaOptions, "REVOKE", ctx.start.getLine(), ", in CREATE ROLE");
+					captureOption(SchemaOptions, "REVOKE", ctx.start.getLine(), ", in CREATE SCHEMA");
 
 				if (ctx.deny_statement().size() > 0)
-					captureOption(SchemaOptions, "DENY", ctx.start.getLine(), ", in CREATE ROLE");
+					captureOption(SchemaOptions, "DENY", ctx.start.getLine(), ", in CREATE SCHEMA");
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
@@ -5490,10 +6104,10 @@ public class CompassAnalyze {
 
 				String name = u.normalizeName(ctx.schema_name.getText());
 
-				// find out if ALTER SCHEMA is supported at all
-				String status = featureSupportedInVersion(AlterSchema);
-				captureItem(AlterSchema, name, UsersReportGroup, "", status, ctx.start.getLine());
-				if (status.equals(u.Supported)) {
+ 				// find out if ALTER SCHEMA is supported at all
+ 				String status = featureSupportedInVersion(AlterSchema);
+ 				captureItem(AlterSchema, name, UsersReportGroup, "", status, ctx.start.getLine());
+ 				if (status.equals(u.Supported)) {
 					if (ctx.OBJECT() != null)
 						captureOption(SchemaOptions, "TRANSFER OBJECT", ctx.start.getLine(), ", in ALTER SCHEMA");
 
@@ -5513,16 +6127,15 @@ public class CompassAnalyze {
 
 			@Override public String visitGrant_statement(TSQLParser.Grant_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
-				String status = featureSupportedInVersion(GrantStmt);
-				captureItem(GrantStmt, "", GrantStmt, "", status, ctx.start.getLine());
-				if (status.equals(u.Supported)) {
+ 				String status = featureSupportedInVersion(GrantStmt);
+ 				captureItem(GrantStmt, "", GrantStmt, "", status, ctx.start.getLine());
+ 				if (status.equals(u.Supported)) {
 					// Todo: check for specific permissions
 					// Todo: multiple permissionss are possible
 					// Todo: the code below needs to be done right, it does not work (but GRANT?REVOKE/DENY ar ento supprote dnayway
 					String perm = "";
 					if (ctx.ALL() != null) perm = "ALL PRIVILEGES";
 					else perm = ctx.permissions().getText().toUpperCase();  // this may be a list?
-					u.appOutput(u.thisProc()+"perm=["+perm+"] ");
 					captureOption(GrantStmt, perm, ctx.start.getLine(), ", in GRANT"); // ToDo: yet unclear how to report this
 
 					if (ctx.ON() != null) {
@@ -5550,9 +6163,9 @@ public class CompassAnalyze {
 
 			@Override public String visitRevoke_statement(TSQLParser.Revoke_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
-				String status = featureSupportedInVersion(RevokeStmt);
-				captureItem(RevokeStmt, "", RevokeStmt, "", status, ctx.start.getLine());
-				if (status.equals(u.Supported)) {
+ 				String status = featureSupportedInVersion(RevokeStmt);
+ 				captureItem(RevokeStmt, "", RevokeStmt, "", status, ctx.start.getLine());
+ 				if (status.equals(u.Supported)) {
 					// Todo: check for specific permissions
 					// Todo: the code below needs to be done right
 					String perm = "";
@@ -5590,9 +6203,9 @@ public class CompassAnalyze {
 
 			@Override public String visitDeny_statement(TSQLParser.Deny_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
-				String status = featureSupportedInVersion(DenyStmt);
-				captureItem(DenyStmt, "", DenyStmt, "", status, ctx.start.getLine());
-				if (status.equals(u.Supported)) {
+ 				String status = featureSupportedInVersion(DenyStmt);
+ 				captureItem(DenyStmt, "", DenyStmt, "", status, ctx.start.getLine());
+ 				if (status.equals(u.Supported)) {
 					// Todo: check for specific permissions
 					// Todo: the code below needs to be done right
 					String perm = "";
@@ -5626,9 +6239,9 @@ public class CompassAnalyze {
 
 			@Override public String visitAlter_authorization(TSQLParser.Alter_authorizationContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
-				String status = featureSupportedInVersion(AlterAuthStmt);
-				captureItem(AlterAuthStmt, "", AlterAuthStmt, "", status, ctx.start.getLine());
-				if (status.equals(u.Supported)) {
+ 				String status = featureSupportedInVersion(AlterAuthStmt);
+ 				captureItem(AlterAuthStmt, "", AlterAuthStmt, "", status, ctx.start.getLine());
+ 				if (status.equals(u.Supported)) {
 					// Todo: check for specific permissions
 					// Todo: the code below needs to be done right
 
@@ -5683,8 +6296,8 @@ public class CompassAnalyze {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
 				String stmt = "OPEN SYMMETRIC KEY";
 				if (ctx.MASTER() != null) stmt = "OPEN MASTER KEY";
-				String status = featureSupportedInVersion(OpenKeyStmt);
-				captureItem(stmt, "", OpenKeyStmt, stmt, status, ctx.start.getLine());
+ 				String status = featureSupportedInVersion(OpenKeyStmt);
+ 				captureItem(stmt, "", OpenKeyStmt, stmt, status, ctx.start.getLine());
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
@@ -5695,19 +6308,40 @@ public class CompassAnalyze {
 				String stmt = "CLOSE SYMMETRIC KEY";
 				if (ctx.ALL() != null) stmt = "CLOSE ALL SYMMETRIC KEYS";
 				else if (ctx.MASTER() != null) stmt = "CLOSE MASTER KEY";
-				String status = featureSupportedInVersion(CloseKeyStmt);
-				captureItem(stmt, "", CloseKeyStmt, stmt, status, ctx.start.getLine());
+ 				String status = featureSupportedInVersion(CloseKeyStmt);
+ 				captureItem(stmt, "", CloseKeyStmt, stmt, status, ctx.start.getLine());
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
 			}
 
 			@Override public String visitCreate_sequence(TSQLParser.Create_sequenceContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine());
+ 				String seqName = ctx.sequence_name.getText();
+ 				if (ctx.schema_name != null) seqName = ctx.schema_name.getText() + "." + seqName;
+ 				seqName = u.normalizeName(seqName);
+				captureSequenceOptions(ctx.cache_kwd, ctx.cache_value, ctx.no_cache, ctx.start.getLine(), "CREATE");
+				visitChildren(ctx);
+				return null;
 			}
 			@Override public String visitAlter_sequence(TSQLParser.Alter_sequenceContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine());
+ 				String seqName = ctx.sequence_name.getText();
+ 				if (ctx.schema_name != null) seqName = ctx.schema_name.getText() + "." + seqName;
+ 				seqName = u.normalizeName(seqName);
+				captureSequenceOptions(ctx.cache_kwd, ctx.cache_value, ctx.no_cache, ctx.start.getLine(), "ALTER");
+				visitChildren(ctx); return null;
 			}
+
+			private void captureSequenceOptions(Token cache_kwd, Token cache_value, Token no_cache, int lineNr, String stmt) {
+ 				if ((cache_kwd != null) && (cache_value == null)) {
+					captureOption(SequenceOptions, "CACHE", lineNr, ", in "+stmt+" SEQUENCE");
+ 				}
+ 				else if (no_cache != null) {
+					captureOption(SequenceOptions, "NO CACHE", lineNr, ", in "+stmt+" SEQUENCE");
+ 				}
+			}
+
 			@Override public String visitDrop_sequence(TSQLParser.Drop_sequenceContext ctx) {
 				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
 			}
@@ -5924,6 +6558,13 @@ public class CompassAnalyze {
 			}
 
 			@Override public String visitAlter_resource_governor(TSQLParser.Alter_resource_governorContext ctx) {
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+			}
+
+			@Override public String visitCreate_workload_classifier(TSQLParser.Create_workload_classifierContext ctx) {
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+			}
+			@Override public String visitDrop_workload_classifier(TSQLParser.Drop_workload_classifierContext ctx) {
 				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 

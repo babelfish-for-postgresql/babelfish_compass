@@ -375,7 +375,7 @@ public class CompassConfig {
 		if (u.debugging) u.dbgOutput(u.thisProc() + " return: value=[" + value + "]  ", u.debugCfg);
 		return value;
 	}
-
+	
 	// get the list of items in the 'list=' key
 	public static List<String> featureValueList(String section) {
 		section = section.toUpperCase();
@@ -435,16 +435,16 @@ public class CompassConfig {
 			String option = name+"="+optionValue;
 			if (featureExists(section, option)) {
 				status = featureSupportedInVersion(requestVersion, section, option);
-				if (u.debugging) u.dbgOutput(u.thisProc() + "option=value found: status=["+status+"] ", u.debugCfg);
+				if (u.debugging) u.dbgOutput(u.thisProc() + "option=value found: status=["+status+"] ", u.debugCfg);		
 			}
 		}
 		else if (featureExists(section, name)) {
 			status = featureSupportedInVersion(requestVersion, section, name);
-			if (u.debugging) u.dbgOutput(u.thisProc() + "option found: status=["+status+"] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(u.thisProc() + "option found: status=["+status+"] ", u.debugCfg);		
 		}
-		if (u.debugging) u.dbgOutput(u.thisProc() + "return status=["+status+"] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(u.thisProc() + "return status=["+status+"] ", u.debugCfg);		
 		return status;
-	}
+	}	
 
 	public static boolean isVersionSupported(String requestVersion, String testVersion) {
 		boolean isSupported = false;
@@ -723,8 +723,8 @@ public class CompassConfig {
 
         cfgFile = new File(configFileName);
         if (!cfgFile.exists()) {
-		u.appOutput("Babelfish configuration file not found: "+configFilePathName);
-		u.errorExit();
+        	u.appOutput("Babelfish configuration file not found: "+configFilePathName);
+         	u.errorExit();
         }
 		u.appOutput("Reading "+configFileName);
 
@@ -732,8 +732,8 @@ public class CompassConfig {
 
 		// sanity check, expecting at least a particular number of entries. '25' is arbitrarily chosen here
         if (cfg.keySet().size() < 25) {
-		cfgFileValid = false;
-		cfgOutput("file invalid, only "+cfg.keySet().size()+" sections found; expecting many more");
+        	cfgFileValid = false;
+        	cfgOutput("file invalid, only "+cfg.keySet().size()+" sections found; expecting many more");
 			return;
         }
 
@@ -805,7 +805,7 @@ public class CompassConfig {
 						if (u.getPatternGroup(optionVal, "^((\\d+\\-)?"+monthList+"\\-20\\d\\d)$", 1).isEmpty()) {
 							cfgOutput(fileTimestampTag + " key has invalid format.");
 							cfgOutput("Format must be: "+monthList+"-20xx");
-							u.errorExit(); // no point in continuing
+							u.errorExit(); // no point in continuing							
 						}
 						continue;
 					}
@@ -1071,7 +1071,7 @@ public class CompassConfig {
 			hexChecksum = "0" + hexChecksum;
 		}
 		if (u.configOnly) {
-			if (System.getenv().containsKey("COMPASS_CHECKSUM")) {
+			if (System.getenv().containsKey("COMPASS_CHECKSUM") || System.getenv().containsKey("compass_checksum")) {
 				if (nrChecksumLine == -1) {
 					BufferedWriter bw = new BufferedWriter(new FileWriter(configFileName, true));
 					bw.write("#-----------------------------------------------------------------------------------");

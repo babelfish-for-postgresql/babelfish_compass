@@ -19,6 +19,7 @@ import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.*;
 import java.util.stream.*;
 import java.util.regex.Matcher;
@@ -32,10 +33,10 @@ public class CompassUtilities {
 
 	public static boolean onWindows;
 
-	public static final String thisProgVersion      = "0.1";
-	public static final String thisProgVersionDate  = "September 2021";
+	public static final String thisProgVersion      = "0.9";
+	public static final String thisProgVersionDate  = "October 2021";
 	public static final String thisProgName         = "Babelfish Compass";
-	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for T-SQL";
+	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
 	public static final String thisProgPathExec     = "compass";
 	public static final String babelfishProg        = "Babelfish";
@@ -43,6 +44,10 @@ public class CompassUtilities {
 	public static String thisProgExec               = "java " + thisProgPathExec + "." + thisProgNameExec;
 	public static final String thisProgExecWindows  = "BabelfishCompass.bat";
 	public static final String thisProgExecLinux    = "BabelfishCompass.sh";
+	
+	// user docs
+	public static final String userDocText          = thisProgName + " User Guide";
+	public static final String userDocURL           = "https://github.com/babelfish-for-postgresql/babelfishpg-compass-tool";
 
 	public static final String disclaimerMsg  =
             "Notice:\n"
@@ -75,8 +80,7 @@ public class CompassUtilities {
 
 	// standard line length
 	public final int reportLineLength = 80;
-	public final String lineIndent = "   ";
-
+	public final String lineIndent = "    ";
 
 	// file handling
 	public final String BabelfishCompassFolderName = "BabelfishCompass";
@@ -93,11 +97,16 @@ public class CompassUtilities {
 	public final String importDirName = "imported";
 	public final String importFileTag = "bbf~imported";
 	public final String importFileSuffix = "dat";
+	public final String textSuffix = "txt";
+	public final String HTMLSuffix = "html";
 	public final String logDirName = "log";
+	public final String PGImportFileName = "pg_import";
 
-	//public final String parsedFileSuffix = "parsed";
+	public String reportFileTextPathName = uninitialized;
+	public String reportFileHTMLPathName = uninitialized;
 	public String reportFilePathName = uninitialized;
 	public BufferedWriter reportFileWriter;
+	public BufferedWriter reportFileWriterHTML;
 	public String batchFilePathName;
 	public BufferedWriter batchFileWriter;
 	public String errBatchFilePathName;
@@ -107,8 +116,440 @@ public class CompassUtilities {
 	public BufferedWriter errBatchFileWriter = null;
 	public String importFilePathName;
 	public BufferedWriter importFileWriter;
+	public String importFileHTMLPathName;
+	public BufferedWriter importFileHTMLWriter;
+	public int importFileWritelineNr = 0;
 	public String sessionLogPathName;
 	public BufferedWriter sessionLogWriter;
+
+	// HTML header/footer
+	public String docLinkIcon              = "<div class=\"tooltip\"><span class=\"tooltip_icon\">&#x1F56E;</span>";
+	public String docLinkURL               = "<a href=\""+userDocURL+"\" target=\"_blank\">"+ userDocText +"</a></div>"; 
+	public String docLinkURLText           = userDocText +" : " + userDocURL; 
+	public String tocLinkIcon              = "<div class=\"tooltip\"><span class=\"tooltip_icon\">&#x2B06;</span>";
+	public String backToToCText            = "Back to Table of Contents";
+	public String tocLinkURL               = "<a href=\"#toc\">"+ backToToCText +"</a>";   
+	public String headerHTMLPlaceholder    = "BBF_HEADERHTMLPLACEHOLDER";
+	public String titleHTMLPlaceholder     = "BBF_TITLEHTMLPLACEHOLDER";
+	public String footerHTMLPlaceholder    = "BBF_FOOTERHTMLPLACEHOLDER";
+	public String reportHTMLPlaceholder    = "BBF_REPORTHTMLPLACEHOLDER";
+	public String inputfileHTMLPlaceholder = "BBF_INPUTFILEHTMLPLACEHOLDER";
+	public String appnameHTMLPlaceholder   = "BBF_APPNAMEHTMLPLACEHOLDER";
+	public String tooltipsHTMLPlaceholder  = "BBF_TOOLTIPSHTMLPLACEHOLDER";
+	public String tagApps                  = "apps";
+	public String tagEstimate              = "estimate";
+	public String tagObjcount              = "objcount";
+	public String tagSummaryTop            = "summary";
+	public String tagSummary               = "summary_";
+	public String tagByFeature             = "byfeature_";
+	public String tagByObject              = "byobject_";
+
+	public String cssText =
+"a:visited { color: #6d00E6; }\n"+
+"a:hover { color: red; }\n"+
+"\n"+
+"body { font-family: sans-serif; margin: 0px; }\n"+
+".body_content { margin: 8px; }\n"+
+"\n"+
+".header { font-family: sans-serif; padding-left: 0.5em; padding-right: 0.5em; }\n"+
+".headerForeground { color: white; padding: 10px; padding-top: 50px; }\n"+
+"\n"+
+".footer,\n"+
+".footer > a:link,\n"+
+".footer > a:visited {\n"+
+"    color: #cccccc;\n"+
+"}\n"+
+".footer { margin: 30px; }\n"+
+"\n"+
+"table { \n"+
+"    border-collapse: collapse; \n"+
+"    border-spacing: 0px; \n"+
+"    margin-top: 20px;\n"+
+"}\n"+
+"tr { \n"+
+"    text-align : center;\n"+
+"    vertical-align: top; \n"+
+"}\n"+
+"th,.linenr {\n"+
+"    background-color: #dddddd;\n"+
+"    border: solid 1px #666666;\n"+
+"    padding: 0em 0.4em 0em 0.4em;\n"+
+"    font-size:0.8em;\n"+
+"}\n"+
+"td { \n"+
+"    border: solid 1px #cccccc; \n"+
+"    padding: 0em 0.4em 0em 0.4em;\n"+
+"}\n"+
+"td.left {\n"+
+"  border: solid 0px; \n"+
+"  padding-left: 15px;\n"+
+"  text-align: left;\n"+
+"}\n"+
+"th.left {\n"+
+"  padding-left: 15px;\n"+
+"  text-align: left;\n"+
+"}\n"+
+"pre,.sql {\n"+
+"    text-align: left;\n"+
+"    font-family: monospace;\n"+
+"    white-space: pre;\n"+
+"}\n"
+;
+
+	public String headerHTML =
+"<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\"> \n"+
+"<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"+
+"<!-- "+ headerHTMLPlaceholder +" -->\n"+
+"<head>\n"+
+"<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />\n"+
+"<meta http-equiv=\"Content-Language\" content=\"en-us\" />\n"+
+"<meta name=\"robots\" content=\"noindex,nofollow\" />\n"+
+"<title>"+titleHTMLPlaceholder+"</title>\n";
+
+	public String headerHTMLReport =
+"<style>\n"+
+tooltipsHTMLPlaceholder +
+"/* Tooltip container */\n"+
+".tooltip {\n"+
+"  position: relative;\n"+
+"  display: inline-block;\n"+
+"  text-decoration:none;\n"+
+"}\n"+
+".tooltip_blank {\n"+
+"  position: relative;\n"+
+"  display: inline-block;\n"+
+"  text-decoration:none;\n"+
+"  width: 11px;\n"+
+"  margin-top: 4px;\n"+
+"}\n"+
+".tooltip_icon {\n"+
+"  position: relative;\n"+
+"  display: inline-block;\n"+
+"  text-decoration:none;\n"+
+"  width: 11px;\n"+
+"  margin-top: 0px;\n"+
+"  font-family: Arial, Helvetica;\n"+
+"}\n"+
+"/* Tooltip text */\n"+
+".tooltip .tooltip-content {\n"+
+"  margin-top: 2px;\n"+
+"  margin-left: 10px;\n"+
+"  visibility: hidden;\n"+
+"  width: 500px;\n"+
+"  background-color: #eeeeee;\n"+
+"  color: black;\n"+
+"  text-align: left;\n"+
+"  padding: 2px;\n"+
+
+"  border-width: 1px;  \n"+
+"  border-style: solid;\n"+
+"  border-color: black;\n"+
+"  white-space: pre-wrap;\n"+
+"\n"+
+"  /* Position the tooltip text */\n"+
+"  position: absolute;\n"+
+"  z-index: 1;\n"+
+"}\n"+
+"/* Show the tooltip text when you mouse over the tooltip container */\n"+
+".tooltip:hover .tooltip-content {\n"+
+"  visibility: visible;\n"+
+"}\n"+
+"/* Top Arrow */\n"+
+".tooltip .tooltip-content::after {\n"+
+"  content: \"\";\n"+
+"  position: absolute;\n"+
+"  bottom: 100%;  /* At the top of the tooltip */\n"+
+"  left: 10%;\n"+
+"  margin-left: -5px;\n"+
+"  border-width: 5px;\n"+
+"  border-style: solid;\n"+
+"  border-color: transparent transparent black transparent;\n"+
+"}\n"+
+"</style>"+
+"</head>\n"+
+"<body>\n"
+;
+
+	public String headerHTMLSQL =
+"<style>\n"+
+"body { font-family: sans-serif; margin: 0px; }\n"+
+"table { \n"+
+"    border-collapse: collapse; \n"+
+"    border-spacing: 0px; \n"+
+"    margin-top: 20px;\n"+
+"}\n"+
+"tr { \n"+
+"    text-align : center;\n"+
+"    vertical-align: top; \n"+
+"}\n"+
+"th,.linenr {\n"+
+"    background-color: #dddddd;\n"+
+"    border: solid 1px #666666;\n"+
+"    padding: 0em 0.5em 0em 0.5em;\n"+
+"    font-size:0.8em;\n"+
+"}\n"+
+"td { \n"+
+"    border: solid 1px #cccccc; \n"+
+"    padding: 0em 0.5em 0em 0.5em;\n"+
+"}\n"+
+"td.hdr {\n"+
+"  border: solid 0px; \n"+
+"  text-align: left;\n"+
+"}\n"+
+"th.hdr {\n"+
+"  text-align: left;\n"+
+"}\n"+
+".sql {\n"+
+"    text-align: left;\n"+
+"    font-family: monospace;\n"+
+"    white-space: pre;\n"+
+"}	\n"+
+".hdr {\n"+
+"    margin: 10px;\n"+
+"}\n"+
+".ftr {\n"+
+"    color: #cccccc;\n"+
+"    margin: 10px;\n"+
+"	text-align: left;    \n"+
+"}\n"+
+"</style>\n"+
+"</head>\n"+
+"<body> \n"+
+"<table border=\"0\" cellpadding=\"0\"> \n"+
+"<tr><td class=\"hdr\">Report</td><td class=\"hdr\">:</td><td class=\"hdr\">"+reportHTMLPlaceholder+"</td></tr> \n"+
+"<tr><td class=\"hdr\">Imported file</td><td class=\"hdr\">:</td><td class=\"hdr\">"+inputfileHTMLPlaceholder+"</td></tr> \n"+
+"<tr><td class=\"hdr\">Application</td><td class=\"hdr\">:</td><td class=\"hdr\">"+appnameHTMLPlaceholder+"</td></tr> \n"+
+"</table> \n"+
+"<table border=\"0\" cellpadding=\"0\"> \n"+
+"<tr><td class=\"hdr\">"+headerHTMLPlaceholder+"</td></tr> \n"+
+"</table> \n"+
+"<p></p> \n"+
+"<table border=\"1\" cellpadding=\"0\">\n"+
+"<thead>\n"+
+"<tr><th>Line</th>\n"+
+"<th class=\"hdr\">SQL code</th>\n"+
+"</tr>\n"+
+"</thead>\n"+
+"<tbody>\n"
+;
+	public String footerHTML =
+"</tbody>\n"+
+"</table>\n"+
+"<div class=\"ftr\">" + footerHTMLPlaceholder + "\n"+
+"</div>\n"+
+"</body></html>\n"
+;
+	private Map<String, String> toolTipsKeys = new HashMap<>();
+	static final String tttSeparator = "~~~";
+	static final List<String> toolTipsText = Arrays.asList(
+		"HASHBYTES("+tttSeparator+"This hashing algorithm for HASHBYTES() is not currently supported",
+		"IDENTITY("+tttSeparator+"The IDENTITY() function in SELECT-INTO is not currently supported. Use ALTER TABLE to add an identity column",
+		"CHOOSE("+tttSeparator+"CHOOSE(): Rewrite as a CASE expression",
+		"ORIGINAL_LOGIN("+tttSeparator+"ORIGINAL_LOGIN(): Rewrite as SUSER_NAME()",
+		"FORMAT("+tttSeparator+"FORMAT(): Rewrite the formatting using available functions such as CONVERT()",
+		"SERVERPROPERTY("+tttSeparator+"This particular attribute for SERVERPROPERTY() is not currently supported",
+		"CONNECTIONPROPERTY("+tttSeparator+"This particular attribute for CONNECTIONPROPERTY() is not currently supported",
+		"DATABASEPROPERTYEX("+tttSeparator+"This particular attribute for DATABASEPROPERTYEX() is not currently supported",
+		"CONTAINSTABLE("+tttSeparator+"Fulltext search is not currently supported",
+		"FREETEXTTABLE("+tttSeparator+"Fulltext search is not currently supported",
+		"\\w+ FULLTEXT "+tttSeparator+"Fulltext search is not currently supported",
+		CompassAnalyze.NextValueFor+tttSeparator+"The NEXT VALUE FOR function for sequence objects is not currently supported. Consider using identity columns instead",
+		CompassAnalyze.ParamValueDEFAULT+tttSeparator+"Specifying DEFAULT as a parameter value in a procedure or function call is not currently supported; specify the actual default value instead",
+		CompassAnalyze.UnQuotedString+tttSeparator+"Unquoted strings are not currently supported; enclose the string with quotes",
+		CompassAnalyze.DoubleQuotedString+", embedded single"+tttSeparator+"An embedded single quote in a double-quotes string is not currently supported. Change the double-quote string delimiters to single quotes and escape the embedded single quote",
+		CompassAnalyze.DoubleQuotedString+", embedded double"+tttSeparator+"An embedded double quote in a double-quotes string is not currently supported, and will result in two double quotes in the string. Change the double-quote string delimiters to single quotes and un-escape the embedded double quote",
+		CompassAnalyze.ExecuteSQLFunction+tttSeparator+"Calling a SQL function with EXECUTE is not currently supported. Call the function in an expression instead",
+		CompassAnalyze.ColonColonFunctionCall+tttSeparator+"Old-style function call with :: syntax is not supported; rewrite without ::",
+		CompassAnalyze.TemporaryProcedures+tttSeparator+"Temporary stored procedures (with a name starting with #) are created, but not dropped automatically at the end of a session",
+		CompassAnalyze.NumericAsDateTime+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00",
+		CompassAnalyze.NumericDateTimeVarAssign+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00",
+		"EXECUTE procedure, name in variable"+tttSeparator+"Executing a stored procedure whose name is in a variable (i.e. EXECUTE @p) is not currently supported. Rewrite with dynamic SQL (i.e. EXECUTE(...) or sp_executesql)",
+		"BACKUP"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled through PostgreSQL",
+		"RESTORE"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled through PostgreSQL",
+		"GRANT"+tttSeparator+"GRANT is not currently supported",
+		"REVOKE"+tttSeparator+"REVOKE is not currently supported",
+		"DENY"+tttSeparator+"DENY is not currently supported",
+		"ALTER AUTHORIZATION"+tttSeparator+"ALTER AUTHORIZATION is not currently supported",
+		"CREATE ROLE"+tttSeparator+"DB-level roles are not currently supported, except the predefined db_owner role",
+		"ALTER ROLE"+tttSeparator+"DB-level roles are not currently supported, except the predefined db_owner role",
+		"CREATE SERVER ROLE"+tttSeparator+"Server-level roles are not currently supported, except the predefined sysadmin role",
+		"CREATE USER"+tttSeparator+"DB users are not currently supported, except dbo and guest",
+		"ALTER USER"+tttSeparator+"DB users are not currently supported, except dbo and guest",
+		"ALTER VIEW"+tttSeparator+"ALTER VIEW is not currently supported; use DROP+CREATE",
+		"ALTER PROCEDURE"+tttSeparator+"ALTER PROCEDURE is not currently supported; use DROP+CREATE",
+		"ALTER FUNCTION"+tttSeparator+"ALTER FUNCTION is not currently supported; use DROP+CREATE",
+		"ALTER TRIGGER"+tttSeparator+"ALTER TRIGGER is not currently supported; use DROP+CREATE",
+		"Column attribute FILESTREAM"+tttSeparator+"The FILESTREAM attribute is not currently supported and will be ignored",
+		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported and will be ignored",
+		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported and will be ignored",
+		"ALTER TABLE..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements",
+		"ALTER TABLE..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements",
+		"DBCC "+tttSeparator+"DBCC statements are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
+		CompassAnalyze.ODBCScalarFunction+tttSeparator+"ODBC scalar functions are not currently supported; rewrite with an equivalent built-in function",
+		CompassAnalyze.ODBCLiterals+tttSeparator+"ODBC literal expressions are not currently supported; rewrite with CAST() to the desired datatype",
+		CompassAnalyze.Traceflags+tttSeparator+"Traceflags are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
+		CompassAnalyze.RollupCubeOldSyntax+tttSeparator+"Deprecated WITH CUBE/ROLLUP syntax is not currently supported; rewrite as GROUP BY CUBE/ROLLUP",
+		CompassAnalyze.GroupByAll+tttSeparator+"Deprecated GROUP BY ALL syntax is not currently supported; rewrite query",
+		"DATABASE_DEFAULT,"+tttSeparator+"Many collations are supported, but the concept of a default collation on database level is currently not available",
+		"Catalog reference "+tttSeparator+"This SQL Server catalog is not currently supported",
+		"@@DBTS"+tttSeparator+"The database timestamp mechanism (with also the TIMESTAMP/ROWVERSION datatype) is not currently supported",
+		"@@PROCID"+tttSeparator+"Rewrite as OBJECT_ID('object-name')",
+		"HIERARCHYID"+tttSeparator+"The HIERARCHYID datatype is not supported",
+		"TIMESTAMP "+tttSeparator+"The TIMESTAMP (=ROWVERSION) datatype is not supported",
+		"ROWVERSION "+tttSeparator+"The ROWVERSION (=TIMESTAMP) datatype is not supported",
+		"GEOGRAPHY "+tttSeparator+"The GEOGRAPHY datatype is not supported; consider using the PG PostGIS extension",
+		"GEOMETRY "+tttSeparator+"The GEOMETRY datatype is not supported; consider using the PG PostGIS extension",
+		CompassAnalyze.AtAtErrorValueRef+tttSeparator+"The application explicitly references the @@ERROR value shown here, but this particular SQL Server error code is not currently supported by Babelfish. Rewrite manually to check for the PostgreSQL error code",
+		CompassAnalyze.VarDeclareAtAt+tttSeparator+"Local variables or parameters starting with '@@' can be declared, but cannot currently be referenced",
+		"Cursor option "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
+		"FETCH  "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
+		"CURSOR variable"+tttSeparator+"CURSOR-types variables/parameters are not currently supported",
+		"CURSOR procedure parameter"+tttSeparator+"CURSOR-types variables/parameters are not currently supported",
+		"GLOBAL cursor"+tttSeparator+"Currently only LOCAL cursors are supported",
+		"GLOBAL option for FETCH"+tttSeparator+"Currently only LOCAL cursors are supported",
+		"DISABLE TRIGGER"+tttSeparator+"Disabling triggers is not currently supported; triggers are always enabled",		
+		"ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",		
+		"CREATE TRIGGER, INSTEAD OF"+tttSeparator+"INSTEAD-OF triggers are not currently supported. Rewrite as FOR trigger",		
+		"CREATE TRIGGER (DDL)"+tttSeparator+"DDL triggers are not currently supported",
+		CompassAnalyze.TriggerSchemaName+tttSeparator+"CREATE TRIGGER schemaname.triggername is not currently supported; Remove 'schemaname'",
+		"UPDATE STATISTICS"+tttSeparator+"UPDATE STATISTICS is not currently supported; use PG's ANALYZE instead",
+		"UPDATE("+tttSeparator+"UPDATE(): detecting in a trigger which column is updated by the triggering DML, is not currently supported",
+		"COLUMNS_UPDATED("+tttSeparator+"COLUMNS_UPDATED(): detecting in a trigger which column is updated by the triggering DML, is not currently supported",
+		"EVENTDATA("+tttSeparator+"EVENTDATA(): detecting the triggering event for a DDL trigger is not currently supported",
+		"Function call, scalar, in computed column"+tttSeparator+"Calling a scalar SQL function in a computed column, is not currently supported; consider implementing with triggers",
+		"XML(xmlschema)"+tttSeparator+"XML declarations with an XML schema are not currently supported",
+		"XML.value()"+tttSeparator+"XML .value() method is not currently supported",
+		"XML.nodes()"+tttSeparator+"XML .nodes() method is not currently supported",
+		"XML.modify()"+tttSeparator+"XML .modify() method is not currently supported",
+		"XML.exist()"+tttSeparator+"XML .exist() method is not currently supported",
+		"XML.query()"+tttSeparator+"XML .query() method is not currently supported",
+		"XML.write()"+tttSeparator+"XML .write() method is not currently supported",
+		"\\w+ XML SCHEMA COLLECTION"+tttSeparator+"XML SCHEMA COLLECTION objects are not currently supported",
+		"\\w+ XML INDEX"+tttSeparator+"XML indexes are not currently supported",
+		"WITH XMLNAMESPACES"+tttSeparator+"XML name spaces are not currently supported",
+		"SELECT FOR XML AUTO"+tttSeparator+"SELECT FOR XML AUTO is not currently supported; SELECT FOR XML RAW/PATH are supported",
+		"SELECT FOR XML EXPLICIT"+tttSeparator+"SELECT FOR XML EXPLICIT is not currently supported; SELECT FOR XML RAW/PATH are supported",
+		"SELECT FOR XML RAW ELEMENTS"+tttSeparator+"SELECT FOR XML RAW, with ELEMENTS is not currently supported; SELECT FOR XML RAW without ELEMENTS is supported",
+		"SELECT FOR XML PATH ELEMENTS"+tttSeparator+"SELECT FOR XML PATH, with ELEMENTS is not currently supported; SELECT FOR XML PATH without ELEMENTS is supported",
+		"EXECUTE procedure sp_xml_"+tttSeparator+"This XML-related system stored procedure is not currently supported",
+		"OPENXML("+tttSeparator+"OPENXML() is not currently supported",
+		"OPENQUERY("+tttSeparator+"OPENQUERY() is not currently supported",
+		"OPENDATASOURCE("+tttSeparator+"OPENDATASOURCE() is not currently supported",
+		"OPENROWSET("+tttSeparator+"OPENROWSET() is not currently supported",
+		"CHANGETABLE("+tttSeparator+"CHANGETABLE() is not currently supported",
+		"PREDICT("+tttSeparator+"PREDICT() is not currently supported",
+		"OPENJSON("+tttSeparator+"JSON-related functionality is not currently supported",
+		"ISJSON("+tttSeparator+"JSON-related functionality is not currently supported",
+		"JSON_\\w+\\("+tttSeparator+"JSON-related functionality is not currently supported",
+		"SELECT FOR JSON"+tttSeparator+"SELECT FOR JSON is not currently supported",
+		CompassAnalyze.ReadText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
+		CompassAnalyze.WriteText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
+		CompassAnalyze.UpdateText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
+		"INSERT..DEFAULT VALUES"+tttSeparator+"INSERT..DEFAULT VALUES: this syntax is not currently supported. Rewrite as an INSERT with actual values",
+		"INSERT TOP..SELECT"+tttSeparator+"Rewrite as INSERT.. SELECT TOP",
+		CompassAnalyze.InsertBulkStmt+tttSeparator+"INSERT BULK is not a T-SQL statement, but only available through specific client-server APIs",
+		CompassAnalyze.BulkInsertStmt+tttSeparator+"BULK INSERT is not currently supported. Use a different method to load data from a file, for example PostgreSQL's COPY statement",
+		CompassAnalyze.SelectPivot+tttSeparator+"SELECT..PIVOT is not currently supported. Rewrite manually",
+		CompassAnalyze.SelectUnpivot+tttSeparator+"SELECT..UNPIVOT is not currently supported. Rewrite manually",
+		"SELECT TOP WITH TIES"+tttSeparator+"SELECT TOP WITH TIES is not currently supported. Rewrite manually",
+		"SELECT TOP <number> PERCENT"+tttSeparator+"Only TOP 100 PERCENT is currently supported. Rewrite as TOP without PERCENT. Rewrite manually",
+		"CROSS APPLY"+tttSeparator+"CROSS APPLY: lateral joins are not currently supported. Rewrite manually",
+		"OUTER APPLY"+tttSeparator+"OUTER APPLY: lateral joins are not currently supported. Rewrite manually",
+		"WAITFOR DELAY"+tttSeparator+"WAITFOR DELAY: Until supported, rewrite this as a call to pg_sleep, e.g. EXECUTE pg_sleep 60",
+		CompassAnalyze.SelectTopWoOrderBy+tttSeparator+"SELECT TOP without ORDER BY: without ORDER BY, the order of rows in the result is not guaranteed, and therefore the TOP n rows aren't either. Even though the order may still have been deterministic in SQL Server (for example, due to a clustered index), this cannot be relied on when migrating to Babelfish/PostgreSQL. Recommendation is to add an ORDER BY to these queries before emigrating to Babelfish",
+		"Constraint PRIMARY KEY/UNIQUE, CLUSTERED,"+tttSeparator+"CLUSTERED constraints are not currently supported. The constraint will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
+		"Index, CLUSTERED,"+tttSeparator+"CLUSTERED indexes are not currently supported. The index will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
+		"Inline index"+tttSeparator+"Inline indexes are not currently supported; create indexes separately with CREATE INDEX",
+		"Indexed view "+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
+		"CREATE TABLE ##"+tttSeparator+"Global temporary table: unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, and is dropped automatically when the last session accessing the table disconnects",
+		"CREATE TABLE (temporal)"+tttSeparator+"Temporal table: not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
+		CompassAnalyze.TableValueConstructor+tttSeparator+"Rewrite the VALUES() clause as SELECT statements and/or UNIONs",
+		CompassAnalyze.MergeStmt+tttSeparator+"Rewrite MERGE as a series of INSERT/UPDATE/DELETE statements",
+		CompassAnalyze.DynamicSQLEXECStringReview+tttSeparator+"Dynamic SQL is executed by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
+		CompassAnalyze.DynamicSQLEXECSPReview+tttSeparator+"Dynamic SQL is executed by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
+		CompassAnalyze.FKrefDBname+tttSeparator+"Remove the database name from the referenced table. E.g. change: REFERENCES yourdb.dbo.yourtable(yourcol) to: REFERENCES dbo.yourtable(yourcol)",
+		CompassAnalyze.CrossDbReference+tttSeparator+"Cross-database references with 3-part object names (e.g. SELECT * FROM yourdb.dbo.yourtable) are not currently supported, except for objects inside the current database",
+		CompassAnalyze.RemoteObjectReference+tttSeparator+"Remote object references with 4-part object names (e.g. SELECT * FROM REMOTESRVR.somedb.dbo.sometable) are not currently supported",
+		CompassAnalyze.ProcVersionBase+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
+		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action in case the trigger body references the transition tables INSERTED or DELETED",
+		"SET QUOTED_IDENTIFIER \\w+, before end of batch"+tttSeparator+"SET QUOTED_IDENTIFIER takes effect only at the start of the next batch in Babelfish; the SQL Server semantics where it applies to the next statement, is not currently supported",
+		"SET DEADLOCK_PRIORITY"+tttSeparator+"Setting the deadlock victimization priority is not currently supported",
+		"SET LOCK_TIMEOUT"+tttSeparator+"Setting the lock timeout is not currently supported",
+		CompassAnalyze.SetXactIsolationLevel+tttSeparator+"This transaction isolation level is not currently supported, due to PostgreSQL\'s MVCC mechanism",
+		
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index "+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint or -index. Because PostgreSQL allows multiple NULL values, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint or -index. Because PostgreSQL allows multiple NULL values, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index (review)"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint or -index. Because PostgreSQL allows multiple NULL values, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint (review)"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint or -index. Because PostgreSQL allows multiple NULL values, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish",
+		
+		CompassAnalyze.DropIndex+" index ON schema.table"+tttSeparator+"Syntax DROP INDEX indexname ON schema.table is not currently supported; remove schema name",
+		CompassAnalyze.DropIndex+" table.index"+tttSeparator+"Syntax DROP INDEX table.indexname is not currently supported; use DROP INDEX indexname ON table",
+		CompassAnalyze.DropIndex+" schema.table.index"+tttSeparator+"Syntax DROP INDEX schema.table.indexname is not currently supported; use DROP INDEX indexname ON table",
+		
+		
+		"\\w+, option WITH EXECUTE AS CALLER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY INVOKER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
+		"\\w+, option WITH EXECUTE AS OWNER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY DEFINER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
+		"\\w+, option WITH EXECUTE AS SELF"+tttSeparator+"The clause WITH EXECUTE AS SELF for procedures, functions and triggers is not currently supported",
+		"\\w+, option WITH EXECUTE AS USER"+tttSeparator+"The clause WITH EXECUTE AS <user> for procedures, functions and triggers is not currently supported",
+		"Index exceeds \\d+ columns"+tttSeparator+"For the maximum number of columns per index, 'included' columns do not count in SQL Server, but they do ount in PostgreSQL",
+		"DROP \\w+, >1 object"+tttSeparator+"Use a separate DROP statement for each object to be dropped",
+		"\\w+, without SCHEMABINDING"+tttSeparator+"PostgreSQL only supports the equivalent of WITH SCHEMABINDING, i.e. an object (like a table) cannot be dropped if another object (like a view) depends on it. Objects created without the SCHEMABINDING clause will still be created by Babelfish, but as if WITH SCHEMABINDING was specified",		
+		"\\w+ MATERIALIZED VIEW"+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
+		"\\w+ TRANSACTION not supported with PostgreSQL SECURITY DEFINER"+tttSeparator+"T-SQL objects created with EXECUTE AS OWNER are mapped to PostgreSQL SECURITY DEFINER; PostgreSQL does not support transaction mgmt statementds for objects created with SECURITY DEFINER",
+		"\\w+ ASSEMBLY"+tttSeparator+"This object type is not currently supported",
+		"\\w+ AGGREGATE"+tttSeparator+"This object type is not currently supported"
+	);
+
+  	//String hintIcon = "&#x2754;";   // white question mark
+  	//String hintIcon = "&#x1F4A1;";  // light bulb
+  	//String hintIcon = "&#x1F6C8;";  // information symbol: (i)
+  	//String hintIcon = "&#x2606;";  // white star
+  	//String hintIcon = "&#8505;";  // blue information symbol [i]
+  	//String hintIcon = "&#10145;";  // right arrow
+  	//String hintIcon =   "&#9651;";  // white triangle
+
+  	static String hintIcon = "&#x1F6C8;";
+
+	public String psqlImportFileName = "pg_import";
+	public String psqlFileSuffix = "psql";
+	public String batFileSuffix = "bat";
+	public String psqlImportTableName = "BBFCompass";
+	public String psqlImportFilePlaceholder    = "BBF_PSQLIMPORTFILEPLACEHOLDER";
+	public String psqlImportTablePlaceholder   = "BBF_PSQLIMPORTTABLEPLACEHOLDER";
+	public String psqlImportSQLCrTb   =
+"DROP TABLE IF EXISTS "+psqlImportTablePlaceholder+";\n"+
+"CREATE TABLE "+psqlImportTablePlaceholder+"(\n"+
+"	babelfish_version VARCHAR(20) NOT NULL,\n"+
+"	date_imported TIMESTAMP NOT NULL,\n"+
+"	item VARCHAR(200) NOT NULL,\n"+
+"	itemDetail VARCHAR(200) NOT NULL,\n"+
+"	reportGroup VARCHAR(50) NOT NULL,\n"+
+"	status VARCHAR(20) NOT NULL,\n"+
+"	lineNr INT NOT NULL,\n"+
+"	appName VARCHAR(100) NOT NULL,\n"+
+"	srcFile VARCHAR(200) NOT NULL,\n"+
+"	batchNrinFile INT NOT NULL,\n"+
+"	batchLineInFile INT NOT NULL,\n"+
+"	context VARCHAR(200) NOT NULL,\n"+
+"	subcontext VARCHAR(200) NOT NULL,\n"+
+"	misc VARCHAR(20) NOT NULL\n"+
+");\n";
+
+	public String psqlImportSQLCopy =
+"\\COPY "+psqlImportTablePlaceholder+" FROM '"+psqlImportFilePlaceholder+"'  WITH DELIMITER ';' ;\n"+
+"\n"+
+"-- restore any delimiter characters occurring in actual identifiers:\n"+
+"UPDATE "+psqlImportTablePlaceholder+" SET\n"+
+"item        = REPLACE(item, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"'),\n"+
+"itemDetail  = REPLACE(itemDetail, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"'),\n"+
+"reportGroup = REPLACE(reportGroup, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"'),\n"+
+"context     = REPLACE(context, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"'),\n"+
+"subcontext  = REPLACE(subcontext, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"')\n"+
+";\n"+
+"SELECT count(*) AS total_rows_in_table FROM "+psqlImportTablePlaceholder+";\n"+
+"\n"
+;
+
 
 	// capture file
 	public boolean echoCapture = false;	// development only
@@ -141,11 +582,13 @@ public class CompassUtilities {
 	public final String newLine = System.getProperty("line.separator");
 
 	// report generation
+	public String reportName = uninitialized;
 	public final String sortKeySeparator = "  ~~~";
 	public final String lastItem = "~ZZZZZZ~LastItem";
 	public static boolean reportShowAppName = true;
 	public static boolean reportShowSrcFile = true;
 	public static boolean reportAppsCount = true;
+	public static String reportShowBatchNr = "";
 	public static String reportOptionXref = "";
 	public static String reportOptionStatus = "";
 	public static String reportOptionApps = "";
@@ -153,7 +596,12 @@ public class CompassUtilities {
 	public static String reportOptionFilter = "";
 	public static int linesSQLInReport = 0;
 	public static String reportHdrLines = "";
-	public static int maxLineNrsInList = 10;	//todo: make user-configurable
+	public static int maxLineNrsInListDefault = 10;
+	public static int maxLineNrsInList = maxLineNrsInListDefault;
+	public final static String reportInputFileFmt = "input file";
+	public static boolean generateHTML = true;
+	public static boolean linkInNewTab = true;
+	public static String tgtBlank = " target=\"_blank\"";
 
 	// adjust ordering of groups in report - used to prefix alphabetically sorted sortkey. Default prefix = 000
 	private static Integer groupSortLength = 3;
@@ -205,6 +653,7 @@ public class CompassUtilities {
 	static Map<String, String> UDDSymTab = new HashMap<String, String>();
 	static Map<String, String> SUDFSymTab = new HashMap<String, String>();
 	static Map<String, String> TUDFSymTab = new HashMap<String, String>();
+	static Map<String, String> colSymTab = new HashMap<String, String>();
 
 	//XML methods
 	static final List<String> XMLmethods = Arrays.asList("EXIST", "MODIFY", "QUERY", "VALUE", "NODES");
@@ -212,7 +661,8 @@ public class CompassUtilities {
 	static Map<String, String> TUDFNamesLikeXML = new HashMap<String, String>();
 
 	//HIERARCHYID methods
-	static final List<String> HIERARCHYIDmethods = Arrays.asList("GETANCESTOR", "GETDESCENDANT", "GETLEVEL", "ISDESCENDANTOF", "READ", "GETREPARENTEDVALUE", "TOSTRING", "GETROOT", "PARSE");
+	static final List<String> HIERARCHYIDmethodsFmt = Arrays.asList("GetAncestor", "GetDescendant", "GetLevel", "IsDescendantOf", "read", "GetReparentedValue", "ToString", "GetRoot", "Parse");  // Write cannot occur in SQL code
+	static List<String> HIERARCHYIDmethods = new ArrayList<>();
 	static Map<String, String> SUDFNamesLikeHIERARCHYID = new HashMap<String, String>();
 
 	// masking chars in identifiers
@@ -250,6 +700,7 @@ public class CompassUtilities {
 	public boolean debugReport;
 	public boolean debugCalc;
 	public boolean debugging;
+	public int debugSpecial = 0;
 
 	// classification values for SQL features
 	public final String Supported         = "SUPPORTED";
@@ -271,6 +722,9 @@ public class CompassUtilities {
 
 	// display values
 	public List<String> supportOptionsDisplay = Arrays.asList("Supported", "Not Supported", "Review Semantics", "Review Performance", "Review Manually", "Ignored", ObjCountOnly);
+
+	// iteration order for report
+	public List<String> supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Supported);
 
 	// default weight factors for computing compatibility %age, corresponding to each option value in the list above
 	public List<Integer> supportOptionsWeightDefault = Arrays.asList(100,   // Supported
@@ -327,8 +781,14 @@ public class CompassUtilities {
 	private CompassUtilities() {}
 
 	public static CompassUtilities getInstance() {
+		initValues();
 		return instance;
 	}
+
+    private static void initValues () {
+    	HIERARCHYIDmethods = new ArrayList<>(HIERARCHYIDmethodsFmt);
+    	listToUpperCase(HIERARCHYIDmethods);
+    }
 
     public void getPlatform () {
 		onWindows = false;
@@ -340,15 +800,28 @@ public class CompassUtilities {
 			thisProgExec = thisProgExecLinux;
 		}
 
-		if (System.getenv().containsKey("COMPASS_DEVELOP")) {
+		if (System.getenv().containsKey("COMPASS_DEVELOP") || System.getenv().containsKey("compass_develop")) {
 			devOptions = true;
 		}
+		
+		if (System.getenv().containsKey("COMPASS_HINT_ICON") || System.getenv().containsKey("compass_hint_icon")) {
+			String iconEnv = System.getenv().get("COMPASS_HINT_ICON");
+			if (getPatternGroup(iconEnv, "^((\\#)?(x)?[0-9A-F]{4,}(;)?)$", 1).isEmpty()) {
+				appOutput("COMPASS_HINT_ICON: invalid value ["+iconEnv+"]. Must be '#x<hex>' or '#<number>', denoting a Unicode Emoji."); 
+			}
+			else {
+				if (!iconEnv.startsWith("#")) iconEnv = "#" + iconEnv;
+				if (!iconEnv.endsWith(";")) iconEnv += ";";
+				hintIcon = "&" + iconEnv;
+			}
+			//appOutput(thisProc()+"iconEnv=["+iconEnv+"]  hintIcon=["+hintIcon+"] ");
+		}		
     }
 
-	// for debugging, and for launching the window with the final report
+ 	// for debugging, and for launching the window with the final report
     public void runOScmd (String cmd) throws IOException {
-	ProcessBuilder builder;
-	if (onWindows) {
+    	ProcessBuilder builder;
+    	if (onWindows) {
 	        builder = new ProcessBuilder("cmd.exe", "/c", cmd );
 	    }
 	    else {
@@ -366,9 +839,9 @@ public class CompassUtilities {
     }
 
     private void forceGC (){
-	// for large input sets, we may run out of memory
-	// calling this seems to help a bit, though no guarantees
-	System.gc ();
+    	// for large input sets, we may run out of memory
+    	// calling this seems to help a bit, though no guarantees
+    	System.gc ();
 		System.runFinalization ();
     }
 
@@ -430,11 +903,11 @@ public class CompassUtilities {
 		else {
 			p = Pattern.compile(patt, Pattern.CASE_INSENSITIVE);
 		}
-	Matcher m = p.matcher(s);
-	if (options.contains("first"))
-		s = m.replaceFirst(replace);
-	else
-		s = m.replaceAll(replace);
+    	Matcher m = p.matcher(s);
+    	if (options.contains("first"))
+    		s = m.replaceFirst(replace);
+    	else
+    		s = m.replaceAll(replace);
 		return s;
 	}
 
@@ -489,16 +962,16 @@ public class CompassUtilities {
 	    return removeLastChar(sNew.toString());
 	}
 
-	public void listToUpperCase(List<String> thisList) {
+	public static void listToUpperCase(List<String> thisList) {
 		for(int i=0; i<thisList.size(); i++) {
 			thisList.set(i, thisList.get(i).toUpperCase());
-	}
+    	}
 	}
 
-	public void listToLowerCase(List<String> thisList) {
+	public static void listToLowerCase(List<String> thisList) {
 		for(int i=0; i<thisList.size(); i++) {
 			thisList.set(i, thisList.get(i).toLowerCase());
-	}
+    	}
 	}
 
 	public String reverseString(String s) {
@@ -629,14 +1102,27 @@ public class CompassUtilities {
 	}
 
 	public String composeSeparatorBar(String s) {
-		return composeSeparatorBar(s, "-");
+		return composeSeparatorBar(s, "", true);
 	}
-	public String composeSeparatorBar(String s, String filler) {
-		if (filler.isEmpty()) filler = "-";
-		String s2 = "";
+	public String composeSeparatorBar(String s, String tag) {
+		return composeSeparatorBar(s, tag, true);
+	}
+	public String composeSeparatorBar(String s, String tag, boolean generateTocLink) {
+		String filler = "-";
+		String tagHTML = "";
+		if (generateHTML) {
+			tagHTML = "<a name=\""+tag.toLowerCase()+"\"></a>";
+		}
+		String s2 = tagHTML;
 		s2 += composeOutputLine("", "-") + "\n";
 		s2 += composeOutputLine("--- "+s+" ", "-") + "\n";
 		s2 += composeOutputLine("", "-") + "\n";
+		if (generateHTML) {
+			if (generateTocLink) {
+				// s2 += tocLinkIcon + " " + tocLinkURL + "\n";   // dos not look good
+				s2 += tocLinkURL + "\n";
+			}
+		}		
 		return s2;
 	}
 
@@ -664,7 +1150,7 @@ public class CompassUtilities {
 			try { writeSessionLogFile(s + "\n"); } catch (Exception e) { System.out.println("Error writing to "+ sessionLogPathName); }
 		}
 		if (inReport) {
-			try { writeReportFile(s); } catch (Exception e) { System.out.println("Error writing to "+ reportFilePathName); }
+			try { writeReportFile(s); } catch (Exception e) { System.out.println("Error writing to "+ reportFileTextPathName); }
 		}
 	}
 
@@ -810,10 +1296,10 @@ public class CompassUtilities {
 
 	// report dir pathname
     public String getReportDirPathname(String reportName) {
-	return getReportDirPathname(reportName, "", "");
+    	return getReportDirPathname(reportName, "", "");
     }
     public String getReportDirPathname(String reportName, String subDir) {
-	return getReportDirPathname(reportName, subDir, "");
+    	return getReportDirPathname(reportName, subDir, "");
     }
     public String getReportDirPathname(String reportName, String subDir, String subSubDir) {
 		String dirPath = getDocDirPathname();
@@ -835,27 +1321,42 @@ public class CompassUtilities {
 		return filePath;
 	}
 
+	// PG import file pathname
+    public String getPGImportFilePathname(String reportName) {
+		String f = PGImportFileName + "." + captureFileSuffix;
+		String filePath = getFilePathname(getReportDirPathname(reportName, capDirName), f);
+		return filePath;
+	}
+
 	// session log pathname
     public String getSessionLogPathName(String reportName, String now) {
-	String sessionLogName = "session-log-" + reportName + "-" + now + ".txt";
-	if (stdReport) { // development only
-		sessionLogName = "session-log.txt";
-	}
+    	String sessionLogName = "session-log-" + reportName + "-" + now + "." + HTMLSuffix;
+    	if (stdReport) { // development only
+    		sessionLogName = "session-log" + "." + HTMLSuffix;
+    	}
 		return getFilePathname(getReportDirPathname(reportName, logDirName), sessionLogName);
 	}
 
 	// report file pathname
-    public String getReportFilePathname(String reportName, String now) {
-	String reportNameFull = "report-" + reportName + "-" + now + ".txt";
-	if (stdReport) { // development only
-		reportNameFull = "report.txt";
-	}
+    public String getreportFilePathName(String reportName, Date now) {
+    	String now_fname = new SimpleDateFormat("yyyy-MMM-dd-HH.mm.ss").format(now);
+    	String reportNameFull = "report-" + reportName + "-" + now_fname + "." + textSuffix;
+    	if (stdReport) { // development only
+    		reportNameFull = "report." + textSuffix;
+    	}
 		return getFilePathname(getReportDirPathname(reportName), reportNameFull);
 	}
 
+	public String getReportFileHTMLPathname(String reportName, Date now) {
+		String f = getreportFilePathName(reportName, now);
+		f = applyPatternFirst(f, textSuffix + "$", HTMLSuffix);
+		return f;
+	}
+
+
 	// check  dir exists, and create if not
     public void checkDir(String dirPath, boolean mustExist) {
-	checkDir(dirPath, mustExist, false);
+    	checkDir(dirPath, mustExist, false);
     }
     public void checkDir(String dirPath, boolean mustExist, boolean echoCreate) {
 		if (debugging) dbgOutput(thisProc() + "dirPath=[" + dirPath + "] mustExist=[" + mustExist + "] ", debugDir);
@@ -874,7 +1375,7 @@ public class CompassUtilities {
 				if (docDir.mkdirs()) {
 					if (debugging) dbgOutput("Created " + dirPath, debugDir);
 					if (echoCreate) {
-						appOutput("Created " + dirPath);
+						appOutput("Creating " + dirPath);
 					}
 				}
 				else {
@@ -886,7 +1387,7 @@ public class CompassUtilities {
 					if (docDir.mkdirs()) {
 						if (debugging) dbgOutput("Created (after retry)" + dirPath, debugDir);
 						if (echoCreate) {
-							appOutput("Created " + dirPath);
+							appOutput("Creating " + dirPath);
 						}
 					}
 					else {
@@ -906,24 +1407,24 @@ public class CompassUtilities {
 	}
 
     public List<Path> getFilesPattern(String dir, String filePattern) throws IOException {
-	Path dirPath = Paths.get(dir);
-	Stream<Path> files = Files.find(dirPath, 1,
+    	Path dirPath = Paths.get(dir);
+    	Stream<Path> files = Files.find(dirPath, 1,
              (path, basicFileAttributes) -> path.toFile().getName().matches(filePattern));
-		List<Path> fileList = files.collect(Collectors.toList());
-		//appOutput(thisProc()+"filePattern=["+filePattern+"] dir=["+dir+"] fileList=["+fileList+"] ");
-		fileList.remove(dirPath);
-		//printStackTrace();
+ 		List<Path> fileList = files.collect(Collectors.toList());
+ 		//appOutput(thisProc()+"filePattern=["+filePattern+"] dir=["+dir+"] fileList=["+fileList+"] ");
+ 		fileList.remove(dirPath);
+ 		//printStackTrace();
 		return fileList;
     }
 
 	public String getErrBatchFilePathName(String reportName, String inputFileName, String runStartTime) throws IOException {
 		String f = Paths.get(inputFileName).getFileName().toString();
-	if (stdReport) { // development only
-		f += "." + errBatchFileSuffix;
-	}
-	else {
-		f += "-" + runStartTime + "." + errBatchFileSuffix;
-	}
+    	if (stdReport) { // development only
+    		f += "." + errBatchFileSuffix;
+    	}
+    	else {
+    		f += "-" + runStartTime + "." + errBatchFileSuffix;
+    	}
 		String dirPath = getReportDirPathname(reportName, errBatchDirName);
 		f = getFilePathname(dirPath, f);
 		return f;
@@ -963,7 +1464,7 @@ public class CompassUtilities {
 	}
 
     public void closeErrBatchFile() throws IOException {
-	if (errBatchFileWriter == null) return;
+    	if (errBatchFileWriter == null) return;
 	    errBatchFileWriter.close();
 	    errBatchFileWriter = null;
 	}
@@ -999,7 +1500,7 @@ public class CompassUtilities {
 	}
 
     public void closeBatchFile() throws IOException {
-	if (batchFileWriter == null) return;
+    	if (batchFileWriter == null) return;
 	    batchFileWriter.close();
 	    batchFileWriter = null;
 	}
@@ -1033,30 +1534,149 @@ public class CompassUtilities {
 		return f;
 	}
 
+	public String getImportFileHTMLPathName(String reportName, String inputFileName, String appName) throws IOException {
+		String f = getImportFilePathName(reportName, inputFileName, appName);
+		f = applyPatternFirst(f, importFileSuffix + "$", HTMLSuffix);
+		return f;
+	}
+
 	public String openImportFile(String reportName, String inputFileName, String appName, String encoding) throws IOException {
 		Path fullPath = Paths.get(inputFileName).toAbsolutePath();
 		importFilePathName = getImportFilePathName(reportName, inputFileName, appName);
+		importFileHTMLPathName = getImportFileHTMLPathName(reportName, inputFileName, appName);
 		checkDir(getReportDirPathname(reportName, importDirName), true);
 		importFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(importFilePathName), StandardCharsets.UTF_8)));
 		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
 		String initLine = importFileLinePart1 +"["+fullPath.toString()+"]"+importFileLinePart2+"["+appName+"]" + importFileLinePart3 +"["+encoding+"]" + importFileLinePart4 +"["+importFileNrBatchesPlaceholder+"/"+importFileNrLinesPlaceholder+"]" + importFileLinePart5 + now;
-		writeImportFile(initLine);
+		writeImportFile(initLine, false);
+		if (generateHTML) {
+			importFileWritelineNr = 0;
+			importFileHTMLWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(importFileHTMLPathName), StandardCharsets.UTF_8)));
+			String hdr = headerHTML + headerHTMLSQL;
+			hdr = formatHeaderHTML(hdr, now, reportName, inputFileName, appName);
+			formatFooterHTML();
+			importFileHTMLWriter.write(hdr);
+			importFileHTMLWriter.flush();
+		}
 		return importFilePathName;
 	}
 
+	public String formatToolTips(String hdr) {
+		// generate tooltip CSS entries for tooltips
+		String css = "";
+		for (int i=0; i<toolTipsText.size(); i++) {
+			String t = toolTipsText.get(i);
+			if (t.isEmpty()) continue;
+			List<String> fields = new ArrayList<String>(Arrays.asList(t.split(tttSeparator)));
+			String item = fields.get(0).trim();
+			String tooltipText = fields.get(1).trim();
+			String key = makeItemHintKey(item);
+			if (!tooltipText.endsWith(".")) tooltipText += ".";
+			toolTipsKeys.put(key, item.toLowerCase());
+			//appOutput(thisProc()+"itemText=["+item+"] key=["+key+"] ");
+			css += ".tooltip .tooltip-content[data-tooltip='"+key+"']::before { content: \""+tooltipText+"\"; }\n";
+		}
+		hdr = applyPatternFirst(hdr, tooltipsHTMLPlaceholder, css);
+		return hdr;
+	}
+
+	public String formatHeaderHTML(String hdr, String now, String reportName, String inputFileName, String appName) {
+		String hdr1 = "Generated by " + thisProgName + " at " + now;
+		hdr = applyPatternAll(hdr, headerHTMLPlaceholder, hdr1);
+		//String title = "Report " + reportName + ", file " + inputFileName + ", application " + appName;
+		hdr = applyPatternFirst(hdr, titleHTMLPlaceholder, inputFileName);
+		hdr = applyPatternFirst(hdr, reportHTMLPlaceholder, reportName);
+		hdr = applyPatternFirst(hdr, inputfileHTMLPlaceholder, inputFileName);
+		hdr = applyPatternFirst(hdr, appnameHTMLPlaceholder, appName);
+		return hdr;
+	}
+
+	public void formatFooterHTML() {
+		String ftr = "Generated by " + thisProgName;
+		footerHTML = applyPatternFirst(footerHTML, footerHTMLPlaceholder, ftr);
+	}
+
 	public void writeImportFile(String line) throws IOException {
+		writeImportFile(line, true);
+	}
+	public void writeImportFile(String line, boolean writeHTML) throws IOException {
 		importFileWriter.write(line + "\n");
 		importFileWriter.flush();
+
+		if (writeHTML) {
+			if (generateHTML) {
+				importFileWritelineNr++;
+				String lineEscaped = escapeHTMLChars(line);
+				String lineHTML = "<tr><td class=\"linenr\"><a name=\""+importFileWritelineNr+"\"></a>" +importFileWritelineNr+ "</td><td class=\"sql\">" + lineEscaped + "</td></tr>";
+				importFileHTMLWriter.write(lineHTML + "\n");
+				importFileHTMLWriter.flush();
+			}
+		}
+	}
+
+	public String writePsqlFile(boolean append, String reportName, String cmd) throws IOException {
+		String psqlImportFilePathNameRoot = getFilePathname(getReportDirPathname(reportName, capDirName), psqlImportFileName)+".";
+		String psqlImportFilePathName = psqlImportFilePathNameRoot + psqlFileSuffix;
+		BufferedWriter psqlImportFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(psqlImportFilePathName), StandardCharsets.UTF_8)));
+		String f = PGImportFileName+"."+captureFileSuffix;
+		String psqlText = psqlImportSQLCopy;
+		if (!append) psqlText = psqlImportSQLCrTb + psqlText;
+		psqlText = applyPatternAll(psqlText, psqlImportFilePlaceholder, f);
+		psqlText = applyPatternAll(psqlText, psqlImportTablePlaceholder, psqlImportTableName);
+		psqlImportFileWriter.write(psqlText);
+		psqlImportFileWriter.flush();
+		psqlImportFileWriter.close();
+
+		String psqlImportBatFilePathName = psqlImportFilePathNameRoot + batFileSuffix;
+		BufferedWriter psqlImportBatFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(psqlImportBatFilePathName), StandardCharsets.UTF_8)));
+		psqlImportBatFileWriter.write("rem Importing captured items into PG table '" + psqlImportTableName+ "'...\n");
+		psqlImportBatFileWriter.write("@echo off\n");
+		psqlImportBatFileWriter.write("cd " + getReportDirPathname(reportName, capDirName) + "\n");
+		psqlImportBatFileWriter.write(cmd + "\n");
+		psqlImportBatFileWriter.flush();
+		psqlImportBatFileWriter.close();
+
+		return psqlImportBatFilePathName;
+	}
+
+	// couldn't find readily availble solution in standard Java; should maybe use apache.commons to escape HTML chars
+	public String escapeHTMLChars(String line) {
+		if (line.contains("&")) line = applyPatternAll(line, "&", "&amp;");
+		if (line.contains("<")) line = applyPatternAll(line, "<", "&lt;");
+		if (line.contains(">")) line = applyPatternAll(line, ">", "&gt;");
+		if (line.contains("\"")) line = applyPatternAll(line, "\"", "&quot;");
+		if (line.contains("'")) line = applyPatternAll(line, "\"", "&apos;");
+		return line;
+	}
+
+	public String unEscapeHTMLChars(String line) {
+		if (line.contains("&")) {
+			line = applyPatternAll(line, "&amp;", "&");
+			line = applyPatternAll(line, "&lt;", "<");
+			line = applyPatternAll(line, "&gt;", ">");
+			line = applyPatternAll(line, "&quot;", "\"");
+			line = applyPatternAll(line, "&apos;", "\"");
+			line = applyPatternAll(line, "&nbsp;", " ");
+		}
+		return line;
 	}
 
     public void closeImportFile() throws IOException {
 	    importFileWriter.close();
+		if (generateHTML) {
+			if (importFileHTMLWriter != null) {
+				importFileHTMLWriter.write(footerHTML);
+				importFileHTMLWriter.flush();
+		   		importFileHTMLWriter.close();
+		   		importFileHTMLWriter = null;
+		   	}
+		}
 	}
 
 	// get attribute from imported file's first line
     public String importFileAttribute(String line, int part) throws IOException {
-	assert (part >= 1 && part <= 5): "invalid part value ["+part+"] ";
-	return getPatternGroup(line, "^"+importFileLinePart1+"[\\[](.*?)[\\]]"+importFileLinePart2+"[\\[](.*?)[\\]]"+importFileLinePart3+"[\\[](.*?)[\\]]"+importFileLinePart4+"[\\[](.*?)[\\]]"+importFileLinePart5+"(.*)$", part);
+    	assert (part >= 1 && part <= 5): "invalid part value ["+part+"] ";
+    	return getPatternGroup(line, "^"+importFileLinePart1+"[\\[](.*?)[\\]]"+importFileLinePart2+"[\\[](.*?)[\\]]"+importFileLinePart3+"[\\[](.*?)[\\]]"+importFileLinePart4+"[\\[](.*?)[\\]]"+importFileLinePart5+"(.*)$", part);
     }
 
 	// update the imported file's first line
@@ -1067,11 +1687,11 @@ public class CompassUtilities {
         int inLen = line.length();
         line = line.replaceFirst(importFileNrBatchesPlaceholder,nrBatches.toString());
         line = line.replaceFirst(importFileNrLinesPlaceholder,nrLines.toString());
-	int modLen = line.length();
-	//patch up the line with the # characters we lost
-	line = line.substring(0,modLen) + stringRepeat(" ", (inLen-modLen));
-	f.seek(position);
-	f.writeBytes(line);
+       	int modLen = line.length();
+       	//patch up the line with the # characters we lost
+       	line = line.substring(0,modLen) + stringRepeat(" ", (inLen-modLen));
+       	f.seek(position);
+       	f.writeBytes(line);
         f.close();
         return;
     }
@@ -1095,17 +1715,17 @@ public class CompassUtilities {
 			captureFiles = getFilesPattern(dirPath, captureFileName+"\\..+\\." + captureFileSuffix);
 		}
 		return captureFiles;
-	}
+ 	}
 
 	// validate all capture files for this report
 	// if valid, returns an empty string
 	// if invalid, return message why it's invalid
     public String captureFilesValid(List<Path> captureFiles) throws IOException {
-	String result = "";
-	String tmp = "";
-	boolean identicalTargetVersion = true;
-	boolean otherwiseInvalid = false;
-	String targetVersionTest = null;
+    	String result = "";
+    	String tmp = "";
+    	boolean identicalTargetVersion = true;
+    	boolean otherwiseInvalid = false;
+    	String targetVersionTest = null;
 		for (Path cf: captureFiles) {
 			String line = captureFileFirstLine(cf.toString());   // read only first line
 			String reportName     = captureFileAttribute(line, 1);
@@ -1143,7 +1763,7 @@ public class CompassUtilities {
 			result += "\nRe-run analysis for all imported files with -reanalyze";
 		}
 		return result;
-	}
+ 	}
 
 	// get list of all files/apps imported for this report
     public List<Path> getImportFiles(String reportName) throws IOException {
@@ -1154,7 +1774,7 @@ public class CompassUtilities {
 			importFiles = getFilesPattern(dirPath, ".+\\."+importFileTag+"\\..+" + importFileSuffix);
 		}
 		return importFiles;
-	}
+ 	}
 
 	// list all files/apps imported for this report
     public void listReportFiles(String reportName) throws IOException {
@@ -1182,7 +1802,7 @@ public class CompassUtilities {
 				appOutput("   app: "+fields.get(0)+",  "+fields.get(1)+"; #batches/lines: "+fields.get(2)+"; imported "+fields.get(3));
 			}
 		}
-	}
+ 	}
 
 
 	// check report dir exists, and create if not
@@ -1333,6 +1953,7 @@ public class CompassUtilities {
 		sessionLogPathName = getSessionLogPathName(reportName, fixNameChars("report", now));
 		checkDir(getReportDirPathname(reportName, logDirName), true);
 		sessionLogWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(sessionLogPathName), StandardCharsets.UTF_8)));
+		writeSessionLogFile("<pre>");
 		return sessionLogPathName;
 	}
 
@@ -1342,6 +1963,7 @@ public class CompassUtilities {
 	}
 
     public void closeSessionLogFile() throws IOException {
+		writeSessionLogFile("</pre>");
 	    sessionLogWriter.close();
 	}
 
@@ -1389,8 +2011,8 @@ public class CompassUtilities {
 
 	// capture file
     public void openCaptureFile(String reportName, String fileName, String appName) throws IOException {
-	captureFilePathName = getCaptureFilePathname(reportName, fileName, appName);
-	checkDir(getReportDirPathname(reportName, capDirName), true);
+    	captureFilePathName = getCaptureFilePathname(reportName, fileName, appName);
+    	checkDir(getReportDirPathname(reportName, capDirName), true);
 		captureFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(captureFilePathName), StandardCharsets.UTF_8)));
 		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
 		String initLine = captureFileLinePart1+"["+reportName+"]" + captureFileLinePart2 +"["+targetBabelfishVersion+"]" + captureFileLinePart3 + now;
@@ -1403,14 +2025,14 @@ public class CompassUtilities {
 
 	// append line to the capture file
     public void appendCaptureFile(String itemLine) throws IOException {
-	    captureFileWriter.write(itemLine+"\n");
+	    captureFileWriter.write(decodeIdentifier(itemLine)+"\n");
 	    captureFileWriter.flush();
 	}
 
 	// get attribute from imported file first line
     public String captureFileAttribute(String line, int part) throws IOException {
-	assert (part >= 1 && part <= 3): "invalid part value ["+part+"] ";
-	return getPatternGroup(line, "^"+captureFileLinePart1+"[\\[](.*?)[\\]]"+captureFileLinePart2+"[\\[](.*?)[\\]]"+captureFileLinePart3+"(.*)$", part);
+    	assert (part >= 1 && part <= 3): "invalid part value ["+part+"] ";
+    	return getPatternGroup(line, "^"+captureFileLinePart1+"[\\[](.*?)[\\]]"+captureFileLinePart2+"[\\[](.*?)[\\]]"+captureFileLinePart3+"(.*)$", part);
     }
 
 	// read capture file first line
@@ -1425,7 +2047,7 @@ public class CompassUtilities {
 
 	// metrics line
     public static String makeMetricsLine(String srcFileName, String appName, int nrBatches, int nrBatchesError, int nrLines) {
-	return metricsLineChar1 + metricsLineTag + "=" + srcFileName + captureFileSeparator + appName + captureFileSeparator + nrBatches + captureFileSeparator + nrBatchesError + captureFileSeparator + nrLines;
+    	return metricsLineChar1 + metricsLineTag + "=" + srcFileName + captureFileSeparator + appName + captureFileSeparator + nrBatches + captureFileSeparator + nrBatchesError + captureFileSeparator + nrLines;
 	}
 
 	// strip delimiters if possible
@@ -1485,7 +2107,13 @@ public class CompassUtilities {
 		return ID;
 	}
 
-	// extract object name from identifier
+	// extract object name from column name
+	public String getObjectNameFromColumnID(String ID) {
+		// we need the 1-but-last name in the identifier, so use getSchemaNameFromID(0
+		return getSchemaNameFromID(ID);
+	}
+
+	// extract object name from object name
 	public String getObjectNameFromID(String ID) {
 		String objName = ID;
 		if (ID.startsWith("HIERARCHYID::")) {
@@ -1499,7 +2127,7 @@ public class CompassUtilities {
 		return objName;
 	}
 
-	// extract schema from identifier
+	// extract schema from object name
 	public String getSchemaNameFromID(String ID) {
 		String schemaName = "";
 		if (!ID.contains(".")) {
@@ -1510,7 +2138,7 @@ public class CompassUtilities {
 		return schemaName;
 	}
 
-	// extract DB from identifier
+	// extract DB from object name
 	public String getDBNameFromID(String ID) {
 		String DBName = "";
 		if (!ID.contains(".")) {
@@ -1538,7 +2166,6 @@ public class CompassUtilities {
 		return serverName;
 	}
 
-	// normalize a namee?
 	public String normalizeName(String objName) {
 		return normalizeName(objName, "");
 	}
@@ -1563,7 +2190,7 @@ public class CompassUtilities {
 		}
 
 		// handle delimited identifiers
-		name = stripDelimitedIdentifier(name.toUpperCase());
+		name = stripDelimitedIdentifier(name);
 		if (options.contains("datatype")) {
 			if (name.toUpperCase().startsWith("SYS.")) name = name.substring(4);
 			else if (name.toUpperCase().equals("XMLCOLUMN_SETFORALL_SPARSE_COLUMNS")) name = "XML COLUMN_SET FOR ALL_SPARSE_COLUMNS";
@@ -1593,11 +2220,11 @@ public class CompassUtilities {
 		if ((tmpSchema.isEmpty()) && (tmpDB.isEmpty())) {
 			objName = "." + objName;
 			// use the schema name from the current context, if any
-			if (!currentObjectType.equals(BatchContext)) {
+			if (!currentObjectType.equalsIgnoreCase(BatchContext)) {
 				tmpSchema = getSchemaNameFromID(currentObjectName);
 			}
 			if (tmpSchema.isEmpty()) {
-				tmpSchema = "DBO";  // ToDo: we can keep track of the current schema that would apply?
+				tmpSchema = "dbo";  // ToDo: we can keep track of the current schema that would apply?
 			}
 			objName = tmpSchema + objName;
 		}
@@ -1605,7 +2232,7 @@ public class CompassUtilities {
 			// currentDatabase can be blank if no USE stmt seen
 			objName = currentDatabase + "." + objName;
 		}
-		return objName;
+		return objName.toUpperCase();
 	}
 
 	// add to symbol table
@@ -1663,7 +2290,7 @@ public class CompassUtilities {
 		UDDSymTab.put(uddName.toUpperCase(), dataType);
 	}
 
-	// is the specifie dname a UDD?
+	// is the specified name a UDD?
 	public String isUDD(String uddName)
 	{
 		uddName = resolveName(uddName.toUpperCase());
@@ -1674,6 +2301,26 @@ public class CompassUtilities {
 			return "";
 		}
 	}
+	
+	// add to symbol table
+	public void addColSymTab(String tableName, String colName, String dataType) {
+		addColSymTab(tableName, colName, dataType, false, false);
+	}
+	public void addColSymTab(String tableName, String colName, String dataType, boolean nullable, boolean readingSymTab)
+	{
+		if (!readingSymTab) {
+			tableName = resolveName(tableName);
+			colName = normalizeName(colName);
+			dataType = normalizeName(dataType);
+		}
+		String tabcol = tableName + "." + colName;
+		String nullFmt = "";
+		if (nullable) nullFmt = " NULL";
+		colSymTab.put(tabcol.toUpperCase(), dataType + nullFmt);
+		//appOutput(thisProc()+"adding tabcol("+colSymTab.size()+")=["+tabcol+"] dataType=["+dataType+nullFmt+"] ");
+	}
+
+	
 
 	// write symbol table
 	public void writeSymTab(String reportName, String inputFileName, String appName) throws IOException {
@@ -1784,6 +2431,12 @@ public class CompassUtilities {
 			String dataType = unmaskChar(fields.get(2),symTabSeparator);
 			addUDDSymTab(objName, dataType, true);
 		}
+		else if (fields.get(0).equals("col")) {
+			String tableName = unmaskChar(fields.get(1),symTabSeparator);
+			String colName = unmaskChar(fields.get(2),symTabSeparator);
+			String dataType = unmaskChar(fields.get(3),symTabSeparator);
+			addColSymTab(tableName, colName, dataType, false, true);
+		}
 		return s;
 	}
 
@@ -1794,6 +2447,7 @@ public class CompassUtilities {
 		SUDFSymTab.clear();
 		TUDFSymTab.clear();
 		UDDSymTab.clear();
+		colSymTab.clear();
 		SUDFNamesLikeXML.clear();
 		TUDFNamesLikeXML.clear();
 		SUDFNamesLikeHIERARCHYID.clear();
@@ -1839,6 +2493,12 @@ public class CompassUtilities {
 			appOutput("tudf=["+tudf+"] => ["+TUDFNamesLikeXML.get(tudf)+"]");
 		}
 		appOutput("");
+		appOutput("colSymTab: "+colSymTab.size());
+		for (String udd: colSymTab.keySet()) {
+			appOutput("udd=["+udd+"] => ["+colSymTab.get(udd)+"]");
+			countSymTab++;
+		}		
+		appOutput("");
 		appOutput("symtab records: "+countSymTab);
 		appOutput(composeOutputLine("", "-"));
 	}
@@ -1867,43 +2527,89 @@ public class CompassUtilities {
 			objName = normalizeName(objName);
 		}
 		if (objType.equalsIgnoreCase("TABLE")) {
-			if (!currentObjectType.equals(BatchContext)) {
+			if (!currentObjectType.equalsIgnoreCase(BatchContext)) {
 				currentObjectTypeSub = objType;
 				currentObjectNameSub = objName;
 				subContext = true;
-				//u.dbgOutput("Setting sub context to ["+currentObjectTypeSub+"], ["+currentObjectNameSub+"]");
+				//dbgOutput("Setting sub context to ["+currentObjectTypeSub+"], ["+currentObjectNameSub+"]");
 			}
 		}
 		if (!subContext) {
 			currentObjectType = objType;
 			currentObjectName = objName;
-			//u.dbgOutput("Setting context to ["+currentObjectType+"], ["+currentObjectName+"]");
+			//dbgOutput("Setting context to ["+currentObjectType+"], ["+currentObjectName+"]", true);
 		}
 	}
 	public void resetSubContext() {
 		if (currentObjectTypeSub != "") {
 			currentObjectTypeSub = "";
 			currentObjectNameSub = "";
-			//u.dbgOutput("clearing sub context, main context still ["+currentObjectType+"], ["+currentObjectName+"]");
+			//dbgOutput("clearing sub context, main context still ["+currentObjectType+"], ["+currentObjectName+"]");
 		}
 		else {
 			// ignore
 		}
 	}
 
+	public void openReportFile(String reportName) throws IOException {
+		reportFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(reportFileTextPathName), StandardCharsets.UTF_8)));
+		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
+		if (generateHTML) {
+			reportFileWriterHTML = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(reportFileHTMLPathName), StandardCharsets.UTF_8)));
+			String hdr = headerHTML + headerHTMLReport;
+			hdr = formatHeaderHTML(hdr, now, reportName, reportName, "");
+			hdr = formatToolTips(hdr);
+			reportFileWriterHTML.write(hdr);
+			reportFileWriterHTML.write("<pre>\n");
+		}
+	}
+
 	public void writeReportFile(StringBuilder line) throws IOException {
-		reportFileWriter.write(line.toString() + "\n");
-		reportFileWriter.flush();
+		writeReportFile(line.toString());
 	}
 
 	public void writeReportFile(String line) throws IOException {
-		reportFileWriter.write(line + "\n");
+		if (generateHTML) {
+			reportFileWriterHTML.write(line + "\n");
+			reportFileWriterHTML.flush();
+		}
+		
+		if (line.contains("<a ")) {			
+			line = applyPatternFirst(line,docLinkURL, docLinkURLText);						
+			line = applyPatternAll(line,"<a class=.*?>", "");
+			line = applyPatternAll(line,"<a href=.*?>", "");
+			line = applyPatternAll(line,"<a name=.*?>", "");
+			line = applyPatternAll(line,"</a>", "");
+			line = applyPatternAll(line,backToToCText, "");
+		}
+		if (line.contains("<div ")) {
+			line = applyPatternAll(line,"<div class=.*?>", "");
+			line = applyPatternAll(line,"</div>", "");
+			line = applyPatternAll(line,hintIcon, " ");
+		}
+		
+		if (line.contains("<span ")) {
+			line = applyPatternAll(line,"<span class.*?</span>", "");
+		}
+		reportFileWriter.write(unEscapeHTMLChars(line) + "\n");
 		reportFileWriter.flush();
 	}
 
 	public void writeReportFile() throws IOException {
 		reportFileWriter.write("\n");
 		reportFileWriter.flush();
+		if (generateHTML) {
+			reportFileWriterHTML.write("\n");
+			reportFileWriterHTML.flush();
+		}
+	}
+
+	public void closeReportFile() throws IOException {
+		reportFileWriter.close();
+		if (generateHTML) {
+			reportFileWriterHTML.write("\n</pre>\n");
+			reportFileWriterHTML.close();
+		}
 	}
 
 	public String progressCnt(int currentCount, int totalCount) {
@@ -1942,7 +2648,7 @@ public class CompassUtilities {
 			}
 			grpCount += itemCount.get(s);
 			itemCnt.put(item.toString(),0);
-			StringBuilder thisItem = new StringBuilder(lineIndent + item +" : " + itemCount.get(s).toString());
+			StringBuilder thisItem = new StringBuilder(hLinkHint(item.toString(),status,group.toString()) + " : " + itemCount.get(s).toString());
 			lines.append(thisItem);
 			if (reportAppsCount) {
 				int minSpacer = 3;
@@ -1965,9 +2671,8 @@ public class CompassUtilities {
 
 		if (lines.toString().length() > 0) {
 			writeReportFile();
-			writeReportFile(composeOutputLine("", "-"));
-			writeReportFile(composeOutputLine("--- SQL features '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' in " + babelfishProg +" v." + targetBabelfishVersion + " ", "-"));
-			writeReportFile(composeOutputLine("", "-"));
+			writeReportFile(composeSeparatorBar("SQL features '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' in " + babelfishProg +" v." + targetBabelfishVersion, tagSummary+status));
+
 			if (status.equals(ReviewManually) && writeNote) {
 				writeReportFile("Note: Items in this section could not be assessed automatically");
 			}
@@ -2011,12 +2716,13 @@ public class CompassUtilities {
 			StringBuilder prevAppName = new StringBuilder();
 
 			List<String> lineNrs = new ArrayList<String>();
+			List<String> lineNrsBatch = new ArrayList<String>();
 			Integer itemCount = 0;
 			boolean initLineNr = false;
 
 			for (String s: sortedList) {
 				if ((!s.startsWith(status)) && (!s.startsWith(lastItem))) continue;
-				if (debugging) dbgOutput(thisProc()+"s=["+s+"] ", debugReport);
+				//if (debugging) dbgOutput(thisProc()+"s=["+s+"] ", debugReport);
 
 				List<String> sortedFields = new ArrayList<String>(Arrays.asList(s.split(sortKeySeparator)));
 				group = new StringBuilder(sortedFields.get(1).substring(groupSortLength));
@@ -2030,20 +2736,28 @@ public class CompassUtilities {
 				subContext = new StringBuilder(sortedFields.get(10));
 
 				itemSort = new StringBuilder(createSortKey(group.toString(),item.toString(),appName.toString(),srcFile.toString()));
-				if (debugging) dbgOutput(thisProc()+"itemSort=["+itemSort+"]  srcFile=["+srcFile+"] ", debugReport);
+				//if (debugging) dbgOutput(thisProc()+"itemSort=["+itemSort+"]  srcFile=["+srcFile+"] ", debugReport);
+
+				if (Compass.reportOnly) {
+					if (!s.startsWith(lastItem)) {
+						importFilePathName = srcFile.toString();
+					}
+				}
 
 				if (!s.startsWith(lastItem)) {
 					if (!reportOptionFilter.isEmpty()) {
+						//ToDo: perform filtering before creating sort records, keeping the data set smaller
 						String filter = "^.*"+reportOptionFilter+".*$";
 						countFilter++;
-						if (debugging) dbgOutput(thisProc()+"filter: item=["+item.toString()+"]  reportOptionFilter=["+reportOptionFilter+"] ", debugReport);
-						if (PatternMatches(item.toString(), filter)) {
+						//if (debugging) dbgOutput(thisProc()+"filter: item=["+item.toString()+"]  reportOptionFilter=["+reportOptionFilter+"] ", debugReport);
+						if (!getPatternGroup(item.toString(), "("+filter+")", 1).isEmpty()) {
 							// keep it
 							if (debugging) dbgOutput(thisProc()+"matching filter - keeping", debugReport);
+							if (debugging) dbgOutput(thisProc()+"filter: item=["+item.toString()+"]  reportOptionFilter=["+reportOptionFilter+"] s=["+s+"] ", debugReport);
 						}
 						else {
 							// skip it
-							if (debugging) dbgOutput(thisProc()+"no match with filter - skipping", debugReport);
+							//if (debugging) dbgOutput(thisProc()+"no match with filter - skipping", debugReport);
 							skippedFilter++;
 							continue;
 						}
@@ -2057,8 +2771,9 @@ public class CompassUtilities {
 						lines.append(hdr).append(itemCount.toString()).append(")\n");
 
 						// complete current line
-						linesTmp = new StringBuilder(completeLine(linesTmp, lineNrs, prevContext, prevBatchNr, prevLineNrInFile, prevSrcFile, prevAppName));
+						linesTmp.append(completeLineByFeature(linesTmp, lineNrs, lineNrsBatch, prevContext, prevBatchNr, prevLineNrInFile, prevSrcFile, prevAppName));
 						lineNrs.clear();
+						lineNrsBatch.clear();
 						if (debugging) dbgOutput(thisProc()+"item change, completing current line, linesTmp=["+linesTmp+"] context=["+context+"] prevContext=["+prevContext+"] ", debugReport);
 
 						lines.append(linesTmp);
@@ -2079,13 +2794,21 @@ public class CompassUtilities {
 				}
 				itemCount++;
 
-				contextSort = new StringBuilder(createSortKey(context.toString(),batchNr.toString()));
+				if (!reportShowBatchNr.isEmpty())  {
+					contextSort = new StringBuilder(createSortKey(context.toString(),batchNr.toString()));
+				}
+				else {
+					contextSort = new StringBuilder(createSortKey(context.toString()));
+					lineNr = new StringBuilder(Integer.toString(Integer.parseInt(lineNr.toString()) + Integer.parseInt(lineNrInFile.toString()) - 1));
+				}
+
 				if (debugging) dbgOutput(thisProc()+"contextSort=["+contextSort+"] ", debugReport);
 				if (debugging) dbgOutput(thisProc()+"prevContextSort=["+prevContextSort+"] ", debugReport);
 				if (contextSort.toString().equalsIgnoreCase(prevContextSort.toString())) {
 					if (!initLineNr) {
 						// same line, accumulate line nrs
 						lineNrs.add(lineNr.toString());
+						lineNrsBatch.add(lineNrInFile.toString());
 						if (debugging) dbgOutput(thisProc()+"adding line number to list: ["+lineNr+"] total=["+lineNrs.size()+"] x=["+String.join(", ", lineNrs)+"] ", debugReport);
 					}
 					initLineNr = false;
@@ -2093,13 +2816,14 @@ public class CompassUtilities {
 				else {
 					if (linesTmp.length() > 0) {
 						// complete previous line
-						linesTmp = new StringBuilder(completeLine(linesTmp, lineNrs, prevContext, prevBatchNr, prevLineNrInFile, prevSrcFile, prevAppName));
+						linesTmp.append(completeLineByFeature(linesTmp, lineNrs, lineNrsBatch, prevContext, prevBatchNr, prevLineNrInFile, prevSrcFile, prevAppName));
 						if (debugging) dbgOutput(thisProc()+"new line, changed context, completing current line completed linesTmp=["+linesTmp+"] ", debugReport);
 					}
 
 					// new line
 					lineNrs.clear();
 					lineNrs.add(lineNr.toString());
+					lineNrsBatch.add(lineNrInFile.toString());
 					linesTmp.append(lineIndent + context);
 					if (subContext.length() > 0) {
 						linesTmp.append(", "+subContext);
@@ -2124,8 +2848,24 @@ public class CompassUtilities {
 
 		if (lines.length() == 0) lines = new StringBuilder("-no items to report-\n");
 		writeReportFile();
-		writeReportFile(composeSeparatorBar("X-ref: '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' SQL Features, to objects"));
+		writeReportFile(composeSeparatorBar("X-ref: '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' by SQL feature", tagByFeature+status));
 		writeReportFile(filterMsg+lines);
+	}
+
+	private String completeLineByFeature(StringBuilder linesTmp, List<String> lineNrs, List<String> lineNrsBatch, StringBuilder prevContext, StringBuilder prevBatchNr, StringBuilder prevLineNrInFile, StringBuilder srcFile, StringBuilder appName) {
+		String inFile = reportInputFileFmt;
+		if (reportShowSrcFile) inFile = srcFile.toString();
+		String ln = makeLineNrList(lineNrs, lineNrsBatch, inFile, appName.toString());
+
+		if (!reportShowBatchNr.isEmpty()) {
+			ln += " in batch "+ prevBatchNr.toString() + " (at line " + hLink(Integer.parseInt(prevLineNrInFile.toString()),inFile, appName.toString())+")";
+		}
+
+		if (reportShowSrcFile && !inFile.equals(reportInputFileFmt)) {
+			ln += " in " + hLink(inFile, appName.toString());
+		}
+		if (reportShowAppName) ln += ", app "+ appName;
+		return ln + "\n";
 	}
 
 	public void reportXrefByObject(String status, List<String> sortedList) throws IOException {
@@ -2138,6 +2878,8 @@ public class CompassUtilities {
 			StringBuilder hdr = new StringBuilder();
 			StringBuilder contextSort = new StringBuilder();
 			StringBuilder prevContextSort = new StringBuilder();
+			StringBuilder itemGroupSort = new StringBuilder();
+			StringBuilder prevItemGroupSort = new StringBuilder();
 
 			StringBuilder group = new StringBuilder();
 			StringBuilder item = new StringBuilder();
@@ -2148,77 +2890,127 @@ public class CompassUtilities {
 			StringBuilder lineNrSort = new StringBuilder();
 			StringBuilder lineNrInFile = new StringBuilder();
 			StringBuilder srcFile = new StringBuilder();
+			StringBuilder prevSrcFile = new StringBuilder();
 			StringBuilder appName = new StringBuilder();
+			StringBuilder prevAppName = new StringBuilder();
 
 			boolean init = false;
+			List<String> lineNrs = new ArrayList<String>();
+			List<String> lineNrsBatch = new ArrayList<String>();
 
 			for (String s: sortedList) {
 				if ((!s.startsWith(status)) && (!s.startsWith(lastItem))) continue;
-				if (debugging) dbgOutput(thisProc()+"s=["+s+"] ", debugReport);
+				//if (debugging) dbgOutput(thisProc()+"s=["+s+"] ", debugReport);
 
 				List<String> sortedFields = new ArrayList<String>(Arrays.asList(s.split(sortKeySeparator)));
 				context = new StringBuilder(sortedFields.get(1));
 				appName = new StringBuilder(sortedFields.get(2));
 				srcFile = new StringBuilder(getSrcFileNameMap(sortedFields.get(3)));
-				lineNrSort = new StringBuilder(sortedFields.get(4));
-				group = new StringBuilder(sortedFields.get(5).substring(groupSortLength));
-				item = new StringBuilder(sortedFields.get(6));
+				if (!reportShowBatchNr.isEmpty()) {
+					lineNrSort = new StringBuilder(sortedFields.get(4));
+					group = new StringBuilder(sortedFields.get(5).substring(groupSortLength));
+					item = new StringBuilder(sortedFields.get(6));
+				}
+				else {
+					lineNrSort = new StringBuilder(sortedFields.get(6));
+					group = new StringBuilder(sortedFields.get(4).substring(groupSortLength));
+					item = new StringBuilder(sortedFields.get(5));
+				}
 				lineNr = new StringBuilder(sortedFields.get(7));
 				batchNr = new StringBuilder(sortedFields.get(8));
 				lineNrInFile = new StringBuilder(sortedFields.get(9));
+
 				if (context.toString().equals(BatchContextLastSort)) context = new StringBuilder(BatchContext);
 
-				contextSort = new StringBuilder(createSortKey(context.toString(),appName.toString(),srcFile.toString(),lineNrSort.toString()));
-				if (debugging) dbgOutput(thisProc()+"contextSort=["+contextSort+"] ", debugReport);
+				String batchNrSort = "";
+				if (context.toString().equalsIgnoreCase(BatchContext)) batchNrSort = batchNr.toString();
+				contextSort = new StringBuilder(createSortKey(context.toString(),appName.toString(),srcFile.toString(),batchNrSort));
+				itemGroupSort = new StringBuilder(createSortKey(item.toString(), group.toString()));
+
+				//if (debugging) dbgOutput(thisProc()+"contextSort=["+contextSort+"] ", debugReport);
+				//if (debugging) dbgOutput(thisProc()+"itemGroupSort=["+itemGroupSort+"] ", debugReport);
 
 				if (!s.startsWith(lastItem)) {
 					if (!reportOptionFilter.isEmpty()) {
+						//ToDo: perform filtering before creating sort records, keeping the data set smaller
 						String filter = "^.*"+reportOptionFilter+".*$";
 						countFilter++;
-						if (debugging) dbgOutput(thisProc()+"filter: item=["+item.toString()+"]  reportOptionFilter=["+reportOptionFilter+"] ", debugReport);
-						if (PatternMatches(item.toString(), filter)) {
+						//if (debugging) dbgOutput(thisProc()+"filter: item=["+item.toString()+"]  reportOptionFilter=["+reportOptionFilter+"] s=["+s+"]", debugReport);
+						if (!getPatternGroup(item.toString(), "("+filter+")", 1).isEmpty()) {
 							// keep it
 							if (debugging) dbgOutput(thisProc()+"matching filter - keeping", debugReport);
+							if (debugging) dbgOutput(thisProc()+"filter: item=["+item.toString()+"]  reportOptionFilter=["+reportOptionFilter+"] s=["+s+"]", debugReport);
 						}
 						else {
 							// skip it
-							if (debugging) dbgOutput(thisProc()+"no match with filter - skipping", debugReport);
+							//if (debugging) dbgOutput(thisProc()+"no match with filter - skipping", debugReport);
 							skippedFilter++;
 							continue;
 						}
 					}
 				}
 
-				if (s.startsWith(lastItem)) {
-					break;
-				}
+				boolean changedContext = false;
+				if (!contextSort.toString().equalsIgnoreCase(prevContextSort.toString()) && !s.startsWith(lastItem)) {
+					changedContext = true;
 
-				if (!contextSort.toString().equalsIgnoreCase(prevContextSort.toString())) {
+					// complete the current line
+					if (init) {
+						lines.append(completeLineByObject(lineNrs, lineNrsBatch, prevSrcFile, prevAppName));
+					}
+					lineNrs.clear();
+					lineNrsBatch.clear();
+
 					if (!init) init = true;
 					else lines.append("\n");
 
 					lines.append(context);
-					if (!contextSort.toString().equalsIgnoreCase(BatchContext)) {
-						lines.append(", batch ");
-					}
-					else {
-						lines.append(", ");
-					}
-					lines.append(batchNr.toString()+ " at line " + lineNrInFile);
-					if (reportShowSrcFile) lines.append(" in "+ srcFile);
-					else lines.append(" in input file");
+					lines.append(", batch ");
+
+					String inFile = reportInputFileFmt;
+					if (reportShowSrcFile) inFile = srcFile.toString();
+					lines.append(batchNr.toString()+ ", at line " + hLink(Integer.parseInt(lineNrInFile.toString()),inFile, appName.toString()));
+					lines.append(" in " + hLink(inFile, appName.toString()));
+
 					if (reportShowAppName) lines.append(", app "+ appName);
 					lines.append("\n");
 
 					prevContextSort = new StringBuilder(contextSort);
-					if (s.startsWith(lastItem)) {
+				}
+
+				if (!s.startsWith(lastItem)) {
+					if (reportShowBatchNr.isEmpty())  {
+						lineNr = new StringBuilder(Integer.toString(Integer.parseInt(lineNr.toString()) + Integer.parseInt(lineNrInFile.toString()) - 1));
+					}
+				}
+
+				if ((!prevItemGroupSort.toString().equalsIgnoreCase(itemGroupSort.toString()) && !s.startsWith(lastItem)) || changedContext) {
+					if (!changedContext) {
+						// complete the current line
+						lines.append(completeLineByObject(lineNrs, lineNrsBatch, prevSrcFile, prevAppName));
+						lineNrs.clear();
+						lineNrsBatch.clear();
+					}
+
+					lines.append(lineIndent+item.toString()+" ("+group.toString()+") : line ");
+				}
+				if (!s.startsWith(lastItem)) {
+					lineNrs.add(lineNr.toString());
+					lineNrsBatch.add(lineNrInFile.toString());
+				}
+				changedContext = false;
+
+				if (s.startsWith(lastItem)) {
+					if (lineNrs.size() > 0) {
+						lines.append(completeLineByObject(lineNrs, lineNrsBatch, prevSrcFile, prevAppName));
 						break;
 					}
 				}
 
-				lines.append(lineIndent+item.toString()+" ("+group.toString()+") : line "+lineNr.toString()+"\n");
 				prevContextSort = new StringBuilder(contextSort);
-
+				prevItemGroupSort = new StringBuilder(itemGroupSort);
+				prevSrcFile = new StringBuilder(srcFile);
+				prevAppName = new StringBuilder(appName);
 			}
 		}
 
@@ -2227,25 +3019,21 @@ public class CompassUtilities {
 			filterMsg = "Filter applied: "+skippedFilter.toString()+" of " + countFilter.toString()+" items skipped by filter '"+reportOptionFilter+"'\n\n";
 		}
 
-		if (lines.length() == 0) lines = new StringBuilder("-no items to report-\n");
+		if (lines.toString().trim().length() == 0) lines = new StringBuilder("-no items to report-\n");
 		writeReportFile();
-		writeReportFile(composeSeparatorBar("X-ref: objects, to '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' SQL Features"));
+		writeReportFile(composeSeparatorBar("X-ref: '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' by object", tagByObject+status));
 		writeReportFile(filterMsg+lines);
 	}
 
-	private StringBuilder completeLine(StringBuilder linesTmp, List<String> lineNrs, StringBuilder prevContext, StringBuilder prevBatchNr, StringBuilder prevLineNrInFile, StringBuilder srcFile, StringBuilder appName) {
-		linesTmp.append(makeLineNrList(lineNrs));
+	private String completeLineByObject(List<String> lineNrs, List<String> lineNrsBatch, StringBuilder srcFile, StringBuilder appName) {
+		String inFile = reportInputFileFmt;
+		if (reportShowSrcFile) inFile = srcFile.toString();
 
-		//if (!prevContext.toString().equalsIgnoreCase(BatchContext)) linesTmp.append(" (");
-		//else linesTmp.append(" ");
-		linesTmp.append(" in batch "+ prevBatchNr.toString() + " (at line " + prevLineNrInFile+")");
-
-		if (reportShowSrcFile) linesTmp.append(" "+ srcFile);
-		else linesTmp.append(" in input file");
-		if (reportShowAppName) linesTmp.append(", app "+ appName);
-
-		linesTmp.append("\n");
-		return linesTmp;
+		String ln = makeLineNrList(lineNrs, lineNrsBatch, inFile, appName.toString());
+//		if (reportShowSrcFile && !inFile.equals(reportInputFileFmt)) {
+//			ln += " in " + hLink(inFile, appName.toString());
+//		}
+		return ln + "\n";
 	}
 
 	private boolean doXref(String status, String type) {
@@ -2257,7 +3045,7 @@ public class CompassUtilities {
 				    status.equals(ReviewManually) ||
 				    status.equals(ReviewPerformance))
 				    {
-					doIt = true;
+				    	doIt = true;
 				    }
 			}
 			else if (reportOptionStatus.contains(" "+status.toLowerCase()+" ") ||
@@ -2280,15 +3068,129 @@ public class CompassUtilities {
 		return s;
 	}
 
-	private String makeLineNrList(List<String> lineNrs) {
+	private String makeLineNrList(List<String> lineNrs, List<String> lineNrsBatch, String fileName, String appName) {
 		int nrLineNrs = lineNrs.size();
 		String xtra = "";
 		if (maxLineNrsInList < nrLineNrs) {
 			xtra = " (+"+Integer.toString(nrLineNrs-maxLineNrsInList)+" more)";
 			nrLineNrs = maxLineNrsInList;
 		}
-		String joined = String.join(", ", lineNrs.subList(0,nrLineNrs));
+		String joined = "";
+		for (int i=0; i < nrLineNrs; i++) {
+			if (i > 0) joined += ", ";
+			int lineNr = Integer.parseInt(lineNrs.get(i));
+			int adjLineNr = lineNr;
+			if (!reportShowBatchNr.isEmpty()) {
+				int batchLineNr = Integer.parseInt(lineNrsBatch.get(i));
+				adjLineNr = batchLineNr + lineNr - 1;
+			}
+			joined += hLink(lineNr, fileName, appName, adjLineNr);
+		}
 		return joined.trim() + xtra;
+	}
+
+	private String makeItemHintKey (String s) {
+		// standardize the key for tooltips
+		s = applyPatternAll(s, "[\\s]", "").toLowerCase();
+		s = applyPatternAll(s, "[\\W]", "_");
+		s = applyPatternAll(s, "[_]+", "_");
+		if (s.startsWith("_")) s = s.substring(1);
+		if (s.endsWith("_")) s = removeLastChar(s);
+		return s;
+	}
+
+	private String getItemHintKey (String item) {
+		//find tooltip key for this item
+		String itemHintKey = "";
+		String itemOrig = item;
+		item = makeItemHintKey(item);
+
+		if (toolTipsKeys.containsKey(item)) {
+			itemHintKey = item;
+		}
+		else {
+			for (Map.Entry<String,String> e : toolTipsKeys.entrySet()) {
+				String k = e.getKey();
+				String v = e.getValue();
+
+				if (item.startsWith(k)) {
+					itemHintKey = k;
+					break;
+				}
+				if (itemOrig.toLowerCase().startsWith(v)) {
+					itemHintKey = k;
+					break;
+				}
+				if (v.contains("\\")) {
+					if (!getPatternGroup(itemOrig, "^("+v+")", 1).isEmpty()) {
+						itemHintKey = k;
+						break;
+					}
+				}
+			}
+			if (itemHintKey.isEmpty()) {
+				//appOutput("no tooltip key found for item=["+itemOrig+"] ");
+			}
+		}
+		//appOutput(thisProc()+"item=["+itemOrig+"] item=["+item+"]  itemHintKey=["+itemHintKey+"] ");
+		return itemHintKey;
+	}
+
+	private String hLinkHint (String item, String status, String group) {
+		boolean blank = false;
+		if ((status.equals(Supported)) || (status.equals(Ignored))) blank = true;
+		String itemHintKey = getItemHintKey(item);
+		if (itemHintKey.isEmpty()) blank = true;
+		if (blank) {
+			String indent = "  <span class=\"tooltip_blank\">&nbsp;</span> ";
+			return indent+item;
+		}
+		String hint = lineIndent.substring(0,lineIndent.length()-2)+"<div class=\"tooltip\"><span class=\"tooltip_icon\">"+hintIcon+"</span>"+" "+item+"<div class=\"tooltip-content\" data-tooltip=\""+itemHintKey+"\"></div></div>";
+		return hint;
+	}
+
+	private String hLinkFileName (String file, String appName) {
+		if (!file.contains(importFileTag)) {
+			try {
+				String inFileCopy = getImportFilePathName(reportName, file, appName);
+				file = inFileCopy;
+			} catch  (Exception e) { /* nothing */ }
+		}
+		file = file.substring(file.lastIndexOf(File.separator)+1);
+		file = applyPatternFirst(file, importFileSuffix + "$", HTMLSuffix);
+		return importDirName+File.separator+ file;
+	}
+
+	private String hLink (String file) {
+		file = file.substring(file.lastIndexOf(File.separator)+1);
+		file = logDirName + File.separator + file;
+		String line = "<a href=\""+ file +"\""+tgtBlank+">"+file+"</a>";
+		return line;
+	}
+
+	private String hLink (String file, String appName) {
+		String line = "";
+		if (file.equals(reportInputFileFmt)) {
+			line = "<a href=\""+ hLinkFileName(importFilePathName, appName) +"\""+tgtBlank+">"+reportInputFileFmt+"</a>";
+		}
+		else {
+			line = "<a href=\""+ hLinkFileName(file, appName) +"\""+tgtBlank+">"+file+"</a>";
+		}
+		return line;
+	}
+
+	private String hLink (Integer lineNr, String file, String appName) {
+		return hLink(lineNr, file, appName, lineNr);
+	}
+	private String hLink (Integer lineNr, String file, String appName, Integer lineNrDisplay) {
+		String line = "";
+		if (file.equals(reportInputFileFmt)) {
+			line = "<a href=\""+ hLinkFileName(importFilePathName, appName) +"#"+lineNrDisplay.toString()+"\""+tgtBlank+">"+lineNr.toString()+"</a>";
+		}
+		else {
+			line = "<a href=\""+ hLinkFileName(file, appName) +"#"+lineNrDisplay.toString()+"\""+tgtBlank+">"+lineNr.toString()+"</a>";
+		}
+		return line;
 	}
 
 	// generate sort key
@@ -2358,6 +3260,14 @@ public class CompassUtilities {
 		}
 	}
 
+	private String tocLink(String tag, String txt1, String txt2, String status) {
+		tag = tag.toLowerCase() + status.toLowerCase();
+		String statusFmt = "";
+		if (!status.isEmpty()) statusFmt = supportOptionsDisplay.get(supportOptions.indexOf(status));
+		String s = lineIndent + "<a href=\"#"+tag+"\">"+ txt1 + statusFmt + txt2 +"</a>\n";
+		return s;
+	}
+
 	public boolean createReport(String reportName) throws IOException {
 		if (debugging) dbgOutput(thisProc()+"reportOptionXref=["+reportOptionXref+"] ", debugReport);
 		if (debugging) dbgOutput(thisProc()+"reportOptionStatus=["+reportOptionStatus+"] ", debugReport);
@@ -2366,16 +3276,17 @@ public class CompassUtilities {
 		if (debugging) dbgOutput(thisProc()+"reportOptionFilter=["+reportOptionFilter+"] ", debugReport);
 
 		Date now = new Date();
-		String now_fname = new SimpleDateFormat("yyyy-MMM-dd-HH.mm.ss").format(now);
 		String now_report = new SimpleDateFormat("yyyy-MMM-dd HH:mm:ss").format(now);
-		reportFilePathName = getReportFilePathname(reportName, now_fname);
+		reportFileTextPathName = getreportFilePathName(reportName, now);
+		reportFileHTMLPathName = getReportFileHTMLPathname(reportName, now);
+		reportFilePathName = reportFileHTMLPathName;
 		appOutput("");
 		appOutput("Generating report " + reportFilePathName + "...");
 
 		String line = "";
 		forceGC();
 
-		reportFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(reportFilePathName), StandardCharsets.UTF_8)));
+		openReportFile(reportName);
 
 		String hdrLine = "Report for: " + reportName + " : Generated at " + now_report;
 		writeReportFile(hdrLine);
@@ -2385,9 +3296,11 @@ public class CompassUtilities {
 		writeReportFile(thisProgNameLong);
 		writeReportFile(copyrightLine + "\n");
 		writeReportFile(disclaimerMsg + "\n");
+		writeReportFile(docLinkIcon + " " +docLinkURL + "\n\n");
 		writeReportFile(composeOutputLine("--- Report Setup ", "-"));
 		writeReportFile(reportHdrLines);
-		writeReportFile("This file                  : "+reportFilePathName);
+		writeReportFile("This report                : "+reportFilePathName);
+		writeReportFile("Session log                : "+hLink(sessionLogPathName));
 		writeReportFile(composeOutputLine("", "=") + "\n");
 
 
@@ -2395,6 +3308,8 @@ public class CompassUtilities {
 		Map<String, Integer> srcFileCount = new HashMap<>();
 		Map<String, Integer> objTypeCount = new HashMap<>();
 		Map<String, Integer> objTypeLineCount = new HashMap<>();
+		Map<String, String>  objTypeMap = new HashMap<>();
+		Map<String, Integer> objIssueCount = new HashMap<>();
 		int linesSQLInObjects = 0;
 		Map<String, Long> statusCount = new HashMap<>();
 		Map<String, Integer> itemCount = new HashMap<>();
@@ -2511,7 +3426,11 @@ public class CompassUtilities {
 
 					continue;
 				}
-				if (debugging) dbgOutput(thisProc() + "capLine=[" + capLine + "]", debugReport);
+				//if (debugging) dbgOutput(thisProc() + "capLine=[" + capLine + "]", debugReport);
+
+				if (capLine.contains("\\\\")) {
+					capLine = applyPatternAll(capLine, "\\\\\\\\", "\\\\");
+				}
 
 				List<String> itemList = new ArrayList<String>(Arrays.asList(capLine.split(captureFileSeparator)));
 				String objType = getPatternGroup(itemList.get(capPosItem), "^CREATE (.*)$", 1);
@@ -2524,7 +3443,7 @@ public class CompassUtilities {
 					}
 				}
 				else {
-					if (debugging) dbgOutput(thisProc() + "objType=[" + objType + "] ", debugReport);
+					//if (debugging) dbgOutput(thisProc() + "objType=[" + objType + "] ", debugReport);
 
 					if (objType.startsWith("TYPE")) {
 						objType = objType.replaceFirst("TYPE", "user-defined datatype (UDD)");
@@ -2551,7 +3470,8 @@ public class CompassUtilities {
 				String lineNrInFile = itemList.get(capPosLineNrInFile);
 				String srcFile = itemList.get(capPosSrcFile);
 				String misc = itemList.get(capPosMisc);
-				if (debugging) dbgOutput(thisProc() + "capLine=[" + capLine + "] objType=[" + objType + "] item=[" + item + "] itemDetail=[" + itemDetail + "] itemGroup=[" + itemGroup + "] status=[" + status + "] lineNr=[" + lineNr + "] misc=[" + misc + "] ", debugReport);
+
+				//if (debugging) dbgOutput(thisProc() + "capLine=[" + capLine + "] objType=[" + objType + "] item=[" + item + "] itemDetail=[" + itemDetail + "] itemGroup=[" + itemGroup + "] status=[" + status + "] lineNr=[" + lineNr + "] misc=[" + misc + "] ", debugReport);
 				assert supportOptions.contains(status) : "Invalid status value[" + status + "] in line=[" + capLine + "] ";
 
 				if (!objType.isEmpty()) {
@@ -2565,11 +3485,20 @@ public class CompassUtilities {
 								objType = getPatternGroup(objType, "^(.*?)\\s*\\b\\w*" + captureFileSeparatorMarker + ".*$", 1);       // for proc versioning
 							objType = objType.trim();
 							objTypeCount.put(objType, objTypeCount.getOrDefault(objType, 0) + 1);
-							if (debugging) dbgOutput(thisProc() + "counting objType=[" + objType + "] ", debugReport);
+							//if (debugging) dbgOutput(thisProc() + "counting objType=[" + objType + "] ", debugReport);
 							int loc = 0;
 							if (!misc.isEmpty()) loc = Integer.parseInt(misc);
 							objTypeLineCount.put(objType, objTypeLineCount.getOrDefault(objType, 0) + loc);  // misc contains #lines for procedural CREATE object stmts
 							linesSQLInObjects += loc;
+
+							if (item.startsWith("CREATE ")) {
+								if (objType.startsWith("PROCEDURE") || objType.startsWith("FUNCTION") || objType.startsWith("TRIGGER") || objType.startsWith("TABLE") || objType.startsWith("VIEW")) {
+									if (!objType.startsWith("TABLE ")) {
+										objTypeMap.put(itemDetail.toUpperCase(), objType);
+									}
+								}
+							}
+
 						}
 					}
 				}
@@ -2595,6 +3524,18 @@ public class CompassUtilities {
 
 				statusCount.put(status, statusCount.getOrDefault(status, 0L) + 1);
 
+				// count issues per object
+				if (status.equals(Supported) || status.equals(Ignored) || status.equals(ObjCountOnly)) {
+					// nothing
+				}
+				else {
+					String k = context.toUpperCase();
+					if (k.contains(" ")) {
+						k = k.substring(k.lastIndexOf(" ")+1);
+					}
+					objIssueCount.put(k, objIssueCount.getOrDefault(k,0)+1);
+				}
+
 				// apply weight factors
 				String sw = status + WeightedStr;
 				int weightFactor = supportOptionsWeightDefault.get(supportOptions.indexOf(status));
@@ -2605,7 +3546,7 @@ public class CompassUtilities {
 				}
 				Long weighted = statusCount.getOrDefault(status, 0L) * weightFactor;
 				statusCount.put(sw, weighted);
-				if (debugging) dbgOutput(thisProc() + "status=[" + status + "] val=[" + statusCount.getOrDefault(status, 0L) + "]  sw=[" + sw + "] weighted=[" + weighted + "] weightFactor=[" + weightFactor + "] ", debugReport);
+				//if (debugging) dbgOutput(thisProc() + "status=[" + status + "] val=[" + statusCount.getOrDefault(status, 0L) + "]  sw=[" + sw + "] weighted=[" + weighted + "] weightFactor=[" + weightFactor + "] ", debugReport);
 
 
 				String itemGroupSort = getGroupSortKey(itemGroup);
@@ -2640,9 +3581,18 @@ public class CompassUtilities {
 					xRefByFeature.add(sortKey);
 					sortSizeXRefByFeature += sortKey.length();
 
-					lineNrSort = String.format("%08d", Integer.parseInt(lineNrInFile));
 					if (context.equals(BatchContext)) context = BatchContextLastSort;
-					sortKey = createSortKey(status,context,appName,addSrcFileNameMap(srcFile),lineNrSort,itemGroupSort,item,lineNr,batchNr,lineNrInFile);
+
+					if (reportShowBatchNr.isEmpty()) {
+						lineNrSort = String.format("%08d", Integer.parseInt(lineNr.toString()) + Integer.parseInt(lineNrInFile.toString()) - 1);
+						sortKey = createSortKey(status,context,appName,addSrcFileNameMap(srcFile),itemGroupSort,item,lineNrSort,lineNr,batchNr,lineNrInFile);
+					}
+					else {
+						// report batchnr
+						lineNrSort = String.format("%08d", Integer.parseInt(lineNrInFile));
+						sortKey = createSortKey(status,context,appName,addSrcFileNameMap(srcFile),lineNrSort,itemGroupSort,item,lineNr,batchNr,lineNrInFile);
+					}
+
 					xRefByObject.add(sortKey);
 					sortSizeXRefByObject += sortKey.length();
 				}
@@ -2654,8 +3604,29 @@ public class CompassUtilities {
 			if (debugging) dbgOutput(thisProc()+"capCount=["+capCount+"] sortCnt="+xRefByObject.size()+" sortSizeXRefByObject KB=["+sortSizeXRefByObject/1024+"]", debugReport);
 		}
 
+		// calc #objects without issues for main object types
+		Map<String,Integer> objTypeIssueCount = new HashMap<>();
+		Map<String,Integer> objTypeNoIssueCount = new HashMap<>();
+		Map<String,Integer> objTypeIssueMap = new HashMap<>();
+		for (Map.Entry<String,String> e : objTypeMap.entrySet()) {
+			String c = e.getKey();
+			String type = e.getValue();
+			Integer issues = objIssueCount.getOrDefault(c,0);
+
+			objTypeIssueMap.put(type, 1);
+			if (issues == 0)
+				objTypeNoIssueCount.put(type, objTypeNoIssueCount.getOrDefault(type, 0) + 1);
+			else
+				objTypeIssueCount.put(type, objTypeIssueCount.getOrDefault(type, 0) + 1);
+		}
+		for (String t : objTypeIssueMap.keySet()) {
+			Integer iX = objTypeIssueCount.getOrDefault(t,0);
+			Integer i0 = objTypeNoIssueCount.getOrDefault(t,0);
+			//appOutput(thisProc()+"t=["+t+"] iX=["+iX+"] i0=["+i0+"] ");
+		}
+
 		// reporting options
-		if (Compass.inputFiles.size() <= 1) reportShowSrcFile = false;
+		if (srcFileCount.size() <= 1) reportShowSrcFile = false;
 		if (appCount.size() <= 1) reportShowAppName = false;
 		if (appCount.size() <= 1) reportAppsCount = false;
 		if (reportOptionApps.isEmpty()) reportAppsCount = false;
@@ -2684,7 +3655,31 @@ public class CompassUtilities {
 
 		StringBuilder summarySection = new StringBuilder();
 
-		summarySection.append(composeSeparatorBar("Applications Analyzed (" + appCount.size() + ")"));
+		if (generateHTML) {
+			summarySection.append(composeSeparatorBar("Table Of Contents", "toc", false));
+
+			summarySection.append(tocLink(tagApps, "Applications Analyzed", "", ""));
+			summarySection.append(tocLink(tagSummaryTop, "Assessment Summary", "", ""));
+			summarySection.append(tocLink(tagEstimate, "Compatibility Estimate", "", ""));
+			summarySection.append(tocLink(tagObjcount, "Object Count", "", ""));
+			summarySection.append("\n");
+
+			for (int i=0; i <supportOptionsIterate.size(); i++) {
+				summarySection.append(tocLink(tagSummary, "Summary of SQL Features '", "'", supportOptionsIterate.get(i)));
+			}
+			summarySection.append("\n");
+			for (int i=0; i <supportOptionsIterate.size(); i++) {
+				summarySection.append(tocLink(tagByFeature, "X-ref: '", "' by SQL feature", supportOptionsIterate.get(i)));
+			}
+			summarySection.append("\n");
+			for (int i=0; i <supportOptionsIterate.size(); i++) {
+				summarySection.append(tocLink(tagByObject, "X-ref: '", "' by object", supportOptionsIterate.get(i)));
+			}
+			summarySection.append("\n\n");
+		}
+
+		summarySection.append(composeSeparatorBar("Applications Analyzed (" + appCount.size() + ")", tagApps));
+		summarySection.append("\n");
 		for (String app : appCount.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
 			int loc = appCount.get(app);
 			summarySection.append(lineIndent + " " + app + " (" + appCount.get(app) + " lines SQL)\n");
@@ -2693,7 +3688,8 @@ public class CompassUtilities {
 
 		linesSQLInReport = totalLinesDDL;
 
-		summarySection.append(composeSeparatorBar("Assessment Summary"));
+		summarySection.append(composeSeparatorBar("Assessment Summary", tagSummaryTop));
+		summarySection.append("\n");
 		statusCount.put("linesDDL", Long.valueOf(totalLinesDDL));
 		statusCount.put(fmtLinesSQL, Long.valueOf(linesSQLInObjects));
 		statusCount.put(fmtBatches, Long.valueOf(totalBatches));
@@ -2720,7 +3716,17 @@ public class CompassUtilities {
 				int w = supportOptionsWeightDefault.get(supportOptions.indexOf(reportItem));
 				xtra = lineIndent + "(compatibility weight factor: " + w + "%)";
 			}
-			summaryTmp2.append(lineIndent).append(fmtStatusDisplay.get(i) + " : " + statusCount.get(reportItem) + xtra + "\n");
+			String hrefStart = "";
+			String hrefEnd= "";
+			if (false) {  // disabled thes ehyperlinks as it messes up the alignment of columns; need to use a HTML table structure instead
+			//if (generateHTML) {
+				if (supportOptions.contains(fmtStatus.get(i))) {
+					String tag = "summary_"+fmtStatus.get(i);
+					hrefStart = "<a href=\"#"+tag.toLowerCase()+"\">";
+					hrefEnd = "</a>";
+				}
+			}
+			summaryTmp2.append(lineIndent).append(hrefStart+fmtStatusDisplay.get(i) + hrefEnd + " : " + statusCount.get(reportItem) + xtra + "\n");
 		}
 		summaryTmp2 = new StringBuilder(alignColumn(summaryTmp2, " : ", "before", "left"));
 		summaryTmp2 = new StringBuilder(alignColumn(summaryTmp2, " : ", "after", "right"));
@@ -2769,12 +3775,14 @@ public class CompassUtilities {
 		}
 
 
-		summarySection.append(composeSeparatorBar("Compatibility Estimate"));
+		summarySection.append(composeSeparatorBar("Compatibility Estimate", tagEstimate));
+		summarySection.append("\n");
 		summarySection.append("Estimated compatibility for " + babelfishProg + " v." + targetBabelfishVersion + " : " + compatPctStr + "%" + "\n");
 		summarySection.append(customWeightsMsg);
 		summarySection.append("\n");
 
-		summarySection.append(composeSeparatorBar("Object Count"));
+		summarySection.append(composeSeparatorBar("Object Count", tagObjcount));
+		summarySection.append("\n");
 		StringBuilder summaryTmp = new StringBuilder();
 		for (String objType : objTypeCount.keySet().stream().sorted().collect(Collectors.toList())) { // sort case-SENsitive!
 			int loc = objTypeLineCount.getOrDefault(objType, 0);
@@ -2787,7 +3795,12 @@ public class CompassUtilities {
 					locStr.append(" (" + loc + " lines SQL)");
 				}
 			}
-			summaryTmp.append(lineIndent).append(objType + " : " + objTypeCount.get(objType) + locStr.toString() + "\n");
+
+			String noIssueCnt = "";
+			if (objTypeIssueMap.get(objType) != null) {
+				noIssueCnt = "  " + objTypeNoIssueCount.getOrDefault(objType,0) + " of " + objTypeCount.get(objType) + ": no issues";
+			}
+			summaryTmp.append(lineIndent).append(objType + " : " + objTypeCount.get(objType) + locStr.toString() + noIssueCnt + "\n");
 		}
 		if (summaryTmp.length() > 0) {
 			summaryTmp = new StringBuilder(alignColumn(summaryTmp, " : ", "before", "left"));
@@ -2803,18 +3816,13 @@ public class CompassUtilities {
 		writeReportFile();
 		writeReportFile(composeOutputLine("=== SQL Features Report ", "="));
 
-
 		// sort for status summary
 		List<String> sortedList = itemCount.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList());
 		sortedList.add(stringRepeat(lastItem + sortKeySeparator, 5));
 		forceGC();
-
-		reportSummaryItems(NotSupported, sortedList, itemCount, appItemList);
-		reportSummaryItems(ReviewManually, sortedList, itemCount, appItemList);
-		reportSummaryItems(ReviewSemantics, sortedList, itemCount, appItemList);
-		reportSummaryItems(ReviewPerformance, sortedList, itemCount, appItemList);
-		reportSummaryItems(Ignored, sortedList, itemCount, appItemList);
-		reportSummaryItems(Supported, sortedList, itemCount, appItemList);
+		for (int i=0; i <supportOptionsIterate.size(); i++) {
+			reportSummaryItems(supportOptionsIterate.get(i), sortedList, itemCount, appItemList);
+		}
 		sortedList.clear();
 		itemCount.clear();
 		appItemList.clear();
@@ -2824,13 +3832,9 @@ public class CompassUtilities {
 		List<String> sortedListXRefByFeature = xRefByFeature.stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList());
 		sortedListXRefByFeature.add(stringRepeat(lastItem + sortKeySeparator, 20));
 		xRefByFeature.clear();
-
-		reportXrefByFeature(NotSupported, sortedListXRefByFeature);
-		reportXrefByFeature(ReviewManually, sortedListXRefByFeature);
-		reportXrefByFeature(ReviewSemantics, sortedListXRefByFeature);
-		reportXrefByFeature(ReviewPerformance, sortedListXRefByFeature);
-		reportXrefByFeature(Ignored, sortedListXRefByFeature);
-		reportXrefByFeature(Supported, sortedListXRefByFeature);
+		for (int i=0; i <supportOptionsIterate.size(); i++) {
+			reportXrefByFeature(supportOptionsIterate.get(i), sortedListXRefByFeature);
+		}
 		sortedListXRefByFeature.clear();
 		forceGC();
 
@@ -2838,13 +3842,9 @@ public class CompassUtilities {
 		List<String> sortedListXRefByObject = xRefByObject.stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList());
 		sortedListXRefByObject.add(stringRepeat(lastItem + sortKeySeparator, 20));
 		xRefByObject.clear();
-
-		reportXrefByObject(NotSupported, sortedListXRefByObject);
-		reportXrefByObject(ReviewManually, sortedListXRefByObject);
-		reportXrefByObject(ReviewSemantics, sortedListXRefByObject);
-		reportXrefByObject(ReviewPerformance, sortedListXRefByObject);
-		reportXrefByObject(Ignored, sortedListXRefByObject);
-		reportXrefByObject(Supported, sortedListXRefByObject);
+		for (int i=0; i <supportOptionsIterate.size(); i++) {
+			reportXrefByObject(supportOptionsIterate.get(i), sortedListXRefByObject);
+		}
 		sortedListXRefByObject.clear();
 		forceGC();
 
@@ -2855,7 +3855,95 @@ public class CompassUtilities {
 		return true;
 	}
 
-	// LEXER CODE
+
+	public void  importPG(boolean append, String cmd, String pgPasswd) throws IOException {
+		// todo: import BBF version + date of import
+		List<Path> captureFiles = getCaptureFiles(reportName);
+		if (debugging) dbgOutput(thisProc() + "captureFiles(" + captureFiles.size() + ")=[" + captureFiles + "] ", debugReport);
+		if (captureFiles.size() == 0) {
+			appOutput("No analysis files found. Use -reanalyze to perform analysis and generate a report.");
+			errorExit();
+		}
+		String cfv = captureFilesValid(captureFiles);
+		if (!cfv.isEmpty()) {
+			// print error message and exit
+			appOutput(cfv);
+			errorExit();
+		}
+
+		Date now = new Date();
+		String nowFmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now);
+
+		int capCount = 0;
+		BufferedWriter PGImportFileWriter = null;
+    	String PGImportFilePathName = getPGImportFilePathname(reportName);
+    	checkDir(getReportDirPathname(reportName, capDirName), true);
+		PGImportFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(PGImportFilePathName), StandardCharsets.UTF_8)));
+
+		for (Path cf : captureFiles) {
+			String cfLine = captureFileFirstLine(cf.toString());   // read only first line
+			String cfReportName = captureFileAttribute(cfLine, 1);
+			if (cfReportName.isEmpty()) {
+				appOutput("Invalid format in "+cfReportName+"; run with -reanalyze to fix.");
+				errorExit();
+			}
+			if (!reportName.equalsIgnoreCase(cfReportName)) {
+				String rDir = getFilePathname(getDocDirPathname(), capDirName);
+				appOutput("Found analysis file for report '" + cfReportName + "' in " + rDir + " -- including contents in this report");
+			}
+
+			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
+			InputStreamReader cfisr = new InputStreamReader(cfis, "UTF-8");
+			BufferedReader capFile = new BufferedReader(cfisr);
+
+			String capLine = "";
+
+			while (true) {
+				capLine = capFile.readLine();
+				if (capLine == null) {
+					//EOF
+					break;
+				}
+				capLine = capLine.trim();
+				if (capLine.isEmpty()) continue;
+				if ((capLine.charAt(0) == '#') || (capLine.charAt(0) == '*')) {
+					continue;
+				}
+				if (capLine.contains(captureFileSeparator+ObjCountOnly+captureFileSeparator)) continue;
+
+				capCount++;
+
+				// strip off the last two semicolons
+				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
+				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
+
+				// add date & babelfish version
+				capLine = targetBabelfishVersion + captureFileSeparator + nowFmt + captureFileSeparator + capLine;
+
+				PGImportFileWriter.write(capLine+"\n");
+			}
+			capFile.close();
+		}
+		PGImportFileWriter.close();
+		appOutput("Items written for import: "+capCount + " (in "+PGImportFilePathName+")");
+
+		// do not write the password in any file but keep in envvar only:
+		String PGPasswdEnvvar = "BBFPSQLPASSWD";
+		cmd = applyPatternFirst(cmd, "~password~", "%"+PGPasswdEnvvar+"%");
+
+		String psqlFile = psqlImportFileName + "." + psqlFileSuffix;
+		cmd = applyPatternFirst(cmd, "~file~", psqlFile);
+
+		String batFile = writePsqlFile(append, reportName, cmd);
+
+		// finally, run the import
+		String runBatCmd = "SET "+PGPasswdEnvvar+"="+pgPasswd+"& " + batFile;
+		runOScmd(runBatCmd);
+
+		//done!
+	}
+
+ 	// LEXER CODE
 	private String errorMsg;
 
 	public String limitTextSize(String text) {

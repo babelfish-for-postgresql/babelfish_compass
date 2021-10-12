@@ -74,6 +74,8 @@ public class Compass {
 	protected static boolean deleteReport = false;
 	protected static boolean userSpecifiedBabelfishVersion = false;
 	protected static boolean listContents = false;
+	protected static boolean pgImport = false;
+	protected static boolean pgImportAppend = false;
 
 	protected static boolean antlrSLL = true;
 	protected static boolean antlrShowTokens = false;
@@ -89,12 +91,13 @@ public class Compass {
 	public static List<String> inputFiles = new ArrayList<>();
 	public static List<String> inputFilesOrig = new ArrayList<>();
 	public static List<String> cmdFlags = new ArrayList<>();
+	public static List<String> pgImportFlags = new ArrayList<>();
 
 	private static TSQLParser.Tsql_fileContext exportedParseTree;
 
 	public static CompassUtilities u = CompassUtilities.getInstance();
 	public static CompassConfig cfg = CompassConfig.getInstance();
-	public static CompassAnalyze a;
+	public static CompassAnalyze a = CompassAnalyze.getInstance();
 
 	public Compass(String[] args) {
 		u.getPlatform();		
@@ -127,19 +130,20 @@ public class Compass {
 					u.appOutput("-reportoption  [ <options> ] : additional reporting detail. ");				
 					u.appOutput(" <options> are comma-separated as follows:");									
 					u.appOutput(" One of the following:");				
-					u.appOutput("    xref=feature: generate X-ref by feature");				
-					u.appOutput("    xref=object : generate X-ref by object");				
-					u.appOutput("    xref=all    : generate both X-refs");				
-					u.appOutput("    xref        : same as xref=all");				
+					u.appOutput("    xref=feature     : generate X-ref by feature");				
+					u.appOutput("    xref=object      : generate X-ref by object");				
+					u.appOutput("    xref=all         : generate both X-refs");				
+					u.appOutput("    xref             : same as xref=all");				
 					u.appOutput(" One or more of the following:");				
-					u.appOutput("    detail      : generate additional X-ref detail (e.g. object names)");				
+					u.appOutput("    detail           : generate additional X-ref detail (e.g. object names)");				
+					u.appOutput("    apps             : with >1 app, shows app count in summary section");				
+					u.appOutput("    linenrs=<number> : max.nr of line numbers shown in list (default="+u.maxLineNrsInListDefault+")");				
+					u.appOutput("    batchnr          : in xref, show batch number + line nr in batch");				
+					u.appOutput("    status=<status>  : generate X-ref for items with the specified status");				
+					u.appOutput("    notabs           : do not open a Xref link in a new tab(default=open in new tab)");				
+					u.appOutput("        Without status=, no X-refs are generated for 'Supported' and 'Ignored' features");				
 					u.appOutput(" One or more of the following:");				
-					u.appOutput("    apps        : with >1 app, shows app count in summary section");				
-					u.appOutput(" One or zero of the following:");				
-					u.appOutput("    status=<status>: generate X-ref for items with the specified status");				
-					u.appOutput("    Without status=, no X-refs are generated for 'Supported' and 'Ignored' features");				
-					u.appOutput(" One or more of the following:");				
-					u.appOutput("    filter=<pattern>: only report X-ref items matching the pattern");				
+					u.appOutput("    filter=<pattern>: only report X-ref items matching the pattern (case-sensitive)");				
 					u.appOutput("Without -reportoption, only the assessment summary is generated (no X-refs)");				
 					u.appOutput("NB: generating X-refs may produce a very large report.");							
 					u.appOutput("NB: do not put spaces anywhere in the options");							
@@ -168,6 +172,9 @@ public class Compass {
 				u.appOutput("   -encoding <encoding>         : input file encoding, e.g. '-encoding utf8'. Default="+Charset.defaultCharset());
 				u.appOutput("                                  use '-encoding help' to list available encodings");
 				u.appOutput("   -quotedid {on|off}           : set QUOTED_IDENTIFIER at start of script (default=ON)");
+				u.appOutput("   -pgimport <list>             : imports captured items into a PostgreSQL table for SQL querying");
+				u.appOutput("                                  <list> is: host,port,username,password,dbname  (requires psql to be installed)");
+				u.appOutput("   -pgimportappend              : with -pgimport, appends to existing table (instead of drop/recreate)");
 				u.appOutput("   -version                     : show version of this tool");
 				u.appOutput("   -help                        : show this information");		
 				u.appOutput("   -explain                     : some high-level migration guidance");		
@@ -188,7 +195,7 @@ public class Compass {
 				return;
 			}
 			if (arg.equals("-explain")) {
-				u.appOutput("Babelfish Compass is currently a command-line-only tool, running on Windows only.\nIt takes one or more DDL/SQL scripts as input and generates a compatibility assessment report.\nBabelfish Compass does not connect directly to a SQL Server instance.\n\nThe purpose of Babelfish Compass is to analyze a SQL Server DDL/SQL script\nfor compatibility with Babelfish, to inform a decision about whether\nit is worth considering starting a migration project to Babelfish.\nTake the following steps:\n1. Reverse-engineer the SQL Server database(s) in question\n   with SSMS (right-click a database --> Tasks --> Generate Scripts.\n   Do not forget to enable triggers, logins, owners and permissions (disabled in SSMS by default).\n2. Use the resulting DDL/SQL script as input for Babelfish Compass to generate an assessment report\n3. Discuss the results of Babelfish Compass with the customer and interpret the findings in the\n   context of the customer application\n4. Keep in mind that a Babelfish migration involves more than just the server-side DDL/SQL code\n   (e.g. data migration, client applications, external interfaces, etc.)\n\nRun "+u.thisProgExec+" -help for further usage info.\n\n");
+				u.appOutput("Babelfish Compass is currently a command-line-only tool, running on Windows only.\nIt takes one or more DDL/SQL scripts as input and generates a compatibility assessment report.\nBabelfish Compass does not connect directly to a SQL Server instance.\n\nThe purpose of Babelfish Compass is to analyze a SQL Server DDL/SQL script\nfor compatibility with Babelfish, to inform a decision about whether\nit is worth considering starting a migration project to Babelfish.\nTake the following steps:\n1. Reverse-engineer the SQL Server database(s) in question\n   with SSMS (right-click a database --> Tasks --> Generate Scripts.\n   Do not forget to enable triggers, logins, owners and permissions (disabled in SSMS by default).\n2. Use the resulting DDL/SQL script as input for Babelfish Compass to generate an assessment report\n3. Discuss the results of Babelfish Compass with the application owner and interpret the findings in the\n   context of the application to be migrated.\n4. Keep in mind that a Babelfish migration involves more than just the server-side DDL/SQL code\n   (e.g. data migration, client applications, external interfaces, etc.)\n\nRun "+u.thisProgExec+" -help for further usage info.\n\n");
 				u.errorExit();
 			}
 			if ((arg.equals("-babelfish-version") || arg.equals("-babelfish_version"))) {
@@ -271,18 +278,18 @@ public class Compass {
 				i++;
 				continue;
 			}						
-			if (arg.equals("-reportoption")) {   
+			if ((arg.equals("-reportoption") || arg.equals("-reportoptions"))) {   
 				if (i == args.length) {
 					u.appOutput("Must specify arguments for -reportoption ");
 					u.errorExit();
 				}
-				List<String> reportOptions = Arrays.asList("xref", "detail", "status", "filter", "apps");
+				List<String> reportOptions = Arrays.asList("xref", "detail", "status", "filter", "apps", "batchnr", "linenrs", "notabs");
 				List<String> reportOptionsXref = Arrays.asList("", "all", "object", "feature");
 				List<String> reportFlags = new LinkedList<>(Arrays.asList(args[i].split(",")));
 				reportFlags.removeIf(String::isEmpty);
 				for(String option : reportFlags) {
-					String optionValue = CompassAnalyze.getOptionValue(option);
-					option = CompassAnalyze.getOptionName(option);							
+					String optionValue = a.getOptionValue(option);
+					option = a.getOptionName(option);							
 					if (reportOptions.contains(option.toLowerCase())) {
 						// OK
 						if (option.equals("xref")) {
@@ -304,13 +311,31 @@ public class Compass {
 								u.appOutput("Valid options: "+statusOptions);
 								u.errorExit();								
 							}
-							u.reportOptionStatus += " " + optionValue + " ";
+							u.reportOptionStatus += " " + optionValue.toLowerCase() + " ";
 						}
 						else if (option.equals("detail")) {
 							u.reportOptionDetail = option;  // no option values defined right now
 						}
 						else if (option.equals("apps")) {
 							u.reportOptionApps = option;  
+						}
+						else if (option.equals("batchnr")) {
+							u.reportShowBatchNr = option;  
+						}
+						else if (option.equals("notabs")) {
+							u.linkInNewTab = false;  
+							u.tgtBlank = "";  
+						}
+						else if (option.equals("linenrs")) {
+							Integer ln = 0;
+							try {
+								ln = Integer.parseInt(optionValue);
+								if (ln < 1) Integer.parseInt("x");
+							} catch (Exception e) { 
+								u.appOutput("Invalid option '"+optionValue+"' for -reportoption linenrs=, must be number > 0");
+								u.errorExit();								
+							}
+							u.maxLineNrsInList = ln;  
 						}
 						else if (option.equals("filter")) {							 
 							if (optionValue.isEmpty()) {
@@ -329,6 +354,25 @@ public class Compass {
 				i++;
 				continue;
 			}
+			if (arg.equals("-pgimportappend")) {	
+				pgImportAppend = true;	
+				continue;
+			}				
+			if (arg.equals("-pgimport")) {					
+				if (i == args.length) {
+					u.appOutput("Must specify arguments for -pgimport: host,port,username,password,dbname ");
+					u.errorExit();
+				}
+				pgImportFlags = new LinkedList<>(Arrays.asList(args[i].split(",")));
+				pgImportFlags.removeIf(String::isEmpty);
+				if (pgImportFlags.size() != 5) {
+					u.appOutput("Must specify 5 arguments for -pgimport: host,port,username,password,dbname ");
+					u.errorExit();								
+				}
+				pgImport = true;	
+				i++;
+				continue;		
+			}							
 			if (u.devOptions) {
 				if (arg.equals("-debug")) {   // development only
 					if (i == args.length) {
@@ -352,7 +396,7 @@ public class Compass {
 					u.echoCapture = true;
 					continue;
 				}
-				if (arg.equals("-dbgreport")) { // development only
+				if (arg.equals("-dbgreport") || (arg.equals("-devreport"))) { // development only
 					u.stdReport = true;
 					continue;
 				}
@@ -411,6 +455,7 @@ public class Compass {
 						u.errorExit();
 					}
 					reportName = arg.trim();
+					u.reportName = reportName;
 					if (reportName.isEmpty()) {
 						u.appOutput("Report name cannot be blank");
 						u.errorExit();
@@ -452,7 +497,13 @@ public class Compass {
  		if (quitNow) {
 			return;
  		}
-
+ 		
+ 		// perform PG import
+		if (pgImport) {
+			runPGImport();
+			return;
+		}
+		
  		// read config file
  		u.cfgFileName = u.defaultCfgFileName; // todo: make configurable?
 		cfg.validateCfgFile(u.cfgFileName);
@@ -463,12 +514,12 @@ public class Compass {
 			u.errorExit();			
 		}
 
-		if (u.debugCfg) {
-			CompassTestConfig.testConfig();
-		}
+		// only for debugging the config class:
+//		if (u.debugCfg) {
+//			CompassTestConfig.testConfig();
+//		}
 
-		// init analysis object
-		a = new CompassAnalyze();
+		// copy cfg structure
 		a.cfg = cfg;
 
 		// init Babelfish target version at latest version, unless user specified a version
@@ -640,17 +691,18 @@ public class Compass {
 		elapsedRun = (endRun - startRun)/ 1000;
 
 		comp.reportFinalStats();
-		if (!parseOnly) u.reportFileWriter.close();
+		if (!parseOnly) u.closeReportFile();
 		
 		// launch explorer window with the generated report
 		if (u.onWindows) {
 			if (!u.devOptions) {
 				u.runOScmd("cmd /c \"explorer.exe /n,/select,\"\""+u.reportFilePathName+"\"\" \"");
+				u.runOScmd("cmd /c \"explorer.exe \"\""+u.reportFilePathName+"\"\" \"");
 			}
 		}
 	}
 
-	public static boolean inputFilesValid() throws Exception {		
+	private static boolean inputFilesValid() throws Exception {		
 		// validate input files specified
 		AtomicBoolean inputValid = new AtomicBoolean(true);
 
@@ -692,7 +744,7 @@ public class Compass {
 		return true;		
 	}
 	
-	public static boolean optionsValid() throws Exception {
+	private static boolean optionsValid() throws Exception {
 		// validate combinations of various options specified
 		// return true if options are valid
 		
@@ -705,6 +757,22 @@ public class Compass {
 				u.appOutput("Report name must be specified");
 				return false;
 			}
+		}
+		
+ 		if (pgImport || pgImportAppend) {
+ 			if (readStdin || listContents || importOnly || inputFiles.size() > 0 || reAnalyze || deleteReport || reportOnly) {
+				u.appOutput("-pgimport cannot be combined with other options");
+				return false;
+			}
+			return true;
+		}
+		
+ 		if (pgImportAppend) {
+ 			if (!pgImport) {
+				u.appOutput("-pgimportappend requires -pgimport");
+				return false; 				
+ 			}
+			return true;
 		}
 		
 		if (listContents && readStdin) {
@@ -864,8 +932,23 @@ public class Compass {
 		// if we get here, we're good
 		return true;
 	}
+	
+	private static void runPGImport () { 
+		// import the captured.dat file into a PG table
+		String cmd = "psql --echo-all --file=~file~ \"postgresql://~username~:~password~@~host~:~port~/~dbname~\"";
 
-	public void reportFinalStats() throws Exception {
+		cmd = u.applyPatternFirst(cmd, "~host~", pgImportFlags.get(0));
+		cmd = u.applyPatternFirst(cmd, "~port~", pgImportFlags.get(1));
+		cmd = u.applyPatternFirst(cmd, "~username~", pgImportFlags.get(2));
+		cmd = u.applyPatternFirst(cmd, "~dbname~", pgImportFlags.get(4));		
+					
+		try { u.importPG(pgImportAppend, cmd, pgImportFlags.get(3)); } catch (Exception e) { /*nothing*/ }		
+		
+		//Note: by exiting here, the password entered on command line is not getting written into any files or log files!		
+		u.errorExit();
+	}
+
+	private void reportFinalStats() throws Exception {
 		if (readStdin) {
 			return;
 		}
@@ -934,8 +1017,8 @@ public class Compass {
 		u.appOutput("Compatibility        : "+ u.compatPctStr + "%   (uncorrected: "+u.compatPctStrRaw+"%)" );
 		}
 		
-		u.appOutput("Session log file     : "+ sessionLog, writeToReport);
-		u.appOutput("Analysis report file : "+ u.reportFilePathName, writeToReport);
+		u.appOutput("Session log          : "+ sessionLog, writeToReport);
+		u.appOutput("Assessment report    : "+ u.reportFilePathName, writeToReport);
 		u.appOutput(u.composeOutputLine("","="), writeToReport);
 		
 		if (u.devOptions) {
@@ -947,8 +1030,7 @@ public class Compass {
 		}
 	}
 
-	public void processInput(String runStartTime) throws Exception {
-
+	private void processInput(String runStartTime) throws Exception {	
 		if (readStdin) {
 			// quick parse option, for development only
 			if (u.analysisPass > 1) return;
@@ -1125,7 +1207,7 @@ public class Compass {
 			if (u.analysisPass== 2) {
 				u.openCaptureFile(reportName, u.currentSrcFile, u.currentAppName);
 			}
-
+			
 			CodePointCharStream charStream;
 
 			// set QUOTED_IDENTIFIER to the default value at the start of the input file

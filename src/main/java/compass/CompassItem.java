@@ -21,7 +21,7 @@ public class CompassItem {
     public void setName(String name) {
         this.name = name;
     }
-
+    
     public String getName() {
         return name;
     }
@@ -29,16 +29,16 @@ public class CompassItem {
     public void setLineNr(int pLineNr) {
         this.lineNr = pLineNr;
     }
-
+    
     public int getLineNr() {
         return lineNr;
     }
-
+    
     public void attributeAppend(String s) {
-	attributes += " " + s + " ";
+    	attributes += " " + s + " ";
     }
-
+    
     public String getAttributes() {
-	return attributes;
+    	return attributes;
     }
 }
