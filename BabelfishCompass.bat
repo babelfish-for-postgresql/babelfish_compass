@@ -77,12 +77,8 @@ rem ----------------------------------------------------
 
 :invoke
 
-rem assume Java is in the PATH
-SET PATH=.;%PATH%;%COMPASS%\lib\antlr-4.9.2-complete.jar;
-SET CLASSPATH=.;%COMPASS%\src;%COMPASS%\lib\antlr-4.9.2-complete.jar;
-
-rem 8GB should be enough for everything except very large cases
-java -Xmx8g -enableassertions compass.Compass %*
+rem assume Java is in the PATH, this was tested above
+java -jar compass.jar %*
 
 rem ----------------------------------------------------
 
