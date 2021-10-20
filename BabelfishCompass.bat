@@ -14,7 +14,7 @@ set THISPROG=%~n0%~x0
 rem ----------------------------------------------------
 rem fixed installation dir for now:
 
-SET COMPASS=C:\BabelfishCompass
+SET COMPASS=C:\XX
 
 rem Check:
 if exist %COMPASS% ( 
@@ -78,7 +78,8 @@ rem ----------------------------------------------------
 :invoke
 
 rem assume Java is in the PATH, this was tested above
-java -jar compass.jar %*
+rem assuming 12GB is enough
+java -Xmx12g -jar compass-1.0.jar %*
 
 rem ----------------------------------------------------
 
