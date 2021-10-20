@@ -4,6 +4,8 @@ SPDX-License-Identifier: Apache-2.0
 */
 package compass;
 
+// this class is used for capturing attributes of a SELECT statement since there is a lot of context which we need
+// before we can decide what type of SELECT it actually is
 public class CompassItem {
     private String name;
     private String attributes;

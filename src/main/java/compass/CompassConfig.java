@@ -13,6 +13,7 @@ import java.util.regex.Matcher;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
+// this calss reads/validates the .cfg file, and provides API calls to determine if a particular feature is supported
 public class CompassConfig {
 	static String configFileName;
 	static String configFilePathName;
@@ -58,6 +59,7 @@ public class CompassConfig {
 		return instance;
 	}
 
+	// entry point for initializating the .cfg part
 	public void validateCfgFile(String pCfgFileName) throws Exception {
 		readCfgFile(pCfgFileName);
 
@@ -68,14 +70,14 @@ public class CompassConfig {
 
 		if (!cfgFileValid) {
 			if (versionInvalid) {
-				u.appOutput("Valid Babelfish versions: " + validBabelfishVersions());
+				cfgOutput("Valid Babelfish versions: " + validBabelfishVersions());
 			}
 			cfgOutput("Configuration file not valid");
 			u.errorExit();
 		}
+		cfgOutput("Latest "+u.babelfishProg+" version supported: "+latestBabelfishVersion());
 	}
 
-	// TODO 'cfgFileValid = false;' can be put here, because they are always used together
 	public static void cfgOutput(String s) {
 		u.appOutput(configFileName+": "+s);
 	}
@@ -119,7 +121,7 @@ public class CompassConfig {
 	}
 
 	public static String normalizedBabelfishVersion(String version) {
-		// for comparing versions, use a standardized internal representation. Assumption: external format is \d+(\.\d+)* or \d+\.\*
+		// for comparing versions, use a normalized internal representation. Assumption: external format is \d+(\.\d+)* or \d+\.\*
 		StringBuilder internalVers = new StringBuilder();
 		String[] vParts = version.split("\\.");
 		for(int i=0; i < vParts.length; i++) {
@@ -242,7 +244,7 @@ public class CompassConfig {
 		return status;
 	}
 
-	// return NotSupported  incase no supported minimum version was found
+	// return NotSupported in case no supported minimum version was found
 	public static String featureSupportedMinimumVersion(String section) {
 		String minVersion = "", sectionCopy = section;
 		section = section.toUpperCase();
@@ -272,7 +274,7 @@ public class CompassConfig {
 		return minVersion.isEmpty() ? u.NotSupported : minVersion;
 	}
 
-	// return NotSupported  incase no supported minimum version was found
+	// return NotSupported in case no supported minimum version was found
 	public static String featureSupportedMinimumVersion(String section, String name) {
 		String minVersion = "", sectionCopy = section;
 		section = section.toUpperCase();
@@ -350,6 +352,7 @@ public class CompassConfig {
 		return result;
 	}
 
+	// gets the list of supported values for the version specified (not cumulative, only for the most recent supported version)
 	public static String featureValueSupportedInVersion(String requestVersion, String section) {
 		String value = "";
 		section = section.toUpperCase();
@@ -394,6 +397,7 @@ public class CompassConfig {
 		return null;
 	}
 
+	// is this feature (section, name) supported in the specificed version?
 	public static String featureSupportedInVersion(String requestVersion, String section, String name) {
 		String status = u.NotSupported;
 		name = name.toUpperCase();
@@ -474,7 +478,7 @@ public class CompassConfig {
 		return isSupported;
 	}
 
-	// TODO use section.toUpperCase() if called from outside (not by a Config method)
+	// TODO use section.toUpperCase() if called from outside (not by a Config method) -- not currently the case
 	public static String featureDefaultStatus(String section) {
 		String status = u.NotSupported;
 		Map<String, List<String>> featureList = sectionList.get(section);
@@ -486,8 +490,8 @@ public class CompassConfig {
 		return status;
 	}
 
-	// TODO use section.toUpperCase() if called from outside
-	public static String featureDefaultStatus(String section, String name) {
+	// TODO use section.toUpperCase() if called from outside (not by a Config method) -- not currently the case
+	public static String featureDefaultStatus(String section, String name) {    
 		String status = u.NotSupported;
 		name = name.toUpperCase();
 		Map<String, List<String>> featureList = sectionList.get(section);
@@ -540,6 +544,7 @@ public class CompassConfig {
 		return sectionExists(section.toUpperCase());
 	}
 
+	// does this feature (section, name) exist in the .cfg file?
 	public static boolean featureExists(String section, String name) {
 		boolean result = false;
 		name = name.toUpperCase();
@@ -567,7 +572,8 @@ public class CompassConfig {
 						}
 					}
 				}
-			} else {
+			} 
+			else {
 				// the feature exists, but has no list= key (not needed for many features)
 				result = true;
 				if (u.debugging) u.dbgOutput("key [" + key + "] NOT found, but feature exists", u.debugCfg);
@@ -611,6 +617,7 @@ public class CompassConfig {
 		return argN;
 	}
 
+	// what is the reporting group for this feature?
 	public static String featureGroup(String section, String name) {
 		String sectionCopy = section, group = "";
 		section = section.toUpperCase();
@@ -653,6 +660,7 @@ public class CompassConfig {
 		return group;
 	}
 
+	// what is the reporting group for this feature?
 	public static String featureGroup(String section) {
 		String sectionCopy = section, group = "";
 		section = section.toUpperCase();
@@ -697,7 +705,7 @@ public class CompassConfig {
 		if (u.debugging) u.dbgOutput(u.thisProc() + "======= end config ================= ", u.debugCfg);
 	}
 
-	public static boolean matchWildcard(String sectionName, String s, List<String> allItems) {
+	private static boolean matchWildcard(String sectionName, String s, List<String> allItems) {
 		for (String w : allItems) {		// TODO This can probably be improved (if needed)
 			if (w.contains(wildcardChar)) {
 				String wCopy = w;
@@ -714,7 +722,8 @@ public class CompassConfig {
 		return false;
 	}
 
-	public static void readCfgFile(String pCfgFileName) throws Exception {
+	// read the .cfg file
+	private static void readCfgFile(String pCfgFileName) throws Exception {
 		configFileName = pCfgFileName;
 		configFilePathName = Paths.get(pCfgFileName).toAbsolutePath().toString();
 
@@ -985,7 +994,7 @@ public class CompassConfig {
 	}
 
 	// LinkedHashMap is used because insertion order is important
-	public static Map<String, Map<String, String>> getCfg(String configFileName) throws IOException {
+	private static Map<String, Map<String, String>> getCfg(String configFileName) throws IOException {
 		String COMMENT_CHARS = "#;", SEPARATOR = ",", BEFORE_CHECKSUM="#file checksum=";
 		char START_SECTION = '[', END_SECTION = ']';
 		String line, separator = System.lineSeparator(), fileChecksum = null, sectionName = null;

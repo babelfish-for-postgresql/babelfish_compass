@@ -33,7 +33,7 @@ public class CompassUtilities {
 
 	public static boolean onWindows;
 
-	public static final String thisProgVersion      = "0.9";
+	public static final String thisProgVersion      = "1.0";
 	public static final String thisProgVersionDate  = "October 2021";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
@@ -47,7 +47,7 @@ public class CompassUtilities {
 	
 	// user docs
 	public static final String userDocText          = thisProgName + " User Guide";
-	public static final String userDocURL           = "https://github.com/babelfish-for-postgresql/babelfishpg-compass-tool";
+	public static final String userDocURL           = "https://github.com/babelfish-for-postgresql/babelfish_compass/blob/main/UserGuide.pdf";
 
 	public static final String disclaimerMsg  =
             "Notice:\n"
@@ -76,7 +76,7 @@ public class CompassUtilities {
 	public boolean stdReport = false;	// development only
 
 	// minimum Babelfish version; this is fixed
-	public static final String baseBabelfishVersion = "1.0";
+	public static final String baseBabelfishVersion = "1.0.0";
 
 	// standard line length
 	public final int reportLineLength = 80;
@@ -90,6 +90,7 @@ public class CompassUtilities {
 	public final String errBatchFileSuffix = "errbatch.txt";
 	public final String capDirName = "captured";
 	public final String captureFileName = "captured";
+	public final String captureFileTag = "bbf~captured";
 	public final String captureFileSuffix = "dat";
 	public final String symTabDirName = "sym";
 	public final String symTabFileTag = "bbf~symtab";
@@ -123,7 +124,7 @@ public class CompassUtilities {
 	public BufferedWriter sessionLogWriter;
 
 	// HTML header/footer
-	public String docLinkIcon              = "<div class=\"tooltip\"><span class=\"tooltip_icon\">&#x1F56E;</span>";
+	public String docLinkIcon              = "<div class=\"tooltip\"><span class=\"tooltip_icon\">&#x1F56E;</span> ";
 	public String docLinkURL               = "<a href=\""+userDocURL+"\" target=\"_blank\">"+ userDocText +"</a></div>"; 
 	public String docLinkURLText           = userDocText +" : " + userDocURL; 
 	public String tocLinkIcon              = "<div class=\"tooltip\"><span class=\"tooltip_icon\">&#x2B06;</span>";
@@ -342,11 +343,19 @@ tooltipsHTMLPlaceholder +
 	private Map<String, String> toolTipsKeys = new HashMap<>();
 	static final String tttSeparator = "~~~";
 	static final List<String> toolTipsText = Arrays.asList(
-		"HASHBYTES("+tttSeparator+"This hashing algorithm for HASHBYTES() is not currently supported",
+		"STR("+tttSeparator+"STR() is not currently supported; rewrite with CONVERT()",
+		"TRY_CONVERT("+tttSeparator+"TRY_CONVERT() is not currently supported; rewrite with CONVERT()",
+		"PARSE("+tttSeparator+"PARSE() is not currently supported; rewrite with CAST() or CONVERT()",
+		"TRY_PARSE("+tttSeparator+"PARSE() is not currently supported; rewrite with CAST() or CONVERT()",
+		"SQUARE("+tttSeparator+"SQUARE() is not currently supported; rewrite with POWER()",
+		"UNICODE("+tttSeparator+"UNICODE() returns the Unicode code point for the first character in a string; this is not currently supported",
+		"HASHBYTES("+tttSeparator+"HASHBYTES() currently supports only MD5, SHA1, SHA2_256, SHA2_512",
 		"IDENTITY("+tttSeparator+"The IDENTITY() function in SELECT-INTO is not currently supported. Use ALTER TABLE to add an identity column",
 		"CHOOSE("+tttSeparator+"CHOOSE(): Rewrite as a CASE expression",
+		"OBJECT_SCHEMA_NAME()"+tttSeparator+"OBJECT_SCHEMA_NAME(): Rewrite as catalog query",
 		"ORIGINAL_LOGIN("+tttSeparator+"ORIGINAL_LOGIN(): Rewrite as SUSER_NAME()",
 		"FORMAT("+tttSeparator+"FORMAT(): Rewrite the formatting using available functions such as CONVERT()",
+		"NEWSEQUENTIALID()"+tttSeparator+"NEWSEQUENTIALID() is implemented as NEWID(); the sequential nature of the generated values is however not guaranteed, as is the case in SQL Server",
 		"SERVERPROPERTY("+tttSeparator+"This particular attribute for SERVERPROPERTY() is not currently supported",
 		"CONNECTIONPROPERTY("+tttSeparator+"This particular attribute for CONNECTIONPROPERTY() is not currently supported",
 		"DATABASEPROPERTYEX("+tttSeparator+"This particular attribute for DATABASEPROPERTYEX() is not currently supported",
@@ -363,7 +372,12 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.TemporaryProcedures+tttSeparator+"Temporary stored procedures (with a name starting with #) are created, but not dropped automatically at the end of a session",
 		CompassAnalyze.NumericAsDateTime+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00",
 		CompassAnalyze.NumericDateTimeVarAssign+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00",
+		"EXECUTE procedure sp_oacreate"+tttSeparator+"This OLE system stored procedure is not currently supported",
+		"EXECUTE procedure sp_oadestroy"+tttSeparator+"This OLE system stored procedure is not currently supported",
+		"EXECUTE procedure sp_oamethod"+tttSeparator+"This OLE system stored procedure is not currently supported",
+		"EXECUTE procedure sp_recompile"+tttSeparator+"The recompile feature is not currently supported",
 		"EXECUTE procedure, name in variable"+tttSeparator+"Executing a stored procedure whose name is in a variable (i.e. EXECUTE @p) is not currently supported. Rewrite with dynamic SQL (i.e. EXECUTE(...) or sp_executesql)",
+		"CREATE SYNONYM"+tttSeparator+"Synonyms are not currently supported; try to rewrite with views (for tables) or procedures/functions (for procedures/functions)",
 		"BACKUP"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled through PostgreSQL",
 		"RESTORE"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled through PostgreSQL",
 		"GRANT"+tttSeparator+"GRANT is not currently supported",
@@ -383,7 +397,7 @@ tooltipsHTMLPlaceholder +
 		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported and will be ignored",
 		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported and will be ignored",
 		"ALTER TABLE..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements",
-		"ALTER TABLE..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements",
+		"ALTER TABLE..CHECK CONSTRAINT"+tttSeparator+"Explicit validation of constraints is not currently supported",
 		"DBCC "+tttSeparator+"DBCC statements are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
 		CompassAnalyze.ODBCScalarFunction+tttSeparator+"ODBC scalar functions are not currently supported; rewrite with an equivalent built-in function",
 		CompassAnalyze.ODBCLiterals+tttSeparator+"ODBC literal expressions are not currently supported; rewrite with CAST() to the desired datatype",
@@ -403,8 +417,8 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.VarDeclareAtAt+tttSeparator+"Local variables or parameters starting with '@@' can be declared, but cannot currently be referenced",
 		"Cursor option "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
 		"FETCH  "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
-		"CURSOR variable"+tttSeparator+"CURSOR-types variables/parameters are not currently supported",
-		"CURSOR procedure parameter"+tttSeparator+"CURSOR-types variables/parameters are not currently supported",
+		"CURSOR variable"+tttSeparator+"CURSOR-types variables/parameters are not currently supported; rewrite with table variables or #tmp tables",
+		"CURSOR procedure parameter"+tttSeparator+"CURSOR-types variables/parameters are not currently supported; rewrite with table variables or #tmp tables",
 		"GLOBAL cursor"+tttSeparator+"Currently only LOCAL cursors are supported",
 		"GLOBAL option for FETCH"+tttSeparator+"Currently only LOCAL cursors are supported",
 		"DISABLE TRIGGER"+tttSeparator+"Disabling triggers is not currently supported; triggers are always enabled",		
@@ -424,9 +438,9 @@ tooltipsHTMLPlaceholder +
 		"XML.exist()"+tttSeparator+"XML .exist() method is not currently supported",
 		"XML.query()"+tttSeparator+"XML .query() method is not currently supported",
 		"XML.write()"+tttSeparator+"XML .write() method is not currently supported",
-		"\\w+ XML SCHEMA COLLECTION"+tttSeparator+"XML SCHEMA COLLECTION objects are not currently supported",
+		"\\w+ XML SCHEMA COLLECTION"+tttSeparator+"XML SCHEMA objects are not currently supported",
 		"\\w+ XML INDEX"+tttSeparator+"XML indexes are not currently supported",
-		"WITH XMLNAMESPACES"+tttSeparator+"XML name spaces are not currently supported",
+		"WITH XMLNAMESPACES"+tttSeparator+"XML namespaces are not currently supported",
 		"SELECT FOR XML AUTO"+tttSeparator+"SELECT FOR XML AUTO is not currently supported; SELECT FOR XML RAW/PATH are supported",
 		"SELECT FOR XML EXPLICIT"+tttSeparator+"SELECT FOR XML EXPLICIT is not currently supported; SELECT FOR XML RAW/PATH are supported",
 		"SELECT FOR XML RAW ELEMENTS"+tttSeparator+"SELECT FOR XML RAW, with ELEMENTS is not currently supported; SELECT FOR XML RAW without ELEMENTS is supported",
@@ -445,6 +459,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.ReadText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
 		CompassAnalyze.WriteText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
 		CompassAnalyze.UpdateText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
+		"INSERT..EXECUTE(string)"+tttSeparator+"INSERT..EXECUTE with EXECUTE_immediate is not currently supported",
 		"INSERT..DEFAULT VALUES"+tttSeparator+"INSERT..DEFAULT VALUES: this syntax is not currently supported. Rewrite as an INSERT with actual values",
 		"INSERT TOP..SELECT"+tttSeparator+"Rewrite as INSERT.. SELECT TOP",
 		CompassAnalyze.InsertBulkStmt+tttSeparator+"INSERT BULK is not a T-SQL statement, but only available through specific client-server APIs",
@@ -482,10 +497,15 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index (review)"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint or -index. Because PostgreSQL allows multiple NULL values, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish",
 		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint (review)"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint or -index. Because PostgreSQL allows multiple NULL values, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish",
 		
-		CompassAnalyze.DropIndex+" index ON schema.table"+tttSeparator+"Syntax DROP INDEX indexname ON schema.table is not currently supported; remove schema name",
-		CompassAnalyze.DropIndex+" table.index"+tttSeparator+"Syntax DROP INDEX table.indexname is not currently supported; use DROP INDEX indexname ON table",
-		CompassAnalyze.DropIndex+" schema.table.index"+tttSeparator+"Syntax DROP INDEX schema.table.indexname is not currently supported; use DROP INDEX indexname ON table",
+		CompassAnalyze.DropIndex+" index ON schema.table"+tttSeparator+"Syntax 'DROP INDEX indexname ON schema.table' is not currently supported; remove schema name",
+		CompassAnalyze.DropIndex+" table.index"+tttSeparator+"Syntax 'DROP INDEX table.indexname' is not currently supported; use 'DROP INDEX indexname ON tablename'",
+		CompassAnalyze.DropIndex+" schema.table.index"+tttSeparator+"Syntax 'DROP INDEX schema.table.indexname' is not currently supported; use 'DROP INDEX indexname ON tablename'",
 		
+		"Special column name IDENTITYCOL"+tttSeparator+"The special column name IDENTITYCOL is not currently supported. Replace it by the actual name of the idebtity column",		
+		CompassAnalyze.LeadingDotsId+tttSeparator+"Remove leading dots for identifiers, i.e. change 'SELECT * FROM ..mytable' to 'SELECT * FROM mytable'",		
+		CompassAnalyze.SpecialCharIdentifier+tttSeparator+"Some identifiers do not currently support this character",		
+		"EXECUTE AS"+tttSeparator+"The EXECUTE AS statement (not to be confused with the EXECUTE AS clause in CREATE PROCEDURE/FUNCTION/etc.) is not currently supported",		
+		"REVERT"+tttSeparator+"The REVERT statement is not currently supported",		
 		
 		"\\w+, option WITH EXECUTE AS CALLER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY INVOKER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
 		"\\w+, option WITH EXECUTE AS OWNER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY DEFINER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
@@ -594,6 +614,8 @@ tooltipsHTMLPlaceholder +
 	public static String reportOptionApps = "";
 	public static String reportOptionDetail = "";
 	public static String reportOptionFilter = "";
+	public static boolean reportOptionNotabs = false;
+	public static boolean reportOptionLineNrs = false;
 	public static int linesSQLInReport = 0;
 	public static String reportHdrLines = "";
 	public static int maxLineNrsInListDefault = 10;
@@ -805,6 +827,7 @@ tooltipsHTMLPlaceholder +
 		}
 		
 		if (System.getenv().containsKey("COMPASS_HINT_ICON") || System.getenv().containsKey("compass_hint_icon")) {
+			// you can get an arbitrary emoji as icon when you specify it in envvar COMPASS_HINT_ICON
 			String iconEnv = System.getenv().get("COMPASS_HINT_ICON");
 			if (getPatternGroup(iconEnv, "^((\\#)?(x)?[0-9A-F]{4,}(;)?)$", 1).isEmpty()) {
 				appOutput("COMPASS_HINT_ICON: invalid value ["+iconEnv+"]. Must be '#x<hex>' or '#<number>', denoting a Unicode Emoji."); 
@@ -814,7 +837,6 @@ tooltipsHTMLPlaceholder +
 				if (!iconEnv.endsWith(";")) iconEnv += ";";
 				hintIcon = "&" + iconEnv;
 			}
-			//appOutput(thisProc()+"iconEnv=["+iconEnv+"]  hintIcon=["+hintIcon+"] ");
 		}		
     }
 
@@ -836,13 +858,6 @@ tooltipsHTMLPlaceholder +
             if (cmdOutput == null) { break; }
             System.out.println(cmdOutput);
         }
-    }
-
-    private void forceGC (){
-    	// for large input sets, we may run out of memory
-    	// calling this seems to help a bit, though no guarantees
-    	System.gc ();
-		System.runFinalization ();
     }
 
 	public String escapeRegexChars(String s)
@@ -1027,7 +1042,7 @@ tooltipsHTMLPlaceholder +
 		return sAligned.toString();
 	}
 
-	// align datatypes with a length specifier
+	// align datatypes with a length specifier so that sorting results in the numeric order
 	public String alignDataTypeLength(String s) {
 		s = alignDataTypeLength(s, "CHAR");
 		s = alignDataTypeLength(s, "NCHAR");
@@ -1139,13 +1154,21 @@ tooltipsHTMLPlaceholder +
 	}
 
 	public void appOutput(StringBuilder s) {
-		appOutput(s.toString(), false);
+		appOutput(s.toString(), false, false);
 	}
 	public void appOutput(String s) {
-		appOutput(s, false);
+		appOutput(s, false, false);
 	}
 	public void appOutput(String s, boolean inReport) {
-		System.out.println(s);
+		appOutput(s, inReport, false);
+	}
+	public void appOutput(String s, boolean inReport, boolean noNewline) {
+		if (noNewline) {
+			System.out.print(s);
+		}
+		else {
+			System.out.println(s);
+		}
 		if (sessionLogWriter != null) {
 			try { writeSessionLogFile(s + "\n"); } catch (Exception e) { System.out.println("Error writing to "+ sessionLogPathName); }
 		}
@@ -1256,27 +1279,26 @@ tooltipsHTMLPlaceholder +
 
 	public String nameFormatValid (String nameType, String name) {
 		String result = "";
-		if (nameType.equals("report") || nameType.equals("appname")) {
-			// check for characters not allowed in report/app name
-			// first remove slashes
-			if (name.contains("\\")) {
-				result = "'\\'";
+		assert (nameType.equals("report") || nameType.equals("appname")) : "invalid nameType=["+nameType+"] ";
+		// check for characters not allowed in report/app name
+		// first remove slashes
+		if (name.contains("\\")) {
+			result = "'\\'";
+		}
+		else if (name.contains("/")) {
+			result = "'/'";
+		}
+		else {
+			// other not-allowed chars
+			String badChar = getPatternGroup(name, "("+fileNameCharsAllowed+")", 1);
+			if (!badChar.isEmpty()) {
+				result = "["+badChar + "]  (allowed characters: [A-Za-z0-9\\.-()])";
 			}
-			else if (name.contains("/")) {
-				result = "'/'";
+			else if (name.contains("..\\")) {
+				result = "'..\\'";
 			}
-			else {
-				// other not-allowed chars
-				String badChar = getPatternGroup(name, "("+fileNameCharsAllowed+")", 1);
-				if (!badChar.isEmpty()) {
-					result = "["+badChar + "]  (allowed characters: [A-Za-z0-9\\.-()])";
-				}
-				else if (name.contains("..\\")) {
-					result = "'..\\'";
-				}
-				else if (name.contains("../")) {
-					result = "'../'";
-				}
+			else if (name.contains("../")) {
+				result = "'../'";
 			}
 		}
 		return result;
@@ -1313,10 +1335,16 @@ tooltipsHTMLPlaceholder +
 		return dirPath;
 	}
 
+	// change filename suffix
+	private String changeFilenameSuffix(String f, String oldSuffix, String newSuffix) {
+		f = applyPatternFirst(f, oldSuffix + "$", newSuffix);
+		return f;
+	}
+
 	// capture file pathname
     public String getCaptureFilePathname(String reportName, String fileName, String appName) {
 		String f = Paths.get(fileName).getFileName().toString();
-		f = captureFileName + "." + f + "." + appName + "." + captureFileSuffix;
+		f =  captureFileName + "." + f + "." + captureFileTag + "." + appName + "." + captureFileSuffix;
 		String filePath = getFilePathname(getReportDirPathname(reportName, capDirName), f);
 		return filePath;
 	}
@@ -1329,8 +1357,13 @@ tooltipsHTMLPlaceholder +
 	}
 
 	// session log pathname
-    public String getSessionLogPathName(String reportName, String now) {
-    	String sessionLogName = "session-log-" + reportName + "-" + now + "." + HTMLSuffix;
+    public String getSessionLogPathName(String reportName, Date now) {
+    	String now_fname = new SimpleDateFormat("yyyy-MMM-dd-HH.mm.ss").format(now);
+    	String reportNamePart = reportName;
+    	if (Compass.forceReportName) {
+    		reportNamePart = Compass.reportFileName;
+    	}
+    	String sessionLogName = "session-log-" + reportNamePart +  "-" + "bbf." + targetBabelfishVersion + "-" + fixNameChars("report", now_fname) + "." + HTMLSuffix;
     	if (stdReport) { // development only
     		sessionLogName = "session-log" + "." + HTMLSuffix;
     	}
@@ -1340,16 +1373,19 @@ tooltipsHTMLPlaceholder +
 	// report file pathname
     public String getreportFilePathName(String reportName, Date now) {
     	String now_fname = new SimpleDateFormat("yyyy-MMM-dd-HH.mm.ss").format(now);
-    	String reportNameFull = "report-" + reportName + "-" + now_fname + "." + textSuffix;
+    	String reportNameFull = "report-" + reportName + "-" + "bbf." + targetBabelfishVersion + "-" + fixNameChars("report", now_fname) + "." + textSuffix;
     	if (stdReport) { // development only
     		reportNameFull = "report." + textSuffix;
+    	}
+    	else if (Compass.forceReportName) {
+    		reportNameFull = Compass.reportFileName + "." + textSuffix;
     	}
 		return getFilePathname(getReportDirPathname(reportName), reportNameFull);
 	}
 
 	public String getReportFileHTMLPathname(String reportName, Date now) {
 		String f = getreportFilePathName(reportName, now);
-		f = applyPatternFirst(f, textSuffix + "$", HTMLSuffix);
+		f = changeFilenameSuffix(f, textSuffix, HTMLSuffix);
 		return f;
 	}
 
@@ -1411,9 +1447,7 @@ tooltipsHTMLPlaceholder +
     	Stream<Path> files = Files.find(dirPath, 1,
              (path, basicFileAttributes) -> path.toFile().getName().matches(filePattern));
  		List<Path> fileList = files.collect(Collectors.toList());
- 		//appOutput(thisProc()+"filePattern=["+filePattern+"] dir=["+dir+"] fileList=["+fileList+"] ");
  		fileList.remove(dirPath);
- 		//printStackTrace();
 		return fileList;
     }
 
@@ -1533,14 +1567,21 @@ tooltipsHTMLPlaceholder +
 		f = getFilePathname(dirPath, f);
 		return f;
 	}
-
-	public String getImportFileHTMLPathName(String reportName, String inputFileName, String appName) throws IOException {
-		String f = getImportFilePathName(reportName, inputFileName, appName);
-		f = applyPatternFirst(f, importFileSuffix + "$", HTMLSuffix);
+	
+	// relevant only in case of a single file, and when doing only reporting
+	public String getImportFilePathNameFromCaptured(String capFileName) throws IOException {
+		String f = capFileName;
+		f = applyPatternFirst(f, "^(.*?"+escapeRegexChars(File.separator) + ")" + capDirName + escapeRegexChars(File.separator) + captureFileName + "\\.(.*?)" + captureFileTag + "(.*)$", "$1"+ importDirName + escapeRegexChars(File.separator) + "$2"+ importFileTag + "$3");
 		return f;
 	}
 
-	public String openImportFile(String reportName, String inputFileName, String appName, String encoding) throws IOException {
+	public String getImportFileHTMLPathName(String reportName, String inputFileName, String appName) throws IOException {
+		String f = getImportFilePathName(reportName, inputFileName, appName);
+		f = changeFilenameSuffix(f, importFileSuffix, HTMLSuffix);
+		return f;
+	}
+
+	public void openImportFile(String reportName, String inputFileName, String appName, String encoding) throws IOException {
 		Path fullPath = Paths.get(inputFileName).toAbsolutePath();
 		importFilePathName = getImportFilePathName(reportName, inputFileName, appName);
 		importFileHTMLPathName = getImportFileHTMLPathName(reportName, inputFileName, appName);
@@ -1558,7 +1599,7 @@ tooltipsHTMLPlaceholder +
 			importFileHTMLWriter.write(hdr);
 			importFileHTMLWriter.flush();
 		}
-		return importFilePathName;
+		return;
 	}
 
 	public String formatToolTips(String hdr) {
@@ -1573,15 +1614,16 @@ tooltipsHTMLPlaceholder +
 			String key = makeItemHintKey(item);
 			if (!tooltipText.endsWith(".")) tooltipText += ".";
 			toolTipsKeys.put(key, item.toLowerCase());
-			//appOutput(thisProc()+"itemText=["+item+"] key=["+key+"] ");
 			css += ".tooltip .tooltip-content[data-tooltip='"+key+"']::before { content: \""+tooltipText+"\"; }\n";
 		}
+		// put tooltips CSS lines in the HTML header
 		hdr = applyPatternFirst(hdr, tooltipsHTMLPlaceholder, css);
 		return hdr;
 	}
 
 	public String formatHeaderHTML(String hdr, String now, String reportName, String inputFileName, String appName) {
 		String hdr1 = "Generated by " + thisProgName + " at " + now;
+		// fill in various parts in the HTML header
 		hdr = applyPatternAll(hdr, headerHTMLPlaceholder, hdr1);
 		//String title = "Report " + reportName + ", file " + inputFileName + ", application " + appName;
 		hdr = applyPatternFirst(hdr, titleHTMLPlaceholder, inputFileName);
@@ -1593,6 +1635,7 @@ tooltipsHTMLPlaceholder +
 
 	public void formatFooterHTML() {
 		String ftr = "Generated by " + thisProgName;
+		// fill in the HTML footer
 		footerHTML = applyPatternFirst(footerHTML, footerHTMLPlaceholder, ftr);
 	}
 
@@ -1639,7 +1682,7 @@ tooltipsHTMLPlaceholder +
 		return psqlImportBatFilePathName;
 	}
 
-	// couldn't find readily availble solution in standard Java; should maybe use apache.commons to escape HTML chars
+	// couldn't find readily available solution in standard Java; should maybe use apache.commons to escape HTML chars
 	public String escapeHTMLChars(String line) {
 		if (line.contains("&")) line = applyPatternAll(line, "&", "&amp;");
 		if (line.contains("<")) line = applyPatternAll(line, "<", "&lt;");
@@ -1699,7 +1742,7 @@ tooltipsHTMLPlaceholder +
 	// read imported file's first line
     public String importFileFirstLine(String fileName) throws IOException {
 		FileInputStream fis = new FileInputStream(fileName);
-		InputStreamReader isr = new InputStreamReader(fis, "UTF-8");
+		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
 		BufferedReader inFileReader = new BufferedReader(isr);
 		String line = inFileReader.readLine();   // read only first line
 		inFileReader.close();
@@ -1760,7 +1803,7 @@ tooltipsHTMLPlaceholder +
 		if (!result.isEmpty()) {
 			result = "\nCannot generate report based on existing analysis files.\n" + result;
 			result += tmp;
-			result += "\nRe-run analysis for all imported files with -reanalyze";
+			result += "\nRe-run analysis for all imported files with -analyze";
 		}
 		return result;
  	}
@@ -1826,13 +1869,7 @@ tooltipsHTMLPlaceholder +
 			}
 
 			if (!addReport) {
-				if (inputFiles.size() > 0) {
-					// must specify at least one of the flags
-					appOutput("Report '" + reportName + "' already exists (" + reportDir.toString() + ")");
-					appOutput("Specify -add to add the input file(s) to this report");
-					return true;
-				}
-				else {
+				if (inputFiles.size() == 0) {
 					// no inputfiles
 					return false;
 				}
@@ -1868,6 +1905,14 @@ tooltipsHTMLPlaceholder +
 					appOutput(replaceMsg);
 					appOutput("Specify -replace to replace the existing input file(s)");
 					return (!replaceFiles);
+				}
+			}
+			else {
+				if (!addReport) {
+					// must specify at least one of the flags
+					appOutput("Report '" + reportName + "' already exists (" + reportDir.toString() + ")");
+					appOutput("Specify -add to import additional input file(s) for this report");
+					return true;
 				}
 			}
 
@@ -1949,8 +1994,8 @@ tooltipsHTMLPlaceholder +
 		checkDir(getReportDirPathname(reportName, capDirName), false);
 	}
 
-	public String openSessionLogFile(String reportName, String now) throws IOException {
-		sessionLogPathName = getSessionLogPathName(reportName, fixNameChars("report", now));
+	public String openSessionLogFile(String reportName, Date now) throws IOException {
+		sessionLogPathName = getSessionLogPathName(reportName, now);
 		checkDir(getReportDirPathname(reportName, logDirName), true);
 		sessionLogWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(sessionLogPathName), StandardCharsets.UTF_8)));
 		writeSessionLogFile("<pre>");
@@ -2038,7 +2083,7 @@ tooltipsHTMLPlaceholder +
 	// read capture file first line
     public String captureFileFirstLine(String fileName) throws IOException {
 		FileInputStream fis = new FileInputStream(fileName);
-		InputStreamReader isr = new InputStreamReader(fis, "UTF-8");
+		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
 		BufferedReader inFileReader = new BufferedReader(isr);
 		String line = inFileReader.readLine();   // read only first line
 		inFileReader.close();
@@ -2205,8 +2250,13 @@ tooltipsHTMLPlaceholder +
 	}
 
 	// resolve & normalize a name
-	public String resolveName(String objName)
-	{
+	public String resolveName(String resolvedName, String schema) {
+		// use this when retrying with dbo after initially resolved name not found
+		String resolvedName2 = applyPatternAll(resolvedName,"^(.*?\\.)\\w+(\\.\\w+$)", "$1" + schema.toUpperCase() + "$2");
+		return resolvedName2;
+	}
+
+	public String resolveName(String objName) {
 		objName = normalizeName(objName.toUpperCase());
 
 		// #tmp tables
@@ -2290,18 +2340,6 @@ tooltipsHTMLPlaceholder +
 		UDDSymTab.put(uddName.toUpperCase(), dataType);
 	}
 
-	// is the specified name a UDD?
-	public String isUDD(String uddName)
-	{
-		uddName = resolveName(uddName.toUpperCase());
-		if (UDDSymTab.containsKey(uddName)) {
-			return UDDSymTab.get(uddName);
-		}
-		else {
-			return "";
-		}
-	}
-	
 	// add to symbol table
 	public void addColSymTab(String tableName, String colName, String dataType) {
 		addColSymTab(tableName, colName, dataType, false, false);
@@ -2369,7 +2407,7 @@ tooltipsHTMLPlaceholder +
 			if (debugging) dbgOutput("reading symtab file=[" + sf.toString() + "] ", debugSymtab);
 
 			FileInputStream fis = new FileInputStream(sf.toString());
-			InputStreamReader isr = new InputStreamReader(fis, "UTF-8");
+			InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
 			BufferedReader inFileReader = new BufferedReader(isr);
 			String line;
 			int lineCnt = 0;
@@ -2552,9 +2590,15 @@ tooltipsHTMLPlaceholder +
 	}
 
 	public void openReportFile(String reportName) throws IOException {
-		reportFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(reportFileTextPathName), StandardCharsets.UTF_8)));
-		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
+		if (Compass.forceReportName) {
+			File f = new File(reportFileTextPathName);
+			if (f.exists()) {
+				appOutput("Report file "+reportFileHTMLPathName+" already exists. Overwriting...");
+			}
+    	}
+		reportFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(reportFileTextPathName), StandardCharsets.UTF_8)));	
 		if (generateHTML) {
+			String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
 			reportFileWriterHTML = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(reportFileHTMLPathName), StandardCharsets.UTF_8)));
 			String hdr = headerHTML + headerHTMLReport;
 			hdr = formatHeaderHTML(hdr, now, reportName, reportName, "");
@@ -2574,6 +2618,7 @@ tooltipsHTMLPlaceholder +
 			reportFileWriterHTML.flush();
 		}
 		
+		// for the .txt version, remove HTML tags
 		if (line.contains("<a ")) {			
 			line = applyPatternFirst(line,docLinkURL, docLinkURLText);						
 			line = applyPatternAll(line,"<a class=.*?>", "");
@@ -2623,6 +2668,9 @@ tooltipsHTMLPlaceholder +
 		StringBuilder lines = new StringBuilder();
 		StringBuilder prevGroup = new StringBuilder(uninitialized);
 		final String statsMarker = "~STATSHERE~";
+		
+		//progress indicator
+		printProgress();
 
 		int grpCount = 0;
 		Map<String, Integer> itemCnt = new HashMap<>();
@@ -2685,6 +2733,9 @@ tooltipsHTMLPlaceholder +
 		StringBuilder lines = new StringBuilder(doXrefMsg(status, "feature"));
 		Integer skippedFilter = 0;
 		Integer countFilter = 0;
+		
+		//progress indicator
+		printProgress();		
 
 		if (doXref(status, "feature")) {
 			lines = new StringBuilder();
@@ -2756,7 +2807,7 @@ tooltipsHTMLPlaceholder +
 							if (debugging) dbgOutput(thisProc()+"filter: item=["+item.toString()+"]  reportOptionFilter=["+reportOptionFilter+"] s=["+s+"] ", debugReport);
 						}
 						else {
-							// skip it
+							// does not match filter, skip it
 							//if (debugging) dbgOutput(thisProc()+"no match with filter - skipping", debugReport);
 							skippedFilter++;
 							continue;
@@ -2873,6 +2924,9 @@ tooltipsHTMLPlaceholder +
 		Integer skippedFilter = 0;
 		Integer countFilter = 0;
 
+		//progress indicator
+		printProgress();
+
 		if (doXref(status, "object")) {
 			lines = new StringBuilder();
 			StringBuilder hdr = new StringBuilder();
@@ -2942,7 +2996,7 @@ tooltipsHTMLPlaceholder +
 							if (debugging) dbgOutput(thisProc()+"filter: item=["+item.toString()+"]  reportOptionFilter=["+reportOptionFilter+"] s=["+s+"]", debugReport);
 						}
 						else {
-							// skip it
+							// does not match filter, skip it
 							//if (debugging) dbgOutput(thisProc()+"no match with filter - skipping", debugReport);
 							skippedFilter++;
 							continue;
@@ -3090,7 +3144,7 @@ tooltipsHTMLPlaceholder +
 	}
 
 	private String makeItemHintKey (String s) {
-		// standardize the key for tooltips
+		// normalize the key for tooltips
 		s = applyPatternAll(s, "[\\s]", "").toLowerCase();
 		s = applyPatternAll(s, "[\\W]", "_");
 		s = applyPatternAll(s, "[_]+", "_");
@@ -3157,7 +3211,7 @@ tooltipsHTMLPlaceholder +
 			} catch  (Exception e) { /* nothing */ }
 		}
 		file = file.substring(file.lastIndexOf(File.separator)+1);
-		file = applyPatternFirst(file, importFileSuffix + "$", HTMLSuffix);
+		file = changeFilenameSuffix(file, importFileSuffix, HTMLSuffix);
 		return importDirName+File.separator+ file;
 	}
 
@@ -3230,7 +3284,7 @@ tooltipsHTMLPlaceholder +
 	// modify sort key to reposition groups in the report
 	private String getGroupSortKey(String group) {
 		int sortGroup = 0;
-		if (reportGroupSortAdjustment.get(group.toUpperCase()) != null) sortGroup = reportGroupSortAdjustment.get(group.toUpperCase());
+		if (reportGroupSortAdjustment.containsKey(group.toUpperCase())) sortGroup = reportGroupSortAdjustment.get(group.toUpperCase());
 		String sortKey = String.format("%0"+groupSortLength.toString()+"d", sortGroup) + group;
 		return sortKey;
 	}
@@ -3246,11 +3300,12 @@ tooltipsHTMLPlaceholder +
 //		tmp.put(CompassAnalyze.TriggersReportGroup, 540);
 
 		tmp.put(CompassAnalyze.MiscReportGroup, 900);
-		tmp.put(CompassAnalyze.DatatypeConversion, 930);
-		tmp.put(CompassAnalyze.XMLReportGroup, 930);
-		tmp.put(CompassAnalyze.JSONReportGroup, 930);
-		tmp.put(CompassAnalyze.HIERARCHYIDReportGroup, 930);
-		tmp.put(CompassAnalyze.DatatypeConversion, 930);
+		tmp.put(CompassAnalyze.DatatypeConversion, 920);
+		tmp.put(CompassAnalyze.XMLReportGroup, 920);
+		tmp.put(CompassAnalyze.JSONReportGroup, 920);
+		tmp.put(CompassAnalyze.HIERARCHYIDReportGroup, 920);
+		tmp.put(CompassAnalyze.DatatypeConversion, 920);
+		tmp.put(CompassAnalyze.TableVariablesType, 930);
 		tmp.put(CompassAnalyze.UDDatatypes, 940);
 		tmp.put(CompassAnalyze.Datatypes, 950);
 
@@ -3267,6 +3322,10 @@ tooltipsHTMLPlaceholder +
 		String s = lineIndent + "<a href=\"#"+tag+"\">"+ txt1 + statusFmt + txt2 +"</a>\n";
 		return s;
 	}
+	
+	private void printProgress() {
+		appOutput( ".", false, true);		
+	}
 
 	public boolean createReport(String reportName) throws IOException {
 		if (debugging) dbgOutput(thisProc()+"reportOptionXref=["+reportOptionXref+"] ", debugReport);
@@ -3281,10 +3340,9 @@ tooltipsHTMLPlaceholder +
 		reportFileHTMLPathName = getReportFileHTMLPathname(reportName, now);
 		reportFilePathName = reportFileHTMLPathName;
 		appOutput("");
-		appOutput("Generating report " + reportFilePathName + "...");
+		appOutput("Generating report " + reportFilePathName + "...", false, true);
 
 		String line = "";
-		forceGC();
 
 		openReportFile(reportName);
 
@@ -3350,7 +3408,7 @@ tooltipsHTMLPlaceholder +
 				appOutput("No imported files found. Specify input file(s) to add to this report.");
 			}
 			else {
-				appOutput("No analysis files found. Use -reanalyze to perform analysis and generate a report.");
+				appOutput("No analysis files found. Use -analyze to perform analysis and generate a report.");
 			}
 			errorExit();
 		}
@@ -3374,8 +3432,9 @@ tooltipsHTMLPlaceholder +
 		for (Path cf : captureFiles) {
 			String cfLine = captureFileFirstLine(cf.toString());   // read only first line
 			String cfReportName = captureFileAttribute(cfLine, 1);
+			if (importFilePathName == null) importFilePathName = getImportFilePathNameFromCaptured(cf.toString());
 			if (cfReportName.isEmpty()) {
-				appOutput("Invalid format in "+cfReportName+"; run with -reanalyze to fix.");
+				appOutput("Invalid format in "+cfReportName+"; run with -analyze to fix.");
 				errorExit();
 			}
 			if (!reportName.equalsIgnoreCase(cfReportName)) {
@@ -3384,7 +3443,7 @@ tooltipsHTMLPlaceholder +
 			}
 
 			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
-			InputStreamReader cfisr = new InputStreamReader(cfis, "UTF-8");
+			InputStreamReader cfisr = new InputStreamReader(cfis, StandardCharsets.UTF_8);
 			BufferedReader capFile = new BufferedReader(cfisr);
 			if (debugging) dbgOutput(thisProc() + "reading captureFile=[" + cf + "]", debugReport);
 
@@ -3426,8 +3485,7 @@ tooltipsHTMLPlaceholder +
 
 					continue;
 				}
-				//if (debugging) dbgOutput(thisProc() + "capLine=[" + capLine + "]", debugReport);
-
+				//un-escape backslashes
 				if (capLine.contains("\\\\")) {
 					capLine = applyPatternAll(capLine, "\\\\\\\\", "\\\\");
 				}
@@ -3443,8 +3501,6 @@ tooltipsHTMLPlaceholder +
 					}
 				}
 				else {
-					//if (debugging) dbgOutput(thisProc() + "objType=[" + objType + "] ", debugReport);
-
 					if (objType.startsWith("TYPE")) {
 						objType = objType.replaceFirst("TYPE", "user-defined datatype (UDD)");
 					}
@@ -3476,6 +3532,7 @@ tooltipsHTMLPlaceholder +
 
 				if (!objType.isEmpty()) {
 					if (!status.equals(Ignored)) {
+						// massage the object type strings to the format we need for the object count output section
 						if ((!objType.equals("constraint column DEFAULT")) && (!objType.equals("constraint PRIMARY KEY/UNIQUE"))) {
 							objType = applyPatternFirst(objType, "^(.*?,.*?),.*$", "$1");
 							if (objType.startsWith("TRIGGER,")) objType = "TRIGGER";
@@ -3797,8 +3854,8 @@ tooltipsHTMLPlaceholder +
 			}
 
 			String noIssueCnt = "";
-			if (objTypeIssueMap.get(objType) != null) {
-				noIssueCnt = "  " + objTypeNoIssueCount.getOrDefault(objType,0) + " of " + objTypeCount.get(objType) + ": no issues";
+			if (objTypeIssueMap.containsKey(objType)) {
+				noIssueCnt = "  (no issues found: " + objTypeNoIssueCount.getOrDefault(objType,0) + " of " + objTypeCount.get(objType) + ")";
 			}
 			summaryTmp.append(lineIndent).append(objType + " : " + objTypeCount.get(objType) + locStr.toString() + noIssueCnt + "\n");
 		}
@@ -3819,14 +3876,13 @@ tooltipsHTMLPlaceholder +
 		// sort for status summary
 		List<String> sortedList = itemCount.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList());
 		sortedList.add(stringRepeat(lastItem + sortKeySeparator, 5));
-		forceGC();
+
 		for (int i=0; i <supportOptionsIterate.size(); i++) {
 			reportSummaryItems(supportOptionsIterate.get(i), sortedList, itemCount, appItemList);
 		}
 		sortedList.clear();
 		itemCount.clear();
 		appItemList.clear();
-		forceGC();
 
 		// sort for X-ref by feature
 		List<String> sortedListXRefByFeature = xRefByFeature.stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList());
@@ -3836,7 +3892,6 @@ tooltipsHTMLPlaceholder +
 			reportXrefByFeature(supportOptionsIterate.get(i), sortedListXRefByFeature);
 		}
 		sortedListXRefByFeature.clear();
-		forceGC();
 
 		// sort for X-ref by object
 		List<String> sortedListXRefByObject = xRefByObject.stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList());
@@ -3846,22 +3901,23 @@ tooltipsHTMLPlaceholder +
 			reportXrefByObject(supportOptionsIterate.get(i), sortedListXRefByObject);
 		}
 		sortedListXRefByObject.clear();
-		forceGC();
 
 		writeReportFile();
 		writeReportFile(composeOutputLine("", "="));
 		writeReportFile();
+		
+		appOutput("\n", false, true);		
 
 		return true;
 	}
 
 
-	public void  importPG(boolean append, String cmd, String pgPasswd) throws IOException {
+	public void  importPG(boolean append, List<String> pgImportFlags) throws IOException {
 		// todo: import BBF version + date of import
 		List<Path> captureFiles = getCaptureFiles(reportName);
 		if (debugging) dbgOutput(thisProc() + "captureFiles(" + captureFiles.size() + ")=[" + captureFiles + "] ", debugReport);
 		if (captureFiles.size() == 0) {
-			appOutput("No analysis files found. Use -reanalyze to perform analysis and generate a report.");
+			appOutput("No analysis files found. Use -analyze to perform analysis and generate a report.");
 			errorExit();
 		}
 		String cfv = captureFilesValid(captureFiles);
@@ -3884,7 +3940,7 @@ tooltipsHTMLPlaceholder +
 			String cfLine = captureFileFirstLine(cf.toString());   // read only first line
 			String cfReportName = captureFileAttribute(cfLine, 1);
 			if (cfReportName.isEmpty()) {
-				appOutput("Invalid format in "+cfReportName+"; run with -reanalyze to fix.");
+				appOutput("Invalid format in "+cfReportName+"; run with -analyze to fix.");
 				errorExit();
 			}
 			if (!reportName.equalsIgnoreCase(cfReportName)) {
@@ -3893,7 +3949,7 @@ tooltipsHTMLPlaceholder +
 			}
 
 			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
-			InputStreamReader cfisr = new InputStreamReader(cfis, "UTF-8");
+			InputStreamReader cfisr = new InputStreamReader(cfis, StandardCharsets.UTF_8);
 			BufferedReader capFile = new BufferedReader(cfisr);
 
 			String capLine = "";
@@ -3927,23 +3983,39 @@ tooltipsHTMLPlaceholder +
 		PGImportFileWriter.close();
 		appOutput("Items written for import: "+capCount + " (in "+PGImportFilePathName+")");
 
-		// do not write the password in any file but keep in envvar only:
-		String PGPasswdEnvvar = "BBFPSQLPASSWD";
-		cmd = applyPatternFirst(cmd, "~password~", "%"+PGPasswdEnvvar+"%");
+		// do not write the password etc. in any file but keep in envvar only:
+		String PGUserEnvvar   = "BBFCOMPASSPSQLUSERNAME";
+		String PGPasswdEnvvar = "BBFCOMPASSPSQLPASSWD";
+		String PGHostEnvvar   = "BBFCOMPASSPSQLHOST";
+		String PGPortEnvvar   = "BBFCOMPASSPSQLPORT";
+		String PGDBnameEnvvar = "BBFCOMPASSPSQLDBNAME";
+		
+		String psqlCmd= "psql --echo-all --file=~file~ \"postgresql://~username~:~password~@~host~:~port~/~dbname~\"";
+		psqlCmd= applyPatternFirst(psqlCmd, "~username~", "%"+PGUserEnvvar+"%");
+		psqlCmd= applyPatternFirst(psqlCmd, "~password~", "%"+PGPasswdEnvvar+"%");
+		psqlCmd= applyPatternFirst(psqlCmd, "~host~", "%"+PGHostEnvvar+"%");
+		psqlCmd= applyPatternFirst(psqlCmd, "~port~", "%"+PGPortEnvvar+"%");
+		psqlCmd= applyPatternFirst(psqlCmd, "~dbname~", "%"+PGDBnameEnvvar+"%");
 
 		String psqlFile = psqlImportFileName + "." + psqlFileSuffix;
-		cmd = applyPatternFirst(cmd, "~file~", psqlFile);
+		psqlCmd= applyPatternFirst(psqlCmd, "~file~", psqlFile);
 
-		String batFile = writePsqlFile(append, reportName, cmd);
+		String batFile = writePsqlFile(append, reportName, psqlCmd);
 
 		// finally, run the import
-		String runBatCmd = "SET "+PGPasswdEnvvar+"="+pgPasswd+"& " + batFile;
+		String runBatCmd= "";  // SET "+PGPasswdEnvvar+"="+pgImportFlags.get(3)+"& " + batFile;
+		runBatCmd += "SET "+PGUserEnvvar+"="+pgImportFlags.get(2)+"& ";
+		runBatCmd += "SET "+PGPasswdEnvvar+"="+pgImportFlags.get(3)+"& ";
+		runBatCmd += "SET "+PGHostEnvvar+"="+pgImportFlags.get(0)+"& ";
+		runBatCmd += "SET "+PGPortEnvvar+"="+pgImportFlags.get(1)+"& ";
+		runBatCmd += "SET "+PGDBnameEnvvar+"="+pgImportFlags.get(4)+"& ";
+		runBatCmd += batFile;
 		runOScmd(runBatCmd);
 
 		//done!
 	}
 
- 	// LEXER CODE
+ 	// ---- error handling in Lexer ----------------------------------------
 	private String errorMsg;
 
 	public String limitTextSize(String text) {
