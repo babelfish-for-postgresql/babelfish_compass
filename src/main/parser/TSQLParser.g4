@@ -3603,7 +3603,7 @@ asterisk
     ;
     
 expression_elem
-    : leftAlias=column_alias eq= EQUAL  leftAssignment=expression
+    : leftAlias=column_alias eq=EQUAL  leftAssignment=expression
     | expressionAs=expression as_column_alias?
     ;
 
