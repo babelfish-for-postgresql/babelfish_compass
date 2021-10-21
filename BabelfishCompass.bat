@@ -14,7 +14,7 @@ set THISPROG=%~n0%~x0
 rem ----------------------------------------------------
 rem fixed installation dir for now:
 
-SET COMPASS=C:\XX
+SET COMPASS=C:\BabelfishCompass
 
 rem Check:
 if exist %COMPASS% ( 
