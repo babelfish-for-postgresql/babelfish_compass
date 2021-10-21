@@ -79,7 +79,7 @@ rem ----------------------------------------------------
 
 rem assume Java is in the PATH, this was tested above
 rem assuming 12GB is enough
-java -Xmx12g -jar compass-1.0.jar %*
+java -Xmx12g -jar compass.jar %*
 
 rem ----------------------------------------------------
 
