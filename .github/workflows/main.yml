@@ -11,8 +11,6 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    env:
-      TAG_NAME: ${GITHUB_REF#refs/tags/} 
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK 8
@@ -28,6 +26,7 @@ jobs:
     #   uses: lhotari/action-upterm@v1
     - name: Package up release files
       run: |
+        echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
         sudo apt-get install zip
         mkdir BabelfishCompass
         cp BabelfishCompass.bat BabelfishCompass/
@@ -37,9 +36,10 @@ jobs:
         cp LICENSE BabelfishCompass/
         cp NOTICE BabelfishCompass/
         mv BabelfishCompass/compass-1.0-jar-with-dependencies.jar BabelfishCompass/compass.jar
-        zip -r BabelfishCompass_${{env.TAG_NAME}}.zip BabelfishCompass
+        zip -r BabelfishCompass_${{ env.RELEASE_VERSION }}.zip BabelfishCompass
+        ls
     - name: Upload JARs to release
       uses: ncipollo/release-action@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        artifacts: "BabelfishCompass_${{env.TAG_NAME}}.zip"
+        artifacts: "BabelfishCompass_${{ env.RELEASE_VERSION }}.zip"
