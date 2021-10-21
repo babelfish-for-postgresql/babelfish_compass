@@ -11,7 +11,8 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
+    env:
+      TAG_NAME: ${GITHUB_REF#refs/tags/} 
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK 8
@@ -32,10 +33,11 @@ jobs:
         cp BabelfishCompass.bat BabelfishCompass/
         cp BabelfishFeatures.cfg BabelfishCompass/
         cp THIRD-PARTY-LICENSES.txt BabelfishCompass/
-        cp target/compass-1.0.jar BabelfishCompass/
+        cp target/compass-1.0-jar-with-dependencies.jar BabelfishCompass/
         cp LICENSE BabelfishCompass/
         cp NOTICE BabelfishCompass/
-        zip -r BabelfishCompass.zip BabelfishCompass
+        mv BabelfishCompass/compass-1.0-jar-with-dependencies.jar BabelfishCompass/compass.jar
+        zip -r BabelfishCompass_${{env.TAG_NAME}}.zip BabelfishCompass
     - name: Upload JARs to release
       uses: ncipollo/release-action@v1
       with:
