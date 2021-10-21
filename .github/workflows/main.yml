@@ -29,12 +29,12 @@ jobs:
     - name: Build with Maven
       run: |
         mvn -B package --file pom.xml
-        echo ${GITHUB_REF#refs/tags/} 
+        echo ${{ GITHUB_REF#refs/tags/ }}
     - name: Upload JARs to release
       uses: marvinpinto/action-automatic-releases@latest
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: false
-        automatic_release_tag: ${GITHUB_REF#refs/tags/}
+        automatic_release_tag: ${{ GITHUB_REF#refs/tags/ }}
         files: |
           jdbc/target/*.jar
