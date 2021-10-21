@@ -34,6 +34,8 @@ jobs:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: false
         automatic_release_tag: "latest"
-        title: "Example Release ${GITHUB_REF#refs/tags/}"
+        title: ${GITHUB_REF#refs/tags/}
         files: |
           jdbc/target/*.jar
+      run: |
+        echo ${GITHUB_REF#refs/tags/} 
