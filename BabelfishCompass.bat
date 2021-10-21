@@ -52,21 +52,15 @@ IF %ERRORLEVEL% NEQ 0 (
 )
 
 for /F "tokens=4" %%i IN (%TMPFILE%) DO SET JAVA_VERSION=%%i
-for /F "tokens=1-3" %%i IN (%TMPFILE%) DO SET JAVA_VERSION_CHK=%%i%%j%%k
 
-if "%JAVA_VERSION_CHK%" NEQ "javafullversion" (
-	echo 64-bit Java/JRE not found. Please install 64-bit JRE 8 or later
-	goto end
+for /F "tokens=1 delims=." %%i IN (%JAVA_VERSION%) DO SET JAVA_VERSION_CHK=%%i
+
+if %JAVA_VERSION_CHK% EQU 1 (
+for /F "tokens=2 delims=." %%i IN (%JAVA_VERSION%) DO SET JAVA_VERSION_CHK=%%i
 )
 
-for /F "tokens=1 delims=." %%i IN (%JAVA_VERSION%) DO SET JAVA_VERSION_CHK2=%%i
-
-if %JAVA_VERSION_CHK2% EQU 1 (
-for /F "tokens=2 delims=." %%i IN (%JAVA_VERSION%) DO SET JAVA_VERSION_CHK2=%%i
-)
-
-if %JAVA_VERSION_CHK2% LSS 8 (
-   echo Babelfish Compass requires 64-bit Java/JRE 8 or later. Java version found: %JAVA_VERSION_CHK2%
+if %JAVA_VERSION_CHK% LSS 8 (
+   echo Babelfish Compass requires 64-bit Java/JRE 8 or later. Java version found: %JAVA_VERSION_CHK%
    echo Run 'java -version' and verify the version ID starts with '1.8' or later
    goto end
 )
