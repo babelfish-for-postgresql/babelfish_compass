@@ -6,12 +6,6 @@ on:
   push:
     tags:
       - 'v*'
-    branches:
-      - main
-  release:
-    types: [published]
-    branches:
-      - main
 
 jobs:
   build:
@@ -31,8 +25,19 @@ jobs:
         mvn -B package --file pom.xml
     # - name: Setup upterm session
     #   uses: lhotari/action-upterm@v1
+    - name: Package up release files
+      run: |
+        sudo apt-get install zip
+        mkdir BabelfishCompass
+        cp BabelfishCompass.bat BabelfishCompass/
+        cp BabelfishFeatures.cfg BabelfishCompass/
+        cp THIRD-PARTY-LICENSES.txt BabelfishCompass/
+        cp target/compass-1.0.jar BabelfishCompass/
+        cp LICENSE BabelfishCompass/
+        cp NOTICE BabelfishCompass/
+        zip -r BabelfishCompass.zip BabelfishCompass
     - name: Upload JARs to release
       uses: ncipollo/release-action@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        artifacts: "BabelfishCompass.bat,BabelfishFeatures.cfg,THIRD-PARTY-LICENSES.txt,target/compass-1.0.jar,LICENSE,NOTICE"
+        artifacts: "BabelfishCompass.zip"
