@@ -38,5 +38,6 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        bodyFile: "${{ github.workspace }}/CHANGELOG.md"
         draft: true
         artifacts: "BabelfishCompass_${{ env.RELEASE_VERSION }}.zip"
