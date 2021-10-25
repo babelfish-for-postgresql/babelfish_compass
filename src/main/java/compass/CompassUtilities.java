@@ -31,7 +31,10 @@ public class CompassUtilities {
 	// not-initialized strings
 	public final String uninitialized = "-init-";
 
-	public static boolean onWindows;
+	public static boolean onWindows = false;;
+	public static boolean onMac     = false;
+	public static boolean onMacDebug= false;
+	public static boolean onLinux   = false;
 
 	public static final String thisProgVersion      = "1.0";
 	public static final String thisProgVersionDate  = "October 2021";
@@ -43,11 +46,12 @@ public class CompassUtilities {
 	public static final String copyrightLine        = "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.";
 	public static String thisProgExec               = "java " + thisProgPathExec + "." + thisProgNameExec;
 	public static final String thisProgExecWindows  = "BabelfishCompass.bat";
-	public static final String thisProgExecLinux    = "BabelfishCompass.sh";
+	public static final String thisProgExecLinux    = "BabelfishCompass";
+	public static final String thisProgExecMac      = "BabelfishCompass";
 	
 	// user docs
 	public static final String userDocText          = thisProgName + " User Guide";
-	public static final String userDocURL           = "https://github.com/babelfish-for-postgresql/babelfish_compass/blob/main/UserGuide.pdf";
+	public static final String userDocURL           = "https://github.com/babelfish-for-postgresql/babelfish_compass/blob/main/BabelfishCompass_UserGuide.pdf";
 
 	public static final String disclaimerMsg  =
             "Notice:\n"
@@ -344,6 +348,8 @@ tooltipsHTMLPlaceholder +
 	static final String tttSeparator = "~~~";
 	static final List<String> toolTipsText = Arrays.asList(
 		"STR("+tttSeparator+"STR() is not currently supported; rewrite with CONVERT()",
+		"CHECKSUM(*)"+tttSeparator+"CHECKSUM(*) is not currently supported; CHECKSUM() with a single non-asterisk argment is supported",
+		"CHECKSUM(arg,arg,...)"+tttSeparator+"CHECKSUM() with multiple arguments is not currently supported; CHECKSUM() with a single non-asterisk argment is supported",
 		"TRY_CONVERT("+tttSeparator+"TRY_CONVERT() is not currently supported; rewrite with CONVERT()",
 		"PARSE("+tttSeparator+"PARSE() is not currently supported; rewrite with CAST() or CONVERT()",
 		"TRY_PARSE("+tttSeparator+"PARSE() is not currently supported; rewrite with CAST() or CONVERT()",
@@ -354,14 +360,18 @@ tooltipsHTMLPlaceholder +
 		"CHOOSE("+tttSeparator+"CHOOSE(): Rewrite as a CASE expression",
 		"OBJECT_SCHEMA_NAME()"+tttSeparator+"OBJECT_SCHEMA_NAME(): Rewrite as catalog query",
 		"ORIGINAL_LOGIN("+tttSeparator+"ORIGINAL_LOGIN(): Rewrite as SUSER_NAME()",
+		"SESSION_USER"+tttSeparator+"SESSION_USER: Rewrite as USER_NAME()",
 		"FORMAT("+tttSeparator+"FORMAT(): Rewrite the formatting using available functions such as CONVERT()",
 		"NEWSEQUENTIALID()"+tttSeparator+"NEWSEQUENTIALID() is implemented as NEWID(); the sequential nature of the generated values is however not guaranteed, as is the case in SQL Server",
 		"SERVERPROPERTY("+tttSeparator+"This particular attribute for SERVERPROPERTY() is not currently supported",
 		"CONNECTIONPROPERTY("+tttSeparator+"This particular attribute for CONNECTIONPROPERTY() is not currently supported",
 		"DATABASEPROPERTYEX("+tttSeparator+"This particular attribute for DATABASEPROPERTYEX() is not currently supported",
+		"CONTAINS("+tttSeparator+"Fulltext search is not currently supported",
 		"CONTAINSTABLE("+tttSeparator+"Fulltext search is not currently supported",
 		"FREETEXTTABLE("+tttSeparator+"Fulltext search is not currently supported",
 		"\\w+ FULLTEXT "+tttSeparator+"Fulltext search is not currently supported",
+		"Sequence option CACHE" +tttSeparator+"For a sequence, the CACHE option without a number is not currently supported; add a number",
+		"Sequence option NO CACHE" +tttSeparator+"For a sequence, the NO CACHE option without a number is not currently supported",
 		CompassAnalyze.NextValueFor+tttSeparator+"The NEXT VALUE FOR function for sequence objects is not currently supported. Consider using identity columns instead",
 		CompassAnalyze.ParamValueDEFAULT+tttSeparator+"Specifying DEFAULT as a parameter value in a procedure or function call is not currently supported; specify the actual default value instead",
 		CompassAnalyze.UnQuotedString+tttSeparator+"Unquoted strings are not currently supported; enclose the string with quotes",
@@ -393,6 +403,7 @@ tooltipsHTMLPlaceholder +
 		"ALTER PROCEDURE"+tttSeparator+"ALTER PROCEDURE is not currently supported; use DROP+CREATE",
 		"ALTER FUNCTION"+tttSeparator+"ALTER FUNCTION is not currently supported; use DROP+CREATE",
 		"ALTER TRIGGER"+tttSeparator+"ALTER TRIGGER is not currently supported; use DROP+CREATE",
+		"ALTER DATABASE"+tttSeparator+"ALTER DATABASE is not currently supported",
 		"Column attribute FILESTREAM"+tttSeparator+"The FILESTREAM attribute is not currently supported and will be ignored",
 		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported and will be ignored",
 		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported and will be ignored",
@@ -471,7 +482,7 @@ tooltipsHTMLPlaceholder +
 		"CROSS APPLY"+tttSeparator+"CROSS APPLY: lateral joins are not currently supported. Rewrite manually",
 		"OUTER APPLY"+tttSeparator+"OUTER APPLY: lateral joins are not currently supported. Rewrite manually",
 		"WAITFOR DELAY"+tttSeparator+"WAITFOR DELAY: Until supported, rewrite this as a call to pg_sleep, e.g. EXECUTE pg_sleep 60",
-		CompassAnalyze.SelectTopWoOrderBy+tttSeparator+"SELECT TOP without ORDER BY: without ORDER BY, the order of rows in the result is not guaranteed, and therefore the TOP n rows aren't either. Even though the order may still have been deterministic in SQL Server (for example, due to a clustered index), this cannot be relied on when migrating to Babelfish/PostgreSQL. Recommendation is to add an ORDER BY to these queries before emigrating to Babelfish",
+		CompassAnalyze.SelectTopWoOrderBy+tttSeparator+"SELECT TOP without ORDER BY: without ORDER BY, the order of rows in the result is not guaranteed, and therefore the TOP n rows aren't either. Even though the order may still have been deterministic in SQL Server (for example, due to a clustered index), this cannot be relied on when migrating to Babelfish/PostgreSQL. Recommendation is to review these queries and in case it is possible that the result set has >1 row, add an ORDER BY before migrating to Babelfish",
 		"Constraint PRIMARY KEY/UNIQUE, CLUSTERED,"+tttSeparator+"CLUSTERED constraints are not currently supported. The constraint will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
 		"Index, CLUSTERED,"+tttSeparator+"CLUSTERED indexes are not currently supported. The index will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
 		"Inline index"+tttSeparator+"Inline indexes are not currently supported; create indexes separately with CREATE INDEX",
@@ -480,13 +491,14 @@ tooltipsHTMLPlaceholder +
 		"CREATE TABLE (temporal)"+tttSeparator+"Temporal table: not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
 		CompassAnalyze.TableValueConstructor+tttSeparator+"Rewrite the VALUES() clause as SELECT statements and/or UNIONs",
 		CompassAnalyze.MergeStmt+tttSeparator+"Rewrite MERGE as a series of INSERT/UPDATE/DELETE statements",
-		CompassAnalyze.DynamicSQLEXECStringReview+tttSeparator+"Dynamic SQL is executed by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
-		CompassAnalyze.DynamicSQLEXECSPReview+tttSeparator+"Dynamic SQL is executed by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
+		CompassAnalyze.DynamicSQLEXECStringReview+tttSeparator+"Dynamic SQL with EXECUTE(string) is supported by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
+		CompassAnalyze.DynamicSQLEXECSPReview+tttSeparator+"Dynamic SQL with sp_executesql is supported by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
 		CompassAnalyze.FKrefDBname+tttSeparator+"Remove the database name from the referenced table. E.g. change: REFERENCES yourdb.dbo.yourtable(yourcol) to: REFERENCES dbo.yourtable(yourcol)",
 		CompassAnalyze.CrossDbReference+tttSeparator+"Cross-database references with 3-part object names (e.g. SELECT * FROM yourdb.dbo.yourtable) are not currently supported, except for objects inside the current database",
 		CompassAnalyze.RemoteObjectReference+tttSeparator+"Remote object references with 4-part object names (e.g. SELECT * FROM REMOTESRVR.somedb.dbo.sometable) are not currently supported",
 		CompassAnalyze.ProcVersionBase+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
 		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action in case the trigger body references the transition tables INSERTED or DELETED",
+		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported",
 		"SET QUOTED_IDENTIFIER \\w+, before end of batch"+tttSeparator+"SET QUOTED_IDENTIFIER takes effect only at the start of the next batch in Babelfish; the SQL Server semantics where it applies to the next statement, is not currently supported",
 		"SET DEADLOCK_PRIORITY"+tttSeparator+"Setting the deadlock victimization priority is not currently supported",
 		"SET LOCK_TIMEOUT"+tttSeparator+"Setting the lock timeout is not currently supported",
@@ -503,7 +515,8 @@ tooltipsHTMLPlaceholder +
 		
 		"Special column name IDENTITYCOL"+tttSeparator+"The special column name IDENTITYCOL is not currently supported. Replace it by the actual name of the idebtity column",		
 		CompassAnalyze.LeadingDotsId+tttSeparator+"Remove leading dots for identifiers, i.e. change 'SELECT * FROM ..mytable' to 'SELECT * FROM mytable'",		
-		CompassAnalyze.SpecialCharIdentifier+tttSeparator+"Some identifiers do not currently support this character",		
+		CompassAnalyze.SpecialCharsIdentifier+tttSeparator+"Some characters are not currently supported in identifiers; go to the cross-reference section to find the specific case",		
+		CompassAnalyze.SpecialCharsParameter+tttSeparator+"Some characters are not currently supported in parameter declarations; go to the cross-reference section to find the specific case",		
 		"EXECUTE AS"+tttSeparator+"The EXECUTE AS statement (not to be confused with the EXECUTE AS clause in CREATE PROCEDURE/FUNCTION/etc.) is not currently supported",		
 		"REVERT"+tttSeparator+"The REVERT statement is not currently supported",		
 		
@@ -624,6 +637,7 @@ tooltipsHTMLPlaceholder +
 	public static boolean generateHTML = true;
 	public static boolean linkInNewTab = true;
 	public static String tgtBlank = " target=\"_blank\"";
+	public static boolean showPercentage = false;
 
 	// adjust ordering of groups in report - used to prefix alphabetically sorted sortkey. Default prefix = 000
 	private static Integer groupSortLength = 3;
@@ -813,12 +827,21 @@ tooltipsHTMLPlaceholder +
     }
 
     public void getPlatform () {
-		onWindows = false;
-		if (System.getProperty("os.name").startsWith("Windows")) {
+		String osName = System.getProperty("os.name").toLowerCase();
+		if (osName.startsWith("windows")) {
 			onWindows = true;
 			thisProgExec = thisProgExecWindows;
 		}
+		else if (osName.startsWith("mac os x")) {
+			onMac = true;
+			thisProgExec = thisProgExecMac;
+			if (onMacDebug) {
+				appOutput("*** detected Mac **** (dev message)");   // remove when confirmed
+			}
+		}
 		else {
+			// assume Linux
+			onLinux = true;
 			thisProgExec = thisProgExecLinux;
 		}
 
@@ -837,7 +860,17 @@ tooltipsHTMLPlaceholder +
 				if (!iconEnv.endsWith(";")) iconEnv += ";";
 				hintIcon = "&" + iconEnv;
 			}
+		}	
+		
+		if (System.getenv().containsKey("COMPASS_COMPAT_PERCENTAGE") || System.getenv().containsKey("compass_compat_percentage")) {
+			showPercentage = true;
+		}
+			
+		// temporary
+		if (System.getenv().containsKey("COMPASS_MAC") || System.getenv().containsKey("compass_mac")) {
+			onMacDebug = true;
 		}		
+					
     }
 
  	// for debugging, and for launching the window with the final report
@@ -3350,7 +3383,7 @@ tooltipsHTMLPlaceholder +
 		writeReportFile(hdrLine);
 		writeReportFile(stringRepeat("-", hdrLine.length()));
 
-		writeReportFile("\n" + thisProgName + " version " + thisProgVersion);
+		writeReportFile("\n" + thisProgName + " version " + thisProgVersion + ", " + thisProgVersionDate);
 		writeReportFile(thisProgNameLong);
 		writeReportFile(copyrightLine + "\n");
 		writeReportFile(disclaimerMsg + "\n");
@@ -3717,7 +3750,9 @@ tooltipsHTMLPlaceholder +
 
 			summarySection.append(tocLink(tagApps, "Applications Analyzed", "", ""));
 			summarySection.append(tocLink(tagSummaryTop, "Assessment Summary", "", ""));
-			summarySection.append(tocLink(tagEstimate, "Compatibility Estimate", "", ""));
+			if (showPercentage) {
+				summarySection.append(tocLink(tagEstimate, "Compatibility Estimate", "", ""));
+			}
 			summarySection.append(tocLink(tagObjcount, "Object Count", "", ""));
 			summarySection.append("\n");
 
@@ -3771,7 +3806,9 @@ tooltipsHTMLPlaceholder +
 			}
 			if (statusCount.containsKey(reportItem + WeightedStr)) {
 				int w = supportOptionsWeightDefault.get(supportOptions.indexOf(reportItem));
-				xtra = lineIndent + "(compatibility weight factor: " + w + "%)";
+				if (showPercentage) {
+					xtra = lineIndent + "(compatibility weight factor: " + w + "%)";
+				}
 			}
 			String hrefStart = "";
 			String hrefEnd= "";
@@ -3831,12 +3868,16 @@ tooltipsHTMLPlaceholder +
 			customWeightsMsg = "Custom compatibility weights used: <list> \n";
 		}
 
-
-		summarySection.append(composeSeparatorBar("Compatibility Estimate", tagEstimate));
-		summarySection.append("\n");
-		summarySection.append("Estimated compatibility for " + babelfishProg + " v." + targetBabelfishVersion + " : " + compatPctStr + "%" + "\n");
-		summarySection.append(customWeightsMsg);
-		summarySection.append("\n");
+		if (showPercentage) {
+			// the compatibility percentage is not really a relevant number since the different elements are all equally weighted. 
+			// it brings a risk of misinterpretation, so we don't show this anymore
+			summarySection.append(composeSeparatorBar("Compatibility Estimate", tagEstimate));
+			summarySection.append("\n");
+			summarySection.append("Estimated compatibility for " + babelfishProg + " v." + targetBabelfishVersion + " : " + compatPctStr + "%" + "\n");
+			summarySection.append("WARNING: this percentage has little meaning. Avoid using it.\n");
+			summarySection.append(customWeightsMsg);
+			summarySection.append("\n");
+		}
 
 		summarySection.append(composeSeparatorBar("Object Count", tagObjcount));
 		summarySection.append("\n");

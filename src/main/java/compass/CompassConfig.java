@@ -441,6 +441,10 @@ public class CompassConfig {
 				status = featureSupportedInVersion(requestVersion, section, option);
 				if (u.debugging) u.dbgOutput(u.thisProc() + "option=value found: status=["+status+"] ", u.debugCfg);		
 			}
+			else if (featureExists(section, name)) {
+				status = featureSupportedInVersion(requestVersion, section, name);
+				if (u.debugging) u.dbgOutput(u.thisProc() + "option found: status=["+status+"] ", u.debugCfg);		
+			}
 		}
 		else if (featureExists(section, name)) {
 			status = featureSupportedInVersion(requestVersion, section, name);
