@@ -28,8 +28,8 @@ jobs:
     - name: Set release details env variable
       run: |
         echo 'RELEASE_DETAILS<<EOF' >> $GITHUB_ENV
-        RELEASE_DETAIL="$(awk -vN=2 'n<N;/^# /{++n}' CHANGELOG.md)"
-        RELEASE_DETAIL="$(sed '${/^# /d;}' <<< "$RELEASE_DETAIL")"
+        RELEASE_DETAILS="$(awk -vN=2 'n<N;/^# /{++n}' CHANGELOG.md)" >> $GITHUB_ENV
+        RELEASE_DETAILS="$(sed '${/^# /d;}' <<< "$RELEASE_DETAILS")" >> $GITHUB_ENV
         echo 'EOF' >> $GITHUB_ENV
     - name: Package up release files
       run: |
