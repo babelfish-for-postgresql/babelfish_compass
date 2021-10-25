@@ -34,6 +34,8 @@ jobs:
         cp NOTICE BabelfishCompass/
         mv BabelfishCompass/compass-*-jar-with-dependencies.jar BabelfishCompass/compass.jar
         zip -r BabelfishCompass_${{ env.RELEASE_VERSION }}.zip BabelfishCompass
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
     - name: Upload JARs to release
       uses: ncipollo/release-action@v1
       with:
