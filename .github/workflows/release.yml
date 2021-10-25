@@ -21,6 +21,8 @@ jobs:
     - name: Build with Maven
       run: |
         mvn -B package --file pom.xml
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
     - name: Set version env variable
       run: |
         echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
@@ -38,8 +40,6 @@ jobs:
         cp NOTICE BabelfishCompass/
         mv BabelfishCompass/compass-*-jar-with-dependencies.jar BabelfishCompass/compass.jar
         zip -r BabelfishCompass_${{ env.RELEASE_VERSION }}.zip BabelfishCompass
-    # - name: Setup upterm session
-    #   uses: lhotari/action-upterm@v1
     - name: Upload JARs to release
       uses: ncipollo/release-action@v1
       with:
