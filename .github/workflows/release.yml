@@ -21,18 +21,14 @@ jobs:
     - name: Build with Maven
       run: |
         mvn -B package --file pom.xml
-    # - name: Setup upterm session
-    #   uses: lhotari/action-upterm@v1
     - name: Set version env variable
       run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
     - name: Get release details
       run: |
         export RELEASE_DETAILS="$(awk -vN=2 'n<N;/^# /{++n}' CHANGELOG.md)" 
         export RELEASE_DETAILS="$(sed '${/^# /d;}' <<< "$RELEASE_DETAILS")"
-        printenv RELEASE_DETAILS
         touch RELEASE_DETAILS.md
         echo "$RELEASE_DETAILS" > RELEASE_DETAILS.md
-        cat RELEASE_DETAILS.md
     - name: Package up release files
       run: |
         mkdir BabelfishCompass
