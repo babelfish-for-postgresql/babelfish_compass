@@ -1524,6 +1524,7 @@ public class CompassAnalyze {
 						assert (argNum <= argListText.size()) : u.thisProc()+"argN argNum out of range: "+argNum+", should be <="+argListText.size();
 
 						String argStr = argListText.get(argNum-1);
+						if (argStr.startsWith("N'")) argStr = argStr.substring(1);
 						String argStrValidate = mapBIFArgStrValidate(funcName, nrArgs, argStr);
 						String argStrReport = mapBIFArgStrReport(funcName, argStr, argStrValidate);						
 						status = featureArgSupportedInVersion(funcName, argN, argStrValidate);
@@ -3623,7 +3624,7 @@ public class CompassAnalyze {
 
 				if (ctx.func_proc_name_server_database_schema() != null) {
 					String funcName = u.normalizeName(ctx.func_proc_name_server_database_schema().getText().toUpperCase());
-					if (u.debugging) u.dbgOutput(u.thisProc()+"scalar fname ["+ ctx.getText()+"], funcName=["+funcName+"] ", u.debugPtree);
+					if (u.debugging) u.dbgOutput(u.thisProc()+"scalar fname fulltxt=["+ ctx.getText()+"], funcName=["+funcName+"] ", u.debugPtree);
 
 					boolean done = false;
 					String funcSchemaName = u.getSchemaNameFromID(funcName).toUpperCase();
@@ -3638,7 +3639,7 @@ public class CompassAnalyze {
 							done = true;
 						}
 						else {
-							if (u.debugging) u.dbgOutput(u.thisProc()+"feature not exists: funcObjName=["+funcObjName+"] ", u.debugPtree);
+							if (u.debugging) u.dbgOutput(u.thisProc()+"feature not exists for SystemFunctions=["+SystemFunctions+"] : funcObjName=["+funcObjName+"] ", u.debugPtree);
 						}
 					}
 
@@ -3648,10 +3649,12 @@ public class CompassAnalyze {
 							int nrArgs = argListCount( ctx.function_arg_list());
 							
 							//debug
-							if (u.debugging) u.dbgOutput("scalar nrArgs=["+nrArgs+"]  ctx childcount=["+ctx.getChildCount()+"]", u.debugPtree);
-							if (argListRaw != null) if (u.debugging) u.dbgOutput("scalar arglist childcount=["+argListRaw.getChildCount()+"]  arglist=["+ argListRaw.getText()+"]", u.debugPtree);
-							for (int i = 0; i <ctx.getChildCount(); i++) {
-								if (u.debugging) u.dbgOutput(u.thisProc()+"child i=["+i+"/"+nrArgs+"]  txt=["+ctx.getChild(i).getText()+"] ", u.debugPtree);
+							if (u.debugging) {
+								u.dbgOutput("scalar nrArgs=["+nrArgs+"]  ctx childcount=["+ctx.getChildCount()+"]", u.debugPtree);
+								if (argListRaw != null) u.dbgOutput("scalar arglist childcount=["+argListRaw.getChildCount()+"]  arglist=["+ argListRaw.getText()+"]", u.debugPtree);
+								for (int i = 0; i <ctx.getChildCount(); i++) {
+									u.dbgOutput(u.thisProc()+"child i=["+i+"/"+nrArgs+"]  txt=["+ctx.getChild(i).getText()+"] ", u.debugPtree);
+								}
 							}
 
 							List<TSQLParser.ExpressionContext> argList = new ArrayList<>();
