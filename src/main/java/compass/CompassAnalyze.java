@@ -151,12 +151,12 @@ public class CompassAnalyze {
 	static final String DbccStatements        = "DBCC statements";
 	static final String Traceflags            = "Traceflags";
 	static final String LeadingDotsId         = "Leading dots in identifier";
-	static final String SpecialCharIdentifier = "Special character in identifier";
 	static final String CrossDbReference      = "Cross-database reference";
 	static final String RemoteObjectReference = "Remote object reference";
 	static final String SpecialColumNames     = "Special column names";
 	static final String MaxIdentifierLength   = "Maximum identifier length";
 	static final String SpecialCharsIdentifier= "Special characters in identifier";
+	static final String SpecialCharsParameter = "Special characters in parameter";
 	static final String Transactions          = "Transactions";
 	static final String SecurityDefinerXact   = "SECURITY DEFINER transaction mgmt";
 	static final String ExecuteAsRevert       = "EXECUTE AS";
@@ -200,7 +200,7 @@ public class CompassAnalyze {
 	static final String DBAStmts              = "DBA statements";
 	static final String MiscObjects           = "Miscellaneous objects";
 	static final String MoneyLiteral          = "MONEY literal";
-	static final String AtAtVariable          = "@@variable";
+	static final String AtAtVariable          = "@@variables";
 	static final String VarDeclareAtAt        = "Regular variable named @@v";
 	static final String AtAtErrorValueRef     = "@@ERROR value";
 	static final String AlterIndex            = "ALTER INDEX";
@@ -249,6 +249,11 @@ public class CompassAnalyze {
 	static final List<String> baseDateTimeTypes = Arrays.asList("DATE", "TIME", "DATETIME", "SMALLDATETIME", "DATETIME2", "DATETIMEOFFSET");
 	static final List<String> baseBinaryTypes   = Arrays.asList("UNIQUEIDENTIFIER", "BINARY", "VARBINARY", "IMAGE", "TIMESTAMP", "ROWVERSION");
 
+	// encoded BIF arg values for lookup
+	static final String BIFArgStar = u.BBFMark + "STAR";	
+	static final String BIFSingleArg = "SINGLE ARGUMENT";	
+	static final String BIFMultipleArg = "MULTIPLE ARGUMENTS";	
+	
 	// flags
 	static boolean inCompCol = false;
 
@@ -1322,15 +1327,37 @@ public class CompassAnalyze {
 						if (u.debugging) u.dbgOutput(u.thisProc()+"empty: result=["+result+"] ", u.debugPtree);
 						return result;		
 					}										
-					// ToDo: handle variable-type cases like IIF, CHOOSE		
+	
 					if (funcName.equalsIgnoreCase("MIN") || funcName.equalsIgnoreCase("MAX")) {
 						TSQLParser.ExpressionContext aggrExpr = x.function_call().aggregate_windowed_function().all_distinct_expression().expression();
 						return expressionDataType(aggrExpr);						
 					}
 					else if (funcName.equalsIgnoreCase("ISNULL")) {
-						// only looking at first arg; if unclear we could also look at the second arg (beware of implicit type cnversions)
+						// only looking at first arg; if unclear we could also look at the second arg (beware of implicit type conversions)
 						TSQLParser.ExpressionContext isnullExpr = x.function_call().function_arg_list().expression().get(0); 
 						return expressionDataType(isnullExpr);						
+					}
+					else if (funcName.equalsIgnoreCase("COALESCE")) {
+						// only looking at first arg; if unclear we could also look at the second arg (beware of implicit type conversions)
+						TSQLParser.ExpressionContext coalExpr = x.function_call().function_arg_list().expression().get(0); 
+						return expressionDataType(coalExpr);						
+					}
+					else if (funcName.equalsIgnoreCase("CHOOSE")) {
+						// only looking at second arg(=first return value); if unclear we could also look at the third arg (beware of implicit type conversions)
+						if (x.function_call().function_arg_list().expression().size() > 1) {
+							TSQLParser.ExpressionContext chooseExpr = x.function_call().function_arg_list().expression().get(1); 
+							return expressionDataType(chooseExpr);		
+						}				
+						return u.BBFUnknownType;
+					}
+					else if (funcName.equalsIgnoreCase("IIF")) {
+						// only looking at second arg(=first return value); if unclear we could also look at the third arg (beware of implicit type conversions)
+						if (x.function_call().built_in_functions() != null) {
+							TSQLParser.IIFContext iif = (TSQLParser.IIFContext) x.function_call().built_in_functions().bif_other();
+							TSQLParser.ExpressionContext iifExpr = iif.left; 
+							return expressionDataType(iifExpr);						
+						}
+						return u.BBFUnknownType;
 					}
 					else if (funcName.equalsIgnoreCase("CAST")) {
 						String castType = x.function_call().built_in_functions().bif_cast_parse().data_type().getText(); 
@@ -1470,12 +1497,12 @@ public class CompassAnalyze {
 
 			// ---- common code for BIFs ------------------------------------------------------------------
 			private void captureBIF(String funcName, int lineNr) {
-				captureBIF(funcName, lineNr, "", 0, null);
+				captureBIF(funcName, lineNr, "", 0, null, null);
 			}
 			private void captureBIF(String funcName, int lineNr, String options) {
-				captureBIF(funcName, lineNr, options, 0, null);
+				captureBIF(funcName, lineNr, options, 0, null, null);
 			}
-			private void captureBIF(String funcName, int lineNr, String options, int nrArgs, List<TSQLParser.ExpressionContext> argList) {
+			private void captureBIF(String funcName, int lineNr, String options, int nrArgs, List<TSQLParser.ExpressionContext> argList, List<String> argListText) {
 				String status = u.NotSupported;
 				funcName = funcName.toUpperCase();
 				String funcNameReport = funcName;
@@ -1483,6 +1510,8 @@ public class CompassAnalyze {
 				if (!options.contains("nobracket")) {
 					funcNameReport = funcName + "()";
 				}
+				if (u.debugging) u.dbgOutput(u.thisProc()+"BIF=["+funcName+"()] nrArgs=["+nrArgs+"] ", u.debugPtree);
+				if (argList != null) if (u.debugging) u.dbgOutput(u.thisProc()+"BIF=["+funcName+"()] nrArgs=["+nrArgs+"] argList.size()=["+argList.size()+"]  ", u.debugPtree);
 
 				if (featureExists(BuiltInFunctions, funcName)) {
 					status = featureSupportedInVersion(BuiltInFunctions, funcName);
@@ -1492,13 +1521,15 @@ public class CompassAnalyze {
 					if (!argN.isEmpty()) {
 						if (u.debugging) u.dbgOutput(u.thisProc()+"validating arg=["+argN+"] for BIF=["+funcName+"()]", u.debugPtree);
 						int argNum = Integer.parseInt(argN.substring(3));
-						assert (argNum <= argList.size()) : u.thisProc()+"argN argNum out of range: "+argNum+", should be <="+argList.size();
+						assert (argNum <= argListText.size()) : u.thisProc()+"argN argNum out of range: "+argNum+", should be <="+argListText.size();
 
-						String argStr = argList.get(argNum-1).getText();
-						status = featureArgSupportedInVersion(funcName, argN, argStr);
-						funcNameReport = funcName + "("+ argStr.toLowerCase()+")";
+						String argStr = argListText.get(argNum-1);
+						String argStrValidate = mapBIFArgStrValidate(funcName, nrArgs, argStr);
+						String argStrReport = mapBIFArgStrReport(funcName, argStr, argStrValidate);						
+						status = featureArgSupportedInVersion(funcName, argN, argStrValidate);
+						funcNameReport = funcName + "("+ argStrReport.toLowerCase()+")";
 
-						if (u.debugging) u.dbgOutput(u.thisProc()+"funcName=["+funcName+"] funcNameReport=["+funcNameReport+"] argN=["+argN+"] nrArgs=["+nrArgs+"] status=["+status+"] ", u.debugPtree);
+						if (u.debugging) u.dbgOutput(u.thisProc()+"funcName=["+funcName+"] funcNameReport=["+funcNameReport+"] argStr=["+argStr+"] argStrValidate=["+argStrValidate+"] argStrReport=["+argStrReport+"] argN=["+argN+"] nrArgs=["+nrArgs+"] status=["+status+"] ", u.debugPtree);
 					}
 
 					// check for numeric-as-date
@@ -1549,6 +1580,22 @@ public class CompassAnalyze {
 					}
 				}
 				captureItem(funcNameReport, funcDetail, BuiltInFunctions, funcName, status, lineNr);
+			}
+			
+			private String mapBIFArgStrValidate (String funcName, int nrArgs, String arg) {
+				if (arg.equalsIgnoreCase(BIFArgStar)) return "STAR";  // must match .cfg file
+				if (funcName.equalsIgnoreCase("CHECKSUM")) {
+					if (nrArgs == 1) return BIFSingleArg; // must match .cfg file
+					else return BIFMultipleArg; // must match .cfg file
+				}
+				return arg;
+			}
+
+			private String mapBIFArgStrReport (String funcName, String arg, String argValidate) {
+				if (arg.equalsIgnoreCase(BIFArgStar)) return "*";  
+				else if (argValidate.equalsIgnoreCase(BIFSingleArg)) return ""; 
+				else if (argValidate.equalsIgnoreCase(BIFMultipleArg)) return "arg, arg,..."; 
+				return arg;
 			}
 
 			// check for numeric-as-date
@@ -2807,8 +2854,8 @@ public class CompassAnalyze {
 	            	if (u.debugging) u.dbgOutput(u.thisProc()+"column: colName=["+colName+"] dataType=["+dataType+"]", u.debugPtree);
 
 	            	// add to symbol table (experimental; should best be done in pass 1)
-	            	// only do this fro CREATE/ALTER TABLE
-	            	// Todo: handle table-in-proc
+	            	// only do this for CREATE/ALTER TABLE
+	            	// Todo: handle table-in-proc 
 	            	if (hasParent(ctx.parent,"create_table") || hasParent(ctx.parent,"alter_table")) {
 		            	boolean nullable = false;
 		            	if (ctx.null_notnull().size() == 0) {
@@ -2830,6 +2877,12 @@ public class CompassAnalyze {
 		            }
 
 					// check the datatype
+					String UDD = lookupUDD(dataType);
+					String dataTypeOrig = "";
+					if (!UDD.isEmpty()) {
+						dataTypeOrig = " (UDD " + dataType +")";
+						dataType = UDD;
+					}					
 					String status = u.Supported;
 					if (featureExists(Datatypes, getBaseDataType(dataType))) {
 						status = featureSupportedInVersion(Datatypes, getBaseDataType(dataType));
@@ -2837,7 +2890,7 @@ public class CompassAnalyze {
 					else {
 						// datatype is not listed, means: supported
 					}
-					captureItem(dataType+" column "+colType, colName, Datatypes, getBaseDataType(dataType), status, ctx.start.getLine());
+					captureItem(dataType+dataTypeOrig+" column "+colType, colName, Datatypes, getBaseDataType(dataType), status, ctx.start.getLine());
 	            }
 
 	            if (ctx.AS() != null) {
@@ -3237,6 +3290,12 @@ public class CompassAnalyze {
 						udfType2 = "atomic natively compiled";
 					}
 
+					String UDD = lookupUDD(sudfDataType);
+					String sudfDataTypeOrig = "";
+					if (!UDD.isEmpty()) {
+						sudfDataTypeOrig = " (UDD " + sudfDataType +")";
+						sudfDataType = UDD;
+					}		
 					String statusDataType = u.Supported;
 					if (featureExists(Datatypes, getBaseDataType(sudfDataType))) {
 						statusDataType = featureSupportedInVersion(Datatypes, getBaseDataType(sudfDataType));
@@ -3245,21 +3304,21 @@ public class CompassAnalyze {
 						// datatype is not listed, means: supported
 					}
 					if (u.debugging) u.dbgOutput(u.thisProc()+"UDF "+ ctx.getText()+", funcName=["+funcName+"] sudfDataType=["+sudfDataType+"] ", u.debugPtree);
-					captureItem(sudfDataType + " scalar function result type", "", Datatypes, getBaseDataType(sudfDataType), statusDataType, ctx.start.getLine());
+					captureItem(sudfDataType + sudfDataTypeOrig + " scalar function result type", "", Datatypes, getBaseDataType(sudfDataType), statusDataType, ctx.start.getLine());
 
 					if (ctx.func_body_returns_scalar().RETURN() != null) {
-						captureItem("RETURN"+" <scalar>, in function", "", ControlFlowReportGroup, "RETURN", u.Supported, ctx.func_body_returns_scalar().RETURN().getSymbol().getLine());
+						captureItem("RETURN"+" scalar, in function", "", ControlFlowReportGroup, "RETURN", u.Supported, ctx.func_body_returns_scalar().RETURN().getSymbol().getLine());
 					}
 				}
 				else if (ctx.func_body_returns_table() != null) {
 					udfType = "table";
 					options = ctx.func_body_returns_table().function_option();
-					captureItem("RETURN"+" <result set>, in function", "", ControlFlowReportGroup, "RETURN", u.Supported, ctx.func_body_returns_table().RETURN().getSymbol().getLine());
+					captureItem("RETURN"+" result set, in function", "", ControlFlowReportGroup, "RETURN", u.Supported, ctx.func_body_returns_table().RETURN().getSymbol().getLine());
 				}
 				else if (ctx.func_body_returns_select() != null) {
 					udfType = "inline table";
 					options = ctx.func_body_returns_select().function_option();
-					captureItem("RETURN"+" <result set>, in function", "", ControlFlowReportGroup, "RETURN", u.Supported, ctx.func_body_returns_select().RETURN().getSymbol().getLine());
+					captureItem("RETURN"+" result set, in function", "", ControlFlowReportGroup, "RETURN", u.Supported, ctx.func_body_returns_select().RETURN().getSymbol().getLine());
 				}
 				else if (ctx.func_body_returns_table_clr() != null) {
 					udfType = "table";
@@ -3432,6 +3491,21 @@ public class CompassAnalyze {
 					}
 					// ToDo: show UDD mapping
 					captureItem(parItem, parName, dataType.equals("TABLE")? TableVariablesType : Datatypes, getBaseDataType(dataType), statusDataType, params.get(i).start.getLine());
+					
+					// test for special chars in identifiers not currently supported
+					List<String> specialChars = featureValueList(SpecialCharsIdentifier);
+					for (int j=0; j<specialChars.size(); j++) {
+						String c = specialChars.get(j);
+						CaptureSpecialCharIdentifier(parName, c, SpecialCharsIdentifier, params.get(i).start.getLine());
+					}
+									
+					// test for special chars in parameters not currently supported
+					List<String> specialCharsParam = featureValueList(SpecialCharsParameter);
+					for (int j=0; j<specialCharsParam.size(); j++) {
+						String c = specialCharsParam.get(j);
+						CaptureSpecialCharIdentifier(parName, c, SpecialCharsParameter, params.get(i).start.getLine());
+					}					
+									
 		        }
 
 		        // check max # parameters
@@ -3572,34 +3646,40 @@ public class CompassAnalyze {
 						if (!inTUDF) {
 							TSQLParser.Function_arg_listContext argListRaw = ctx.function_arg_list();
 							int nrArgs = argListCount( ctx.function_arg_list());
-			//				u.appOutput("scalar nrArgs=["+nrArgs+"]  ctx childcount=["+ctx.getChildCount()+"]");
-			//				if (argList != null) u.appOutput("scalar arglist childcount=["+argList.getChildCount()+"]  arglist=["+ argList.getText()+"]  ");
-			//				for (int i = 0; i <ctx.getChildCount(); i++) {
-			//					u.appOutput(u.thisProc()+"child i=["+i+"/"+nrArgs+"]  txt ib=["+ctx.getChild(i).getText()+"] ");
-			//				}
+							
+							//debug
+							if (u.debugging) u.dbgOutput("scalar nrArgs=["+nrArgs+"]  ctx childcount=["+ctx.getChildCount()+"]", u.debugPtree);
+							if (argListRaw != null) if (u.debugging) u.dbgOutput("scalar arglist childcount=["+argListRaw.getChildCount()+"]  arglist=["+ argListRaw.getText()+"]", u.debugPtree);
+							for (int i = 0; i <ctx.getChildCount(); i++) {
+								if (u.debugging) u.dbgOutput(u.thisProc()+"child i=["+i+"/"+nrArgs+"]  txt=["+ctx.getChild(i).getText()+"] ", u.debugPtree);
+							}
 
 							List<TSQLParser.ExpressionContext> argList = new ArrayList<>();
+							List<String> argListText = new ArrayList<>();
 							if (nrArgs > 0) {
 								if (argListRaw.STAR() != null) nrArgs--;
+								if (argListRaw.STAR() != null) argListText.add(BIFArgStar);																
 								if (nrArgs > 0) {
-									argList = argListRaw.expression();
+									argList = argListRaw.expression();																												
 									if (u.debugging) u.dbgOutput(u.thisProc()+"nrArgs=["+nrArgs+"] arglist exprlist size=["+argList.size()+"]  ", u.debugPtree);
 									for (int i = 0; i <nrArgs; i++) {
 										TSQLParser.ExpressionContext expr = argList.get(i);
+										argListText.add(argList.get(i).getText());																
 										if (u.debugging) u.dbgOutput(u.thisProc()+"arglist expr i=["+i+"/"+nrArgs+"] =["+argList.get(i).getText()+"]  ", u.debugPtree);
 										// need a function to evaluate the datatype of an expression
 
-										if (argList.get(i).getText().equalsIgnoreCase("DEFAULT")) {
+										if (argList.get(i).getText().equalsIgnoreCase("DEFAULT")) {											
 											String statusDft = featureSupportedInVersion(ParamValueDEFAULT, "function");
 											captureItem(ParamValueDEFAULT+", function call", "", ParamValueDEFAULT, "function", statusDft, ctx.start.getLine());
 										}
 									}
 								}
+								if (argListRaw.STAR() != null) nrArgs++;
 							}
 
 							// is this a BIF or SUDF?
 							if (featureExists(BuiltInFunctions, funcName)) {
-								captureBIF(funcName, ctx.start.getLine(), "", nrArgs, argList);
+								captureBIF(funcName, ctx.start.getLine(), "", nrArgs, argList, argListText);
 							}
 							else {
 								// check for XML/HIERARCHYID methods, these can be parsed as UDF calls
@@ -3609,7 +3689,7 @@ public class CompassAnalyze {
 									// check for EVENTDATA(), in case of EVENTDATA().VALUE(...)
 									if (u.currentObjectType.equals("TRIGGER")) {
 										if (funcName.startsWith("EVENTDATA()")) {
-											captureBIF("EVENTDATA", ctx.start.getLine(), "", 0, null);
+											captureBIF("EVENTDATA", ctx.start.getLine(), "", 0, null, null);
 										}
 									}
 								}
@@ -4236,7 +4316,7 @@ public class CompassAnalyze {
 				}
 
 				if (!execImm.isEmpty()) {
-					captureItem("EXECUTE(string)"+return_status, "", DynamicSQL, "", u.Supported, ctx.start.getLine());
+					captureItem("EXECUTE(string)", "", DynamicSQL, "", u.Supported, ctx.start.getLine());
 					captureItem(DynamicSQLEXECStringReview, "", DynamicSQL, "", u.ReviewManually, ctx.start.getLine());
 				}
 
@@ -4305,7 +4385,8 @@ public class CompassAnalyze {
 				String firstStmt = "";
 				if (rule.equals("execute_body_batch")) firstStmt = " (without EXECUTE keyword)";
 
-				if (procName.equalsIgnoreCase("SP_EXECUTESQL"))  {
+				procName = u.getObjectNameFromID(procName).toLowerCase();
+				if (procName.equals("sp_executesql"))  {
 					// todo: also report OUTPUT parameters for sp_executesql?
 					sysProcName = " sp_executesql";
 					section = DynamicSQL;
@@ -4313,9 +4394,9 @@ public class CompassAnalyze {
 					captureItem("EXECUTE"+sysProcName+firstStmt+return_status, "", DynamicSQL, "", u.Supported, lineNr);
 				}
 				else {
-					if ((procName.toUpperCase().contains("SP_")) || (procName.toUpperCase().contains("XP_")))  {
+					if ((procName.toUpperCase().startsWith("sp_")) || (procName.toUpperCase().startsWith("xp_")))  {
 						// is this a system sproc?
-						sysProcName = u.getObjectNameFromID(procName).toLowerCase();
+						sysProcName = procName;
 						if (u.debugging) u.dbgOutput(u.thisProc()+"sysProcName=["+sysProcName+"]  ", u.debugPtree);
 						if (featureExists(SystemStoredProcs, sysProcName)) {
 							if (u.debugging) u.dbgOutput(u.thisProc()+"featureExists: "+ " sysProcName=["+sysProcName+"]  ", u.debugPtree);
@@ -4844,47 +4925,57 @@ public class CompassAnalyze {
 			@Override public String visitAlter_database(TSQLParser.Alter_databaseContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
 				String dbName = "";
-				if (ctx.database != null) dbName = ctx.database.getText();
+				
+				// is ALTER DATABASE supported at all? indicated by prsence or absence of any support item
+				String AlterDBSupported = featureValueSupportedInVersion(AlterDatabaseOptions);
+				if (AlterDBSupported.isEmpty()) {
+					captureItem("ALTER DATABASE", "", DatabasesReportGroup, "", u.NotSupported, ctx.start.getLine());
+				}
 				else {
-					dbName = "CURRENT";
-					String status = featureSupportedInVersion(AlterDatabaseOptions, dbName);
-					captureItem("ALTER DATABASE CURRENT", "", AlterDatabaseOptions, "CURRENT", status, ctx.start.getLine());
-				}
-				dbName = u.normalizeName(dbName.toUpperCase());
-
-				List<TSQLParser.Database_optionspecContext> options = ctx.database_optionspec();
-				for (int i=0; i<options.size(); i++) {
-					String option = options.get(i).getText().toUpperCase();
-					String optionValue = "";
-					if (option.contains("=")) {
-						optionValue = getOptionValue(option);
-						option = getOptionName(option);
-					}
-					else if (option.endsWith("ON")) {
-						optionValue = "ON";
-						option = option.substring(0,option.length()-"ON".length());
-					}
-					else if (option.endsWith("OFF")) {
-						optionValue = "OFF";
-						option = option.substring(0,option.length()-"OFF".length());
-					}
+					if (ctx.database != null) dbName = ctx.database.getText();
 					else {
-						optionValue = u.applyPatternFirst(option, "^(CURSOR_DEFAULT|PAGE_VERIFY|RECOVERY|PARAMETERIZATION|MULTI_USER|ENABLE_BROKER)(.*$)", "$2");
-						option      = u.applyPatternFirst(option, "^(CURSOR_DEFAULT|PAGE_VERIFY|RECOVERY|PARAMETERIZATION|MULTI_USER|ENABLE_BROKER)(.*$)", "$1");
-						if (optionValue.equals(option)) optionValue="";
+						dbName = "CURRENT";
+						String status = featureSupportedInVersion(AlterDatabaseOptions, dbName);
+						captureItem("ALTER DATABASE CURRENT", "", AlterDatabaseOptions, "CURRENT", status, ctx.start.getLine());
 					}
-					if (option.contains("(")) {
-						optionValue = getOptionValue(option, "(") + optionValue;
-						option = getOptionName(option, "(");
-					}
-					String status = featureSupportedInVersion("", AlterDatabaseOptions, option, optionValue);
-					captureItem("Option "+formatOptionDisplay(option,optionValue)+", in ALTER DATABASE", option, AlterDatabaseOptions, option, status, ctx.start.getLine());
-				}
+					dbName = u.normalizeName(dbName.toUpperCase());
 
-				if (ctx.MODIFY() != null) {
-					String option = "MODIFY NAME";
-					String status = featureSupportedInVersion(u.Ignored, AlterDatabaseOptions, option, "");
-					captureItem("Option "+option+", in ALTER DATABASE", option, AlterDatabaseOptions, option, status, ctx.start.getLine());
+					List<TSQLParser.Database_optionspecContext> options = ctx.database_optionspec();
+					for (int i=0; i<options.size(); i++) {
+						String option = options.get(i).getText().toUpperCase();
+						String optionValue = "";
+						if (option.contains("=")) {
+							optionValue = getOptionValue(option);
+							option = getOptionName(option);
+						}
+						else if (option.endsWith("ON")) {
+							optionValue = "ON";
+							option = option.substring(0,option.length()-"ON".length());
+						}
+						else if (option.endsWith("OFF")) {
+							optionValue = "OFF";
+							option = option.substring(0,option.length()-"OFF".length());
+						}
+						else {
+							optionValue = u.applyPatternFirst(option, "^(CURSOR_DEFAULT|PAGE_VERIFY|RECOVERY|PARAMETERIZATION|MULTI_USER|ENABLE_BROKER)(.*$)", "$2");
+							option      = u.applyPatternFirst(option, "^(CURSOR_DEFAULT|PAGE_VERIFY|RECOVERY|PARAMETERIZATION|MULTI_USER|ENABLE_BROKER)(.*$)", "$1");
+							if (optionValue.equals(option)) optionValue="";
+						}
+						if (option.contains("(")) {
+							optionValue = getOptionValue(option, "(") + optionValue;
+							option = getOptionName(option, "(");
+						}
+						
+						String status = featureSupportedInVersion("", AlterDatabaseOptions, option, optionValue);
+						captureItem("Option "+formatOptionDisplay(option,optionValue)+", in ALTER DATABASE", option, AlterDatabaseOptions, option, status, ctx.start.getLine());
+						if (u.debugging) u.dbgOutput("ALTER DATABASE, dbName=["+dbName+"]  option=["+option+"] optionValue=["+optionValue+"]  status=["+status+"] ", u.debugPtree);
+					}
+
+					if (ctx.MODIFY() != null) {
+						String option = "MODIFY NAME";
+						String status = featureSupportedInVersion(u.Ignored, AlterDatabaseOptions, option, "");
+						captureItem("Option "+option+", in ALTER DATABASE", option, AlterDatabaseOptions, option, status, ctx.start.getLine());
+					}
 				}
 
 				visitChildren(ctx);
@@ -4927,30 +5018,30 @@ public class CompassAnalyze {
 							captureItem("Identifier > 63 characters", idOrig, MaxIdentifierLength, ""+id.length()+"", u.Supported, ctx.start.getLine());
 						}
 					}
-				}
-
+				}		
+							
 				// test for special chars in identifiers not currently supported
 				List<String> specialChars = featureValueList(SpecialCharsIdentifier);
 				for (int i=0; i<specialChars.size(); i++) {
 					String c = specialChars.get(i);
-					CaptureSpecialCharIdentifier(idOrig, c, ctx.start.getLine());
-				}
+					CaptureSpecialCharIdentifier(idOrig, c, SpecialCharsIdentifier, ctx.start.getLine());
+				}				
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
 				return null;
 			}
 
-			public void CaptureSpecialCharIdentifier (String id, String SpecialChar, int lineNr) {
+			public void CaptureSpecialCharIdentifier (String id, String SpecialChar, String section, int lineNr) {
 				if (SpecialChar.isEmpty()) return;
 				if (id.startsWith("[")) return;
 				if (id.startsWith("@")) id = id.substring(1);
 				if (id.startsWith("#")) id = id.substring(1);
 				if (id.startsWith("#")) id = id.substring(1); // for global temp tabs
 				if (id.contains(SpecialChar)) {
-					if (featureExists(SpecialCharsIdentifier,u.decodeIdentifier(SpecialChar))) {
-						String status = featureSupportedInVersion(SpecialCharsIdentifier,u.decodeIdentifier(SpecialChar));
-						captureItem(SpecialCharIdentifier+": '"+u.decodeIdentifier(SpecialChar)+"'", id, SpecialCharsIdentifier, u.decodeIdentifier(SpecialChar), status, lineNr);
+					if (featureExists(section,u.decodeIdentifier(SpecialChar))) {
+						String status = featureSupportedInVersion(section,u.decodeIdentifier(SpecialChar));
+						captureItem(section+": '"+u.decodeIdentifier(SpecialChar)+"'", id, SpecialCharsIdentifier, u.decodeIdentifier(SpecialChar), status, lineNr);
 					}
 				}
 			}			
@@ -5786,13 +5877,13 @@ public class CompassAnalyze {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
 				String context = "";
 				if (u.currentObjectType.equals("PROCEDURE")) {
-					if (ctx.expression() != null) context = " <integer>, in procedure";
+					if (ctx.expression() != null) context = " integer, in procedure";
 					else context = ", in procedure";
 				}
 				else if (u.currentObjectType.equals("FUNCTION")) {
 					context = ", in function";
-					if (!lookupSUDF(u.currentObjectName.toUpperCase()).isEmpty()) context = " <scalar>, in function";
-					else if (!lookupTUDF(u.currentObjectName.toUpperCase()).isEmpty()) context = " <result set>, in function";
+					if (!lookupSUDF(u.currentObjectName.toUpperCase()).isEmpty()) context = " scalar, in function";
+					else if (!lookupTUDF(u.currentObjectName.toUpperCase()).isEmpty()) context = " result set, in function";
 				}
 				else if (u.currentObjectType.equals("TRIGGER")) {
 					context = ", in trigger";

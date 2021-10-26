@@ -427,6 +427,10 @@ public class Compass {
 				pgImport = true;	
 				i++;
 				continue;		
+			}			
+			if (arg.equals("-"+u.reverseString("m"+"u"+"s"+"k"+"c"+"e"+"h"+"c"))) {
+				u.configOnly = true;
+				continue;
 			}							
 			if (u.devOptions) {
 				if (arg.equals("-debug")) {   // development only
@@ -485,10 +489,6 @@ public class Compass {
 				}
 				if (arg.equals("-antlrdiagnostics")) {  // development only
 					antlrDiagnostics = true;
-					continue;
-				}
-				if (arg.equals("-"+u.reverseString("muskcehc"))) { // development only
-					u.configOnly = true;
 					continue;
 				}
 				if (arg.equals("-caching")) { // development only
@@ -752,11 +752,21 @@ public class Compass {
 		comp.reportFinalStats();
 		if (!parseOnly) u.closeReportFile();
 		
-		// launch explorer window with the generated report
-		if (u.onWindows) {
-			if (!u.devOptions) {
+		// open generated report in browser
+		if (!u.devOptions) {
+			if (u.onWindows) {
 				u.runOScmd("cmd /c \"explorer.exe /n,/select,\"\""+u.reportFilePathName+"\"\" \"");
 				u.runOScmd("cmd /c \"explorer.exe \"\""+u.reportFilePathName+"\"\" \"");
+			}
+			else if (u.onMac) {
+				String cmd = "open " + u.reportFilePathName;
+				if (u.onMacDebug) {
+					u.appOutput("***Mac (dev msg): trying to open report in browser: cmd=["+cmd+"] ");
+				}
+				u.runOScmd(cmd);
+			}
+			else if (u.onLinux) {
+				// TBD
 			}
 		}
 	}
