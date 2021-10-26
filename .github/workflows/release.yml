@@ -23,6 +23,12 @@ jobs:
         mvn -B package --file pom.xml
     - name: Set version env variable
       run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+    - name: Get release details
+      run: |
+        export RELEASE_DETAILS="$(awk -vN=2 'n<N;/^# /{++n}' CHANGELOG.md)" 
+        export RELEASE_DETAILS="$(sed '${/^# /d;}' <<< "$RELEASE_DETAILS")"
+        touch RELEASE_DETAILS.md
+        echo "$RELEASE_DETAILS" > RELEASE_DETAILS.md
     - name: Package up release files
       run: |
         mkdir BabelfishCompass
@@ -39,5 +45,6 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        bodyFile: "RELEASE_DETAILS.md"
         draft: true
         artifacts: "BabelfishCompass_${{ env.RELEASE_VERSION }}.zip"
