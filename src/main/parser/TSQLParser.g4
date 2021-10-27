@@ -2190,6 +2190,7 @@ filegroup_updatability_option
 // https://msdn.microsoft.com/en-us/library/bb522682.aspx
 database_optionspec
     : auto_option
+    | accelerated_database_recovery
     | change_tracking_option
     | containment_option
     | cursor_option
@@ -2228,6 +2229,10 @@ auto_option
     | AUTO_UPDATE_STATISTICS_ASYNC  (ON | OFF )
     ;
 
+accelerated_database_recovery
+    : ACCELERATED_DATABASE_RECOVERY EQUAL on_off ( LR_BRACKET PERSISTENT_VERSION_STORE_FILEGROUP EQUAL id RR_BRACKET )?
+    ;
+    
 change_tracking_option
     : CHANGE_TRACKING  EQUAL ( OFF | ON (change_tracking_option_list (COMMA change_tracking_option_list)*)*  )
     ;
@@ -4108,6 +4113,7 @@ keyword
     : ABORT_AFTER_WAIT
     | ABSENT
     | ABSOLUTE
+    | ACCELERATED_DATABASE_RECOVERY
     | ACCENT_SENSITIVITY
     | ACCESS
     | ACTION
@@ -4599,6 +4605,8 @@ keyword
     | PERMISSION_SET
     | PERSISTED
     | PERSIST_SAMPLE_PERCENT
+    | PERSISTENT_LOG_BUFFER
+    | PERSISTENT_VERSION_STORE_FILEGROUP
     | PER_CPU
     | PER_DB
     | PER_NODE

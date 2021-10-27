@@ -44,6 +44,7 @@ ABORT:                                           A B O R T;
 ABORT_AFTER_WAIT:                                A B O R T  UNDERLINE  A F T E R  UNDERLINE  W A I T;
 ABSENT:                                          A B S E N T;
 ABSOLUTE:                                        A B S O L U T E;
+ACCELERATED_DATABASE_RECOVERY:                   A C C E L E R A T E D  UNDERLINE  D A T A B A S E  UNDERLINE  R E C O V E R Y;
 ACCENT_SENSITIVITY:                              A C C E N T  UNDERLINE  S E N S I T I V I T Y;
 ACCESS:                                          A C C E S S;
 ACTION:                                          A C T I O N;
@@ -678,6 +679,7 @@ PERMISSION_SET:                                  P E R M I S S I O N  UNDERLINE 
 PERSISTED:                                       P E R S I S T E D;
 PERSIST_SAMPLE_PERCENT:                          P E R S I S T  UNDERLINE  S A M P L E  UNDERLINE  P E R C E N T;
 PERSISTENT_LOG_BUFFER:                           P E R S I S T E N T  UNDERLINE  L O G  UNDERLINE  B U F F E R;
+PERSISTENT_VERSION_STORE_FILEGROUP:              P E R S I S T E N T  UNDERLINE  V E R S I O N  UNDERLINE  S T O R E  UNDERLINE  F I L E G R O U P;
 PER_CPU:                                         P E R  UNDERLINE  C P U;
 PER_DB:                                          P E R  UNDERLINE  D B;
 PER_NODE:                                        P E R  UNDERLINE  N O D E;
