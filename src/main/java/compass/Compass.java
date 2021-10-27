@@ -10,7 +10,7 @@ SPDX-License-Identifier: Apache-2.0
  * Use of this file is governed by the BSD 3-clause license that
  * can be found in the THIRD-PARTY-LICENSES.txt file in the project root.
  */
-
+ 
 package compass;
 
 import org.antlr.v4.runtime.*;
@@ -318,7 +318,8 @@ public class Compass {
 				}
 				userEncoding = args[i];
 				if (userEncoding.equalsIgnoreCase("help")) {
-					u.appOutput("Available encodings:");
+					u.appOutput("Default encoding on this system: " + Charset.defaultCharset());
+					u.appOutput("\nAvailable encodings:");
 					String s="";
 					for (String c : Charset.availableCharsets().keySet()) {
 						s += c + "  ";

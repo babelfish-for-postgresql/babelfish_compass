@@ -2452,7 +2452,7 @@ public class CompassAnalyze {
 					if (colDataType.endsWith(" NULL")) {
 						String status = featureSupportedInVersion(UniqueOnNullableCol, typeChk);
 						String typeFmt = "";
-						if (status.equals(u.ReviewSemantics)) typeFmt = type + " (review)";  // this suffix drives the tooltip; needs to be changed when supproted status changes
+						if (status.equals(u.ReviewSemantics)) typeFmt = type + ", on multiple columns"; 
 						else typeFmt = type;
 						captureItem(UniqueOnNullableCol+" with "+typeFmt, tabcol, "", UniqueOnNullableCol, status, col.start.getLine());						
 						//u.appOutput(u.thisProc()+"found typeChk=["+typeChk+"] on nullable column tabcol=["+tabcol+"] status=["+status+"] ");
@@ -3803,6 +3803,14 @@ public class CompassAnalyze {
 				return isMethod;
 			}
 
+			@Override public String visitTrigger_column_updated(TSQLParser.Trigger_column_updatedContext ctx) {
+				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
+				captureBIF("UPDATE", ctx.start.getLine(), "", 0, null, null);
+				visitChildren(ctx);
+				if (u.debugging) dbgTraceVisitExit(u.thisProc());
+				return null;
+			}
+			
 			@Override public String visitHierarchyid_methods(TSQLParser.Hierarchyid_methodsContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(u.thisProc());
 				captureHIERARCHYIDFeature("HIERARCHYID.", ctx.method.getText().toUpperCase(), "()", ctx.start.getLine());

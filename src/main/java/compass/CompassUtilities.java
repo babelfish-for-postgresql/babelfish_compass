@@ -408,7 +408,7 @@ tooltipsHTMLPlaceholder +
 		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported and will be ignored",
 		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported and will be ignored",
 		"ALTER TABLE..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements",
-		"ALTER TABLE..CHECK CONSTRAINT"+tttSeparator+"Explicit validation of constraints is not currently supported",
+		"ALTER TABLE..CHECK CONSTRAINT"+tttSeparator+"Explicit validation of constraints is not currently supported (do not confuse this with CHECK constraints, which are supported)",
 		"DBCC "+tttSeparator+"DBCC statements are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
 		CompassAnalyze.ODBCScalarFunction+tttSeparator+"ODBC scalar functions are not currently supported; rewrite with an equivalent built-in function",
 		CompassAnalyze.ODBCLiterals+tttSeparator+"ODBC literal expressions are not currently supported; rewrite with CAST() to the desired datatype",
@@ -432,11 +432,14 @@ tooltipsHTMLPlaceholder +
 		"CURSOR procedure parameter"+tttSeparator+"CURSOR-types variables/parameters are not currently supported; rewrite with table variables or #tmp tables",
 		"GLOBAL cursor"+tttSeparator+"Currently only LOCAL cursors are supported",
 		"GLOBAL option for FETCH"+tttSeparator+"Currently only LOCAL cursors are supported",
+		"ALTER TABLE..DISABLE TRIGGER"+tttSeparator+"Disabling triggers is not currently supported; triggers are always enabled",		
 		"DISABLE TRIGGER"+tttSeparator+"Disabling triggers is not currently supported; triggers are always enabled",		
+		"ALTER TABLE..ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",		
 		"ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",		
 		"CREATE TRIGGER, INSTEAD OF"+tttSeparator+"INSTEAD-OF triggers are not currently supported. Rewrite as FOR trigger",		
 		"CREATE TRIGGER (DDL)"+tttSeparator+"DDL triggers are not currently supported",
 		CompassAnalyze.TriggerSchemaName+tttSeparator+"CREATE TRIGGER schemaname.triggername is not currently supported; Remove 'schemaname'",
+		"\\w+, WHERE CURRENT OF"+tttSeparator+"Updatable cursors are not currently supported. Rewrite the application to use direct UPDATE/DELETE",
 		"UPDATE STATISTICS"+tttSeparator+"UPDATE STATISTICS is not currently supported; use PG's ANALYZE instead",
 		"UPDATE("+tttSeparator+"UPDATE(): detecting in a trigger which column is updated by the triggering DML, is not currently supported",
 		"COLUMNS_UPDATED("+tttSeparator+"COLUMNS_UPDATED(): detecting in a trigger which column is updated by the triggering DML, is not currently supported",
@@ -506,14 +509,21 @@ tooltipsHTMLPlaceholder +
 		"SET LOCK_TIMEOUT"+tttSeparator+"Setting the lock timeout is not currently supported",
 		CompassAnalyze.SetXactIsolationLevel+tttSeparator+"This transaction isolation level is not currently supported, due to PostgreSQL\'s MVCC mechanism",
 		
-		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index "+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint or -index. Because PostgreSQL allows multiple NULL values, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish",
-		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint or -index. Because PostgreSQL allows multiple NULL values, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish",
-		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index (review)"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint or -index. Because PostgreSQL allows multiple NULL values, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish",
-		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint (review)"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint or -index. Because PostgreSQL allows multiple NULL values, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index "+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index, on multiple columns"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with  multiple NULL values in such a column, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint, on multiple columns"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with  multiple NULL values, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish",
 		
 		CompassAnalyze.DropIndex+" index ON schema.table"+tttSeparator+"Syntax 'DROP INDEX indexname ON schema.table' is not currently supported; remove schema name",
 		CompassAnalyze.DropIndex+" table.index"+tttSeparator+"Syntax 'DROP INDEX table.indexname' is not currently supported; use 'DROP INDEX indexname ON tablename'",
 		CompassAnalyze.DropIndex+" schema.table.index"+tttSeparator+"Syntax 'DROP INDEX schema.table.indexname' is not currently supported; use 'DROP INDEX indexname ON tablename'",
+		
+		"Partitioning, CREATE "+tttSeparator+"Table/index partitioning is not currently supported.",
+		"$PARTITION.function"+tttSeparator+"Table/index partitioning is not currently supported.",
+		"CREATE PARTITION"+tttSeparator+"Table/index partitioning is not currently supported.",
+		
+		"CREATE DEFAULT"+tttSeparator+"DEFAULT objects are not currently supported; use column defaults instead",
+		"CREATE RULE"+tttSeparator+"RULE objects are not currently supported; use CHECK constraints instead",
 		
 		"Special column name IDENTITYCOL"+tttSeparator+"The special column name IDENTITYCOL is not currently supported. Replace it by the actual name of the idebtity column",		
 		CompassAnalyze.LeadingDotsId+tttSeparator+"Remove leading dots for identifiers, i.e. change 'SELECT * FROM ..mytable' to 'SELECT * FROM mytable'",		
@@ -3193,6 +3203,9 @@ tooltipsHTMLPlaceholder +
 
 	private String makeItemHintKey (String s) {
 		// normalize the key for tooltips
+		s = applyPatternAll(s, "[\\(]", "brktopen").toLowerCase();
+		s = applyPatternAll(s, "[\\)]", "brktclose").toLowerCase();
+		s = applyPatternAll(s, "[,]", "comma").toLowerCase();
 		s = applyPatternAll(s, "[\\s]", "").toLowerCase();
 		s = applyPatternAll(s, "[\\W]", "_");
 		s = applyPatternAll(s, "[_]+", "_");
@@ -3215,6 +3228,10 @@ tooltipsHTMLPlaceholder +
 				String k = e.getKey();
 				String v = e.getValue();
 
+				if (item.equalsIgnoreCase(k)) {
+					itemHintKey = k;
+					break;
+				}
 				if (item.startsWith(k)) {
 					itemHintKey = k;
 					break;
