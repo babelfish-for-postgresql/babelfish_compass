@@ -485,10 +485,11 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.SelectTopWoOrderBy+tttSeparator+"SELECT TOP without ORDER BY: without ORDER BY, the order of rows in the result is not guaranteed, and therefore the TOP n rows aren't either. Even though the order may still have been deterministic in SQL Server (for example, due to a clustered index), this cannot be relied on when migrating to Babelfish/PostgreSQL. Recommendation is to review these queries and in case it is possible that the result set has >1 row, add an ORDER BY before migrating to Babelfish",
 		"Constraint PRIMARY KEY/UNIQUE, CLUSTERED,"+tttSeparator+"CLUSTERED constraints are not currently supported. The constraint will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
 		"Index, CLUSTERED,"+tttSeparator+"CLUSTERED indexes are not currently supported. The index will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
+		"Index, UNIQUE, CLUSTERED,"+tttSeparator+"CLUSTERED indexes are not currently supported. The index will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
 		"Inline index"+tttSeparator+"Inline indexes are not currently supported; create indexes separately with CREATE INDEX",
 		"Indexed view "+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
-		"CREATE TABLE ##"+tttSeparator+"Global temporary table: unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, and is dropped automatically when the last session accessing the table disconnects",
-		"CREATE TABLE (temporal)"+tttSeparator+"Temporal table: not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
+		"CREATE TABLE ##"+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, and is dropped automatically when the last session accessing the table disconnects",
+		"CREATE TABLE (temporal)"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
 		CompassAnalyze.TableValueConstructor+tttSeparator+"Rewrite the VALUES() clause as SELECT statements and/or UNIONs",
 		CompassAnalyze.MergeStmt+tttSeparator+"Rewrite MERGE as a series of INSERT/UPDATE/DELETE statements",
 		CompassAnalyze.DynamicSQLEXECStringReview+tttSeparator+"Dynamic SQL with EXECUTE(string) is supported by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
@@ -496,8 +497,9 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.FKrefDBname+tttSeparator+"Remove the database name from the referenced table. E.g. change: REFERENCES yourdb.dbo.yourtable(yourcol) to: REFERENCES dbo.yourtable(yourcol)",
 		CompassAnalyze.CrossDbReference+tttSeparator+"Cross-database references with 3-part object names (e.g. SELECT * FROM yourdb.dbo.yourtable) are not currently supported, except for objects inside the current database",
 		CompassAnalyze.RemoteObjectReference+tttSeparator+"Remote object references with 4-part object names (e.g. SELECT * FROM REMOTESRVR.somedb.dbo.sometable) are not currently supported",
-		CompassAnalyze.ProcVersionBase+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
-		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action in case the trigger body references the transition tables INSERTED or DELETED",
+		"EXECUTE proc;version"+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
+		"CREATE PROCEDURE proc;version"+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
+		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action, in case the trigger body references the transition tables INSERTED or DELETED",
 		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported",
 		"SET QUOTED_IDENTIFIER \\w+, before end of batch"+tttSeparator+"SET QUOTED_IDENTIFIER takes effect only at the start of the next batch in Babelfish; the SQL Server semantics where it applies to the next statement, is not currently supported",
 		"SET DEADLOCK_PRIORITY"+tttSeparator+"Setting the deadlock victimization priority is not currently supported",
@@ -526,13 +528,27 @@ tooltipsHTMLPlaceholder +
 		"\\w+, option WITH EXECUTE AS USER"+tttSeparator+"The clause WITH EXECUTE AS <user> for procedures, functions and triggers is not currently supported",
 		"Index exceeds \\d+ columns"+tttSeparator+"For the maximum number of columns per index, 'included' columns do not count in SQL Server, but they do ount in PostgreSQL",
 		"DROP \\w+, >1 object"+tttSeparator+"Use a separate DROP statement for each object to be dropped",
-		"\\w+, without SCHEMABINDING"+tttSeparator+"PostgreSQL only supports the equivalent of WITH SCHEMABINDING, i.e. an object (like a table) cannot be dropped if another object (like a view) depends on it. Objects created without the SCHEMABINDING clause will still be created by Babelfish, but as if WITH SCHEMABINDING was specified",		
+		"CREATE FUNCTION, \\w+( \\w+)?, atomic"+tttSeparator+"Atomic natively compiled functions are not currently supported; rewrite as a regular SQL functions",		
+		"CREATE FUNCTION, \\w+( \\w+)?, external"+tttSeparator+"External functions are not currently supported; rewrite as a regular SQL functions",		
+		"CREATE FUNCTION, \\w+( \\w+)?, CLR"+tttSeparator+"CLR functions are not currently supported; rewrite as a regular SQL functions",		
+		"CREATE \\w+, atomic"+tttSeparator+"Atomic natively compiled procedures/triggers are not currently supported; rewrite as a regular SQL object",		
+		"CREATE \\w+, external"+tttSeparator+"External procedures/triggers are not currently supported; rewrite as a regular SQL object",		
+		"CREATE \\w+, CLR"+tttSeparator+"CLR functions are not currently supported; rewrite as a regular SQL functions",		
+		"\\w+, WITH SCHEMABINDING: created in PG as without SCHEMABINDING"+tttSeparator+"WITH SCHEMABINDING is not currently supported for procedures/functions/triggers; these will be created in PG as if SCHEMABINDING was not specified",		
+		"\\w+, option WITH ENCRYPTION"+tttSeparator+"Encryption of the SQL source code of an object is not currently supported",		
+		"\\w+, option WITH NATIVE_COMPILATION"+tttSeparator+"Native compilation is not currently supported; rewrite as a regular SQL object",		
+		"View, without SCHEMABINDING"+tttSeparator+"PostgreSQL only supports views with the equivalent of WITH SCHEMABINDING, i.e. a table cannot be dropped if a view depends on it. A view without the SCHEMABINDING clause will still be created by Babelfish, but as if WITH SCHEMABINDING was specified",		
+		"View, with CHECK OPTION"+tttSeparator+"WITH CHECK OPTION is nto currently supported for views; remove the option",
 		"\\w+ MATERIALIZED VIEW"+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
 		"\\w+ TRANSACTION not supported with PostgreSQL SECURITY DEFINER"+tttSeparator+"T-SQL objects created with EXECUTE AS OWNER are mapped to PostgreSQL SECURITY DEFINER; PostgreSQL does not support transaction mgmt statementds for objects created with SECURITY DEFINER",
 		"\\w+ ASSEMBLY"+tttSeparator+"This object type is not currently supported",
 		"\\w+ AGGREGATE"+tttSeparator+"This object type is not currently supported"
 	);
 
+	// emoji to indicate popup info is available
+  	static String hintIcon = "&#x1F6C8;";  // information symbol: (i)
+	
+	// alternate emojis; see COMPASS_HINT_ICON how to specify your own favorite
   	//String hintIcon = "&#x2754;";   // white question mark
   	//String hintIcon = "&#x1F4A1;";  // light bulb
   	//String hintIcon = "&#x1F6C8;";  // information symbol: (i)
@@ -541,7 +557,6 @@ tooltipsHTMLPlaceholder +
   	//String hintIcon = "&#10145;";  // right arrow
   	//String hintIcon =   "&#9651;";  // white triangle
 
-  	static String hintIcon = "&#x1F6C8;";
 
 	public String psqlImportFileName = "pg_import";
 	public String psqlFileSuffix = "psql";

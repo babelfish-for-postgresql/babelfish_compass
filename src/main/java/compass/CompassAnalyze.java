@@ -200,7 +200,7 @@ public class CompassAnalyze {
 	static final String DBAStmts              = "DBA statements";
 	static final String MiscObjects           = "Miscellaneous objects";
 	static final String MoneyLiteral          = "MONEY literal";
-	static final String AtAtVariable          = "@@variables";
+	static final String AtAtVariable          = "@@variable";
 	static final String VarDeclareAtAt        = "Regular variable named @@v";
 	static final String AtAtErrorValueRef     = "@@ERROR value";
 	static final String AlterIndex            = "ALTER INDEX";
@@ -1137,20 +1137,18 @@ public class CompassAnalyze {
 
 			private void captureAtAtVariables(String varName, int lineNr) {
 				// Catch references to @@ variables. User can also declare @@variables (supported) but not reference them, so basically it's not supported
-				if (varName.charAt(1) == '@') {
-					if (varName.charAt(0) == '@') {
-						if (inAtAtErrorPredicate && varName.equalsIgnoreCase("@@ERROR")) return;  // this is captured elsewhere
-						if (!u.getPatternGroup(varName, "^\\@\\@(["+u.identifierChars+"]*)$", 1).isEmpty()) {
-							// is this a known global variable, or a user-defined variable starting with '@@' ?
-							if (featureExists(AtAtVariable, varName)) {
-								String status = featureSupportedInVersion(AtAtVariable, varName);
-								captureItem(varName, "", AtAtVariable, varName, status, lineNr);
-							}
-							else {
-								// it's a user-defined name
-								String status = featureSupportedInVersion(VarDeclareAtAt);
-								captureItem(VarDeclareAtAt, varName, "", varName, status, lineNr);
-							}
+				if (varName.startsWith("@@")) {
+					if (inAtAtErrorPredicate && varName.equalsIgnoreCase("@@ERROR")) return;  // this is captured elsewhere
+					if (!u.getPatternGroup(varName, "^\\@\\@(["+u.identifierChars+"]*)$", 1).isEmpty()) {
+						// is this a known global variable, or a user-defined variable starting with '@@' ?
+						if (featureExists(AtAtVariable, varName)) {
+							String status = featureSupportedInVersion(AtAtVariable, varName);
+							captureItem(varName, "", AtAtVariable, varName, status, lineNr);
+						}
+						else {
+							// it's a user-defined name
+							String status = featureSupportedInVersion(VarDeclareAtAt);
+							captureItem(VarDeclareAtAt, varName, "", varName, status, lineNr);
 						}
 					}
 				}
@@ -1913,7 +1911,7 @@ public class CompassAnalyze {
 				}
 				visitChildren(ctx);
 				return null;
-			}
+			}			
 
 			@Override public String visitExecute_parameter(TSQLParser.Execute_parameterContext ctx) {
 				if (ctx.LOCAL_ID() != null) {
@@ -3144,8 +3142,9 @@ public class CompassAnalyze {
 					u.currentObjectAttributes += " " + TrigMultiDMLAttr + " ";
 				}
 
+				String trigStatus = "";
 				if (ctx.external_name() != null) {
-					String trigStatus = featureSupportedInVersion(TriggerOptions, "external");
+					trigStatus = featureSupportedInVersion(TriggerOptions, "external");
 					captureItem(kwd + " TRIGGER, external", trigName, TriggerOptions, "EXTERNAL", trigStatus, ctx.start.getLine(), 0);
 				}
 				else {
@@ -3158,7 +3157,7 @@ public class CompassAnalyze {
 						String baseObj = lookupObjType(trigBaseTable.toUpperCase());
 						if (!baseObj.isEmpty()) {
 							IOT = " on " + baseObj.toLowerCase();
-							String trigStatus = featureSupportedInVersion(InsteadOfTrigger, baseObj);
+							trigStatus = featureSupportedInVersion(InsteadOfTrigger, baseObj);
 							if (status.equals(u.Supported)) {
 								status = trigStatus;
 							}
@@ -3196,8 +3195,10 @@ public class CompassAnalyze {
 				}
 
 				// options
-				List<TSQLParser.Trigger_optionContext> options = ctx.trigger_option();
-				captureTriggerOptions("DML", trigName, options, ctx.start.getLine());
+				if (status.equals(u.Supported) && (trigStatus.isEmpty() || trigStatus.equals(u.Supported))) {		
+					List<TSQLParser.Trigger_optionContext> options = ctx.trigger_option();
+					captureTriggerOptions("DML", trigName, options, ctx.start.getLine());
+				}
 
 				captureForReplication(trigName, "TRIGGER", kwd, ctx.for_replication());
 
@@ -3207,21 +3208,22 @@ public class CompassAnalyze {
 			}
 
 			private void captureTriggerOptions(String type, String trigName, List<TSQLParser.Trigger_optionContext> options, int lineNr) {
-				boolean schemabindingFound = false;
 				for (int i=0; i<options.size(); i++) {
 					String option = options.get(i).getText().toUpperCase();
 					String optionValue = getOptionValue(option);
 					option = getOptionName(option);
-					if (option.equals("SCHEMABINDING")) schemabindingFound = true;  	// need to check for absence of SCHEMABINDING
+					if (option.equals("SCHEMABINDING")) {
+						if (type.equals("DML")) {
+							captureSchemabinding(true, "Trigger", trigName, TriggerOptions, lineNr);
+							continue;
+						}						
+					}
 					String trigStatus = featureSupportedInVersion("", TriggerOptions, option, optionValue);
 					String hint = "";
 					if (option.startsWith("EXECUTE AS") && (!trigStatus.equals(u.Supported))) {
 						hint = ": name resolution aspect not included in PG";
 					}
 					captureItem("Trigger, option WITH "+formatOptionDisplay(option,optionValue)+hint, trigName, TriggerOptions, option, trigStatus, lineNr);
-				}
-				if (type.equals("DML")) {
-					captureNoSchemabinding(schemabindingFound, "Trigger", trigName, TriggerOptions, lineNr);
 				}
 			}
 
@@ -3339,33 +3341,43 @@ public class CompassAnalyze {
 				if (u.debugging) u.dbgOutput(u.thisProc()+"UDF "+ ctx.getText()+", funcName=["+funcName+"] udfType=["+udfType+"] udfType2=["+udfType2+"] ", u.debugPtree);
 
 				// capture UDF
+				String udfStatus = "";
 				if (!udfType2.isEmpty()) {
-					String udfStatus = featureSupportedInVersion(FunctionOptions, udfType2);
+					udfStatus = featureSupportedInVersion(FunctionOptions, udfType2);
 					captureItem(kwd + " FUNCTION, " + udfType + ", " + udfType2, funcName, FunctionOptions, udfType2, udfStatus, ctx.start.getLine(), 0);
 				}
 				else {
 					captureItem(kwd + " FUNCTION, " + udfType, funcName, FunctionOptions, udfType, status, ctx.start.getLine(), batchLines.toString());
 				}
 
-				captureParameters("function", ctx.procedure_param());
+				captureParameters("function", ctx.procedure_param());				
 
-				// options
-				boolean schemabindingFound = false;
-				for (int i=0; i<options.size(); i++) {
-					String option = options.get(i).getText().toUpperCase();
-					if (option.startsWith("RETURNSNULL")) option = "RETURNS NULL ON NULL INPUT";
-					if (option.startsWith("CALLED")) option = "CALLED ON NULL INPUT";
-					String optionValue = getOptionValue(option);
-					option = getOptionName(option);
-					if (option.equals("SCHEMABINDING")) schemabindingFound = true;  	// need to check for absence of SCHEMABINDING
-					String funcStatus = featureSupportedInVersion("", FunctionOptions, option, optionValue);
-					String hint = "";
-					if (option.startsWith("EXECUTE AS") && (!funcStatus.equals(u.Supported))) {
-						hint = ": name resolution aspect not included in PG";
+				// options, but only if the stmt is supported
+				if (status.equals(u.Supported) && (udfStatus.isEmpty() || udfStatus.equals(u.Supported))) {
+					boolean schemabindingFound = false;
+					boolean nativeCompileFound = false;
+					for (int i=0; i<options.size(); i++) {
+						String option = options.get(i).getText().toUpperCase();
+						if (option.startsWith("RETURNSNULL")) option = "RETURNS NULL ON NULL INPUT";
+						if (option.startsWith("CALLED")) option = "CALLED ON NULL INPUT";
+						String optionValue = getOptionValue(option);
+						option = getOptionName(option);
+						if (option.equals("SCHEMABINDING")) {
+							schemabindingFound = true;  	
+							continue;
+						}
+						if (option.equals("NATIVE_COMPILATION")) nativeCompileFound = true;  	
+						String funcStatus = featureSupportedInVersion("", FunctionOptions, option, optionValue);
+						String hint = "";
+						if (option.startsWith("EXECUTE AS") && (!funcStatus.equals(u.Supported))) {
+							hint = ": name resolution aspect not included in PG";
+						}
+						captureItem("Function, option WITH "+formatOptionDisplay(option,optionValue)+hint, funcName, FunctionOptions, option, funcStatus, ctx.start.getLine());
 					}
-					captureItem("Function, option WITH "+formatOptionDisplay(option,optionValue)+hint, funcName, FunctionOptions, option, funcStatus, ctx.start.getLine());
+					if (nativeCompileFound && schemabindingFound) {
+						captureSchemabinding(schemabindingFound, "Function", funcName, FunctionOptions, ctx.start.getLine());
+					}
 				}
-				captureNoSchemabinding(schemabindingFound, "Function", funcName, FunctionOptions, ctx.start.getLine());
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(u.thisProc());
@@ -3399,9 +3411,10 @@ public class CompassAnalyze {
 					captured = true;
 				}
 
+				String procStatus = "";
 				if (!captured) {
 					if (procName.startsWith("#") || procName.startsWith("[#")) {
-						String procStatus = featureSupportedInVersion(TemporaryProcedures);
+						procStatus = featureSupportedInVersion(TemporaryProcedures);
 						if (!procStatus.equals(u.Supported)) {
 							captureItem(kwd + " PROCEDURE, #temporary: not dropped automatically", procName, TemporaryProcedures, "", procStatus, ctx.start.getLine(), batchLines.toString());
 							captured = true;
@@ -3411,7 +3424,7 @@ public class CompassAnalyze {
 
 				if (!captured) {
 					if (!procType.isEmpty()) {
-						String procStatus = featureSupportedInVersion(ProcedureOptions,procType);
+						procStatus = featureSupportedInVersion(ProcedureOptions,procType);
 						captureItem(kwd + " PROCEDURE, "+procType, procName, ProcedureOptions, procType, procStatus, ctx.start.getLine(), batchLines.toString());
 						captured = true;
 					}
@@ -3427,23 +3440,32 @@ public class CompassAnalyze {
 				captureParameters("procedure", ctx.procedure_param());
 
 				// options
-				boolean schemabindingFound = false;
-				List<TSQLParser.Procedure_optionContext> options = ctx.procedure_option();
-				for (TSQLParser.Procedure_optionContext optionX : options) {
-					String option = optionX.getText().toUpperCase();
-					String optionValue = getOptionValue(option);
-					option = getOptionName(option);
-					u.currentObjectAttributes += " " + option + " ";
-					if (option.equals("SCHEMABINDING")) schemabindingFound = true;  	// need to check for absence of SCHEMABINDING
-					String procStatus = featureSupportedInVersion("", ProcedureOptions, option, optionValue);
-					if (option.equals("RECOMPILE") && (!procStatus.equals(u.Supported))) procStatus = u.ReviewPerformance;
-					String hint = "";
-					if (option.startsWith("EXECUTE AS") && (!procStatus.equals(u.Supported))) {
-						hint = ": name resolution aspect not included in PG";
-					}
-					captureItem("Procedure, option WITH "+formatOptionDisplay(option,optionValue)+hint, procName, ProcedureOptions, option, procStatus, ctx.start.getLine());
+				if (status.equals(u.Supported) && (procStatus.isEmpty() || procStatus.equals(u.Supported))) {												
+					boolean schemabindingFound = false;
+					boolean nativeCompileFound = false;
+					List<TSQLParser.Procedure_optionContext> options = ctx.procedure_option();
+					for (TSQLParser.Procedure_optionContext optionX : options) {
+						String option = optionX.getText().toUpperCase();
+						String optionValue = getOptionValue(option);
+						option = getOptionName(option);
+						u.currentObjectAttributes += " " + option + " ";
+						if (option.equals("SCHEMABINDING")) {
+							schemabindingFound = true;  						
+							continue;
+						}							
+						if (option.equals("NATIVE_COMPILATION")) nativeCompileFound = true;  	
+						String procOptionStatus = featureSupportedInVersion("", ProcedureOptions, option, optionValue);
+						if (option.equals("RECOMPILE") && (!procOptionStatus.equals(u.Supported))) procOptionStatus = u.ReviewPerformance;
+						String hint = "";
+						if (option.startsWith("EXECUTE AS") && (!procOptionStatus.equals(u.Supported))) {
+							hint = ": name resolution aspect not included in PG";
+						}
+						captureItem("Procedure, option WITH "+formatOptionDisplay(option,optionValue)+hint, procName, ProcedureOptions, option, procOptionStatus, ctx.start.getLine());
+					}				
+					if (nativeCompileFound && schemabindingFound) {
+						captureSchemabinding(schemabindingFound, "Procedure", procName, ProcedureOptions, ctx.start.getLine());
+					}				
 				}
-				captureNoSchemabinding(schemabindingFound, "Procedure", procName, ProcedureOptions, ctx.start.getLine());
 
 				captureForReplication(procName, "PROCEDURE", kwd, ctx.for_replication());
 
@@ -3490,7 +3512,6 @@ public class CompassAnalyze {
 					else {
 						// datatype is not listed, means: supported
 					}
-					// ToDo: show UDD mapping
 					captureItem(parItem, parName, dataType.equals("TABLE")? TableVariablesType : Datatypes, getBaseDataType(dataType), statusDataType, params.get(i).start.getLine());
 					
 					// test for special chars in identifiers not currently supported
@@ -3518,15 +3539,33 @@ public class CompassAnalyze {
 				if (params.size() > maxPars) {
 					captureItem("Number of "+objType+" parameters ("+params.size()+") exceeds "+maxPars, maxPars.toString(), maxParSection, maxPars.toString(), u.NotSupported, 0, 0);
 				}
-
 		    }
 
-			private void captureNoSchemabinding (boolean schemabindingFound, String objType, String objName, String section, int lineNr) {
-				if (schemabindingFound) return;
-				String option = "without SCHEMABINDING";
-				String hint = ": created as WITH SCHEMABINDING in PG";
+			private void captureSchemabinding (boolean schemabindingFound, String objType, String objName, String section, int lineNr) {
+				String optionFmt = "";
+				String option = "";
+				String hint = "";
+				if (objType.equalsIgnoreCase("VIEW")) {
+					if (schemabindingFound) return;
+					option = "without SCHEMABINDING";
+					optionFmt = option;
+					hint = ": created in PG as WITH SCHEMABINDING";
+				}
+				else if (objType.equalsIgnoreCase("TRIGGER")) {
+					if (!schemabindingFound) return;
+					option = "SCHEMABINDING";
+					optionFmt = "WITH SCHEMABINDING";
+					hint = ": created in PG as without SCHEMABINDING";
+				}
+				else {
+					// procs & functions; we only get here when both NATIVE_COMPILATION and SCHEMABINDING were specified
+					if (!schemabindingFound) return;
+					option = "SCHEMABINDING";
+					optionFmt = "WITH SCHEMABINDING";
+					hint = ": created in PG as without SCHEMABINDING";
+				}
 				String status = featureSupportedInVersion(section, option);
-				captureItem(objType+", "+option+hint, objName, section, option, status, lineNr);
+				captureItem(objType+", "+optionFmt+hint, objName, section, option, status, lineNr);
 			}
 
 			@Override public String visitCreate_or_alter_view(TSQLParser.Create_or_alter_viewContext ctx) {
@@ -3554,7 +3593,7 @@ public class CompassAnalyze {
 					String statusOpt = featureSupportedInVersion(ViewOptions, option);
 					captureItem("View, with "+option, "", ViewOptions, option, statusOpt, vOption.start.getLine());
 				}
-				captureNoSchemabinding(schemabindingFound, "View", viewName, ViewOptions, ctx.start.getLine());
+				captureSchemabinding(schemabindingFound, "View", viewName, ViewOptions, ctx.start.getLine());
 
 				if (ctx.CHECK() != null) {
 					String option = "CHECK OPTION";
@@ -5039,6 +5078,7 @@ public class CompassAnalyze {
 				if (SpecialChar.isEmpty()) return;
 				if (id.startsWith("[")) return;
 				if (id.startsWith("@")) id = id.substring(1);
+				if (id.startsWith("@")) id = id.substring(1); // for @@ variables
 				if (id.startsWith("#")) id = id.substring(1);
 				if (id.startsWith("#")) id = id.substring(1); // for global temp tabs
 				if (id.contains(SpecialChar)) {
