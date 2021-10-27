@@ -1,10 +1,15 @@
 /*
- * originally adapted from ANTLR4 org/antlr/v4/gui/TestRig.java
- */
-/*
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
+
+/*
+ * originally adapted from ANTLR4 org/antlr/v4/gui/TestRig.java
+ *
+ * Copyright (c) 2012-2017 The ANTLR Project. All rights reserved.
+ * Use of this file is governed by the BSD 3-clause license that
+ * can be found in the THIRD-PARTY-LICENSES.txt file in the project root.
+ */
 
 package compass;
 
