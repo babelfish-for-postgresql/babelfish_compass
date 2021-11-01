@@ -46,7 +46,7 @@ Babelfish Compass is available as open-source at
 <https://github.com/babelfish-for-postgresql/babelfish_compass>
 
 A binary version can be downloaded from
-<https://github.com/babelfish-for-postgresql/babelfish_compass> ; pick
+<https://github.com/babelfish-for-postgresql/babelfish_compass/releases/latest> ; pick
 the **BabelfishCompass.zip** file.\
 The installation instructions below are based on this download.
 
