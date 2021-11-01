@@ -6,14 +6,13 @@ SPDX-License-Identifier: Apache-2.0
 package compass;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
-// this calss reads/validates the .cfg file, and provides API calls to determine if a particular feature is supported
+// this class reads/validates the .cfg file, and provides API calls to determine if a particular feature is supported
 public class CompassConfig {
 	static String configFileName;
 	static String configFilePathName;
@@ -59,7 +58,7 @@ public class CompassConfig {
 		return instance;
 	}
 
-	// entry point for initializating the .cfg part
+	// entry point for initializing the .cfg part
 	public void validateCfgFile(String pCfgFileName) throws Exception {
 		readCfgFile(pCfgFileName);
 
@@ -75,7 +74,7 @@ public class CompassConfig {
 			cfgOutput("Configuration file not valid");
 			u.errorExit();
 		}
-		cfgOutput("Latest "+u.babelfishProg+" version supported: "+latestBabelfishVersion());
+		cfgOutput("Latest "+CompassUtilities.babelfishProg+" version supported: "+latestBabelfishVersion());
 	}
 
 	public static void cfgOutput(String s) {
@@ -135,7 +134,7 @@ public class CompassConfig {
 	}
 
 	public static String lowerBabelfishVersion(String version1, String version2) {
-		assert !(version1.isEmpty() && version2.isEmpty()) :  u.thisProc()+"version1 and version2 cannot both be blank";
+		assert !(version1.isEmpty() && version2.isEmpty()) :  CompassUtilities.thisProc()+"version1 and version2 cannot both be blank";
 		if (version1.isEmpty()) return version2;
 		if (version2.isEmpty()) return version1;
 		if (normalizedBabelfishVersion(version1).compareTo(normalizedBabelfishVersion(version2)) < 0) return version1;
@@ -143,7 +142,7 @@ public class CompassConfig {
 	}
 
 	public static String higherBabelfishVersion(String version1, String version2) {
-		assert !(version1.isEmpty() && version2.isEmpty()) :  u.thisProc()+"version1 and version2 cannot both be blank";
+		assert !(version1.isEmpty() && version2.isEmpty()) :  CompassUtilities.thisProc()+"version1 and version2 cannot both be blank";
 		if (version1.isEmpty()) return version2;
 		if (version2.isEmpty()) return version1;
 		if (normalizedBabelfishVersion(version1).compareTo(normalizedBabelfishVersion(version2)) > 0) return version1;
@@ -152,22 +151,22 @@ public class CompassConfig {
 	}
 
 	public static boolean isLowerBabelfishVersion(String version1, String version2) {
-		assert !(version1.isEmpty() && version2.isEmpty()) :  u.thisProc()+"version1 and version2 cannot both be blank";
+		assert !(version1.isEmpty() && version2.isEmpty()) :  CompassUtilities.thisProc()+"version1 and version2 cannot both be blank";
 		return normalizedBabelfishVersion(version1).compareTo(normalizedBabelfishVersion(version2)) < 0;
 	}
 
 	public static boolean isLowerOrEqualBabelfishVersion(String version1, String version2) {
-		assert !(version1.isEmpty() && version2.isEmpty()) :  u.thisProc()+"version1 and version2 cannot both be blank";
+		assert !(version1.isEmpty() && version2.isEmpty()) :  CompassUtilities.thisProc()+"version1 and version2 cannot both be blank";
 		return normalizedBabelfishVersion(version1).compareTo(normalizedBabelfishVersion(version2)) <= 0;
 	}
 
 	public static boolean isHigherBabelfishVersion(String version1, String version2) {
-		assert !(version1.isEmpty() && version2.isEmpty()) :  u.thisProc()+"version1 and version2 cannot both be blank";
+		assert !(version1.isEmpty() && version2.isEmpty()) :  CompassUtilities.thisProc()+"version1 and version2 cannot both be blank";
 		return normalizedBabelfishVersion(version1).compareTo(normalizedBabelfishVersion(version2)) > 0;
 	}
 
 	public static boolean isEqualBabelfishVersion(String version1, String version2) {
-		assert !(version1.isEmpty() && version2.isEmpty()) :  u.thisProc()+"version1 and version2 cannot both be blank";
+		assert !(version1.isEmpty() && version2.isEmpty()) :  CompassUtilities.thisProc()+"version1 and version2 cannot both be blank";
 		return normalizedBabelfishVersion(version1).compareTo(normalizedBabelfishVersion(version2)) == 0;
 	}
 
@@ -203,12 +202,12 @@ public class CompassConfig {
 		String status = u.NotSupported, sectionCopy = section;
 		section = section.toUpperCase();
 		arg = arg.toUpperCase();
-		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + sectionCopy + "]  requestVersion=[" + requestVersion + "] arg=[" + arg + "] argValue=[" + argValue + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + sectionCopy + "]  requestVersion=[" + requestVersion + "] arg=[" + arg + "] argValue=[" + argValue + "] ", u.debugCfg);
 		if (featureArgOptions.containsKey(section)) {
 			argValue = argValue.toUpperCase();
 			if (argValue.charAt(0) == '\'') {
 				argValue = argValue.substring(1, argValue.length() - 1);
-				if (u.debugging) u.dbgOutput(u.thisProc() + " stripped quotes: argValue=[" + argValue + "] ", u.debugCfg);
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " stripped quotes: argValue=[" + argValue + "] ", u.debugCfg);
 			}
 			if (argValue.charAt(0) == '@') {
 				// we cannot determine the contents of a variable
@@ -220,7 +219,7 @@ public class CompassConfig {
 				return u.ReviewManually;
 			}
 			status = featureDefaultStatus(section);
-			if (u.debugging) u.dbgOutput(u.thisProc() + " featureArgOptions found: section=[" + sectionCopy + "]  requestVersion=[" + requestVersion + "] arg=[" + arg + "] argValue=[" + argValue + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureArgOptions found: section=[" + sectionCopy + "]  requestVersion=[" + requestVersion + "] arg=[" + arg + "] argValue=[" + argValue + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 
 			for (String key : featureList.keySet()) {
@@ -248,10 +247,10 @@ public class CompassConfig {
 	public static String featureSupportedMinimumVersion(String section) {
 		String minVersion = "", sectionCopy = section;
 		section = section.toUpperCase();
-		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + sectionCopy + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + sectionCopy + "] ", u.debugCfg);
 
 		if (featureExists(section)) {
-			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + sectionCopy + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + sectionCopy + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
 				if (key.startsWith(supportedTag + "/")) {
@@ -279,11 +278,11 @@ public class CompassConfig {
 		String minVersion = "", sectionCopy = section;
 		section = section.toUpperCase();
 		name = name.toUpperCase();
-		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + sectionCopy + "] name=[" + name + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + sectionCopy + "] name=[" + name + "] ", u.debugCfg);
 		assert (!name.isEmpty()) : "name argument cannot be blank";
 
 		if (featureExists(section, name)) {
-			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + sectionCopy + "] name=[" + name + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + sectionCopy + "] name=[" + name + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
 				if (key.startsWith(supportedTag + "/")) {
@@ -307,11 +306,11 @@ public class CompassConfig {
 	public static String featureSupportedInVersion(String requestVersion, String section) {
 		String status = u.NotSupported, sectionCopy = section;
 		section = section.toUpperCase();
-		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + sectionCopy + "] requestVersion=[" + requestVersion + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + sectionCopy + "] requestVersion=[" + requestVersion + "] ", u.debugCfg);
 
 		if (featureExists(section)) {
 			status = featureDefaultStatus(section);
-			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + sectionCopy + "] requestVersion=[" + requestVersion + "] featureDefault=[" + status + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + sectionCopy + "] requestVersion=[" + requestVersion + "] featureDefault=[" + status + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
 				if (key.startsWith(supportedTag + "/")) {
@@ -325,7 +324,7 @@ public class CompassConfig {
 				}
 			}
 		}
-		if (u.debugging) u.dbgOutput(u.thisProc() + " return: status=[" + status + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: status=[" + status + "] ", u.debugCfg);
 		return status;
 	}
 
@@ -339,7 +338,7 @@ public class CompassConfig {
 		}
 
 		String s = featureValueSupportedInVersion(requestVersion, section);
-		if (u.debugging) u.dbgOutput(u.thisProc() + "section=[" + section + "] requestVersion=[" + requestVersion + "] s=[" + s + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "section=[" + section + "] requestVersion=[" + requestVersion + "] s=[" + s + "] ", u.debugCfg);
 
 		try {
 			result = Integer.parseInt(s);
@@ -356,10 +355,10 @@ public class CompassConfig {
 	public static String featureValueSupportedInVersion(String requestVersion, String section) {
 		String value = "";
 		section = section.toUpperCase();
-		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + section + "] requestVersion=[" + requestVersion + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + section + "] requestVersion=[" + requestVersion + "] ", u.debugCfg);
 
 		if (featureExists(section)) {
-			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + section + "] requestVersion=[" + requestVersion + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + section + "] requestVersion=[" + requestVersion + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
 				if (key.startsWith(supportedTag + "/")) {
@@ -369,13 +368,13 @@ public class CompassConfig {
 
 					if (isVersionSupported(requestVersion, foundVersion)) {
 						value = String.join(",", featureList.get(key));
-						if (u.debugging) u.dbgOutput(u.thisProc() + " featurelist=[" + featureList.get(key) + "]  value=[" + value + "] ", u.debugCfg);
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featurelist=[" + featureList.get(key) + "]  value=[" + value + "] ", u.debugCfg);
 						break;
 					}
 				}
 			}
 		}
-		if (u.debugging) u.dbgOutput(u.thisProc() + " return: value=[" + value + "]  ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: value=[" + value + "]  ", u.debugCfg);
 		return value;
 	}
 	
@@ -383,13 +382,13 @@ public class CompassConfig {
 	public static List<String> featureValueList(String section) {
 		section = section.toUpperCase();
 		if (sectionExists(section)) {
-			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + section + "]  ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + section + "]  ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			String key = createKey(listValuesTag);
-			if (u.debugging) u.dbgOutput(u.thisProc() + "key=[" + key + "]", u.debugCfg);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "key=[" + key + "]", u.debugCfg);
 			if (featureList.containsKey(key)) {
 				List<String> allItems = featureList.get(key);
-				if (u.debugging) u.dbgOutput(u.thisProc() + "featureList containsKey [" + key + "] allItems=[" + allItems + "]", u.debugCfg);
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "featureList containsKey [" + key + "] allItems=[" + allItems + "]", u.debugCfg);
 				assert allItems != null : "list= items for section=[" + section + "] is empty";
 				return allItems;
 			}
@@ -402,12 +401,12 @@ public class CompassConfig {
 		String status = u.NotSupported;
 		name = name.toUpperCase();
 		section = section.toUpperCase();
-		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + section + "] name=[" + name + "]  requestVersion=[" + requestVersion + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + section + "] name=[" + name + "]  requestVersion=[" + requestVersion + "] ", u.debugCfg);
 		assert (!name.isEmpty()) : "name argument cannot be blank";
 
 		if (featureExists(section, name)) {
 			status = featureDefaultStatus(section, name);
-			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + section + "] name=[" + name + "]  requestVersion=[" + requestVersion + "]  featureDefault=[" + status + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + section + "] name=[" + name + "]  requestVersion=[" + requestVersion + "]  featureDefault=[" + status + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
 				if (key.startsWith(supportedTag + "/")) {
@@ -432,32 +431,32 @@ public class CompassConfig {
 
 	// first check if an entry 'option=value' exists; if not, try 'option' on its own
 	public static String featureSupportedInVersion(String requestVersion, String defaultStatus, String section, String name, String optionValue) {
-		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + section + "] defaultStatus=["+defaultStatus+"] name=[" + name + "]  optionValue=["+optionValue+"]  ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + section + "] defaultStatus=["+defaultStatus+"] name=[" + name + "]  optionValue=["+optionValue+"]  ", u.debugCfg);
 		String status = defaultStatus;
 		if (status.isEmpty()) status = u.NotSupported;
 		if (!optionValue.isEmpty()) {
 			String option = name+"="+optionValue;
 			if (featureExists(section, option)) {
 				status = featureSupportedInVersion(requestVersion, section, option);
-				if (u.debugging) u.dbgOutput(u.thisProc() + "option=value found: status=["+status+"] ", u.debugCfg);		
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "option=value found: status=["+status+"] ", u.debugCfg);		
 			}
 			else if (featureExists(section, name)) {
 				status = featureSupportedInVersion(requestVersion, section, name);
-				if (u.debugging) u.dbgOutput(u.thisProc() + "option found: status=["+status+"] ", u.debugCfg);		
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "option found: status=["+status+"] ", u.debugCfg);		
 			}
 		}
 		else if (featureExists(section, name)) {
 			status = featureSupportedInVersion(requestVersion, section, name);
-			if (u.debugging) u.dbgOutput(u.thisProc() + "option found: status=["+status+"] ", u.debugCfg);		
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "option found: status=["+status+"] ", u.debugCfg);		
 		}
-		if (u.debugging) u.dbgOutput(u.thisProc() + "return status=["+status+"] ", u.debugCfg);		
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "return status=["+status+"] ", u.debugCfg);		
 		return status;
 	}	
 
 	public static boolean isVersionSupported(String requestVersion, String testVersion) {
 		boolean isSupported = false;
 		String testVersionMax = "";
-		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: requestVersion=[" + requestVersion + "] testVersion=[" + testVersion + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: requestVersion=[" + requestVersion + "] testVersion=[" + testVersion + "] ", u.debugCfg);
 
 		// feature is supported in version 'testVersion', but there could be an interval
 		if (testVersion.contains(cRangeSeparator)) { //interval specified
@@ -501,10 +500,10 @@ public class CompassConfig {
 		Map<String, List<String>> featureList = sectionList.get(section);
 
 		for (String key : u.defaultClassificationsKeys) {
-			if (u.debugging) u.dbgOutput(u.thisProc() + " key=[" + key + "]", u.debugCfg);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " key=[" + key + "]", u.debugCfg);
 			if (featureList.containsKey(key)) {
 				List<String> thisList = featureList.get(key);
-				if (u.debugging) u.dbgOutput(u.thisProc() + " found key=[" + key + "] thisList=[" + thisList + "] ", u.debugCfg);
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " found key=[" + key + "] thisList=[" + thisList + "] ", u.debugCfg);
 				if (key.equals(defaultStatusTag)) {
 					status = thisList.get(0);
 					// keep searching for a more specific alternative
@@ -536,15 +535,15 @@ public class CompassConfig {
 
 	// TODO use section.toUpperCase() if called from outside
 	public static boolean sectionExists(String section) {
-		if (u.debugging) u.dbgOutput(u.thisProc() + "entry: section=[" + section + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=[" + section + "] ", u.debugCfg);
 		boolean result = sectionList.containsKey(section);
-		if (u.debugging) u.dbgOutput(u.thisProc() + "result: section=[" + section + "] result=[" + result + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: section=[" + section + "] result=[" + result + "] ", u.debugCfg);
 		return result;
 	}
 
 	// does a feature exist in the .cfg file?
 	public static boolean featureExists(String section) {
-		if (u.debugging) u.dbgOutput(u.thisProc() + "entry: section=[" + section + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=[" + section + "] ", u.debugCfg);
 		return sectionExists(section.toUpperCase());
 	}
 
@@ -553,14 +552,14 @@ public class CompassConfig {
 		boolean result = false;
 		name = name.toUpperCase();
 		section = section.toUpperCase();
-		if (u.debugging) u.dbgOutput(u.thisProc() + "entry: section=[" + section + "] name=[" + name + "]", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=[" + section + "] name=[" + name + "]", u.debugCfg);
 		if (sectionExists(section)) {
 			Map<String, List<String>> featureList = sectionList.get(section);
 			String key = createKey(listValuesTag);
-			if (u.debugging) u.dbgOutput(u.thisProc() + "key=[" + key + "]", u.debugCfg);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "key=[" + key + "]", u.debugCfg);
 			if (featureList.containsKey(key)) {
 				List<String> allItems = featureList.get(key);
-				if (u.debugging) u.dbgOutput(u.thisProc() + "featureList containsKey [" + key + "] allItems=[" + allItems + "]", u.debugCfg);
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "featureList containsKey [" + key + "] allItems=[" + allItems + "]", u.debugCfg);
 				if (allItems != null) {
 					if (allItems.contains(name)) {
 						result = true;
@@ -583,7 +582,7 @@ public class CompassConfig {
 				if (u.debugging) u.dbgOutput("key [" + key + "] NOT found, but feature exists", u.debugCfg);
 			}
 		}
-		if (u.debugging) u.dbgOutput(u.thisProc() + "result=[" + result + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result=[" + result + "] ", u.debugCfg);
 		return result;
 	}
 
@@ -591,7 +590,7 @@ public class CompassConfig {
 	// at this point, featureExists() has already returned true
 	public static String featureExistsArg(String section) {
 		String argN = "";
-		if (u.debugging) u.dbgOutput(u.thisProc() + "entry: section=[" + section + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=[" + section + "] ", u.debugCfg);
 		section = section.toUpperCase();
 		Map<String, List<String>> featureList = sectionList.get(section);
 		if (featureList == null) {
@@ -626,33 +625,33 @@ public class CompassConfig {
 		String sectionCopy = section, group = "";
 		section = section.toUpperCase();
 		name = name.toUpperCase();
-		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + sectionCopy + "] name=[" + name + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + sectionCopy + "] name=[" + name + "] ", u.debugCfg);
 
 		if (featureExists(section, name)) {
-			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + sectionCopy + "] name=[" + name + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + sectionCopy + "] name=[" + name + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
 				if (key.startsWith(reportGroupTag)) {
 					String foundGroup = key.substring(reportGroupTag.length());
-					if (u.debugging) u.dbgOutput(u.thisProc() + " key=[" + key + "] foundGroup B=[" + foundGroup + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " key=[" + key + "] foundGroup B=[" + foundGroup + "] ", u.debugCfg);
 					if (foundGroup.isEmpty()) {
 						// e.g. 'report_group=Built-in functions', applies to all items
 						List<String> thisList = featureList.get(key);
-						if (u.debugging) u.dbgOutput(u.thisProc() + " generic: foundGroup=[" + foundGroup + "] thisList=[" + thisList + "] ", u.debugCfg);
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " generic: foundGroup=[" + foundGroup + "] thisList=[" + thisList + "] ", u.debugCfg);
 						group = thisList.get(0);
 						//keep searching if there is a more specific group
 					} else if (foundGroup.charAt(0) != subKeySeparator.charAt(0)) {
 						// should not happen
-						if (u.debugging) u.dbgOutput(u.thisProc() + " Unexpected branch, foundGroup=[" + foundGroup + "] ", u.debugCfg);
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " Unexpected branch, foundGroup=[" + foundGroup + "] ", u.debugCfg);
 					} else {
 						// 'report_group-Fulltext Search=CONTAINSTABLE,FREETEXTTABLE,SEMANTICKEYPHRASETABLE[,...]'
 						// applies only to the actual names listed
 						List<String> thisList = featureList.get(key);
-						if (u.debugging) u.dbgOutput(u.thisProc() + " foundGroup=[" + foundGroup + "]  thisList=[" + thisList + "] ", u.debugCfg);
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " foundGroup=[" + foundGroup + "]  thisList=[" + thisList + "] ", u.debugCfg);
 						if (thisList.contains(name)) {
 							// this feature should be reported under 'foundGroup'
-							foundGroup = u.getPatternGroup(foundGroup, "^\\" + subKeySeparator + "(.*?)(\\=|$)", 1); // TODO substring until equal or end (indexOf = -1)
-							if (u.debugging) u.dbgOutput(u.thisProc() + " B: foundGroup=[" + foundGroup + "] ", u.debugCfg);
+							foundGroup = CompassUtilities.getPatternGroup(foundGroup, "^\\" + subKeySeparator + "(.*?)(\\=|$)", 1); // TODO substring until equal or end (indexOf = -1)
+							if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " B: foundGroup=[" + foundGroup + "] ", u.debugCfg);
 							group = foundGroup;
 							break;
 						}
@@ -660,7 +659,7 @@ public class CompassConfig {
 				}
 			}
 		}
-		if (u.debugging) u.dbgOutput(u.thisProc() + " return: group=[" + group + "]  ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: group=[" + group + "]  ", u.debugCfg);
 		return group;
 	}
 
@@ -668,27 +667,27 @@ public class CompassConfig {
 	public static String featureGroup(String section) {
 		String sectionCopy = section, group = "";
 		section = section.toUpperCase();
-		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + sectionCopy + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + sectionCopy + "] ", u.debugCfg);
 
 		if (featureExists(section)) {
-			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + sectionCopy + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + sectionCopy + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			String key = reportGroupTag;
 			if (featureList.containsKey(key)) {
 				List<String> thisList = featureList.get(key);
-				if (u.debugging) u.dbgOutput(u.thisProc() + " foundGroup=[" + key + "] thisList=[" + thisList + "] ", u.debugCfg);
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " foundGroup=[" + key + "] thisList=[" + thisList + "] ", u.debugCfg);
 				// e.g. 'report_group=Built-in functions'
 				group = thisList.get(0);
 			}
 		}
-		if (u.debugging) u.dbgOutput(u.thisProc() + " return: group=[" + group + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: group=[" + group + "] ", u.debugCfg);
 		return group;
 	}
 
 	// debug: dump all config keys
 	public static void dumpCfg() {
 		int nrKeys = 0;
-		if (u.debugging) u.dbgOutput(u.thisProc() + "=== dumping config ================= ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "=== dumping config ================= ", u.debugCfg);
 		if (u.debugging) u.dbgOutput("=== sections: ================= ", u.debugCfg);
 		for (String section : sectionList.keySet()) {
 			if (u.debugging) u.dbgOutput("  section=[" + section + "] ", u.debugCfg);
@@ -706,7 +705,7 @@ public class CompassConfig {
 			}
 		}
 		if (u.debugging) u.dbgOutput("=== Nr. keys: " + nrKeys + " ================= ", u.debugCfg);
-		if (u.debugging) u.dbgOutput(u.thisProc() + "======= end config ================= ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "======= end config ================= ", u.debugCfg);
 	}
 
 	private static boolean matchWildcard(String sectionName, String s, List<String> allItems) {
@@ -732,7 +731,7 @@ public class CompassConfig {
 		configFilePathName = Paths.get(pCfgFileName).toAbsolutePath().toString();
 
 		List<String> supportOptionsCfgFileUpperCase = new ArrayList<>(u.supportOptionsCfgFile);
-		u.listToUpperCase(supportOptionsCfgFileUpperCase);
+		CompassUtilities.listToUpperCase(supportOptionsCfgFileUpperCase);
 
         cfgFile = new File(configFileName);
         if (!cfgFile.exists()) {
@@ -815,7 +814,7 @@ public class CompassConfig {
 					else if (optionKey.equals(fileTimestampTag)) {
 						String monthList = "(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)";
 						u.cfgFileTimestamp = optionVal;
-						if (u.getPatternGroup(optionVal, "^((\\d+\\-)?"+monthList+"\\-20\\d\\d)$", 1).isEmpty()) {
+						if (CompassUtilities.getPatternGroup(optionVal, "^((\\d+\\-)?"+monthList+"\\-20\\d\\d)$", 1).isEmpty()) {
 							cfgOutput(fileTimestampTag + " key has invalid format.");
 							cfgOutput("Format must be: "+monthList+"-20xx");
 							u.errorExit(); // no point in continuing							
@@ -936,7 +935,7 @@ public class CompassConfig {
 
 				List<String> theseItems = new ArrayList<>(Arrays.asList(optionVal.split(",")));
 				if (!optionKey.equals(reportGroupTag)) {
-					u.listToUpperCase(theseItems);
+					CompassUtilities.listToUpperCase(theseItems);
 				}
 
 				Map<String, List<String>> featureList;
@@ -946,7 +945,7 @@ public class CompassConfig {
 				}
 				featureList = sectionList.get(sectionName.toUpperCase());
 				featureList.put(thisKey, theseItems);
-				if (u.debugging) u.dbgOutput(u.thisProc() + "added key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "]", u.debugCfg);
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "]", u.debugCfg);
 
 				// check items in 'supported' and 'report_group-xxx' items are in the listValues list, if it exists
 				if (u.wordAndBoundary(optionKey, supportedTag) || u.PatternMatches(optionKey, reportGroupTag + "\\-\\w+")) {
@@ -1073,7 +1072,7 @@ public class CompassConfig {
 			List<String> values = new LinkedList<>(Arrays.asList(arrayValues));
 			values.removeIf(val -> val.trim().isEmpty());
 			String value = String.join(",", values);
-			assert (section != null)  :  u.thisProc()+"null section found while reading"; // shouldn't happen
+			assert (section != null)  :  CompassUtilities.thisProc()+"null section found while reading"; // shouldn't happen
 			section.put(key, value);
 			updateChecksum(checksum, key);
 			updateChecksum(checksum, value);

@@ -12,6 +12,7 @@ public class CompassItem {
     private int lineNr;
 
     public CompassItem() {
+        this(null, 0);
     }
 
     public CompassItem(String name, int pLineNr) {
@@ -37,7 +38,12 @@ public class CompassItem {
     }
     
     public void attributeAppend(String s) {
-    	attributes += " " + s + " ";
+        if (s != null && !s.isEmpty() && !s.matches("^\\s+$")) {
+            if (attributes.length() > 0) {
+                attributes += " ";
+            }
+            attributes += s;
+        }
     }
     
     public String getAttributes() {

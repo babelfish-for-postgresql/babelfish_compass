@@ -19,7 +19,6 @@ import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.*;
 import java.util.stream.*;
 import java.util.regex.Matcher;
@@ -31,7 +30,7 @@ public class CompassUtilities {
 	// not-initialized strings
 	public final String uninitialized = "-init-";
 
-	public static boolean onWindows = false;;
+	public static boolean onWindows = false;
 	public static boolean onMac     = false;
 	public static boolean onMacDebug= false;
 	public static boolean onLinux   = false;
@@ -75,7 +74,7 @@ public class CompassUtilities {
 	public String cfgFileTimestamp = uninitialized;
 
 	// user-specified
-	public final String fileNameCharsAllowed = "[^\\w\\_\\.\\-\\/\\(\\)]";
+	public static final String fileNameCharsAllowed = "[^\\w\\_\\.\\-\\/\\(\\)]";
 	public String targetBabelfishVersion = ""; // Babelfish version for which we're doing the analysis
 	public boolean stdReport = false;	// development only
 
@@ -507,7 +506,7 @@ tooltipsHTMLPlaceholder +
 		"SET QUOTED_IDENTIFIER \\w+, before end of batch"+tttSeparator+"SET QUOTED_IDENTIFIER takes effect only at the start of the next batch in Babelfish; the SQL Server semantics where it applies to the next statement, is not currently supported",
 		"SET DEADLOCK_PRIORITY"+tttSeparator+"Setting the deadlock victimization priority is not currently supported",
 		"SET LOCK_TIMEOUT"+tttSeparator+"Setting the lock timeout is not currently supported",
-		CompassAnalyze.SetXactIsolationLevel+tttSeparator+"This transaction isolation level is not currently supported, due to PostgreSQL\'s MVCC mechanism",
+		CompassAnalyze.SetXactIsolationLevel+tttSeparator+"This transaction isolation level is not currently supported, due to PostgreSQL's MVCC mechanism",
 		
 		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index "+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish",
 		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish",
@@ -710,21 +709,21 @@ tooltipsHTMLPlaceholder +
 
 	// rudimentary symbol table, only for some very basic things needed
 	// there's a lot of room for improvement here
-	static Map<String, String> objTypeSymTab = new HashMap<String, String>();
-	static Map<String, String> UDDSymTab = new HashMap<String, String>();
-	static Map<String, String> SUDFSymTab = new HashMap<String, String>();
-	static Map<String, String> TUDFSymTab = new HashMap<String, String>();
-	static Map<String, String> colSymTab = new HashMap<String, String>();
+	static Map<String, String> objTypeSymTab = new HashMap<>();
+	static Map<String, String> UDDSymTab = new HashMap<>();
+	static Map<String, String> SUDFSymTab = new HashMap<>();
+	static Map<String, String> TUDFSymTab = new HashMap<>();
+	static Map<String, String> colSymTab = new HashMap<>();
 
 	//XML methods
 	static final List<String> XMLmethods = Arrays.asList("EXIST", "MODIFY", "QUERY", "VALUE", "NODES");
-	static Map<String, String> SUDFNamesLikeXML = new HashMap<String, String>();
-	static Map<String, String> TUDFNamesLikeXML = new HashMap<String, String>();
+	static Map<String, String> SUDFNamesLikeXML = new HashMap<>();
+	static Map<String, String> TUDFNamesLikeXML = new HashMap<>();
 
 	//HIERARCHYID methods
 	static final List<String> HIERARCHYIDmethodsFmt = Arrays.asList("GetAncestor", "GetDescendant", "GetLevel", "IsDescendantOf", "read", "GetReparentedValue", "ToString", "GetRoot", "Parse");  // Write cannot occur in SQL code
 	static List<String> HIERARCHYIDmethods = new ArrayList<>();
-	static Map<String, String> SUDFNamesLikeHIERARCHYID = new HashMap<String, String>();
+	static Map<String, String> SUDFNamesLikeHIERARCHYID = new HashMap<>();
 
 	// masking chars in identifiers
 	public static final String BBFMark            = "BBF_";
@@ -799,7 +798,7 @@ tooltipsHTMLPlaceholder +
 	public final String WeightedStr = "Weighted";
 
 	// user-defined weight factors
-	Map<String, Integer> userWeightFactor = new HashMap<String, Integer>();
+	Map<String, Integer> userWeightFactor = new HashMap<>();
 
 	// used in both CompassAnalyze and for reporting, need to be same string
 	static final String Datatypes           = "Datatypes";
@@ -930,13 +929,13 @@ tooltipsHTMLPlaceholder +
 		return s.startsWith(prefix) && (s.length() == len || PatternMatches(Character.toString(s.charAt(len)), "\\W"));
 	}
 
-	public String getPatternGroup(String s, String patt, int groupNr)
+	public static String getPatternGroup(String s, String patt, int groupNr)
 	{
 		Pattern p = Pattern.compile(patt, Pattern.CASE_INSENSITIVE);
 		return getPatternGroup(s, p, groupNr, MatchMethod.FIND);
 	}
 
-	public String getPatternGroup(String s, Pattern p, int groupNr, MatchMethod matchMethod)
+	public static String getPatternGroup(String s, Pattern p, int groupNr, MatchMethod matchMethod)
 	{
 		String grpStr = "";
 		Matcher m = p.matcher(s);
@@ -1012,47 +1011,73 @@ tooltipsHTMLPlaceholder +
 		}
 		return str.toString();
 	}
-	public String removeLastChar(String s) {
-	    return removeLastChars(s, 1);
+
+	public static String removeLastChar(String s) {
+		return removeLastChars(s, 1);
 	}
 
-	public String removeLastChars(String s, int nrChars) {
-	    return s.substring(0, s.length() - nrChars);
+	public static String removeLastChars(String s, int nrChars) {
+		String shortened = null;
+		if (s != null) {
+			if (nrChars > s.length()) {
+				shortened = "";
+			} else if (nrChars < 0) {
+				shortened = s;
+			} else {
+				shortened = s.substring(0, s.length() - nrChars);
+			}
+		}
+		return shortened;
 	}
 
-	public String capitalizeFirstChar(String s) {
-		if (s.length() == 0) return s;
-	    return s.substring(0,1).toUpperCase() + s.substring(1);
+	public static String capitalizeFirstChar(String s) {
+		String capitalized = null;
+		if (s != null) {
+			if (s.length() == 0) {
+				capitalized = s;
+			} else {
+				capitalized = s.substring(0, 1).toUpperCase() + s.substring(1);
+			}
+		}
+		return capitalized;
 	}
 
 	public String capitalizeInitChar(String s) {
 		if (s.length() == 0) return s;
 		StringTokenizer sTok = new StringTokenizer(s);
-		StringBuilder sNew= new StringBuilder();
-		while(sTok.hasMoreTokens()){
-	        sNew.append(capitalizeFirstChar(sTok.nextToken())).append(" ");
+		StringBuilder sNew = new StringBuilder();
+		while (sTok.hasMoreTokens()) {
+			sNew.append(capitalizeFirstChar(sTok.nextToken())).append(" ");
 		}
-	    return removeLastChar(sNew.toString());
+		return removeLastChar(sNew.toString());
 	}
 
 	public static void listToUpperCase(List<String> thisList) {
-		for(int i=0; i<thisList.size(); i++) {
-			thisList.set(i, thisList.get(i).toUpperCase());
-    	}
+		if (thisList != null) {
+			for (int i = 0; i < thisList.size(); i++) {
+				String str = thisList.get(i);
+				thisList.set(i, str != null ? str.toUpperCase() : null);
+			}
+		}
 	}
 
 	public static void listToLowerCase(List<String> thisList) {
-		for(int i=0; i<thisList.size(); i++) {
-			thisList.set(i, thisList.get(i).toLowerCase());
-    	}
+		if (thisList != null) {
+			for (int i = 0; i < thisList.size(); i++) {
+				String str = thisList.get(i);
+				thisList.set(i, str != null ? str.toLowerCase() : null);
+			}
+		}
 	}
 
-	public String reverseString(String s) {
-		s = new StringBuilder(s).reverse().toString();
-		String tmp = "~~!~=tmp=String=Babelfish~!~~";  // should not occur in actual data
-		s = s.replaceAll("\\(", tmp);
-		s = s.replaceAll("\\)", "(");
-		s = s.replaceAll(tmp, ")");
+	public static String reverseString(String s) {
+		if (s != null && s.length() > 1) {
+			s = new StringBuilder(s).reverse().toString();
+			String tmp = "~~!~=tmp=String=Babelfish~!~~";  // should not occur in actual data
+			s = s.replaceAll("\\(", tmp);
+			s = s.replaceAll("\\)", "(");
+			s = s.replaceAll(tmp, ")");
+		}
 		return s;
 	}
 
@@ -1149,7 +1174,7 @@ tooltipsHTMLPlaceholder +
 
 			StringBuilder sAligned = new StringBuilder();
 			StringBuilder tmp = new StringBuilder();
-			List<String> typeLines = new ArrayList<String>();
+			List<String> typeLines = new ArrayList<>();
 			lineCnt = 0;
 			for (String line : tmpLines) {
 				lineCnt++;
@@ -1335,28 +1360,42 @@ tooltipsHTMLPlaceholder +
 		return result;
 	}
 
-	public String nameFormatValid (String nameType, String name) {
+	/**
+	 * Checks for valid user entered command line arguments for Application Name or Report Name. Returns a error message
+	 * if the entered string contains directory separators (slashes) or any not allowed characters.
+	 * @param nameType one of "report" or "appname"
+	 * @param name name of report or appname
+	 * @return empty string if name is valid or error message if invalid
+	 * @throws IllegalArgumentException if nameType does not equal "report" or "appname"
+	 * @see CompassUtilities#fileNameCharsAllowed
+	 */
+	public static String nameFormatValid(String nameType, String name) {
 		String result = "";
-		assert (nameType.equals("report") || nameType.equals("appname")) : "invalid nameType=["+nameType+"] ";
-		// check for characters not allowed in report/app name
-		// first remove slashes
-		if (name.contains("\\")) {
-			result = "'\\'";
+		if (!"report".equals(nameType) && !"appname".equals(nameType)) {
+			throw new IllegalArgumentException("invalid nameType=[" + nameType + "]");
 		}
-		else if (name.contains("/")) {
-			result = "'/'";
-		}
-		else {
-			// other not-allowed chars
-			String badChar = getPatternGroup(name, "("+fileNameCharsAllowed+")", 1);
-			if (!badChar.isEmpty()) {
-				result = "["+badChar + "]  (allowed characters: [A-Za-z0-9\\.-()])";
-			}
-			else if (name.contains("..\\")) {
-				result = "'..\\'";
-			}
-			else if (name.contains("../")) {
-				result = "'../'";
+		if (name == null || name.isEmpty() || name.matches("^\\s+$")) {
+			result = "[empty name]";
+		} else {
+			// first check for directory separator slashes
+			if (name.contains("\\")) {
+				if (!name.contains("..\\")) {
+					result = "'\\'";
+				} else {
+					result = "'..\\'";
+				}
+			} else if (name.contains("/")) {
+				if (!name.contains("../")) {
+					result = "'/'";
+				} else {
+					result = "'../'";
+				}
+			} else {
+				// check for characters not allowed in report/app name
+				String badChar = getPatternGroup(name, "(" + fileNameCharsAllowed + ")", 1);
+				if (!badChar.isEmpty()) {
+					result = "[" + badChar + "]  (allowed characters: [A-Za-z0-9\\.-()_])";
+				}
 			}
 		}
 		return result;
