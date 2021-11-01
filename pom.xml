@@ -96,8 +96,6 @@
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>${maven-assemply.version}</version>
                 <configuration>
-                    <source>${jre.version}</source>
-                    <target>${jre.version}</target>
                     <archive>
                         <manifest>
                             <mainClass>compass.Compass</mainClass>
