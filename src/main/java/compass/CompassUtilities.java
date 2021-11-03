@@ -945,7 +945,7 @@ tooltipsHTMLPlaceholder +
 	    return m.replaceAll("\\\\$0");
 	}
 
-	public String getPatternGroup(String s, String patt, int groupNr)
+	public static String getPatternGroup(String s, String patt, int groupNr)
 	{
 		Pattern p = Pattern.compile(patt, Pattern.CASE_INSENSITIVE);
 		return getPatternGroup(s, p, groupNr, MatchMethod.FIND);
