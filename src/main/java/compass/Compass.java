@@ -191,7 +191,8 @@ public class Compass {
 				u.appOutput("   -reportoption <options>      : additional reporting detail (try -help -reportoption)");				
 				u.appOutput("   -reportfile <name>           : specifies file name for report file (without .html)");				
 				u.appOutput("   -list                        : display imported files/applications for a report");				
-				u.appOutput("   -analyze                     : (re-)run analysis on imported files, and generate report");				
+				u.appOutput("   -analyze                     : (re-)run analysis on imported files, and generate report");		
+				u.appOutput("   -nooverride                  : do not use overrides from " + CompassConfig.userConfigFileName);						
 				u.appOutput("   -babelfish-version <version> : specify target Babelfish version (default=latest)");
 				u.appOutput("   -encoding <encoding>         : input file encoding, e.g. '-encoding utf8'. Default="+Charset.defaultCharset());
 				u.appOutput("                                  use '-encoding help' to list available encodings");
@@ -278,6 +279,10 @@ public class Compass {
 				listContents = true;
 				continue;
 			}
+			if (arg.equals("-nooverride")) {
+				u.userConfig = false;
+				continue;
+			}			
 			if (arg.equals("-delete")) {
 				deleteReport = true;
 				continue;			
@@ -568,7 +573,8 @@ public class Compass {
 		
  		// read config file
  		u.cfgFileName = u.defaultCfgFileName; // todo: make configurable?
-		cfg.validateCfgFile(u.cfgFileName);
+ 		u.userCfgFileName = u.defaultUserCfgFileName; // todo: make configurable?
+		cfg.validateCfgFile(u.cfgFileName, u.userCfgFileName);		
 		assert u.cfgFileFormatVersionRead > 0 : "cfgFileFormatVersionRead=["+u.cfgFileFormatVersionRead+"], must be > 0";
 		if (u.cfgFileFormatVersionRead > u.cfgFileFormatVersionSupported) {
 			u.appOutput("File format version number in "+ u.cfgFileName + " is "+ u.cfgFileFormatVersionRead+".");
@@ -666,6 +672,12 @@ public class Compass {
 			u.appOutput(tmp);
 			tmp =       "Command line input files   : "+String.join(" ",inputFilesOrig);
 			CompassUtilities.reportHdrLines += tmp + "\n";			
+			u.appOutput(tmp);
+			tmp =       "User .cfg file (overrides) : " + CompassConfig.userConfigFilePathName;
+			if (!u.userConfig) {
+				tmp += " (skipped)";
+			}
+			u.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
 			u.appOutput("QUOTED_IDENTIFIER default  : "+quotedIdentifier);
 			tmp =       "Report name                : "+reportName;
@@ -766,9 +778,10 @@ public class Compass {
 				u.runOScmd("cmd /c \"explorer.exe /n,/select,\"\""+u.reportFilePathName+"\"\" \"");
 				u.runOScmd("cmd /c \"explorer.exe \"\""+u.reportFilePathName+"\"\" \"");
 			}
-			else if (CompassUtilities.onMac) {
-				String cmd = "open " + u.reportFilePathName;
-				if (CompassUtilities.onMacDebug) {
+
+			else if (u.onMac) {
+				String cmd = "open . " + u.reportFilePathName;
+				if (u.onMacDebug) {
 					u.appOutput("***Mac (dev msg): trying to open report in browser: cmd=["+cmd+"] ");
 				}
 				u.runOScmd(cmd);

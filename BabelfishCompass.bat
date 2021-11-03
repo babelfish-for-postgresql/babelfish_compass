@@ -12,9 +12,8 @@ title Babelfish Compass
 rem ----------------------------------------------------
 set THISPROG=%~n0%~x0
 rem ----------------------------------------------------
-rem fixed installation dir for now:
 
-SET COMPASS=C:\BabelfishCompass
+SET COMPASS=%cd%
 
 rem Check:
 if exist %COMPASS% ( 

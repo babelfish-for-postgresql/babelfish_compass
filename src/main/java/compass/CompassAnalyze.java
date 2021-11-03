@@ -134,6 +134,7 @@ public class CompassAnalyze {
 	static final String WriteText             = "WRITETEXT";
 	static final String UpdateText            = "UPDATETEXT";
 	static final String CreateDatabaseOptions = "CREATE DATABASE options";
+	static final String AlterDatabase         = "ALTER DATABASE";	
 	static final String AlterDatabaseOptions  = "ALTER DATABASE options";
 	static final String DbccStatements        = "DBCC statements";
 	static final String Traceflags            = "Traceflags";
@@ -274,8 +275,8 @@ public class CompassAnalyze {
 	private static String featureSupportedInVersion(String section, String name) {
 		return cfg.featureSupportedInVersion(u.targetBabelfishVersion, section, name);
 	}
-	private static String featureSupportedInVersion(String defaultStatus, String section, String name, String optionValue) {
-		return cfg.featureSupportedInVersion(u.targetBabelfishVersion, defaultStatus, section, name, optionValue);
+	private static String featureSupportedInVersion(String section, String name, String optionValue) {
+		return cfg.featureSupportedInVersion(u.targetBabelfishVersion, section, name, optionValue);
 	}
 	private static int featureIntValueSupportedInVersion(String section) {
 		return cfg.featureIntValueSupportedInVersion(u.targetBabelfishVersion, section);
@@ -3205,7 +3206,7 @@ public class CompassAnalyze {
 							continue;
 						}						
 					}
-					String trigStatus = featureSupportedInVersion("", TriggerOptions, option, optionValue);
+					String trigStatus = featureSupportedInVersion(TriggerOptions, option, optionValue);
 					String hint = "";
 					if (option.startsWith("EXECUTE AS") && (!trigStatus.equals(u.Supported))) {
 						hint = ": name resolution aspect not included in PG";
@@ -3354,7 +3355,7 @@ public class CompassAnalyze {
 							continue;
 						}
 						if (option.equals("NATIVE_COMPILATION")) nativeCompileFound = true;  	
-						String funcStatus = featureSupportedInVersion("", FunctionOptions, option, optionValue);
+						String funcStatus = featureSupportedInVersion(FunctionOptions, option, optionValue);
 						String hint = "";
 						if (option.startsWith("EXECUTE AS") && (!funcStatus.equals(u.Supported))) {
 							hint = ": name resolution aspect not included in PG";
@@ -3441,7 +3442,7 @@ public class CompassAnalyze {
 							continue;
 						}							
 						if (option.equals("NATIVE_COMPILATION")) nativeCompileFound = true;  	
-						String procOptionStatus = featureSupportedInVersion("", ProcedureOptions, option, optionValue);
+						String procOptionStatus = featureSupportedInVersion(ProcedureOptions, option, optionValue);
 						if (option.equals("RECOMPILE") && (!procOptionStatus.equals(u.Supported))) procOptionStatus = u.ReviewPerformance;
 						String hint = "";
 						if (option.startsWith("EXECUTE AS") && (!procOptionStatus.equals(u.Supported))) {
@@ -4950,7 +4951,7 @@ public class CompassAnalyze {
 				if (ctx.CONTAINMENT() != null) {
 					String option = "CONTAINMENT";
 					String optionValue = ctx.containment.getText().toUpperCase();
-					String status = featureSupportedInVersion(u.Ignored, CreateDatabaseOptions, option, optionValue);
+					String status = featureSupportedInVersion(CreateDatabaseOptions, option, optionValue);
 					captureItem("Option "+formatOptionDisplay(option,optionValue)+	", in CREATE DATABASE", option, CreateDatabaseOptions, option, status, ctx.start.getLine());
 				}
 				captureItem("CREATE DATABASE "+dbName, dbName, DatabasesReportGroup, "", u.Supported, ctx.start.getLine(), "0");
@@ -4963,10 +4964,10 @@ public class CompassAnalyze {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 				String dbName = "";
 				
-				// is ALTER DATABASE supported at all? indicated by prsence or absence of any support item
-				String AlterDBSupported = featureValueSupportedInVersion(AlterDatabaseOptions);
-				if (AlterDBSupported.isEmpty()) {
-					captureItem("ALTER DATABASE", "", DatabasesReportGroup, "", u.NotSupported, ctx.start.getLine());
+				// is ALTER DATABASE supported at all? 
+				String AlterDBStatus = featureSupportedInVersion(AlterDatabase);
+				if (!AlterDBStatus.equals(u.Supported)) {
+					captureItem("ALTER DATABASE", "", DatabasesReportGroup, "", AlterDBStatus, ctx.start.getLine());
 				}
 				else {
 					if (ctx.database != null) dbName = ctx.database.getText();
@@ -5003,14 +5004,14 @@ public class CompassAnalyze {
 							option = getOptionName(option, "(");
 						}
 						
-						String status = featureSupportedInVersion("", AlterDatabaseOptions, option, optionValue);
+						String status = featureSupportedInVersion(AlterDatabaseOptions, option, optionValue);
 						captureItem("Option "+formatOptionDisplay(option,optionValue)+", in ALTER DATABASE", option, AlterDatabaseOptions, option, status, ctx.start.getLine());
 						if (u.debugging) u.dbgOutput("ALTER DATABASE, dbName=["+dbName+"]  option=["+option+"] optionValue=["+optionValue+"]  status=["+status+"] ", u.debugPtree);
 					}
 
 					if (ctx.MODIFY() != null) {
 						String option = "MODIFY NAME";
-						String status = featureSupportedInVersion(u.Ignored, AlterDatabaseOptions, option, "");
+						String status = featureSupportedInVersion(AlterDatabaseOptions, option, "");
 						captureItem("Option "+option+", in ALTER DATABASE", option, AlterDatabaseOptions, option, status, ctx.start.getLine());
 					}
 				}
@@ -5141,7 +5142,7 @@ public class CompassAnalyze {
 					String option = "DELAYED_DURABILITY";
 					String optionValue = "ON";
 					if (ctx.OFF() != null) optionValue = "OFF";
-					String status = featureSupportedInVersion("", Transactions, option, optionValue);
+					String status = featureSupportedInVersion(Transactions, option, optionValue);
 					captureItem(stmt+scope+xactNameFmt+", WITH " +formatOptionDisplay(option,optionValue), "", Transactions, option, status, ctx.start.getLine());
 					captured = true;
 				}

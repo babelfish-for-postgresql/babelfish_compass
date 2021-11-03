@@ -15,28 +15,34 @@ import java.util.zip.Checksum;
 // this class reads/validates the .cfg file, and provides API calls to determine if a particular feature is supported
 public class CompassConfig {
 	static String configFileName;
+	static String userConfigFileName;
 	static String configFilePathName;
+	static String userConfigFilePathName;
 	static File cfgFile;
+	static File userCfgFile;
     static Map<String, Map<String, String>> cfg;
+    static Map<String, Map<String, String>> userCfg;
 
 	// must be the first section in the .cfg file:
 	static final String Babelfish_Compass_Name = "Babelfish for T-SQL";
 
 	static List<String> Babelfish_VersionList = new ArrayList<>();
 	static Map<String, Map<String, List<String>>> sectionList = new LinkedHashMap<>();
+	static Map<String, Map<String, List<String>>> sectionOverrideList = new LinkedHashMap<>();
 	static Map<String, String> featureArgOptions = new LinkedHashMap<>();  // assuming only one argument per feature. If more, the value needs to become a List
     static boolean cfgFileValid = true;
+    static boolean userCfgFileValid = true;
     static boolean versionInvalid = false;
 
     // keys in sections
-    static final String validVersionsTag = "VALID_VERSIONS";
-    static final String fileFormatTag    = "FILE_FORMAT";
-    static final String fileTimestampTag = "FILE_TIMESTAMP";
-    static final String listValuesTag    = "LIST";
-    static final String defaultStatusTag = "DEFAULT_CLASSIFICATION";
-    static final String reportGroupTag   = "REPORT_GROUP";
-    static final String supportedTag     = "SUPPORTED";
-    static final String ruleTag          = "RULE";
+    static final String validVersionsTag  = "VALID_VERSIONS";
+    static final String fileFormatTag     = "FILE_FORMAT";
+    static final String fileTimestampTag  = "FILE_TIMESTAMP";
+    static final String listValuesTag     = "LIST";
+    static final String defaultStatusTag  = "DEFAULT_CLASSIFICATION";
+    static final String reportGroupTag    = "REPORT_GROUP";
+    static final String supportedTag      = "SUPPORTED";
+    static final String ruleTag           = "RULE";
 
 	static final String wildcardChar = "%"; // can be used in list key as a wildcard
 	static final String wildcardTag = "WILDCARD";
@@ -47,6 +53,12 @@ public class CompassConfig {
 
     // separator for range of versions
 	static final String cRangeSeparator = "-";
+	
+	static List<String> supportOptionsCfgFileUpperCase = new ArrayList<>();	
+		
+	// user-defined cfg file; keep original .cfg file order
+	static List<String> cfgSections = new ArrayList<>();
+
 
 	public static CompassUtilities u = CompassUtilities.getInstance();
 
@@ -58,8 +70,10 @@ public class CompassConfig {
 		return instance;
 	}
 
-	// entry point for initializing the .cfg part
-	public void validateCfgFile(String pCfgFileName) throws Exception {
+	// entry point for initializating the .cfg part
+	public void validateCfgFile(String pCfgFileName, String pUserCfgFileName) throws Exception {
+		supportOptionsCfgFileUpperCase = new ArrayList<>(u.supportOptionsCfgFile);	
+		u.listToUpperCase(supportOptionsCfgFileUpperCase);	
 		readCfgFile(pCfgFileName);
 
 		if (u.debugCfg) {
@@ -74,11 +88,167 @@ public class CompassConfig {
 			cfgOutput("Configuration file not valid");
 			u.errorExit();
 		}
-		cfgOutput("Latest "+CompassUtilities.babelfishProg+" version supported: "+latestBabelfishVersion());
+		cfgOutput("Latest "+u.babelfishProg+" version supported: "+latestBabelfishVersion());
+		
+		// user .cfg file
+		validateUserCfgFile(pUserCfgFileName); 
+		if (!userCfgFileValid) {
+			cfgOutput(userConfigFilePathName, "User configuration file not valid");
+			u.errorExit();	
+		}
 	}
 
+	//validate/update the user's .cfg file; create if not existing
+	private static void validateUserCfgFile(String pUserCfgFileName) throws IOException {
+		userConfigFileName = pUserCfgFileName;
+		userConfigFilePathName = u.getUserCfgFilePathName(userConfigFileName);		
+        userCfgFile = new File(userConfigFilePathName);
+		if (u.userConfig) {
+	       // nothing
+	    }
+	    else {
+	        u.appOutput("Skipping "+userConfigFilePathName);
+	        return;
+	    }
+                
+        if (!userCfgFile.exists()) {
+        	u.appOutput("Creating user configuration file "+userConfigFilePathName);
+        	
+			u.openUserCfgFileNew(userConfigFileName);	
+			for (String s : cfgSections) {
+				if (s.equals(Babelfish_Compass_Name)) continue;
+				u.writeUserCfgFile("["+s+"]\n\n");
+			}
+			u.closeUserCfgFile();	    			    	
+        }
+        else {
+        	// read and validate contents of user .cfg file
+        	 u.appOutput("Reading "+userConfigFilePathName);
+			userCfg = getCfg(userConfigFilePathName, true);    
+			for (String sectionName: userCfg.keySet()) {         
+				Map<String, String> section = userCfg.get(sectionName);
+				//u.appOutput("sectionName=[" + sectionName + "]");
+				if (!sectionList.containsKey(sectionName.toUpperCase())) {
+					cfgOutput(userConfigFilePathName, "section ["+sectionName+"] not found in " + configFilePathName);
+					userCfgFileValid = false;
+					continue;
+				}
+
+				for (String optionKey : section.keySet()) {
+					String optionVal = section.get(optionKey);
+					String optionKeyCopy = optionKey;
+					optionKey = optionKey.toUpperCase();
+					String thisKey = createKey(optionKey);
+					// key: 'default_classification' items
+					if (optionKey.startsWith(defaultStatusTag)) {
+						if (optionKey.equals(defaultStatusTag)) {
+							if (u.validSupportOptionsCfgFile.contains(optionVal.toUpperCase())) {
+								optionVal = u.supportOptions.get(supportOptionsCfgFileUpperCase.indexOf(optionVal.toUpperCase()));
+							} 
+							else {
+								cfgOutput(userConfigFilePathName, "Section [" + sectionName + "]: override key " + defaultStatusTag + " has invalid value [" + optionVal + "]. Valid values are " + u.validSupportOptionsCfgFileOrig);
+								userCfgFileValid = false;
+							}
+						} 
+						else if (!u.overrideClassificationsKeys.contains(optionKey)) {
+							cfgOutput(userConfigFilePathName, "Section [" + sectionName + "]: override key " + optionKey + " is invalid. Valid values are " + u.overrideClassificationsKeysOrig);
+							userCfgFileValid = false;
+						}
+						else {
+							if (optionVal.equals("*")) {
+								// default_classification-xxx=* ==> change to: default_classification=xxx
+								optionVal = optionKey.substring(defaultStatusTag.length() + 1);
+								optionKey = optionKey.substring(0,defaultStatusTag.length());
+								thisKey = createKey(optionKey);
+							}
+						}
+					}
+					// key: 'report_group', 'report_group-XYZ'
+					else if (optionKey.startsWith(reportGroupTag)) {
+						if (optionVal.isEmpty()) {
+							cfgOutput(userConfigFilePathName, "Invalid override key '" + reportGroupTag + "=': value cannot be blank");
+							userCfgFileValid = false;
+						} 
+						else if (optionVal.equals("*")) {
+							if (optionKey.length() > reportGroupTag.length()) {
+								// report_group-xxx=* ==> change to: report_group=xxx
+								optionVal = optionKey.substring(reportGroupTag.length() + 1);
+								optionKey = optionKey.substring(0,reportGroupTag.length());
+								thisKey = createKey(optionKey);				
+							}
+							else {
+								cfgOutput(userConfigFilePathName, "Invalid key '" + reportGroupTag + "=': value must be a group name, not '*'");
+								cfgFileValid = false;
+							}							
+						}
+						// do not lowercase the group name when it is part of the key
+						if (optionKey.length() > reportGroupTag.length()) {
+							String groupName = optionKeyCopy.substring(reportGroupTag.length() + 1);
+							// the key is in uppercase, but we want the group name to preserve the case, so patch it in
+							thisKey = reportGroupTag + subKeySeparator + groupName; 
+						}
+					} 
+					else {
+						// catchall
+						cfgOutput(userConfigFilePathName, "Invalid override key '" + optionKey + "'");
+						userCfgFileValid = false;
+					}	
+						
+					// record the overrides
+					List<String> theseItems = new ArrayList<>(Arrays.asList(optionVal.split(",")));
+					if (!optionKey.equals(reportGroupTag)) {
+						u.listToUpperCase(theseItems);
+					}
+							
+					if (!sectionOverrideList.containsKey(sectionName.toUpperCase())) {
+						sectionOverrideList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
+					}
+					
+					Map<String, List<String>> featureList;
+					featureList = sectionOverrideList.get(sectionName.toUpperCase());
+					featureList.put(thisKey, theseItems);
+					if (u.debugging) u.dbgOutput(u.thisProc() + "added override key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "]", u.debugCfg);		
+					
+					// check items in 'report_group-xxx', default_classification-XXX'  are in the listValues key (if a list exists)
+					if (optionKey.startsWith(reportGroupTag+subKeySeparator) ||
+					    optionKey.startsWith(defaultStatusTag+subKeySeparator)
+					   ) {					
+						boolean itemValid = validateItemsListed(userConfigFilePathName, optionKey, optionVal, thisKey, sectionName, sectionList.get(sectionName.toUpperCase()), theseItems);				
+						userCfgFileValid = userCfgFileValid & itemValid;
+					}															
+				}				
+			}
+			if (!userCfgFileValid) {
+				return;
+			}
+			
+			// patch up .cfg file
+			// first determine if there are any keys missing compared to the main .cfg file
+			// if so, append the missing keys 
+			StringBuilder addLines = new StringBuilder("");
+			for (String mainSection: cfg.keySet()) {
+				if (mainSection.equals(Babelfish_Compass_Name)) continue;
+				if (userCfg.containsKey(mainSection)) continue;
+				u.appOutput("Appending section ["+mainSection+"] to "+ userConfigFilePathName);
+				addLines.append("["+mainSection+"]\n\n");
+			}
+			
+			// add missing sections
+			if (addLines.length() > 0) {
+				u.openUserCfgFileAppend(userConfigFileName);	
+				u.writeUserCfgFile(addLines.toString());
+				u.closeUserCfgFile();	 
+			}
+		}
+		//u.errorExit();
+	}
+	
 	public static void cfgOutput(String s) {
-		u.appOutput(configFileName+": "+s);
+		cfgOutput(s, configFileName);
+	}
+	public static void cfgOutput(String cfgFileName, String s) {
+		if (cfgFileName.isEmpty()) cfgFileName = configFilePathName;
+		u.appOutput(cfgFileName+": "+s);
 	}
 
 	public static boolean isValidBabelfishVersion(String version) {
@@ -199,10 +369,10 @@ public class CompassConfig {
 
 	// for a feature where the actual value of the Nth argument needs to be validated:
 	public static String featureArgSupportedInVersion(String requestVersion, String section, String arg, String argValue) {
-		String status = u.NotSupported, sectionCopy = section;
+		String status = u.NotSupported;
 		section = section.toUpperCase();
 		arg = arg.toUpperCase();
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + sectionCopy + "]  requestVersion=[" + requestVersion + "] arg=[" + arg + "] argValue=[" + argValue + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + section + "]  requestVersion=[" + requestVersion + "] arg=[" + arg + "] argValue=[" + argValue + "] ", u.debugCfg);
 		if (featureArgOptions.containsKey(section)) {
 			argValue = argValue.toUpperCase();
 			if (argValue.charAt(0) == '\'') {
@@ -218,18 +388,18 @@ public class CompassConfig {
 				// admittedly, this does not catch all expressions
 				return u.ReviewManually;
 			}
-			status = featureDefaultStatus(section);
-			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureArgOptions found: section=[" + sectionCopy + "]  requestVersion=[" + requestVersion + "] arg=[" + arg + "] argValue=[" + argValue + "] ", u.debugCfg);
+			
+			if (u.debugging) u.dbgOutput(u.thisProc() + " featureArgOptions found: section=[" + section + "]  requestVersion=[" + requestVersion + "] arg=[" + arg + "] argValue=[" + argValue + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 
 			for (String key : featureList.keySet()) {
-				if (u.debugging) u.dbgOutput("key=[" + key + "] ", u.debugCfg);
+				if (u.debugging) u.dbgOutput(u.thisProc() +"key=[" + key + "] ", u.debugCfg);
 				if (key.startsWith(supportedTag + "/") && key.endsWith("/" + arg)) {
 					String foundVersion = key.substring(supportedTag.length() + 1, key.length() - arg.length() - 1);
-					if (u.debugging) u.dbgOutput("key=[" + key + "] foundVersion=[" + foundVersion + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() +"key=[" + key + "] foundVersion=[" + foundVersion + "] ", u.debugCfg);
 					if (foundVersion.isEmpty()) continue;  // should never be blank
 					List<String> thisList = featureList.get(key);
-					if (u.debugging) u.dbgOutput("featureList Key=[" + key + "] (" + thisList.size() + ") --> " + thisList, u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() +"featureList Key=[" + key + "] (" + thisList.size() + ") --> " + thisList, u.debugCfg);
 					if (thisList.contains(argValue) || thisList.contains("*")) {
 						// feature is supported in version 'foundVersion' -- is that same or earlier as what is being asked?
 						if (isVersionSupported(requestVersion, foundVersion)) {
@@ -239,27 +409,30 @@ public class CompassConfig {
 					}
 				}
 			}
+			if (!status.equals(u.Supported)) {
+				status = featureDefaultStatus(section);				
+			}		
 		}
 		return status;
 	}
 
 	// return NotSupported in case no supported minimum version was found
 	public static String featureSupportedMinimumVersion(String section) {
-		String minVersion = "", sectionCopy = section;
+		String minVersion = "";
 		section = section.toUpperCase();
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + sectionCopy + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + section + "] ", u.debugCfg);
 
 		if (featureExists(section)) {
-			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + sectionCopy + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + section + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
 				if (key.startsWith(supportedTag + "/")) {
 					String foundVersion = key.substring(supportedTag.length() + 1);
-					if (u.debugging) u.dbgOutput("key=[" + key + "] foundVersion=[" + foundVersion + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() +"key=[" + key + "] foundVersion=[" + foundVersion + "] ", u.debugCfg);
 					if (foundVersion.isEmpty()) continue;
 
 					List<String> thisList = featureList.get(key);
-					if (u.debugging) u.dbgOutput(" thisList  key=[" + key + "] => [" + thisList + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() +" thisList  key=[" + key + "] => [" + thisList + "] ", u.debugCfg);
 					if (thisList.contains("*")) {
 						// feature is supported in version 'foundVersion'
 						if (foundVersion.contains(cRangeSeparator)) { //interval was specified
@@ -275,19 +448,19 @@ public class CompassConfig {
 
 	// return NotSupported in case no supported minimum version was found
 	public static String featureSupportedMinimumVersion(String section, String name) {
-		String minVersion = "", sectionCopy = section;
+		String minVersion = "";
 		section = section.toUpperCase();
 		name = name.toUpperCase();
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + sectionCopy + "] name=[" + name + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + section + "] name=[" + name + "] ", u.debugCfg);
 		assert (!name.isEmpty()) : "name argument cannot be blank";
 
 		if (featureExists(section, name)) {
-			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + sectionCopy + "] name=[" + name + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + section + "] name=[" + name + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
 				if (key.startsWith(supportedTag + "/")) {
 					String foundVersion = key.substring(supportedTag.length() + 1);
-					if (u.debugging) u.dbgOutput("key=[" + key + "] foundVersion=[" + foundVersion + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() +"key=[" + key + "] foundVersion=[" + foundVersion + "] ", u.debugCfg);
 					if (foundVersion.isEmpty()) continue;
 					List<String> thisList = featureList.get(key);
 					if (thisList.contains(name) || thisList.contains("*")) {
@@ -304,18 +477,17 @@ public class CompassConfig {
 	}
 
 	public static String featureSupportedInVersion(String requestVersion, String section) {
-		String status = u.NotSupported, sectionCopy = section;
+		String status = u.NotSupported;
 		section = section.toUpperCase();
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + sectionCopy + "] requestVersion=[" + requestVersion + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + section + "] requestVersion=[" + requestVersion + "] ", u.debugCfg);
 
 		if (featureExists(section)) {
-			status = featureDefaultStatus(section);
-			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + sectionCopy + "] requestVersion=[" + requestVersion + "] featureDefault=[" + status + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + section + "] requestVersion=[" + requestVersion + "] featureDefault=[" + status + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
 				if (key.startsWith(supportedTag + "/")) {
 					String foundVersion = key.substring(supportedTag.length() + 1);
-					if (u.debugging) u.dbgOutput("key=[" + key + "] foundVersion=[" + foundVersion + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() +"key=[" + key + "] foundVersion=[" + foundVersion + "] ", u.debugCfg);
 					if (foundVersion.isEmpty()) continue;
 					if (isVersionSupported(requestVersion, foundVersion)) {
 						status = u.Supported;
@@ -323,6 +495,9 @@ public class CompassConfig {
 					}
 				}
 			}
+			if (!status.equals(u.Supported)) {
+				status = featureDefaultStatus(section);				
+			}					
 		}
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: status=[" + status + "] ", u.debugCfg);
 		return status;
@@ -363,7 +538,7 @@ public class CompassConfig {
 			for (String key : featureList.keySet()) {
 				if (key.startsWith(supportedTag + "/")) {
 					String foundVersion = key.substring(supportedTag.length() + 1);
-					if (u.debugging) u.dbgOutput("key=[" + key + "] foundVersion=[" + foundVersion + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() +"key=[" + key + "] foundVersion=[" + foundVersion + "] ", u.debugCfg);
 					if (foundVersion.isEmpty()) continue;
 
 					if (isVersionSupported(requestVersion, foundVersion)) {
@@ -404,19 +579,18 @@ public class CompassConfig {
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + section + "] name=[" + name + "]  requestVersion=[" + requestVersion + "] ", u.debugCfg);
 		assert (!name.isEmpty()) : "name argument cannot be blank";
 
-		if (featureExists(section, name)) {
-			status = featureDefaultStatus(section, name);
-			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + section + "] name=[" + name + "]  requestVersion=[" + requestVersion + "]  featureDefault=[" + status + "] ", u.debugCfg);
+		if (featureExists(section, name)) {			
+			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + section + "] name=[" + name + "]  requestVersion=[" + requestVersion + "]  featureDefault=[" + status + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
 				if (key.startsWith(supportedTag + "/")) {
 					String foundVersion = key.substring(supportedTag.length() + 1);
-					if (u.debugging) u.dbgOutput("key=[" + key + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() +"key=[" + key + "] ", u.debugCfg);
 					if (foundVersion.isEmpty()) continue;
-					if (u.debugging) u.dbgOutput("foundVersion=[" + foundVersion + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() + "foundVersion=[" + foundVersion + "] ", u.debugCfg);
 
 					List<String> thisList = featureList.get(key);
-					if (u.debugging) u.dbgOutput("featureList Key=[" + key + "] (" + thisList.size() + ") --> " + thisList, u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() +"featureList Key=[" + key + "] (" + thisList.size() + ") --> " + thisList, u.debugCfg);
 					if (thisList.contains(name) || thisList.contains("*")) {
 						if (isVersionSupported(requestVersion, foundVersion)) {
 							status = u.Supported;
@@ -425,31 +599,33 @@ public class CompassConfig {
 					}
 				}
 			}
+			if (!status.equals(u.Supported)) {
+				status = featureDefaultStatus(section, name);				
+			}
 		}
 		return status;
 	}
 
 	// first check if an entry 'option=value' exists; if not, try 'option' on its own
-	public static String featureSupportedInVersion(String requestVersion, String defaultStatus, String section, String name, String optionValue) {
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + section + "] defaultStatus=["+defaultStatus+"] name=[" + name + "]  optionValue=["+optionValue+"]  ", u.debugCfg);
-		String status = defaultStatus;
-		if (status.isEmpty()) status = u.NotSupported;
+	public static String featureSupportedInVersion(String requestVersion,String section, String name, String optionValue) {
+		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + section + "]  name=[" + name + "]  optionValue=["+optionValue+"]  ", u.debugCfg);
+		section = section.toUpperCase();
+		String status = u.NotSupported;
 		if (!optionValue.isEmpty()) {
 			String option = name+"="+optionValue;
 			if (featureExists(section, option)) {
 				status = featureSupportedInVersion(requestVersion, section, option);
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "option=value found: status=["+status+"] ", u.debugCfg);		
 			}
-			else if (featureExists(section, name)) {
-				status = featureSupportedInVersion(requestVersion, section, name);
-				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "option found: status=["+status+"] ", u.debugCfg);		
-			}
 		}
 		else if (featureExists(section, name)) {
 			status = featureSupportedInVersion(requestVersion, section, name);
 			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "option found: status=["+status+"] ", u.debugCfg);		
 		}
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "return status=["+status+"] ", u.debugCfg);		
+		if (!status.equals(u.Supported)) {
+			status = featureDefaultStatus(section, name);				
+		}		
+		if (u.debugging) u.dbgOutput(u.thisProc() + "return status=["+status+"] ", u.debugCfg);		
 		return status;
 	}	
 
@@ -462,18 +638,19 @@ public class CompassConfig {
 		if (testVersion.contains(cRangeSeparator)) { //interval specified
 			testVersionMax = testVersion.substring(testVersion.indexOf(cRangeSeparator) + 1);
 			testVersion = testVersion.substring(0, testVersion.indexOf(cRangeSeparator));
-			if (u.debugging) u.dbgOutput("testVersion=[" + testVersion + "] testVersionMax=[" + testVersionMax + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(u.thisProc() + "testVersion=[" + testVersion + "] testVersionMax=[" + testVersionMax + "] ", u.debugCfg);
 		}
 		if (testVersionMax.isEmpty() && isLowerOrEqualBabelfishVersion(testVersion, requestVersion)) {
 			// yes, it is supported in the requested version
-			if (u.debugging) u.dbgOutput("found lower/equal version: testVersion=[" + testVersion + "] requestVersion=[" + requestVersion + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(u.thisProc() + "found lower/equal version: testVersion=[" + testVersion + "] requestVersion=[" + requestVersion + "] ", u.debugCfg);
 			isSupported = true;
-		} else {
+		} 
+		else {
 			if (!testVersionMax.isEmpty()) {
 				// does the requested version match the interval?
 				if (isLowerOrEqualBabelfishVersion(testVersion, requestVersion) &&
 						isLowerOrEqualBabelfishVersion(requestVersion, testVersionMax)) {
-					if (u.debugging) u.dbgOutput("found version in interval: testVersion=[" + testVersion + "] testVersionMax=[" + testVersionMax + "]  requestVersion=[" + requestVersion + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() + "found version in interval: testVersion=[" + testVersion + "] testVersionMax=[" + testVersionMax + "]  requestVersion=[" + requestVersion + "] ", u.debugCfg);
 					isSupported = true;
 				}
 			}
@@ -481,38 +658,88 @@ public class CompassConfig {
 		return isSupported;
 	}
 
-	// TODO use section.toUpperCase() if called from outside (not by a Config method) -- not currently the case
+	// TODO use section.toUpperCase() if called from outside (not by a Config method) -- but this is not currently the case
 	public static String featureDefaultStatus(String section) {
+		if (u.debugging) u.dbgOutput(u.thisProc() + "entry: section=["+section+"]", u.debugCfg);			
 		String status = u.NotSupported;
+		section = section.toUpperCase();
 		Map<String, List<String>> featureList = sectionList.get(section);
 		String key = createKey(defaultStatusTag);
 		List<String> thisList = featureList.get(key);
 		if (thisList != null) {
 			status = thisList.get(0);
 		}
+		
+		// is there an override?
+		if (sectionOverrideList.containsKey(section)) {
+			String statusOrig = status;
+			Map<String, List<String>> featureOverrideList = sectionOverrideList.get(section);
+			String overrideKey = createKey(defaultStatusTag);
+			List<String> thisOverrideList = featureOverrideList.get(overrideKey);
+			if (thisOverrideList != null) {
+				status = thisOverrideList.get(0);
+				u.logStatusOverride(statusOrig, status, section);
+			}		
+		}
+				
+		if (u.debugging) u.dbgOutput(u.thisProc() + "result: status=["+status+"] section=["+section+"] ", u.debugCfg);		
 		return status;
 	}
 
-	// TODO use section.toUpperCase() if called from outside (not by a Config method) -- not currently the case
+	// TODO use section.toUpperCase() if called from outside (not by a Config method) -- but this is not currently the case
 	public static String featureDefaultStatus(String section, String name) {    
+		if (u.debugging) u.dbgOutput(u.thisProc() + "entry: section=["+section+"] name=["+name+"] ", u.debugCfg);		
 		String status = u.NotSupported;
+		section = section.toUpperCase();
 		name = name.toUpperCase();
-		Map<String, List<String>> featureList = sectionList.get(section);
+		Map<String, List<String>> featureList = sectionList.get(section.toUpperCase());
 
 		for (String key : u.defaultClassificationsKeys) {
-			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " key=[" + key + "]", u.debugCfg);
+			if (u.debugging) u.dbgOutput(u.thisProc() + " key=[" + key + "] featureList=["+featureList+"] ", u.debugCfg);
 			if (featureList.containsKey(key)) {
 				List<String> thisList = featureList.get(key);
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " found key=[" + key + "] thisList=[" + thisList + "] ", u.debugCfg);
 				if (key.equals(defaultStatusTag)) {
 					status = thisList.get(0);
-					// keep searching for a more specific alternative
-				} else if (thisList.contains(name)) {
+					// keep searching for a more specific key
+				} 
+				else if (thisList.contains(name)) {
 					status = key.substring(defaultStatusTag.length() + 1);
 					break;
 				}
 			}
 		}
+		
+		// is there an override?
+		if (sectionOverrideList.containsKey(section)) {
+			String statusOrig = status;
+			String overrideStatus = "";
+			Map<String, List<String>> featureOverrideList = sectionOverrideList.get(section);
+			for (String key : u.overrideClassificationsKeys) {
+				if (u.debugging) u.dbgOutput(u.thisProc() + " override key=[" + key + "]", u.debugCfg);
+				if (featureOverrideList.containsKey(key)) {
+					List<String> thisList = featureOverrideList.get(key);
+					if (u.debugging) u.dbgOutput(u.thisProc() + " found override key=[" + key + "] thisList=[" + thisList + "] ", u.debugCfg);
+					if (key.equals(defaultStatusTag)) {
+						status = thisList.get(0);
+						if (u.debugging) u.dbgOutput(u.thisProc() + " section override found for key=[" + key + "] status=["+status+"]  ", u.debugCfg);
+						overrideStatus = status;
+						// keep searching for a more specific key
+					} 
+					else if (thisList.contains(name)) {
+						status = key.substring(defaultStatusTag.length() + 1);
+						overrideStatus = status;
+						if (u.debugging) u.dbgOutput(u.thisProc() + " section+name override found for key=[" + key + "] status=["+status+"]  ", u.debugCfg);
+						break;
+					}
+				}
+			}
+			if (!overrideStatus.isEmpty()) {
+				u.logStatusOverride(statusOrig, status, section, name);
+			}			
+		}
+		
+		if (u.debugging) u.dbgOutput(u.thisProc() + "result: status=["+status+"] section=["+section+"] name=["+name+"] ", u.debugCfg);
 		return status;
 	}
 
@@ -563,13 +790,14 @@ public class CompassConfig {
 				if (allItems != null) {
 					if (allItems.contains(name)) {
 						result = true;
-						if (u.debugging) u.dbgOutput("match found for name=[" + name + "] ", u.debugCfg);
-					} else {
+						if (u.debugging) u.dbgOutput(u.thisProc() + "match found for name=[" + name + "] ", u.debugCfg);
+					} 
+					else {
 						// does this section have a wildcard?
 						if (featureList.containsKey(createKey(wildcardTag))) {
-							if (u.debugging) u.dbgOutput("section=[" + section + "] has wildcards", u.debugCfg);
+							if (u.debugging) u.dbgOutput(u.thisProc() + "section=[" + section + "] has wildcards", u.debugCfg);
 							if (matchWildcard(section, name, allItems)) {
-								if (u.debugging) u.dbgOutput("wildcard match found for name=[" + name + "] ", u.debugCfg);
+								if (u.debugging) u.dbgOutput(u.thisProc() + "wildcard match found for name=[" + name + "] ", u.debugCfg);
 								result = true;
 							}
 						}
@@ -579,7 +807,7 @@ public class CompassConfig {
 			else {
 				// the feature exists, but has no list= key (not needed for many features)
 				result = true;
-				if (u.debugging) u.dbgOutput("key [" + key + "] NOT found, but feature exists", u.debugCfg);
+				if (u.debugging) u.dbgOutput(u.thisProc() + "key [" + key + "] NOT found, but feature exists", u.debugCfg);
 			}
 		}
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result=[" + result + "] ", u.debugCfg);
@@ -597,7 +825,7 @@ public class CompassConfig {
 			return argN;
 		}
 		for (String key : featureList.keySet()) {
-			if (u.debugging) u.dbgOutput("key=[" + key + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(u.thisProc() + "key=[" + key + "] ", u.debugCfg);
 			if (key.startsWith(supportedTag + "/")) {
 				int argIndex = key.lastIndexOf("/ARG");
 				if (argIndex != -1 && argIndex < key.length() - 4) {
@@ -611,7 +839,7 @@ public class CompassConfig {
 					if (argNum <= 0) {
 						continue;
 					}
-					if (u.debugging) u.dbgOutput("foundArgN=[" + foundArgN + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() +"foundArgN=[" + foundArgN + "] ", u.debugCfg);
 					argN = foundArgN;
 					break;
 				}
@@ -622,55 +850,88 @@ public class CompassConfig {
 
 	// what is the reporting group for this feature?
 	public static String featureGroup(String section, String name) {
-		String sectionCopy = section, group = "";
+		String group = "";
 		section = section.toUpperCase();
 		name = name.toUpperCase();
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + sectionCopy + "] name=[" + name + "] ", u.debugCfg);
+
+		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + section + "] name=[" + name + "] ", u.debugCfg);
 
 		if (featureExists(section, name)) {
-			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + sectionCopy + "] name=[" + name + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + section + "] name=[" + name + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
-				if (key.startsWith(reportGroupTag)) {
-					String foundGroup = key.substring(reportGroupTag.length());
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " key=[" + key + "] foundGroup B=[" + foundGroup + "] ", u.debugCfg);
-					if (foundGroup.isEmpty()) {
-						// e.g. 'report_group=Built-in functions', applies to all items
-						List<String> thisList = featureList.get(key);
-						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " generic: foundGroup=[" + foundGroup + "] thisList=[" + thisList + "] ", u.debugCfg);
-						group = thisList.get(0);
-						//keep searching if there is a more specific group
-					} else if (foundGroup.charAt(0) != subKeySeparator.charAt(0)) {
-						// should not happen
-						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " Unexpected branch, foundGroup=[" + foundGroup + "] ", u.debugCfg);
-					} else {
-						// 'report_group-Fulltext Search=CONTAINSTABLE,FREETEXTTABLE,SEMANTICKEYPHRASETABLE[,...]'
-						// applies only to the actual names listed
-						List<String> thisList = featureList.get(key);
-						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " foundGroup=[" + foundGroup + "]  thisList=[" + thisList + "] ", u.debugCfg);
-						if (thisList.contains(name)) {
-							// this feature should be reported under 'foundGroup'
-							foundGroup = CompassUtilities.getPatternGroup(foundGroup, "^\\" + subKeySeparator + "(.*?)(\\=|$)", 1); // TODO substring until equal or end (indexOf = -1)
-							if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " B: foundGroup=[" + foundGroup + "] ", u.debugCfg);
-							group = foundGroup;
-							break;
-						}
+				if (!key.startsWith(reportGroupTag)) continue;
+				
+				String foundGroup = key.substring(reportGroupTag.length());				
+				if (u.debugging) u.dbgOutput(u.thisProc() + " key=[" + key + "] foundGroup=[" + foundGroup + "] ", u.debugCfg);
+				if (foundGroup.isEmpty()) {
+					// e.g. 'report_group=Built-in functions', applies to all items
+					List<String> thisList = featureList.get(key);
+					if (u.debugging) u.dbgOutput(u.thisProc() + " generic: foundGroup=[" + foundGroup + "] thisList=[" + thisList + "] ", u.debugCfg);
+					group = thisList.get(0);
+					//keep searching if there is a more specific group
+				} 
+				else if (foundGroup.charAt(0) != subKeySeparator.charAt(0)) {
+					// should not happen
+					if (u.debugging) u.dbgOutput(u.thisProc() + " Unexpected branch, foundGroup=[" + foundGroup + "] ", u.debugCfg);
+				} 
+				else {
+					// 'report_group-Fulltext Search=CONTAINSTABLE,FREETEXTTABLE,SEMANTICKEYPHRASETABLE[,...]'
+					// applies only to the actual names listed
+					List<String> thisList = featureList.get(key);
+					if (u.debugging) u.dbgOutput(u.thisProc() + " foundGroup=[" + foundGroup + "]  thisList=[" + thisList + "] ", u.debugCfg);
+					if (thisList.contains(name)) {
+						// this feature should be reported under 'foundGroup'
+						foundGroup = u.getPatternGroup(foundGroup, "^\\" + subKeySeparator + "(.*?)(\\=|$)", 1); // TODO substring until equal or end (indexOf = -1)
+						if (u.debugging) u.dbgOutput(u.thisProc() + " foundGroup=[" + foundGroup + "] ", u.debugCfg);
+						group = foundGroup;
+						break;
 					}
 				}
 			}
 		}
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: group=[" + group + "]  ", u.debugCfg);
+		
+		// is there an override?
+		if (sectionOverrideList.containsKey(section)) {
+			String groupOrig = group;
+			String overrideGroup = "";			
+			Map<String, List<String>> featureOverrideList = sectionOverrideList.get(section);
+			for (String key : featureOverrideList.keySet()) {
+				if (u.debugging) u.dbgOutput(u.thisProc() + " override key=[" + key + "]", u.debugCfg);				
+				if (!key.startsWith(reportGroupTag)) continue;
+			
+				List<String> thisList = featureOverrideList.get(key);
+				if (u.debugging) u.dbgOutput(u.thisProc() + " found override key=[" + key + "] thisList=[" + thisList + "] ", u.debugCfg);
+				if (key.equals(reportGroupTag)) {
+					group = thisList.get(0);
+					overrideGroup = group;
+					if (u.debugging) u.dbgOutput(u.thisProc() + " section override found for key=[" + key + "] group=["+group+"]  ", u.debugCfg);
+					// keep searching for a more specific key
+				} 
+				else if (thisList.contains(name)) {
+					group = key.substring(reportGroupTag.length() + 1);
+					overrideGroup = group;
+					if (u.debugging) u.dbgOutput(u.thisProc() + " section+name override found for key=[" + key + "] sgroup=["+group+"]  ", u.debugCfg);
+					break;
+				}
+			}	
+			if (!overrideGroup.isEmpty()) {
+				u.logGroupOverride(groupOrig, group, section, name);
+			}						
+		}
+		
+		if (u.debugging) u.dbgOutput(u.thisProc() + " return: group=[" + group + "]  ", u.debugCfg);
 		return group;
 	}
 
 	// what is the reporting group for this feature?
 	public static String featureGroup(String section) {
-		String sectionCopy = section, group = "";
+		String group = "";
 		section = section.toUpperCase();
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + sectionCopy + "] ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(u.thisProc() + " entry: section=[" + section + "] ", u.debugCfg);
 
 		if (featureExists(section)) {
-			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + sectionCopy + "] ", u.debugCfg);
+			if (u.debugging) u.dbgOutput(u.thisProc() + " featureExists: section=[" + section + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			String key = reportGroupTag;
 			if (featureList.containsKey(key)) {
@@ -680,7 +941,20 @@ public class CompassConfig {
 				group = thisList.get(0);
 			}
 		}
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: group=[" + group + "] ", u.debugCfg);
+		
+		// is there an override?
+		if (sectionOverrideList.containsKey(section)) {
+			String groupOrig = group;
+			Map<String, List<String>> featureOverrideList = sectionOverrideList.get(section);
+			String overrideKey = createKey(reportGroupTag);
+			List<String> thisOverrideList = featureOverrideList.get(overrideKey);
+			if (thisOverrideList != null) {
+				group = thisOverrideList.get(0);
+				u.logGroupOverride(groupOrig, group, section);
+			}		
+		}
+				
+		if (u.debugging) u.dbgOutput(u.thisProc() + " return: group=[" + group + "] ", u.debugCfg);
 		return group;
 	}
 
@@ -714,11 +988,11 @@ public class CompassConfig {
 				String wCopy = w;
 				w = w.replaceAll(wildcardChar, ".*");	// TODO Can this be done only once (when the list is created)?
 				if (u.PatternMatches(s, w)) {
-					if (u.debugging) u.dbgOutput("matched [" + s + "] with [" + wCopy + "] in sectionName=[" + sectionName + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() + "matched [" + s + "] with [" + wCopy + "] in sectionName=[" + sectionName + "] ", u.debugCfg);
 					return true;
 				}
 				else {
-					if (u.debugging) u.dbgOutput("wildcard NOmatch!", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() + "wildcard NOmatch!", u.debugCfg);
 				}
 			}
 		}
@@ -729,10 +1003,6 @@ public class CompassConfig {
 	private static void readCfgFile(String pCfgFileName) throws Exception {
 		configFileName = pCfgFileName;
 		configFilePathName = Paths.get(pCfgFileName).toAbsolutePath().toString();
-
-		List<String> supportOptionsCfgFileUpperCase = new ArrayList<>(u.supportOptionsCfgFile);
-		CompassUtilities.listToUpperCase(supportOptionsCfgFileUpperCase);
-
         cfgFile = new File(configFileName);
         if (!cfgFile.exists()) {
         	u.appOutput("Babelfish configuration file not found: "+configFilePathName);
@@ -753,7 +1023,7 @@ public class CompassConfig {
         for (String sectionName: cfg.keySet()) {
 			sectionCount++;
 			Map<String, String> section = cfg.get(sectionName);
-			if (u.debugging) u.dbgOutput("sectionName=[" + sectionName + "]", u.debugCfg);
+			if (u.debugging) u.dbgOutput(u.thisProc() + "sectionName=[" + sectionName + "]", u.debugCfg);
 			if (sectionCount == 1 && !sectionName.equals(Babelfish_Compass_Name)) {
 				cfgFileValid = false;
 				cfgOutput("first section must be [" + Babelfish_Compass_Name + "]");
@@ -778,19 +1048,20 @@ public class CompassConfig {
 				String optionKeyCopy = optionKey;
 				optionKey = optionKey.toUpperCase();
 				String thisKey = createKey(optionKey);
-				if (u.debugging) u.dbgOutput("section=[" + sectionName + "] optionKey=[" + optionKey + "] thisKey=[" + thisKey + "]  val=[" + optionVal + "]", u.debugCfg);
+				if (u.debugging) u.dbgOutput(u.thisProc() +"section=[" + sectionName + "] optionKey=[" + optionKey + "] thisKey=[" + thisKey + "]  val=[" + optionVal + "]", u.debugCfg);
 
 				if (sectionCount == 1) {
 					// first section defines valid Babelfish versions:
 					if (optionKey.equals(validVersionsTag)) {
 						Babelfish_VersionList = new ArrayList<>(Arrays.asList(optionVal.split(",")));
-						if (u.debugging) u.dbgOutput("Valid versions (" + Babelfish_VersionList.size() + ") :" + Babelfish_VersionList, u.debugCfg);
+						if (u.debugging) u.dbgOutput(u.thisProc() + "Valid versions (" + Babelfish_VersionList.size() + ") :" + Babelfish_VersionList, u.debugCfg);
 						for (String v : Babelfish_VersionList) {
 							if (!u.PatternMatches(v, "\\d+(\\.\\d+)*")) {
 								cfgOutput("[" + Babelfish_Compass_Name + "]: Invalid version number found:" + v);
 								cfgFileValid = false;
-							} else {
-								if (u.debugging) u.dbgOutput("   version=[" + v + "] => [" + normalizedBabelfishVersion(v) + "]", u.debugCfg);
+							} 
+							else {
+								if (u.debugging) u.dbgOutput(u.thisProc() + "   version=[" + v + "] => [" + normalizedBabelfishVersion(v) + "]", u.debugCfg);
 							}
 						}
 						continue;
@@ -825,10 +1096,10 @@ public class CompassConfig {
 
 				// key: list all values for a section:
 				if (optionKey.equals(listValuesTag)) {
-					if (u.debugging) u.dbgOutput("list of section=[" + sectionName + "] = [" + optionVal + "]", u.debugCfg);
+					if (u.debugging) u.dbgOutput(u.thisProc() + "list of section=[" + sectionName + "] = [" + optionVal + "]", u.debugCfg);
 				}
 				// key: 'supported' values
-				else if (u.wordAndBoundary(optionKey, supportedTag)) {
+				else if (optionKey.startsWith(supportedTag)) {
 					String vRaw = optionKey.substring(supportedTag.length() + 1);
 					String v = "", vMax = "";
 					Matcher matcher = u.getMatcher(vRaw, "^([\\d]+(\\.([\\d]+|\\*))+)(" + cRangeSeparator + "([\\d]+(\\.([\\d]+|\\*))+))?$");
@@ -874,7 +1145,7 @@ public class CompassConfig {
 					int equalIndex = optionVal.indexOf("=", 4);
 					if (equalIndex != -1 && optionVal.substring(0, 3).equalsIgnoreCase("arg")) {
 						String argN = optionVal.substring(0, equalIndex).toUpperCase();
-						if (u.debugging) u.dbgOutput("argN=[" + argN + "] ", u.debugCfg);
+						if (u.debugging) u.dbgOutput(u.thisProc() + "argN=[" + argN + "] ", u.debugCfg);
 						try {
 							int argNum = Integer.parseInt(argN.substring(3));
 							if (argNum <= 0) {
@@ -889,7 +1160,7 @@ public class CompassConfig {
 						optionVal = optionVal.substring(equalIndex + 1);
 
 						featureArgOptions.put(sectionName.toUpperCase(), argN);
-						if (u.debugging) u.dbgOutput("adding featureArgOptions for argKey=[" + sectionName + "] argN=[" + argN + "]", u.debugCfg);
+						if (u.debugging) u.dbgOutput(u.thisProc() + "adding featureArgOptions for argKey=[" + sectionName + "] argN=[" + argN + "]", u.debugCfg);
 					}
 				}
 				// key: 'default_classification' items
@@ -898,23 +1169,42 @@ public class CompassConfig {
 					if (optionKey.equals(defaultStatusTag)) {
 						if (u.validSupportOptionsCfgFile.contains(optionVal.toUpperCase())) {
 							optionVal = u.supportOptions.get(supportOptionsCfgFileUpperCase.indexOf(optionVal.toUpperCase()));
-						} else {
-							cfgOutput("Section [" + sectionName + "]: key " + defaultStatusTag + " has invalid value [" + optionVal + "]. Valid values are " + u.validSupportOptionsCfgFile);
+						} 
+						else {
+							cfgOutput("Section [" + sectionName + "]: key " + defaultStatusTag + " has invalid value [" + optionVal + "]. Valid values are " + u.validSupportOptionsCfgFileOrig);
 							cfgFileValid = false;
 						}
-					} else if (!u.defaultClassificationsKeys.contains(optionKey)) {
-						cfgOutput("Section [" + sectionName + "]: key " + optionKey + " has invalid option. Valid options are " + u.defaultClassificationsKeys);
+					} 
+					else if (!u.defaultClassificationsKeys.contains(optionKey)) {
+						cfgOutput("Section [" + sectionName + "]: key " + optionKey + " is invalid. Valid values are " + u.defaultClassificationsKeysOrig);
 						cfgFileValid = false;
 					}
+					else {
+						if (optionVal.equals("*")) {
+							// default_classification-xxx=* ==> change to: default_classification=xxx
+							optionVal = optionKey.substring(defaultStatusTag.length() + 1);
+							optionKey = optionKey.substring(0,defaultStatusTag.length());
+							thisKey = createKey(optionKey);
+						}
+					}					
 				}
 				// key: 'report_group', 'report_group-XYZ'
-				else if (u.wordAndBoundary(optionKey, reportGroupTag)) {
+				else if (optionKey.startsWith(reportGroupTag)) {							
 					if (optionVal.isEmpty()) {
 						cfgOutput("Invalid key '" + reportGroupTag + "=': value cannot be blank");
 						cfgFileValid = false;
-					} else if (optionVal.equals("*")) {
-						cfgOutput("Invalid key '" + reportGroupTag + "=': value must be a group name, not '*'");
-						cfgFileValid = false;
+					} 
+					else if (optionVal.equals("*")) {
+						if (optionKey.length() > reportGroupTag.length()) {
+							// report_group-xxx=* ==> change to: report_group=xxx
+							optionVal = optionKey.substring(reportGroupTag.length() + 1);
+							optionKey = optionKey.substring(0,reportGroupTag.length());
+							thisKey = createKey(optionKey);				
+						}
+						else {
+							cfgOutput("Invalid key '" + reportGroupTag + "=': value must be a group name, not '*'");
+							cfgFileValid = false;
+						}
 					}
 					// do not lowercase the group name when it is part of the key
 					if (optionKey.length() > reportGroupTag.length()) {
@@ -926,7 +1216,8 @@ public class CompassConfig {
 				// key: 'rule'
 				else if (optionKey.equals(ruleTag)) {
 					//not yet processed
-				} else {
+				} 
+				else {
 					// catchall
 					cfgOutput("Invalid key '" + optionKey + "'");
 					cfgFileValid = false;
@@ -947,41 +1238,53 @@ public class CompassConfig {
 				featureList.put(thisKey, theseItems);
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "]", u.debugCfg);
 
-				// check items in 'supported' and 'report_group-xxx' items are in the listValues list, if it exists
-				if (u.wordAndBoundary(optionKey, supportedTag) || u.PatternMatches(optionKey, reportGroupTag + "\\-\\w+")) {
-					if (u.debugging) u.dbgOutput("check item is in listValues list: key [" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "]", u.debugCfg);
-					if (u.debugging) u.dbgOutput("thisKey=[" + thisKey + "] -> [" + sectionName + "] : " + theseItems.size() + " items: " + theseItems, u.debugCfg);
-					List<String> allItems = featureList.get(createKey(listValuesTag));
-					if (allItems != null) {
-						boolean hasWildcard = false;
-						for (String allItem : allItems) {
-							if (allItem.contains(wildcardChar)) {
-								if (u.debugging) u.dbgOutput("wildcard found for sectionName=[" + sectionName + "] in [" + allItem + "]", u.debugCfg);
-								hasWildcard = true;
-								String wildcardKey = createKey(wildcardTag);
-								featureList.put(wildcardKey, null);  // only need key to exist
-								break;
-							}
-						}
-						for (String item : theseItems) {
-							if (!item.equals("*")) {
-								// does the value match one in the list?
-								if (!allItems.contains(item)) {
-									// does the value match a wildcard?
-									if (hasWildcard && matchWildcard(sectionName, item, allItems)) {
-										continue;
-									}
-									// if we get here, the item was not listed
-									allItems.add(item);
-									cfgFileValid = false;
-									cfgOutput("[" + thisKey + "] item " + item + " not listed in '" + listValuesTag + "='");
-								}
-							}
-						}
-					}
+					// check items in 'supported-XXX', 'report_group-xxx', default_classification-XXX'  are in the listValues key (if a list exists)
+				if (optionKey.startsWith(supportedTag+subKeySeparator) || 
+				    optionKey.startsWith(reportGroupTag+subKeySeparator) ||
+				    optionKey.startsWith(defaultStatusTag+subKeySeparator)
+				   ) {					
+					boolean itemValid = validateItemsListed("", optionKey, optionVal, thisKey, sectionName, featureList, theseItems);				
+					cfgFileValid = cfgFileValid & itemValid;
 				}
 			}
 		}
+	}
+	
+	// check items in a non-list key are in the listValues key (if a list exists)
+	private static boolean validateItemsListed (String cfgFileName, String optionKey, String optionVal, String thisKey, String sectionName, Map<String, List<String>> featureList, List<String> theseItems) {
+		boolean isValid = true;
+		if (u.debugging) u.dbgOutput(u.thisProc() + "check items are in list=: key [" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "]", u.debugCfg);
+		if (u.debugging) u.dbgOutput(u.thisProc() + "thisKey=[" + thisKey + "] -> [" + sectionName + "] : " + theseItems.size() + " items: " + theseItems, u.debugCfg);
+		List<String> allItems = featureList.get(createKey(listValuesTag));
+		if (u.debugging) u.dbgOutput(u.thisProc() + "allItems=["+allItems+"] " + theseItems, u.debugCfg);
+		if (allItems != null) {
+			boolean hasWildcard = false;
+			for (String allItem : allItems) {
+				if (allItem.contains(wildcardChar)) {
+					if (u.debugging) u.dbgOutput(u.thisProc() + "wildcard found for sectionName=[" + sectionName + "] in [" + allItem + "]", u.debugCfg);
+					hasWildcard = true;
+					String wildcardKey = createKey(wildcardTag);
+					featureList.put(wildcardKey, null);  // only need key to exist
+					break;
+				}
+			}
+			for (String item : theseItems) {
+				if (!item.equals("*")) {
+					// does the value match a value in the list?
+					if (!allItems.contains(item)) {
+						// does the value match a wildcard?
+						if (hasWildcard && matchWildcard(sectionName, item, allItems)) {
+							continue;
+						}
+						// if we get here, the item was not listed
+						allItems.add(item);
+						isValid = false;
+						cfgOutput(cfgFileName, "[" + thisKey + "] has item " + item + ", but this is not listed in '" + listValuesTag + "='");
+					}
+				}
+			}
+		}		
+		return isValid;
 	}
 
 	private static void printError(int nrLine, String line, String msg) {
@@ -998,6 +1301,9 @@ public class CompassConfig {
 
 	// LinkedHashMap is used because insertion order is important
 	private static Map<String, Map<String, String>> getCfg(String configFileName) throws IOException {
+		return getCfg(configFileName, false);
+	}
+	private static Map<String, Map<String, String>> getCfg(String configFileName, boolean isUserCfg) throws IOException {
 		String COMMENT_CHARS = "#;", SEPARATOR = ",", BEFORE_CHECKSUM="#file checksum=";
 		char START_SECTION = '[', END_SECTION = ']';
 		String line, separator = System.lineSeparator(), fileChecksum = null, sectionName = null;
@@ -1046,12 +1352,14 @@ public class CompassConfig {
 					printError(nrLine, line, "End character " + END_SECTION + " is missing");
 				}
 				sectionName = line.substring(1, end).trim();
+				cfgSections.add(sectionName);
 				if (sections.containsKey(sectionName)) {
 					printError(nrLine, line, "Section " + sectionName + " is already defined");
 				}
 				section = new LinkedHashMap<>();
 				sections.put(sectionName, section);
 				updateChecksum(checksum, sectionName);
+				//u.appOutput(u.thisProc()+"sectionName=["+sectionName+"] ");
 				continue;
 			}
 			if (sectionName == null) {
@@ -1072,7 +1380,12 @@ public class CompassConfig {
 			List<String> values = new LinkedList<>(Arrays.asList(arrayValues));
 			values.removeIf(val -> val.trim().isEmpty());
 			String value = String.join(",", values);
-			assert (section != null)  :  CompassUtilities.thisProc()+"null section found while reading"; // shouldn't happen
+//			if (key.equals("rule")) {
+//			}
+//			else {
+//				u.appOutput(u.thisProc()+"key=["+key+"] value=["+value+"] ");
+//			}
+			assert (section != null)  :  u.thisProc()+"null section found while reading"; // shouldn't happen
 			section.put(key, value);
 			updateChecksum(checksum, key);
 			updateChecksum(checksum, value);
@@ -1117,15 +1430,17 @@ public class CompassConfig {
 			}
 			u.errorExit(0, false);
 		}
-		if (nrChecksumLine == -1) {
-			printError(nrLine, "", "No checksum found");
-		}
-		if (fileChecksum.length() != CHECKSUM_LENGTH) {
-			printError(nrChecksumLine, "", "Invalid checksum format");
-		}
-		if (!fileChecksum.equals(hexChecksum)) {
-			printError(nrChecksumLine, "", "Invalid checksum. PLEASE DO NOT EDIT THIS FILE!");
+		if (!isUserCfg) {
+			if (nrChecksumLine == -1) {
+				printError(nrLine, "", "No checksum found");
+			}
+			if (fileChecksum.length() != CHECKSUM_LENGTH) {
+				printError(nrChecksumLine, "", "Invalid checksum format");
+			}
+			if (!fileChecksum.equals(hexChecksum)) {
+				printError(nrChecksumLine, "", "Invalid checksum. PLEASE DO NOT EDIT THIS FILE!");
+			}
 		}
 		return sections;
-	}
+	}	
 }

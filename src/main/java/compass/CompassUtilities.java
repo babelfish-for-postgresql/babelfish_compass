@@ -65,6 +65,11 @@ public class CompassUtilities {
 	public String cfgFileName = uninitialized;
 	public final String defaultCfgFileName  = "BabelfishFeatures.cfg";
 
+	// user .cfg file is in a fixed place, under document folder
+	public String userCfgFileName = uninitialized;
+	public final String defaultUserCfgFileName  = "BabelfishCompassUser.cfg";
+	public static boolean userConfig = true;
+
 	// .cfg file format version as found in the .cfg file; this is validated
 	public Integer cfgFileFormatVersionRead = 0;
 	// .cfg file format version supported by this version of the Babelfish Compass tool
@@ -125,6 +130,7 @@ public class CompassUtilities {
 	public int importFileWritelineNr = 0;
 	public String sessionLogPathName;
 	public BufferedWriter sessionLogWriter;
+	public BufferedWriter userCfgFileWriter;	
 
 	// HTML header/footer
 	public String docLinkIcon              = "<div class=\"tooltip\"><span class=\"tooltip_icon\">&#x1F56E;</span> ";
@@ -407,7 +413,8 @@ tooltipsHTMLPlaceholder +
 		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported and will be ignored",
 		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported and will be ignored",
 		"ALTER TABLE..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements",
-		"ALTER TABLE..CHECK CONSTRAINT"+tttSeparator+"Explicit validation of constraints is not currently supported (do not confuse this with CHECK constraints, which are supported)",
+		"ALTER TABLE..CHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
+		"ALTER TABLE..NOCHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
 		"DBCC "+tttSeparator+"DBCC statements are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
 		CompassAnalyze.ODBCScalarFunction+tttSeparator+"ODBC scalar functions are not currently supported; rewrite with an equivalent built-in function",
 		CompassAnalyze.ODBCLiterals+tttSeparator+"ODBC literal expressions are not currently supported; rewrite with CAST() to the desired datatype",
@@ -763,31 +770,37 @@ tooltipsHTMLPlaceholder +
 	public int debugSpecial = 0;
 
 	// classification values for SQL features
-	public final String Supported         = "SUPPORTED";
-	public final String NotSupported      = "NOTSUPPORTED";
-	public final String ReviewSemantics   = "REVIEWSEMANTICS";
-	public final String ReviewPerformance = "REVIEWPERFORMANCE";
-	public final String ReviewManually    = "REVIEWMANUALLY";
-	public final String Ignored           = "IGNORED";
-	public final String ObjCountOnly      = "OBJECTCOUNTONLY";
+	public static final String Supported         = "SUPPORTED";
+	public static final String NotSupported      = "NOTSUPPORTED";
+	public static final String ReviewSemantics   = "REVIEWSEMANTICS";
+	public static final String ReviewPerformance = "REVIEWPERFORMANCE";
+	public static final String ReviewManually    = "REVIEWMANUALLY";
+	public static final String Ignored           = "IGNORED";
+	public static final String ObjCountOnly      = "OBJECTCOUNTONLY";
 
 	// TODO Convert these lists in sets for efficiency
-	public List<String> supportOptions        = Arrays.asList(Supported,    NotSupported,    ReviewSemantics,    ReviewPerformance,    ReviewManually,    Ignored, ObjCountOnly);
+	public static List<String> supportOptions        = Arrays.asList(Supported,    NotSupported,    ReviewSemantics,    ReviewPerformance,    ReviewManually,    Ignored, ObjCountOnly);
 	// values for default_classification in .cfg file:
-	public List<String> supportOptionsCfgFile = Arrays.asList("Supported", "NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually",  "Ignored", ObjCountOnly);
-	public List<String> validSupportOptionsCfgFile = Arrays.asList("NOTSUPPORTED",  "REVIEWSEMANTICS",  "REVIEWPERFORMANCE",  "REVIEWMANUALLY", "IGNORED");
+	public static List<String> supportOptionsCfgFile = Arrays.asList("Supported", "NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually",  "Ignored", ObjCountOnly);
+	public static List<String> validSupportOptionsCfgFileOrig = Arrays.asList("NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually", "Ignored");
+	public static List<String> validSupportOptionsCfgFile = new ArrayList<>();
 	// keys for default_classification in .cfg file, e.g. '-ReviewSemantics':
-	public List<String> defaultClassificationsKeys = Arrays.asList("DEFAULT_CLASSIFICATION-REVIEWSEMANTICS", "DEFAULT_CLASSIFICATION-REVIEWPERFORMANCE",
-			"DEFAULT_CLASSIFICATION-REVIEWMANUALLY", "DEFAULT_CLASSIFICATION-IGNORED", "DEFAULT_CLASSIFICATION");
+	public static List<String> defaultClassificationsKeysOrig = Arrays.asList("default_classification-ReviewSemantics", "default_classification-ReviewPerformance",
+			"default_classification-ReviewManually", "default_classification-Ignored", "default_classification");
+	public static List<String> defaultClassificationsKeys = new ArrayList<>();
+	// keys for overriding default_classification in user .cfg file, e.g. '-ReviewSemantics':
+	public static List<String> overrideClassificationsKeysOrig = Arrays.asList("default_classification-ReviewSemantics", "default_classification-ReviewPerformance",
+			"default_classification-ReviewManually", "default_classification-Ignored", "default_classification");
+	public static List<String> overrideClassificationsKeys = new ArrayList<>();
 
 	// display values
-	public List<String> supportOptionsDisplay = Arrays.asList("Supported", "Not Supported", "Review Semantics", "Review Performance", "Review Manually", "Ignored", ObjCountOnly);
+	public static List<String> supportOptionsDisplay = Arrays.asList("Supported", "Not Supported", "Review Semantics", "Review Performance", "Review Manually", "Ignored", ObjCountOnly);
 
 	// iteration order for report
-	public List<String> supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Supported);
+	public static List<String> supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Supported);
 
 	// default weight factors for computing compatibility %age, corresponding to each option value in the list above
-	public List<Integer> supportOptionsWeightDefault = Arrays.asList(100,   // Supported
+	public static List<Integer> supportOptionsWeightDefault = Arrays.asList(100,   // Supported
 	                                                                 200,   // NotSupported
 	                                                                 150,    // ReviewSemantics
 	                                                                 150,    // ReviewPerformance
@@ -809,7 +822,14 @@ tooltipsHTMLPlaceholder +
 	String compatPctStr = uninitialized;
 	String compatPctStrRaw = uninitialized;
 
-	// flag
+	// for recording overrides
+	static final String overrideSeparator = ";;";
+	Map<String, Integer> statusOverrides       = new HashMap<>();
+	Map<String, Integer> statusOverridesDetail = new HashMap<>();
+	Map<String, Integer> groupOverrides        = new HashMap<>();
+	Map<String, Integer> groupOverridesDetail  = new HashMap<>();
+
+	// flags
 	public static boolean devOptions = false;
 	public static boolean caching = false;
 
@@ -848,6 +868,15 @@ tooltipsHTMLPlaceholder +
     private static void initValues () {
     	HIERARCHYIDmethods = new ArrayList<>(HIERARCHYIDmethodsFmt);
     	listToUpperCase(HIERARCHYIDmethods);
+    	
+	   	validSupportOptionsCfgFile = new ArrayList<>(validSupportOptionsCfgFileOrig);
+    	listToUpperCase(validSupportOptionsCfgFile);
+    	
+	   	defaultClassificationsKeys = new ArrayList<>(defaultClassificationsKeysOrig);
+    	listToUpperCase(defaultClassificationsKeys);
+	   	
+	   	overrideClassificationsKeys = new ArrayList<>(overrideClassificationsKeysOrig);
+    	listToUpperCase(overrideClassificationsKeys);    	
     }
 
     public void getPlatform () {
@@ -859,9 +888,6 @@ tooltipsHTMLPlaceholder +
 		else if (osName.startsWith("mac os x")) {
 			onMac = true;
 			thisProgExec = thisProgExecMac;
-			if (onMacDebug) {
-				appOutput("*** detected Mac **** (dev message)");   // remove when confirmed
-			}
 		}
 		else {
 			// assume Linux
@@ -889,11 +915,6 @@ tooltipsHTMLPlaceholder +
 		if (System.getenv().containsKey("COMPASS_COMPAT_PERCENTAGE") || System.getenv().containsKey("compass_compat_percentage")) {
 			showPercentage = true;
 		}
-			
-		// temporary
-		if (System.getenv().containsKey("COMPASS_MAC") || System.getenv().containsKey("compass_mac")) {
-			onMacDebug = true;
-		}		
 					
     }
 
@@ -904,7 +925,8 @@ tooltipsHTMLPlaceholder +
 	        builder = new ProcessBuilder("cmd.exe", "/c", cmd );
 	    }
 	    else {
-	        builder = new ProcessBuilder("bash", "/c", cmd );
+	    	// Mac, Linux
+	        builder = new ProcessBuilder("bash", cmd );
 	    }
         builder.redirectErrorStream(true);
         Process p = builder.start();
@@ -923,13 +945,7 @@ tooltipsHTMLPlaceholder +
 	    return m.replaceAll("\\\\$0");
 	}
 
-	public boolean wordAndBoundary(String s, String prefix)
-	{
-		int len = prefix.length();
-		return s.startsWith(prefix) && (s.length() == len || PatternMatches(Character.toString(s.charAt(len)), "\\W"));
-	}
-
-	public static String getPatternGroup(String s, String patt, int groupNr)
+	public String getPatternGroup(String s, String patt, int groupNr)
 	{
 		Pattern p = Pattern.compile(patt, Pattern.CASE_INSENSITIVE);
 		return getPatternGroup(s, p, groupNr, MatchMethod.FIND);
@@ -3898,7 +3914,23 @@ tooltipsHTMLPlaceholder +
 		summarySection.append(summaryTmp2);
 		summarySection.append("\n");
 
-		// calc %age
+		// add override info
+		if (statusOverrides.size() > 0) {
+			StringBuilder summaryTmp3 = new StringBuilder();
+			for (String k : statusOverrides.keySet().stream().sorted().collect(Collectors.toList())) {
+				List<String> ov = new ArrayList<>(Arrays.asList(k.split(overrideSeparator)));				
+				Integer n = statusOverrides.get(k);
+				summaryTmp3.append(lineIndent).append(supportOptionsDisplay.get(supportOptions.indexOf(ov.get(0))) + " (was: "+ supportOptionsDisplay.get(supportOptions.indexOf(ov.get(1))) + ") : " + n.toString()+"\n");
+			}		
+			
+			summaryTmp3 = new StringBuilder(alignColumn(summaryTmp3, " : ", "before", "left"));
+			summaryTmp3 = new StringBuilder(alignColumn(summaryTmp3, " : ", "after", "right"));
+			summarySection.append("Overridden by user .cfg file ("+CompassConfig.userConfigFilePathName+"):\n");
+			summarySection.append(summaryTmp3);
+			summarySection.append("\n");				
+		}
+
+		// calc %age. NB: this has been removed from the report
 		//--- debug -------
 		if (debugCalc) {
 			if (debugging) dbgOutput("", debugReport);
@@ -4127,6 +4159,100 @@ tooltipsHTMLPlaceholder +
 		//done!
 	}
 
+	public String getUserCfgFilePathName(String fileName) throws IOException {
+		String dirPath = getDocDirPathname();
+		String filePath = getFilePathname(dirPath, fileName);
+		return filePath;
+	}
+	
+	public String openUserCfgFileAppend(String fileName) throws IOException {
+		return openUserCfgFile(fileName, false);
+	}
+	public String openUserCfgFileNew(String fileName) throws IOException {
+		return openUserCfgFile(fileName, true);
+	}
+	public String openUserCfgFile(String fileName, boolean newFile) throws IOException {
+		String userCfgFilePathName = getUserCfgFilePathName(fileName);
+		userCfgFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(userCfgFilePathName, (!newFile)), StandardCharsets.UTF_8)));
+		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
+		if (newFile) {
+			String initLine = "# This file created at " + now + " by " + thisProgName + " version " + thisProgVersion + ", " + thisProgVersionDate;
+			writeUserCfgFile(initLine);
+			initLine = 
+"#------------------------------------------------------------------------------\n" +
+"#\n" + 
+"# Babelfish Compass user .cfg file \n" + 
+"#\n" + 
+"# This file allows the user of Babelfish Compass to override the classification\n" + 
+"# of not-supported features and of reporting groups.\n" + 
+"# This file is automatically created by Babelfish Compass; the sections in this\n" + 
+"# file will be identical to those in BabelfishFeatures.cfg. Do not modify the \n" + 
+"# section headers!\n" + 
+"# Users can add the following entries in a section:\n" + 
+"#    default_classification=<value>\n" + 
+"#    default_classification-<value>=commalist\n" + 
+"#    report_group=<value>\n" + 
+"#    report_group-<value>=commalist\n" + 
+"#\n" + 
+"# Examples:\n" + 
+"#    [Built-in functions]\n" + 
+"#    default_classification-Ignored=FULLTEXTSERVICEPROPERTY   # this often occurs in SSMS-generated scripts, assume it can be ignored\n" + 
+"#\n" + 
+"#    [DESC constraint]\n" + 
+"#    default_classification=Ignored\n" + 
+"#    report_group=Indexing\n" + 
+"#\n" + 
+"# NB: overriding the classification is possible only for items which are not \n" + 
+"# classified as 'Supported': overrides for supported items will be ignored. \n" + 
+"#\n" + 
+"#------------------------------------------------------------------------------\n" +
+"#\n";
+
+			writeUserCfgFile(initLine);
+		}
+		else {			
+			String initLine = "\n# Sections below were added at " + now + " by " + thisProgName + " version " + thisProgVersion + ", " + thisProgVersionDate;
+			writeUserCfgFile(initLine);
+		}
+		return userCfgFilePathName;
+	}
+
+	public void writeUserCfgFile(String line) throws IOException {
+		userCfgFileWriter.write(line + "\n");
+		userCfgFileWriter.flush();
+	}
+
+    public void closeUserCfgFile() throws IOException {
+    	if (userCfgFileWriter == null) return;
+    	String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
+		String endLine = "# end ("+now+")\n";
+		writeUserCfgFile(endLine);    	
+	    userCfgFileWriter.close();
+	    userCfgFileWriter = null;
+	}
+	
+	public void logGroupOverride(String groupOrig, String group, String section) {
+		logGroupOverride(groupOrig, group, section, "");
+	}
+	public void logGroupOverride(String groupOrig, String group, String section, String name) {
+		String key = group+overrideSeparator+groupOrig;
+		groupOverrides.put(key, groupOverrides.getOrDefault(key,0)+1);
+		
+		key = group+overrideSeparator+groupOrig+overrideSeparator+section+overrideSeparator+name;
+		groupOverridesDetail.put(key, groupOverridesDetail.getOrDefault(key,0)+1);
+	}
+	
+	public void logStatusOverride(String statusOrig, String status, String section) {
+		logStatusOverride(statusOrig, status, section, "");		
+	}	
+	public void logStatusOverride(String statusOrig, String status, String section, String name) {
+		String key = status+overrideSeparator+statusOrig;
+		statusOverrides.put(key, statusOverrides.getOrDefault(key,0)+1);
+		
+		key = status+overrideSeparator+statusOrig+overrideSeparator+section+overrideSeparator+name;
+		statusOverridesDetail.put(key, statusOverridesDetail.getOrDefault(key,0)+1);		
+	}	
+	
  	// ---- error handling in Lexer ----------------------------------------
 	private String errorMsg;
 
