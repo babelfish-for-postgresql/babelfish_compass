@@ -127,7 +127,7 @@ public class Compass {
 			return;
 		}
 
-		u.targetBabelfishVersion = u.baseBabelfishVersion;  // init at 1.0
+		u.targetBabelfishVersion = CompassUtilities.baseBabelfishVersion;  // init at 1.0
 
 		for (int i = 0; i < args.length; i++) {
 			cmdFlags.add(args[i]);
@@ -163,7 +163,7 @@ public class Compass {
 					u.appOutput("    status=<status>  : generate X-ref for items with the specified status");				
 					u.appOutput("        Without status=, no X-refs are generated for 'Supported' and 'Ignored' features");				
 					u.appOutput("    filter=<pattern> : only report X-ref items matching the pattern (case-insensitive)");				
-					u.appOutput("    linenrs=<number> : max.nr of line numbers shown in list (default="+u.maxLineNrsInListDefault+")");				
+					u.appOutput("    linenrs=<number> : max.nr of line numbers shown in list (default="+CompassUtilities.maxLineNrsInListDefault+")");				
 					u.appOutput("    notabs           : do not open a Xref link in a new tab(default=open in new tab)");				
 					u.appOutput("    batchnr          : in xref, show batch number + line nr in batch");				
 					u.appOutput("Without -reportoption, only the assessment summary is generated (no X-refs)");				
@@ -178,7 +178,7 @@ public class Compass {
 					return;					
 				}
 				
-				u.appOutput("Usage: " + u.thisProgExec + "  <reportName>  <options> ");
+				u.appOutput("Usage: " + CompassUtilities.thisProgExec + "  <reportName>  <options> ");
 				u.appOutput("<options> can be:");
 				u.appOutput("   inputfile [ inputfile ...]   : one or more input files to import into the report");
 				u.appOutput("   -delete                      : first deletes report directory, incl. all report files");
@@ -204,7 +204,7 @@ public class Compass {
 				u.appOutput("   -version                     : show version of this tool");
 				u.appOutput("   -help                        : show this information");		
 				u.appOutput("   -explain                     : some high-level migration guidance");		
-				if (u.devOptions) {		
+				if (CompassUtilities.devOptions) {		
 				u.appOutput("");
 				u.appOutput("For development only:");
 				u.appOutput("   -dbgreport                   : use fixed report name (no timestamp)");
@@ -218,12 +218,12 @@ public class Compass {
 				u.appOutput("   -antlrdiagnostics            : print ANTLR diagnostics");
 				}
 				u.appOutput("");
-				u.appOutput(u.userDocText+": "+u.userDocURL);
+				u.appOutput(CompassUtilities.userDocText+": "+CompassUtilities.userDocURL);
 				quitNow = true;
 				return;
 			}
 			if (arg.equals("-explain")) {
-				u.appOutput("Babelfish Compass is currently a command-line-only tool, running on Windows only.\nIt takes one or more DDL/SQL scripts as input and generates a compatibility assessment report.\nBabelfish Compass does not connect directly to a SQL Server instance.\n\nThe purpose of Babelfish Compass is to analyze a SQL Server DDL/SQL script\nfor compatibility with Babelfish, to inform a decision about whether\nit is worth considering starting a migration project to Babelfish.\nTake the following steps:\n1. Reverse-engineer the SQL Server database(s) in question\n   with SSMS (right-click a database --> Tasks --> Generate Scripts.\n   Make sure to enable triggers, collations, logins, owners and permissions (disabled in SSMS by default).\n2. Use the resulting DDL/SQL script as input for Babelfish Compass to generate an assessment report\n3. Discuss the results of Babelfish Compass with the application owner and interpret the findings in the\n   context of the application to be migrated.\n4. Keep in mind that a Babelfish migration involves more than just the server-side DDL/SQL code\n   (e.g. data migration, client applications, external interfaces, etc.)\n\nRun "+u.thisProgExec+" -help for further usage info.\n\n");
+				u.appOutput("Babelfish Compass is currently a command-line-only tool, running on Windows only.\nIt takes one or more DDL/SQL scripts as input and generates a compatibility assessment report.\nBabelfish Compass does not connect directly to a SQL Server instance.\n\nThe purpose of Babelfish Compass is to analyze a SQL Server DDL/SQL script\nfor compatibility with Babelfish, to inform a decision about whether\nit is worth considering starting a migration project to Babelfish.\nTake the following steps:\n1. Reverse-engineer the SQL Server database(s) in question\n   with SSMS (right-click a database --> Tasks --> Generate Scripts.\n   Make sure to enable triggers, collations, logins, owners and permissions (disabled in SSMS by default).\n2. Use the resulting DDL/SQL script as input for Babelfish Compass to generate an assessment report\n3. Discuss the results of Babelfish Compass with the application owner and interpret the findings in the\n   context of the application to be migrated.\n4. Keep in mind that a Babelfish migration involves more than just the server-side DDL/SQL code\n   (e.g. data migration, client applications, external interfaces, etc.)\n\nRun "+CompassUtilities.thisProgExec+" -help for further usage info.\n\n");
 				u.errorExit();
 			}
 			if ((arg.equals("-babelfish-version") || arg.equals("-babelfish_version"))) {
@@ -244,7 +244,7 @@ public class Compass {
 				}
 				forceAppName = true;
 				applicationName = args[i];
-				String invalidMsg = u.nameFormatValid("appname", applicationName);
+				String invalidMsg = CompassUtilities.nameFormatValid("appname", applicationName);
 				if (!invalidMsg.isEmpty()) {
 					u.appOutput("Application name '"+applicationName+"' contains invalid character(s) "+invalidMsg);
 					u.errorExit();
@@ -259,7 +259,7 @@ public class Compass {
 				}
 				forceReportName = true;
 				reportFileName = args[i];
-				String invalidMsg = u.nameFormatValid("report", reportFileName);
+				String invalidMsg = CompassUtilities.nameFormatValid("report", reportFileName);
 				if (!invalidMsg.isEmpty()) {
 					u.appOutput("Report file name '"+reportFileName+"' contains invalid character(s) "+invalidMsg);
 					u.errorExit();
@@ -293,7 +293,7 @@ public class Compass {
 					u.errorExit();
 				}
 				quotedIdentifier = args[i].toUpperCase();
-				if (!u.OnOffOption.contains(quotedIdentifier)) {
+				if (!CompassUtilities.OnOffOption.contains(quotedIdentifier)) {
 					u.appOutput("Must specify -quotedid ON or -quotedid OFF");
 					u.errorExit();
 				}
@@ -362,8 +362,8 @@ public class Compass {
 								u.appOutput("Valid options: "+reportOptionsXref);
 								u.errorExit();								
 							}
-							if (optionValue.isEmpty()) u.reportOptionXref = "all";
-							else u.reportOptionXref = optionValue.toLowerCase();
+							if (optionValue.isEmpty()) CompassUtilities.reportOptionXref = "all";
+							else CompassUtilities.reportOptionXref = optionValue.toLowerCase();
 						}
 						else if (option.equals("status")) {
 							List<String> statusOptions = new ArrayList<>(u.validSupportOptionsCfgFile);
@@ -371,28 +371,28 @@ public class Compass {
 							statusOptions.add(0,"ALL");
 							if (!statusOptions.contains(optionValue.toUpperCase())) {
 								u.appOutput("Invalid option '"+optionValue+"' for -reportoption status=");
-								u.listToLowerCase(statusOptions);
+								CompassUtilities.listToLowerCase(statusOptions);
 								u.appOutput("Valid options: "+statusOptions);
 								u.errorExit();								
 							}
-							u.reportOptionStatus += " " + optionValue.toLowerCase() + " ";
+							CompassUtilities.reportOptionStatus += " " + optionValue.toLowerCase() + " ";
 						}
 						else if (option.equals("detail")) {
-							u.reportOptionDetail = option;  // no option values defined right now
+							CompassUtilities.reportOptionDetail = option;  // no option values defined right now
 						}
 						else if (option.equals("apps")) {
-							u.reportOptionApps = option;  
+							CompassUtilities.reportOptionApps = option;  
 						}
 						else if (option.equals("batchnr")) {
-							u.reportShowBatchNr = option;  
+							CompassUtilities.reportShowBatchNr = option;  
 						}
 						else if (option.equals("notabs")) {
-							u.linkInNewTab = false;  
-							u.tgtBlank = "";  
-							u.reportOptionNotabs = true;
+							CompassUtilities.linkInNewTab = false;  
+							CompassUtilities.tgtBlank = "";  
+							CompassUtilities.reportOptionNotabs = true;
 						}
 						else if (option.equals("linenrs")) {
-							Integer ln = 0;
+							int ln = 0;
 							try {
 								ln = Integer.parseInt(optionValue);
 								if (ln < 1) Integer.parseInt("x");
@@ -400,15 +400,15 @@ public class Compass {
 								u.appOutput("Invalid option '"+optionValue+"' for -reportoption linenrs=, must be number > 0");
 								u.errorExit();								
 							}
-							u.reportOptionLineNrs = true;
-							u.maxLineNrsInList = ln;  
+							CompassUtilities.reportOptionLineNrs = true;
+							CompassUtilities.maxLineNrsInList = ln;  
 						}
 						else if (option.equals("filter")) {							 
 							if (optionValue.isEmpty()) {
 								u.appOutput("No value specified for option 'filter='");
 								u.errorExit();				
 							}
-							u.reportOptionFilter = optionValue; 
+							CompassUtilities.reportOptionFilter = optionValue; 
 						}
 					}
 					else {
@@ -439,11 +439,11 @@ public class Compass {
 				i++;
 				continue;		
 			}			
-			if (arg.equals("-"+u.reverseString("m"+"u"+"s"+"k"+"c"+"e"+"h"+"c"))) {
+			if (arg.equals("-"+CompassUtilities.reverseString("m"+"u"+"s"+"k"+"c"+"e"+"h"+"c"))) {
 				u.configOnly = true;
 				continue;
 			}							
-			if (u.devOptions) {
+			if (CompassUtilities.devOptions) {
 				if (arg.equals("-debug")) {   // development only
 					if (i == args.length) {
 						u.appOutput("Must specify arguments for -debug ");
@@ -503,12 +503,13 @@ public class Compass {
 					continue;
 				}
 				if (arg.equals("-caching")) { // development only
-					u.caching = true;
+					CompassUtilities.caching = true;
 					continue;
 				}
 			}
 			// arguments must start with [A-Z0-9 _-./] : anything else is invalid
-			if (u.getPatternGroup(arg.substring(0,1), "^([\\w\\-\\.\\/])$", 1).isEmpty()) {
+			// TODO is underscore valid here? It's not in the pattern.
+			if (CompassUtilities.getPatternGroup(arg.substring(0,1), "^([\\w\\-\\.\\/])$", 1).isEmpty()) {
 				System.err.println("Invalid option ["+arg+"]. Try -help");
 				u.errorExit();
 			}
@@ -526,7 +527,7 @@ public class Compass {
 						u.appOutput("Report name cannot be blank");
 						u.errorExit();
 					}
-					String invalidMsg = u.nameFormatValid("report", reportName);
+					String invalidMsg = CompassUtilities.nameFormatValid("report", reportName);
 					if (!invalidMsg.isEmpty()) {
 						u.appOutput("Report name '"+reportName+"' contains invalid character(s) "+invalidMsg);
 						u.errorExit();
@@ -547,9 +548,9 @@ public class Compass {
 	}
 
 	public static void main(String[] args) throws Exception {
-		u.appOutput(u.thisProgName + " v." + u.thisProgVersion + ", " + u.thisProgVersionDate);
-		u.appOutput(u.thisProgNameLong);
-		u.appOutput(u.copyrightLine);
+		u.appOutput(CompassUtilities.thisProgName + " v." + CompassUtilities.thisProgVersion + ", " + CompassUtilities.thisProgVersionDate);
+		u.appOutput(CompassUtilities.thisProgNameLong);
+		u.appOutput(CompassUtilities.copyrightLine);
 		u.appOutput("");	
 		
  		if(args.length < 1) {
@@ -577,7 +578,7 @@ public class Compass {
 		assert u.cfgFileFormatVersionRead > 0 : "cfgFileFormatVersionRead=["+u.cfgFileFormatVersionRead+"], must be > 0";
 		if (u.cfgFileFormatVersionRead > u.cfgFileFormatVersionSupported) {
 			u.appOutput("File format version number in "+ u.cfgFileName + " is "+ u.cfgFileFormatVersionRead+".");
-			u.appOutput("This version of "+ u.thisProgName+ " supports version "+u.cfgFileFormatVersionSupported+ " or earlier.");
+			u.appOutput("This version of "+ CompassUtilities.thisProgName+ " supports version "+u.cfgFileFormatVersionSupported+ " or earlier.");
 			u.errorExit();			
 		}
 		if (showVersion) {
@@ -590,6 +591,7 @@ public class Compass {
 //		}
 
 		// copy cfg structure
+		// TODO there is no copy - it's static
 		a.cfg = cfg;
 
 		// init Babelfish target version at latest version, unless user specified a version
@@ -659,17 +661,17 @@ public class Compass {
 			u.appOutput("");
 			u.appOutput("Run starting               : "+startRunFmt);
 			String tmp = "";
-			tmp =       u.cfgFileName+" file : v."+cfg.latestBabelfishVersion() + ", " + u.cfgFileTimestamp;			
-			u.reportHdrLines += tmp + "\n";			
+			tmp =       u.cfgFileName+" file : v."+cfg.latestBabelfishVersion() + ", " + u.cfgFileTimestamp;
+			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
-			tmp =       "Target Babelfish version   : v."+u.targetBabelfishVersion;			
-			u.reportHdrLines += tmp + "\n";			
+			tmp =       "Target Babelfish version   : v."+u.targetBabelfishVersion;
+			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
 			tmp =       "Command line arguments     : "+String.join(" ",cmdFlags);
-			u.reportHdrLines += tmp + "\n";			
+			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
 			tmp =       "Command line input files   : "+String.join(" ",inputFilesOrig);
-			u.reportHdrLines += tmp + "\n";			
+			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
 			tmp =       "User .cfg file (overrides) : " + CompassConfig.userConfigFilePathName;
 			if (!u.userConfig) {
@@ -679,7 +681,7 @@ public class Compass {
 			u.appOutput(tmp);
 			u.appOutput("QUOTED_IDENTIFIER default  : "+quotedIdentifier);
 			tmp =       "Report name                : "+reportName;
-			u.reportHdrLines += tmp;
+			CompassUtilities.reportHdrLines += tmp;
 			u.appOutput(tmp);
 			u.appOutput("Report directory location  : "+reportDirName);
 			u.appOutput("Session log file           : "+sessionLog);			
@@ -771,11 +773,12 @@ public class Compass {
 		if (!parseOnly) u.closeReportFile();
 		
 		// open generated report in browser
-		if (!u.devOptions) {
-			if (u.onWindows) {
+		if (!CompassUtilities.devOptions) {
+			if (CompassUtilities.onWindows) {
 				u.runOScmd("cmd /c \"explorer.exe /n,/select,\"\""+u.reportFilePathName+"\"\" \"");
 				u.runOScmd("cmd /c \"explorer.exe \"\""+u.reportFilePathName+"\"\" \"");
 			}
+
 			else if (u.onMac) {
 				String cmd = "open . " + u.reportFilePathName;
 				if (u.onMacDebug) {
@@ -783,7 +786,7 @@ public class Compass {
 				}
 				u.runOScmd(cmd);
 			}
-			else if (u.onLinux) {
+			else if (CompassUtilities.onLinux) {
 				// TBD
 			}
 		}
@@ -1019,8 +1022,8 @@ public class Compass {
 		}
 		
 		// validate reportoptions
-		if (!u.reportOptionStatus.isEmpty() || !u.reportOptionDetail.isEmpty() || !u.reportOptionFilter.isEmpty() || u.reportOptionNotabs || u.reportOptionLineNrs) {
-			if(u.reportOptionXref.isEmpty()) {
+		if (!CompassUtilities.reportOptionStatus.isEmpty() || !CompassUtilities.reportOptionDetail.isEmpty() || !CompassUtilities.reportOptionFilter.isEmpty() || CompassUtilities.reportOptionNotabs || CompassUtilities.reportOptionLineNrs) {
+			if(CompassUtilities.reportOptionXref.isEmpty()) {
 				u.appOutput("Must also specify report option 'xref' when specifying option 'status', 'detail', 'filter', 'linenrs' or 'notabs' ");
 				return false;
 			}
@@ -1068,7 +1071,7 @@ public class Compass {
 		}
 		
 		int linesSQL=0;
-		if (u.linesSQLInReport > 0) linesSQL = u.linesSQLInReport;
+		if (CompassUtilities.linesSQLInReport > 0) linesSQL = CompassUtilities.linesSQLInReport;
 		else if (nrLinesTotalP1 > 0) linesSQL = nrLinesTotalP1;
 		else if (nrLinesTotalP2 > 0) linesSQL = nrLinesTotalP2;
 		
@@ -1086,11 +1089,11 @@ public class Compass {
 		u.appOutput("Run time             : "+ elapsedRun + " seconds", writeToReport);
 		u.appOutput("#Lines of SQL        : "+ linesSQL + linesSQLPerSecFmt, writeToReport);
 		
-		if ((totalParseErrors > 0) || u.devOptions) {
+		if ((totalParseErrors > 0) || CompassUtilities.devOptions) {
 			u.appOutput("#syntax errors       : "+ totalParseErrors + parseErrorMsg, writeToReport);
 		}
 		
-		if (u.devOptions) {
+		if (CompassUtilities.devOptions) {
 		u.appOutput("#input files         : "+ nrFiles+errFiles);
 		u.appOutput("#batches             : "+ totalBatches);
 		u.appOutput("#lines of SQL ph.1   : "+ nrLinesTotalP1);
@@ -1117,12 +1120,12 @@ public class Compass {
 		u.appOutput("Assessment report    : "+ u.reportFilePathName, writeToReport);
 		u.appOutput(u.composeOutputLine("","="), writeToReport);
 		
-		if (u.devOptions) {
-			u.appOutput(u.thisProc()+"caching  =["+u.caching+"] ");
-			u.appOutput(u.thisProc()+"stripDelimitedIdentifierCall  =["+u.stripDelimitedIdentifierCall+"] ");
-			u.appOutput(u.thisProc()+"stripDelimitedIdentifierCached=["+u.stripDelimitedIdentifierCached+"] ");
-			u.appOutput(u.thisProc()+"normalizeNameCall  =["+u.normalizeNameCall+"] ");
-			u.appOutput(u.thisProc()+"normalizeNameCached=["+u.normalizeNameCached+"] ");
+		if (CompassUtilities.devOptions) {
+			u.appOutput(CompassUtilities.thisProc()+"caching  =["+CompassUtilities.caching+"] ");
+			u.appOutput(CompassUtilities.thisProc()+"stripDelimitedIdentifierCall  =["+u.stripDelimitedIdentifierCall+"] ");
+			u.appOutput(CompassUtilities.thisProc()+"stripDelimitedIdentifierCached=["+u.stripDelimitedIdentifierCached+"] ");
+			u.appOutput(CompassUtilities.thisProc()+"normalizeNameCall  =["+u.normalizeNameCall+"] ");
+			u.appOutput(CompassUtilities.thisProc()+"normalizeNameCached=["+u.normalizeNameCached+"] ");
 		}
 	}
 
@@ -1132,7 +1135,7 @@ public class Compass {
 			if (u.analysisPass > 1) return;
 
 			String EOT = "CTRL-D";
-			if (u.onWindows) {
+			if (CompassUtilities.onWindows) {
 				EOT = "CTRL-Z";
 			}
 
@@ -1205,7 +1208,7 @@ public class Compass {
 					u.appOutput("Application name '" + appName + "' is blank. Use -appname");
 					u.errorExit();
 				}
-				String invalidMsg = u.nameFormatValid("appname", appName);
+				String invalidMsg = CompassUtilities.nameFormatValid("appname", appName);
 				if (!invalidMsg.isEmpty()) {
 					// if we get here, then fixNameChars() is not right
 					u.appOutput("Application name '" + appName + "' still contains invalid character after removing known characters " + invalidMsg);
@@ -1258,7 +1261,7 @@ public class Compass {
 						String detectedEncoding = u.detectEncoding(inFile);
 						if (detectedEncoding != null) {
 							charset = Charset.forName(detectedEncoding);
-							u.appOutput(u.stringRepeat(" ", u.progressCnt(fileCount, nrFiles).length()) + "Detected encoding '" + detectedEncoding + "' for input file " + inFile);
+							u.appOutput(CompassUtilities.stringRepeat(" ", u.progressCnt(fileCount, nrFiles).length()) + "Detected encoding '" + detectedEncoding + "' for input file " + inFile);
 						} 
 						else {
 							charset = Charset.defaultCharset();
@@ -1272,7 +1275,7 @@ public class Compass {
 							return;
 						}
 					}
-					if (u.debugging) u.dbgOutput(u.thisProc() + "Using encoding=[" + charset.toString() + "]", u.debugBatch);
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "Using encoding=[" + charset.toString() + "]", u.debugBatch);
 
 					u.openImportFile(reportName, inFile, appName, charset.toString());  // open to write a copy of the input file
 
@@ -1296,7 +1299,7 @@ public class Compass {
 				}
 			
 				fis = new FileInputStream(inFileCopy);
-				isr = new InputStreamReader(fis, "UTF-8");
+				isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
 			}
 			
 			BufferedReader inFileReader = new BufferedReader(isr);
@@ -1770,22 +1773,22 @@ public class Compass {
 				try {
 					String inFileTmp = inFile;
 					if (reAnalyze) inFileTmp = u.currentSrcFile;
-					//u.appOutput(u.thisProc()+"symtab inFile=["+inFileTmp+"] ");
+					//u.appOutput(CompassUtilities.thisProc()+"symtab inFile=["+inFileTmp+"] ");
 					u.writeSymTab(reportName, inFileTmp, appName);
 				} catch (Exception e) {
 					u.appOutput("Error writing symbol table " + u.symTabFilePathName);
 					throw e;
 				}
-				u.clearSymTab();
+				CompassUtilities.clearSymTab();
 			}
 
 			if (u.analysisPass == 2) {
-				u.appendCaptureFile(u.makeMetricsLine(u.currentSrcFile, u.currentAppName, batchNr, nrParseErrors, lineNr));
+				u.appendCaptureFile(CompassUtilities.makeMetricsLine(u.currentSrcFile, u.currentAppName, batchNr, nrParseErrors, lineNr));
 				u.closeCaptureFile();
 			}
 
 			if (u.analysisPass == 2) {
-				if (u.devOptions) {
+				if (CompassUtilities.devOptions) {
 					// temporary, for development
 					int secs = ((int) timeElapsedFile / 1000);
 					int linesSec = (secs > 0) ? (nrLinesInFile / secs) : nrLinesInFile;
@@ -1820,8 +1823,8 @@ public class Compass {
 		TSQLParser parser = new TSQLParser(tokenStream);
 
 		// get the grammar rule names
-		if (u.grammarRuleNames == null) {
-			u.grammarRuleNames = parser.getRuleNames();
+		if (CompassUtilities.grammarRuleNames == null) {
+			CompassUtilities.grammarRuleNames = parser.getRuleNames();
 		}
 		
 		if ( antlrShowTokens ) {
