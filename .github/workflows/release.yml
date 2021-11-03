@@ -41,8 +41,9 @@ jobs:
         cp BabelfishCompass.sh BabelfishCompass/
         mv BabelfishCompass/compass-*-jar-with-dependencies.jar BabelfishCompass/compass.jar
         zip -r BabelfishCompass_${{ env.RELEASE_VERSION }}.zip BabelfishCompass
-        
+
     - name: Upload JARs to release
+      if: github.event_name == 'push'
       uses: ncipollo/release-action@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
