@@ -7,6 +7,14 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  actions: write
+  contents: write
+  deployments: write
+  packages: write
+  pull-requests: write
+  repository-projects: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
