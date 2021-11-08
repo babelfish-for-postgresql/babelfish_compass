@@ -4126,7 +4126,28 @@ tooltipsHTMLPlaceholder +
 
 
 	public void  importPG(boolean append, List<String> pgImportFlags) throws IOException {
-		// todo: import BBF version + date of import
+		// platform-dependent parts
+		String envvarSet = "SET ";
+		String cmdSeparator = "& ";
+		String envvarPrefix = "%";
+		String envvarSuffix = "%";
+		if (onMac || onLinux) {
+			envvarSet = "export ";		
+			cmdSeparator = "; ";
+			envvarPrefix = "\\$";
+			envvarSuffix = "";
+		}
+				
+		// Check for code injection risks - though it's difficult to see what could go wrong given that 
+		// the current session as well as the PG session are owned by this user anyway.
+		// But let's do the right thing.
+		validatePGImportArg(cmdSeparator, pgImportFlags.get(2), "username");
+		validatePGImportArg(cmdSeparator, pgImportFlags.get(3), "password");
+		validatePGImportArg(cmdSeparator, pgImportFlags.get(0), "host");
+		validatePGImportArg(cmdSeparator, pgImportFlags.get(1), "port");
+		validatePGImportArg(cmdSeparator, pgImportFlags.get(4), "database name");	
+		
+		// get capture files
 		List<Path> captureFiles = getCaptureFiles(reportName);
 		if (debugging) dbgOutput(thisProc() + "captureFiles(" + captureFiles.size() + ")=[" + captureFiles + "] ", debugReport);
 		if (captureFiles.size() == 0) {
@@ -4195,25 +4216,13 @@ tooltipsHTMLPlaceholder +
 		}
 		PGImportFileWriter.close();
 		appOutput("Items written for import: "+capCount + " (in "+PGImportFilePathName+")");
-
-		// platform-dependent parts
-		String envvarSet = "SET ";
-		String cmdSeparator = "& ";
-		String envvarPrefix = "%";
-		String envvarSuffix = "%";
-		if (onMac || onLinux) {
-			envvarSet = "export ";		
-			cmdSeparator = "; ";
-			envvarPrefix = "\\$";
-			envvarSuffix = "";
-		}
 		
 		// do not write the password etc. in any file but keep in envvar only:
 		String PGUserEnvvar   = "BBFCOMPASSPSQLUSERNAME";
 		String PGPasswdEnvvar = "BBFCOMPASSPSQLPASSWD";
 		String PGHostEnvvar   = "BBFCOMPASSPSQLHOST";
 		String PGPortEnvvar   = "BBFCOMPASSPSQLPORT";
-		String PGDBnameEnvvar = "BBFCOMPASSPSQLDBNAME";
+		String PGDBnameEnvvar = "BBFCOMPASSPSQLDBNAME";					
 		
 		String psqlCmd= "psql --echo-all --file=~file~ \"postgresql://~username~:~password~@~host~:~port~/~dbname~\"";
 		psqlCmd= applyPatternFirst(psqlCmd, "~username~", envvarPrefix+ PGUserEnvvar   +envvarSuffix);
@@ -4245,6 +4254,14 @@ tooltipsHTMLPlaceholder +
 		runOScmd(runCmd);
 
 		//done!
+	}
+	
+	private void validatePGImportArg(String cmdSeparator, String envvar, String name) {
+		cmdSeparator = cmdSeparator.trim();
+		if (envvar.contains(cmdSeparator)) {
+			appOutput("Value '"+envvar+"' for '"+name+"' contains invalid character(s): '"+cmdSeparator+"'");
+			errorExit();
+		}
 	}
 
 	public String getUserCfgFilePathName(String fileName) throws IOException {
