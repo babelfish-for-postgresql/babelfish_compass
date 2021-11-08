@@ -16,6 +16,7 @@ import java.io.RandomAccessFile;
 import java.nio.file.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,13 +31,12 @@ public class CompassUtilities {
 	// not-initialized strings
 	public final String uninitialized = "-init-";
 
-	public static boolean onWindows = false;
+	public static boolean onWindows = false;;
 	public static boolean onMac     = false;
-	public static boolean onMacDebug= false;
 	public static boolean onLinux   = false;
 
-	public static final String thisProgVersion      = "1.0";
-	public static final String thisProgVersionDate  = "October 2021";
+	public static final String thisProgVersion      = "1.1";
+	public static final String thisProgVersionDate  = "November 2021";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -45,8 +45,8 @@ public class CompassUtilities {
 	public static final String copyrightLine        = "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.";
 	public static String thisProgExec               = "java " + thisProgPathExec + "." + thisProgNameExec;
 	public static final String thisProgExecWindows  = "BabelfishCompass.bat";
-	public static final String thisProgExecLinux    = "BabelfishCompass";
-	public static final String thisProgExecMac      = "BabelfishCompass";
+	public static final String thisProgExecLinux    = "BabelfishCompass.sh";
+	public static final String thisProgExecMac      = "BabelfishCompass.sh";
 	
 	// user docs
 	public static final String userDocText          = thisProgName + " User Guide";
@@ -61,13 +61,13 @@ public class CompassUtilities {
           + "You should not base decisions on the information in this report without independently\n"
           + "validating it against the actual SQL/DDL code on which this report is based.\n";
 
-	// .cfg file is in a fixed place, namely, %COMPASS%/<defaultfilename>
+	// .cfg file is in a fixed place, %COMPASS%/<defaultfilename>
 	public String cfgFileName = uninitialized;
-	public final String defaultCfgFileName  = "BabelfishFeatures.cfg";
+	public final String defaultCfgFileName = "BabelfishFeatures.cfg";
 
 	// user .cfg file is in a fixed place, under document folder
 	public String userCfgFileName = uninitialized;
-	public final String defaultUserCfgFileName  = "BabelfishCompassUser.cfg";
+	public static final String defaultUserCfgFileName  = "BabelfishCompassUser.cfg";
 	public static boolean userConfig = true;
 
 	// .cfg file format version as found in the .cfg file; this is validated
@@ -91,7 +91,10 @@ public class CompassUtilities {
 	public final String lineIndent = "    ";
 
 	// file handling
-	public final String BabelfishCompassFolderName = "BabelfishCompass";
+	public String BabelfishCompassFolderName = uninitialized;
+	public final String BabelfishCompassFolderNameWindows = "BabelfishCompass";
+	public final String BabelfishCompassFolderNameMac     = "BabelfishCompassReports";
+	public final String BabelfishCompassFolderNameLinux   = "BabelfishCompassReports";
 	public final String batchDirName = "batches";
 	public final String batchFileSuffix = "batch.txt";
 	public final String errBatchDirName = "errorbatches";
@@ -479,7 +482,8 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.ReadText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
 		CompassAnalyze.WriteText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
 		CompassAnalyze.UpdateText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
-		"INSERT..EXECUTE(string)"+tttSeparator+"INSERT..EXECUTE with EXECUTE_immediate is not currently supported",
+		"INSERT..EXECUTE(string)"+tttSeparator+"INSERT..EXECUTE with EXECUTE-immediate is not currently supported",
+		"INSERT..EXECUTE sp_executesql"+tttSeparator+"INSERT..EXECUTE with sp_executesql is not currently supported",
 		"INSERT..DEFAULT VALUES"+tttSeparator+"INSERT..DEFAULT VALUES: this syntax is not currently supported. Rewrite as an INSERT with actual values",
 		"INSERT TOP..SELECT"+tttSeparator+"Rewrite as INSERT.. SELECT TOP",
 		CompassAnalyze.InsertBulkStmt+tttSeparator+"INSERT BULK is not a T-SQL statement, but only available through specific client-server APIs",
@@ -513,7 +517,7 @@ tooltipsHTMLPlaceholder +
 		"SET QUOTED_IDENTIFIER \\w+, before end of batch"+tttSeparator+"SET QUOTED_IDENTIFIER takes effect only at the start of the next batch in Babelfish; the SQL Server semantics where it applies to the next statement, is not currently supported",
 		"SET DEADLOCK_PRIORITY"+tttSeparator+"Setting the deadlock victimization priority is not currently supported",
 		"SET LOCK_TIMEOUT"+tttSeparator+"Setting the lock timeout is not currently supported",
-		CompassAnalyze.SetXactIsolationLevel+tttSeparator+"This transaction isolation level is not currently supported, due to PostgreSQL's MVCC mechanism",
+		CompassAnalyze.SetXactIsolationLevel+tttSeparator+"This transaction isolation level is not currently supported, due to PostgreSQL\'s MVCC mechanism",
 		
 		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index "+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish",
 		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish",
@@ -576,27 +580,26 @@ tooltipsHTMLPlaceholder +
 
 	public String psqlImportFileName = "pg_import";
 	public String psqlFileSuffix = "psql";
-	public String batFileSuffix = "bat";
 	public String psqlImportTableName = "BBFCompass";
 	public String psqlImportFilePlaceholder    = "BBF_PSQLIMPORTFILEPLACEHOLDER";
 	public String psqlImportTablePlaceholder   = "BBF_PSQLIMPORTTABLEPLACEHOLDER";
 	public String psqlImportSQLCrTb   =
 "DROP TABLE IF EXISTS "+psqlImportTablePlaceholder+";\n"+
 "CREATE TABLE "+psqlImportTablePlaceholder+"(\n"+
-"	babelfish_version VARCHAR(20) NOT NULL,\n"+
-"	date_imported TIMESTAMP NOT NULL,\n"+
-"	item VARCHAR(200) NOT NULL,\n"+
-"	itemDetail VARCHAR(200) NOT NULL,\n"+
-"	reportGroup VARCHAR(50) NOT NULL,\n"+
-"	status VARCHAR(20) NOT NULL,\n"+
-"	lineNr INT NOT NULL,\n"+
-"	appName VARCHAR(100) NOT NULL,\n"+
-"	srcFile VARCHAR(200) NOT NULL,\n"+
-"	batchNrinFile INT NOT NULL,\n"+
-"	batchLineInFile INT NOT NULL,\n"+
-"	context VARCHAR(200) NOT NULL,\n"+
-"	subcontext VARCHAR(200) NOT NULL,\n"+
-"	misc VARCHAR(20) NOT NULL\n"+
+"	babelfish_version VARCHAR(20) NOT NULL, -- Babelfish version for which analysis was performed\n"+
+"	date_imported TIMESTAMP NOT NULL,       -- date/time of running -pgimport\n"+
+"	item VARCHAR(200) NOT NULL,             -- line item as shown in the report\n"+
+"	itemDetail VARCHAR(200) NOT NULL,       -- additional info for a line item\n"+
+"	reportGroup VARCHAR(50) NOT NULL,       -- report group as show in the report\n"+
+"	status VARCHAR(20) NOT NULL,            -- classification of the item, e.g. SUPPORTED, NOTSUPPORTED, etc.\n"+
+"	lineNr INT NOT NULL,                    -- line number of the item in the T-SQL batch\n"+
+"	appName VARCHAR(100) NOT NULL,          -- application name \n"+
+"	srcFile VARCHAR(200) NOT NULL,          -- SQL source file name\n"+
+"	batchNrinFile INT NOT NULL,             -- batch no. of T-SQL batch in SQL source file\n"+
+"	batchLineInFile INT NOT NULL,           -- line number in file of start of batch\n"+
+"	context VARCHAR(200) NOT NULL,          -- name of object, or 'T-SQL batch'\n"+
+"	subcontext VARCHAR(200) NOT NULL,       -- (optional) name of table in object \n"+
+"	misc VARCHAR(20) NOT NULL               -- not for customer use; please ignore\n"+
 ");\n";
 
 	public String psqlImportSQLCopy =
@@ -757,12 +760,13 @@ tooltipsHTMLPlaceholder +
 	static final List<String> OnOffOption = Arrays.asList("ON", "OFF");
 
 	// debug flags
-	public final HashSet<String> dbgOptions = new HashSet<>(Arrays.asList("all", "batch", "ptree", "cfg", "dir", "symtab", "report", "calc"));
+	public final HashSet<String> dbgOptions = new HashSet<>(Arrays.asList("all", "batch", "ptree", "cfg", "dir", "symtab", "report", "calc", "os"));
 	public final HashSet<String> specifiedDbgOptions = new HashSet<>(dbgOptions.size());
 	public boolean debugBatch;
 	public boolean debugPtree;
 	public boolean debugCfg;
 	public boolean debugDir;
+	public boolean debugOS;
 	public boolean debugSymtab;
 	public boolean debugReport;
 	public boolean debugCalc;
@@ -881,18 +885,22 @@ tooltipsHTMLPlaceholder +
 
     public void getPlatform () {
 		String osName = System.getProperty("os.name").toLowerCase();
+		
 		if (osName.startsWith("windows")) {
 			onWindows = true;
 			thisProgExec = thisProgExecWindows;
+			BabelfishCompassFolderName = BabelfishCompassFolderNameWindows;
 		}
-		else if (osName.startsWith("mac os x")) {
+		else if (osName.startsWith("mac os x")) {			
 			onMac = true;
 			thisProgExec = thisProgExecMac;
+			BabelfishCompassFolderName = BabelfishCompassFolderNameMac;
 		}
 		else {
 			// assume Linux
 			onLinux = true;
 			thisProgExec = thisProgExecLinux;
+			BabelfishCompassFolderName = BabelfishCompassFolderNameLinux;
 		}
 
 		if (System.getenv().containsKey("COMPASS_DEVELOP") || System.getenv().containsKey("compass_develop")) {
@@ -921,21 +929,22 @@ tooltipsHTMLPlaceholder +
  	// for debugging, and for launching the window with the final report
     public void runOScmd (String cmd) throws IOException {
     	ProcessBuilder builder;
+    	if (debugging) dbgOutput(thisProc() + "onWindows=["+onWindows+"] onMac=["+onMac+"] onLinux=["+onLinux+"] cmd=["+cmd+"]  ", debugOS);
     	if (onWindows) {
 	        builder = new ProcessBuilder("cmd.exe", "/c", cmd );
 	    }
 	    else {
 	    	// Mac, Linux
-	        builder = new ProcessBuilder("bash", cmd );
+	        builder = new ProcessBuilder("bash", "-c", cmd );
 	    }
         builder.redirectErrorStream(true);
         Process p = builder.start();
-        BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
+        BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8));
         String cmdOutput;
         while (true) {
             cmdOutput = r.readLine();
             if (cmdOutput == null) { break; }
-            System.out.println(cmdOutput);
+            appOutput(cmdOutput);
         }
     }
 
@@ -1027,9 +1036,8 @@ tooltipsHTMLPlaceholder +
 		}
 		return str.toString();
 	}
-
 	public static String removeLastChar(String s) {
-		return removeLastChars(s, 1);
+	    return removeLastChars(s, 1);
 	}
 
 	public static String removeLastChars(String s, int nrChars) {
@@ -1057,15 +1065,15 @@ tooltipsHTMLPlaceholder +
 		}
 		return capitalized;
 	}
-
+	
 	public String capitalizeInitChar(String s) {
 		if (s.length() == 0) return s;
 		StringTokenizer sTok = new StringTokenizer(s);
-		StringBuilder sNew = new StringBuilder();
-		while (sTok.hasMoreTokens()) {
-			sNew.append(capitalizeFirstChar(sTok.nextToken())).append(" ");
+		StringBuilder sNew= new StringBuilder();
+		while(sTok.hasMoreTokens()){
+	        sNew.append(capitalizeFirstChar(sTok.nextToken())).append(" ");
 		}
-		return removeLastChar(sNew.toString());
+	    return removeLastChar(sNew.toString());
 	}
 
 	public static void listToUpperCase(List<String> thisList) {
@@ -1096,7 +1104,7 @@ tooltipsHTMLPlaceholder +
 		}
 		return s;
 	}
-
+	
 	// align lines on the specified delimiter
 	public String alignColumn(StringBuilder s, String alignStr, String alignBA, String alignLR) {
 		return alignColumn(s.toString(), alignStr, alignBA, alignLR);
@@ -1279,29 +1287,28 @@ tooltipsHTMLPlaceholder +
 	public void setDebugFlags()
 	{
 		debugging = true;
-		if (specifiedDbgOptions.contains("all")) {
-			debugBatch = debugPtree = debugCfg = debugDir = debugSymtab = debugReport = debugCalc = true;
-			return;
-		}
-		if (specifiedDbgOptions.contains("batch")) {
+		if (specifiedDbgOptions.contains("batch") || specifiedDbgOptions.contains("all")) {
 			debugBatch = true;
 		}
-		if (specifiedDbgOptions.contains("ptree")) {
+		if (specifiedDbgOptions.contains("ptree") || specifiedDbgOptions.contains("all")) {
 			debugPtree = true;
 		}
-		if (specifiedDbgOptions.contains("cfg")) {
+		if (specifiedDbgOptions.contains("cfg") || specifiedDbgOptions.contains("all")) {
 			debugCfg = true;
 		}
-		if (specifiedDbgOptions.contains("dir")) {
+		if (specifiedDbgOptions.contains("dir") || specifiedDbgOptions.contains("all")) {
 			debugDir = true;
 		}
-		if (specifiedDbgOptions.contains("symtab")) {
+		if (specifiedDbgOptions.contains("os") || specifiedDbgOptions.contains("all")) {
+			debugOS = true;
+		}
+		if (specifiedDbgOptions.contains("symtab") || specifiedDbgOptions.contains("all")) {
 			debugSymtab = true;
 		}
-		if (specifiedDbgOptions.contains("report")) {
+		if (specifiedDbgOptions.contains("report") || specifiedDbgOptions.contains("all")) {
 			debugReport = true;
 		}
-		if (specifiedDbgOptions.contains("calc")) {
+		if (specifiedDbgOptions.contains("calc") || specifiedDbgOptions.contains("all")) {
 			debugCalc = true;
 		}
 	}
@@ -1375,8 +1382,8 @@ tooltipsHTMLPlaceholder +
 		result = applyPatternAll(result, "[\\-]+", "-");
 		return result;
 	}
-
-	/**
+	
+	/*
 	 * Checks for valid user entered command line arguments for Application Name or Report Name. Returns a error message
 	 * if the entered string contains directory separators (slashes) or any not allowed characters.
 	 * @param nameType one of "report" or "appname"
@@ -1420,7 +1427,14 @@ tooltipsHTMLPlaceholder +
 	// doc dir pathname: %USERPROFILE% on Windows, /home/<user> on Linux
 	// ToDo: test on Linux/Mac
     public String getDocDirPathname() {
-		String dirPath = System.getProperty("user.home") + File.separator + "Documents" + File.separator + BabelfishCompassFolderName;
+		String dirPath = "";
+		if (onWindows) {
+			dirPath = System.getProperty("user.home") + File.separator + "Documents" + File.separator + BabelfishCompassFolderName;
+		}
+		else { 
+			// Linux, Mac
+			dirPath = System.getProperty("user.home") + File.separator + BabelfishCompassFolderName;
+		}
 		return dirPath;
 	}
 
@@ -1783,16 +1797,19 @@ tooltipsHTMLPlaceholder +
 		psqlImportFileWriter.flush();
 		psqlImportFileWriter.close();
 
-		String psqlImportBatFilePathName = psqlImportFilePathNameRoot + batFileSuffix;
-		BufferedWriter psqlImportBatFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(psqlImportBatFilePathName), StandardCharsets.UTF_8)));
-		psqlImportBatFileWriter.write("rem Importing captured items into PG table '" + psqlImportTableName+ "'...\n");
-		psqlImportBatFileWriter.write("@echo off\n");
-		psqlImportBatFileWriter.write("cd " + getReportDirPathname(reportName, capDirName) + "\n");
-		psqlImportBatFileWriter.write(cmd + "\n");
-		psqlImportBatFileWriter.flush();
-		psqlImportBatFileWriter.close();
+		String psqlCmdFileSuffix = "bat";
+		if (onMac || onLinux) psqlCmdFileSuffix = "sh";
+		String psqlImportCmdFilePathName = psqlImportFilePathNameRoot + psqlCmdFileSuffix;
+		BufferedWriter psqlImportCmdFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(psqlImportCmdFilePathName), StandardCharsets.UTF_8)));
+		String commentLine = "rem Importing captured items into PostgreSQL table '" + psqlImportTableName+ "'...\n@echo off\n";
+		if (onMac || onLinux) commentLine = "#!/bin/bash\n# Importing captured items into PostgreSQL table '" + psqlImportTableName+ "'...\n";
+		psqlImportCmdFileWriter.write(commentLine);
+		psqlImportCmdFileWriter.write("cd " + getReportDirPathname(reportName, capDirName) + "\n");
+		psqlImportCmdFileWriter.write(cmd + "\n");
+		psqlImportCmdFileWriter.flush();
+		psqlImportCmdFileWriter.close();
 
-		return psqlImportBatFilePathName;
+		return psqlImportCmdFilePathName;
 	}
 
 	// couldn't find readily available solution in standard Java; should maybe use apache.commons to escape HTML chars
@@ -2126,10 +2143,13 @@ tooltipsHTMLPlaceholder +
 	}
 
 	// Try to detect the encoding of the input file.
-	// In particular, check for UTF8/UTF16/UTF32 by lookign at the BOM bytes: SQL Server Mgmt Studio generates UTF16LE by default.
+	// In particular, check for UTF8/UTF16/UTF32 by looking at the BOM bytes: SQL Server Mgmt Studio generates UTF16LE by default.
 	// In case the detected encoding is different from the system default (as in Charset.defaultCharset()), return the name of the encoding.
 	public String detectEncoding(String fileName) throws IOException {
-		BufferedReader inFileReader = new BufferedReader(new InputStreamReader(new FileInputStream(fileName)));
+		// using this charset because it gives identical resutls across platforms
+		String cs = "ISO-8859-1";
+		if (debugging) dbgOutput(thisProc() + "reading fileName=["+fileName+"] as cs=["+cs+"] default on this system=["+Charset.defaultCharset()+"] ", debugOS);		
+		BufferedReader inFileReader = new BufferedReader(new InputStreamReader(new FileInputStream(fileName), Charset.forName(cs)));
 		StringBuilder bomSB = new StringBuilder(4);
 		int readValue;
 
@@ -2140,23 +2160,54 @@ tooltipsHTMLPlaceholder +
 
 		inFileReader.close();
 		String bom = bomSB.toString();
+		
+		// dump the bytes
+		if (debugging) {
+			if (debugOS) {	
+				String x = "";
+				for (char c : bom.toCharArray()) {
+					x += "0x";
+					String hexString = Integer.toHexString(c);
+					int leadingZerosNr = 4 - hexString.length();
+					for (int i = 0; i < leadingZerosNr; i++) {
+						x += "0";
+					}
+					x += hexString + " ";
+				}	
+				dbgOutput(thisProc() + "bom=["+bom+"] hex=["+ x+"]", debugOS);		
+			}
+		}
 
+		String encodingFound = null;
 		if (bom.startsWith("\u00EF\u00BB\u00BF")) {
-			return "UTF-8";
+			if (debugging) dbgOutput(thisProc() + "Detecting BOM UTF-8", debugOS);
+			encodingFound = "UTF-8";
 		}
-		if (bom.startsWith("\u00FE\u00FF")) {
-			return "UTF-16"; // UTF-16BE
+		else if (bom.startsWith("\u00FE\u00FF")) {
+			if (debugging) dbgOutput(thisProc() + "Detecting BOM UTF-16BE", debugOS);			
+			encodingFound = "UTF-16"; // UTF-16BE
 		}
-		if (bom.equals("\u0000\u0000\u00FE\u00FF")) {
-			return "UTF-32"; // UTF-32BE
+		else if (bom.equals("\u0000\u0000\u00FE\u00FF")) {
+			if (debugging) dbgOutput(thisProc() + "Detecting BOM UTF32BE", debugOS);
+			encodingFound = "UTF-32"; // UTF-32BE
 		}
-		if (bom.equals("\u00FF\u00FE\u0000\u0000")) {
-			return "UTF-32"; // UTF-32LE
+		else if (bom.equals("\u00FF\u00FE\u0000\u0000")) {
+			if (debugging) dbgOutput(thisProc() + "Detecting BOM UTF-32LE", debugOS);
+			encodingFound = "UTF-32"; // UTF-32LE
 		}
-		if (bom.startsWith("\u00FF\u00FE")) {
-			return "UTF-16"; // UTF-16LE
+		else if (bom.startsWith("\u00FF\u00FE")) {
+			if (debugging) dbgOutput(thisProc() + "Detecting BOM UTF-16LE", debugOS);
+			encodingFound = "UTF-16"; // UTF-16LE
 		}
-		return null;
+		else {
+			if (debugging) dbgOutput(thisProc() + "Not detecting BOM", debugOS);
+		}
+		if (encodingFound != null) {
+			if (encodingFound.equalsIgnoreCase(Charset.defaultCharset().toString())) {
+				encodingFound = null;
+			}
+		}
+		return encodingFound;
 	}
 
 	// validate an input file: check minimum requirements, and figure out if this was created
@@ -3915,19 +3966,37 @@ tooltipsHTMLPlaceholder +
 		summarySection.append("\n");
 
 		// add override info
-		if (statusOverrides.size() > 0) {
-			StringBuilder summaryTmp3 = new StringBuilder();
-			for (String k : statusOverrides.keySet().stream().sorted().collect(Collectors.toList())) {
-				List<String> ov = new ArrayList<>(Arrays.asList(k.split(overrideSeparator)));				
-				Integer n = statusOverrides.get(k);
-				summaryTmp3.append(lineIndent).append(supportOptionsDisplay.get(supportOptions.indexOf(ov.get(0))) + " (was: "+ supportOptionsDisplay.get(supportOptions.indexOf(ov.get(1))) + ") : " + n.toString()+"\n");
-			}		
-			
-			summaryTmp3 = new StringBuilder(alignColumn(summaryTmp3, " : ", "before", "left"));
-			summaryTmp3 = new StringBuilder(alignColumn(summaryTmp3, " : ", "after", "right"));
-			summarySection.append("Overridden by user .cfg file ("+CompassConfig.userConfigFilePathName+"):\n");
-			summarySection.append(summaryTmp3);
-			summarySection.append("\n");				
+		if (Compass.reportOnly) {			
+			if (CompassConfig.overrideCount > 0) {
+				// there are overrides in the user .cfg file, but indicate that overrides have not been applied in generating this report
+				summarySection.append("NB: user-defined overrides (via "+CompassConfig.userConfigFilePathName+")\n");
+				summarySection.append("are applied during analysis, not during report generation (this was a report-only run).\n");
+				summarySection.append("To apply overrides for this report's imported files, use -analyze.\n");
+				summarySection.append("\n");			
+				appOutput(thisProc()+"inside, NB append");		
+			}
+			else {
+				// there are no overrides in the user .cfg file, so no need to print any warnings
+			}			
+		}
+		else {
+			if (statusOverrides.size() > 0) {
+				StringBuilder summaryTmp3 = new StringBuilder();
+				for (String k : statusOverrides.keySet().stream().sorted().collect(Collectors.toList())) {
+					List<String> ov = new ArrayList<>(Arrays.asList(k.split(overrideSeparator)));				
+					Integer n = statusOverrides.get(k);
+					summaryTmp3.append(lineIndent).append(supportOptionsDisplay.get(supportOptions.indexOf(ov.get(0))) + " (was: "+ supportOptionsDisplay.get(supportOptions.indexOf(ov.get(1))) + ") : " + n.toString()+"\n");
+				}		
+				
+				summaryTmp3 = new StringBuilder(alignColumn(summaryTmp3, " : ", "before", "left"));
+				summaryTmp3 = new StringBuilder(alignColumn(summaryTmp3, " : ", "after", "right"));
+				summarySection.append("Overridden by user .cfg file ("+CompassConfig.userConfigFilePathName+"):\n");
+				summarySection.append(summaryTmp3);
+				summarySection.append("\n");				
+			}
+			else {
+				// no overrides were applied, so no additional information needs to be printed
+			}
 		}
 
 		// calc %age. NB: this has been removed from the report
@@ -4127,6 +4196,18 @@ tooltipsHTMLPlaceholder +
 		PGImportFileWriter.close();
 		appOutput("Items written for import: "+capCount + " (in "+PGImportFilePathName+")");
 
+		// platform-dependent parts
+		String envvarSet = "SET ";
+		String cmdSeparator = "& ";
+		String envvarPrefix = "%";
+		String envvarSuffix = "%";
+		if (onMac || onLinux) {
+			envvarSet = "export ";		
+			cmdSeparator = "; ";
+			envvarPrefix = "\\$";
+			envvarSuffix = "";
+		}
+		
 		// do not write the password etc. in any file but keep in envvar only:
 		String PGUserEnvvar   = "BBFCOMPASSPSQLUSERNAME";
 		String PGPasswdEnvvar = "BBFCOMPASSPSQLPASSWD";
@@ -4135,26 +4216,33 @@ tooltipsHTMLPlaceholder +
 		String PGDBnameEnvvar = "BBFCOMPASSPSQLDBNAME";
 		
 		String psqlCmd= "psql --echo-all --file=~file~ \"postgresql://~username~:~password~@~host~:~port~/~dbname~\"";
-		psqlCmd= applyPatternFirst(psqlCmd, "~username~", "%"+PGUserEnvvar+"%");
-		psqlCmd= applyPatternFirst(psqlCmd, "~password~", "%"+PGPasswdEnvvar+"%");
-		psqlCmd= applyPatternFirst(psqlCmd, "~host~", "%"+PGHostEnvvar+"%");
-		psqlCmd= applyPatternFirst(psqlCmd, "~port~", "%"+PGPortEnvvar+"%");
-		psqlCmd= applyPatternFirst(psqlCmd, "~dbname~", "%"+PGDBnameEnvvar+"%");
+		psqlCmd= applyPatternFirst(psqlCmd, "~username~", envvarPrefix+ PGUserEnvvar   +envvarSuffix);
+		psqlCmd= applyPatternFirst(psqlCmd, "~password~", envvarPrefix+ PGPasswdEnvvar +envvarSuffix);
+		psqlCmd= applyPatternFirst(psqlCmd, "~host~",     envvarPrefix+ PGHostEnvvar   +envvarSuffix);
+		psqlCmd= applyPatternFirst(psqlCmd, "~port~",     envvarPrefix+ PGPortEnvvar   +envvarSuffix);
+		psqlCmd= applyPatternFirst(psqlCmd, "~dbname~",   envvarPrefix+ PGDBnameEnvvar +envvarSuffix);
 
 		String psqlFile = psqlImportFileName + "." + psqlFileSuffix;
 		psqlCmd= applyPatternFirst(psqlCmd, "~file~", psqlFile);
 
-		String batFile = writePsqlFile(append, reportName, psqlCmd);
+		String cmdFile = writePsqlFile(append, reportName, psqlCmd);
+
+		// compose the command line
+		String runCmd= ""; 
+		runCmd += envvarSet+PGUserEnvvar+"="+pgImportFlags.get(2)+cmdSeparator;
+		runCmd += envvarSet+PGPasswdEnvvar+"="+pgImportFlags.get(3)+cmdSeparator;
+		runCmd += envvarSet+PGHostEnvvar+"="+pgImportFlags.get(0)+cmdSeparator;
+		runCmd += envvarSet+PGPortEnvvar+"="+pgImportFlags.get(1)+cmdSeparator;
+		runCmd += envvarSet+PGDBnameEnvvar+"="+pgImportFlags.get(4)+cmdSeparator;
+		if (onMac || onLinux) {
+			runCmd += "chmod +x "+cmdFile+cmdSeparator;
+		}
+		runCmd += cmdFile;
+		
+		if (debugging) dbgOutput(thisProc() + "runCmd=["+runCmd+"]  ", debugReport);
 
 		// finally, run the import
-		String runBatCmd= "";  // SET "+PGPasswdEnvvar+"="+pgImportFlags.get(3)+"& " + batFile;
-		runBatCmd += "SET "+PGUserEnvvar+"="+pgImportFlags.get(2)+"& ";
-		runBatCmd += "SET "+PGPasswdEnvvar+"="+pgImportFlags.get(3)+"& ";
-		runBatCmd += "SET "+PGHostEnvvar+"="+pgImportFlags.get(0)+"& ";
-		runBatCmd += "SET "+PGPortEnvvar+"="+pgImportFlags.get(1)+"& ";
-		runBatCmd += "SET "+PGDBnameEnvvar+"="+pgImportFlags.get(4)+"& ";
-		runBatCmd += batFile;
-		runOScmd(runBatCmd);
+		runOScmd(runCmd);
 
 		//done!
 	}
@@ -4172,6 +4260,7 @@ tooltipsHTMLPlaceholder +
 		return openUserCfgFile(fileName, true);
 	}
 	public String openUserCfgFile(String fileName, boolean newFile) throws IOException {
+		checkDir(getDocDirPathname(), false, true);
 		String userCfgFilePathName = getUserCfgFilePathName(fileName);
 		userCfgFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(userCfgFilePathName, (!newFile)), StandardCharsets.UTF_8)));
 		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
@@ -4199,11 +4288,13 @@ tooltipsHTMLPlaceholder +
 "#    default_classification-Ignored=FULLTEXTSERVICEPROPERTY   # this often occurs in SSMS-generated scripts, assume it can be ignored\n" + 
 "#\n" + 
 "#    [DESC constraint]\n" + 
-"#    default_classification=Ignored\n" + 
+"#    default_classification=ReviewManually\n" + 
 "#    report_group=Indexing\n" + 
 "#\n" + 
 "# NB: overriding the classification is possible only for items which are not \n" + 
 "# classified as 'Supported': overrides for supported items will be ignored. \n" + 
+"# Also, an item cannot be reclassified as 'Supported': only values 'Ignored',\n"+
+"# 'ReviewSemantics', 'ReviewPerformance' and 'ReviewManually' can be used.\n"+
 "#\n" + 
 "#------------------------------------------------------------------------------\n" +
 "#\n";

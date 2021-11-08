@@ -192,12 +192,12 @@ public class Compass {
 				u.appOutput("   -reportfile <name>           : specifies file name for report file (without .html)");				
 				u.appOutput("   -list                        : display imported files/applications for a report");				
 				u.appOutput("   -analyze                     : (re-)run analysis on imported files, and generate report");		
-				u.appOutput("   -nooverride                  : do not use overrides from " + CompassConfig.userConfigFileName);						
+				u.appOutput("   -nooverride                  : do not use overrides from " + CompassUtilities.defaultUserCfgFileName);						
 				u.appOutput("   -babelfish-version <version> : specify target Babelfish version (default=latest)");
 				u.appOutput("   -encoding <encoding>         : input file encoding, e.g. '-encoding utf8'. Default="+Charset.defaultCharset());
 				u.appOutput("                                  use '-encoding help' to list available encodings");
 				u.appOutput("   -quotedid {on|off}           : set QUOTED_IDENTIFIER at start of script (default=ON)");
-				u.appOutput("   -pgimport \"comma-list\"       : imports captured items into a PostgreSQL table for SQL querying");
+				u.appOutput("   -pgimport \"<comma-list>\"     : imports captured items into a PostgreSQL table for SQL querying");
 				u.appOutput("                                  <comma-list> is: host,port,username,password,dbname");
 				u.appOutput("                                  (requires psql to be installed)");
 				u.appOutput("   -pgimportappend              : with -pgimport, appends to existing table (instead of drop/recreate)");
@@ -392,7 +392,7 @@ public class Compass {
 							CompassUtilities.reportOptionNotabs = true;
 						}
 						else if (option.equals("linenrs")) {
-							int ln = 0;
+							Integer ln = 0;
 							try {
 								ln = Integer.parseInt(optionValue);
 								if (ln < 1) Integer.parseInt("x");
@@ -508,7 +508,6 @@ public class Compass {
 				}
 			}
 			// arguments must start with [A-Z0-9 _-./] : anything else is invalid
-			// TODO is underscore valid here? It's not in the pattern.
 			if (CompassUtilities.getPatternGroup(arg.substring(0,1), "^([\\w\\-\\.\\/])$", 1).isEmpty()) {
 				System.err.println("Invalid option ["+arg+"]. Try -help");
 				u.errorExit();
@@ -534,6 +533,12 @@ public class Compass {
 					}
 				}
 				else {
+					if (u.onMac || u.onLinux) {
+						if (arg.contains("\\")) {
+							// handle case of file specified with both quotes and backslashes (shouldn't happen, but just on case):  "My\ Big\ File.sql"
+							arg = arg.replaceAll("\\\\", "");
+						}						
+					}
 					inputFiles.add(arg);
 				}
 				continue;
@@ -543,7 +548,9 @@ public class Compass {
 			System.err.println("Invalid option ["+arg+"]. Try -help");
 			u.errorExit();
 		}
-
+		
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "onWindows=["+CompassUtilities.onWindows+"] onMac=["+CompassUtilities.onMac+"] onLinux=["+CompassUtilities.onLinux+"]  ", u.debugOS);
+		
 		inputFilesOrig.addAll(inputFiles);
 	}
 
@@ -629,6 +636,7 @@ public class Compass {
 		else {		
 			if (!reportOnly) {
 				if (!inputFilesValid()) {
+					u.appOutput("Input file(s) not found, aborting.");
 					return;
 				}
 			}
@@ -661,10 +669,10 @@ public class Compass {
 			u.appOutput("");
 			u.appOutput("Run starting               : "+startRunFmt);
 			String tmp = "";
-			tmp =       u.cfgFileName+" file : v."+cfg.latestBabelfishVersion() + ", " + u.cfgFileTimestamp;
+			tmp =       u.cfgFileName+" file : v."+cfg.latestBabelfishVersion() + ", " + u.cfgFileTimestamp;			
 			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
-			tmp =       "Target Babelfish version   : v."+u.targetBabelfishVersion;
+			tmp =       "Target Babelfish version   : v."+u.targetBabelfishVersion;			
 			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
 			tmp =       "Command line arguments     : "+String.join(" ",cmdFlags);
@@ -677,7 +685,7 @@ public class Compass {
 			if (!u.userConfig) {
 				tmp += " (skipped)";
 			}
-			u.reportHdrLines += tmp + "\n";			
+			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
 			u.appOutput("QUOTED_IDENTIFIER default  : "+quotedIdentifier);
 			tmp =       "Report name                : "+reportName;
@@ -700,7 +708,7 @@ public class Compass {
 			// create fresh symbol table and capture file
 			u.deleteReAnalyze(reportName);
 		}
-											
+	
 		if (reportOnly) {
 			// only generate reported from already-captured items
 			startTime = System.currentTimeMillis();
@@ -778,16 +786,16 @@ public class Compass {
 				u.runOScmd("cmd /c \"explorer.exe /n,/select,\"\""+u.reportFilePathName+"\"\" \"");
 				u.runOScmd("cmd /c \"explorer.exe \"\""+u.reportFilePathName+"\"\" \"");
 			}
-
-			else if (u.onMac) {
-				String cmd = "open . " + u.reportFilePathName;
-				if (u.onMacDebug) {
-					u.appOutput("***Mac (dev msg): trying to open report in browser: cmd=["+cmd+"] ");
-				}
+			else if (CompassUtilities.onMac) {
+				String cmd = " open . " + u.reportFilePathName;
+				// temporary:
+				u.appOutput("*** Mac (dev msg): opening report in browser: cmd=["+cmd+"] ");			
 				u.runOScmd(cmd);
 			}
 			else if (CompassUtilities.onLinux) {
-				// TBD
+				// TBD - assuming no GUI is present
+				//String cmd = " open . " + u.reportFilePathName;
+				//u.runOScmd(cmd);				
 			}
 		}
 	}
@@ -806,11 +814,12 @@ public class Compass {
 			}
 			if (!pathValid || !Files.exists(path)) {
 				pathValid = false;
+				inputValid.set(false);
 				nrFileNotFound++;
-				u.appOutput("Input file " + inFile + " not found, proceeding...");
+				u.appOutput("Input file '" + inFile + "' not found");
 			}
 			if (!u.inputScriptValid(inFile)) {
-				u.appOutput("Input file " + inFile + " not valid");
+				u.appOutput("Input file '" + inFile + "' not valid");
 				inputValid.set(false);
 			}
 			return pathValid;
@@ -1035,6 +1044,15 @@ public class Compass {
 		}
 		
 		// if we get here, we're good
+		
+		// ensure report-only case is reflected in the flag
+		if ((inputFiles.size() == 0) && (!reportOnly)) { 
+			if (!reAnalyze) {
+				reportOnly = true;
+				u.appOutput(CompassUtilities.thisProc()+"setting reportOnly=["+reportOnly+"] ");
+			}
+		}
+		
 		return true;
 	}
 	
@@ -1113,7 +1131,9 @@ public class Compass {
 		}
 		
 		u.appOutput("#SLL retries         : "+ SLL_fmt);
-		u.appOutput("Compatibility        : "+ u.compatPctStr + "%   (uncorrected: "+u.compatPctStrRaw+"%)" );
+		if (u.showPercentage) {
+			u.appOutput("Compatibility        : "+ u.compatPctStr + "%   (uncorrected: "+u.compatPctStrRaw+"%)" );
+		}
 		}
 		
 		u.appOutput("Session log          : "+ sessionLog, writeToReport);
@@ -1394,7 +1414,9 @@ public class Compass {
 					if (doEncodingChecks) {
 						if (line.length() == 1) {
 							if (line.charAt(0) == 0) {
-								u.appOutput("Line " + lineNr + " contains only 0x00. Please verify input file encoding. Continuing, but errors may occur.");
+								String cs = Charset.defaultCharset().toString();
+								if (userEncoding != null) cs = Charset.forName(userEncoding).toString();
+								u.appOutput("Line " + lineNr + " contains only 0x00. Please verify input file encoding (using "+cs+"). Continuing, but errors may occur.");
 								nrEncodingWarnings++;
 							}
 						}
