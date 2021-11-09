@@ -1,3 +1,6 @@
+# 1.0.2
+Changes to test Mac/Linux support
+
 # 1.0.1
 Changes to test Mac support
 
