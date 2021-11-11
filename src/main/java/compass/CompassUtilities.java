@@ -403,8 +403,9 @@ tooltipsHTMLPlaceholder +
 		"DENY"+tttSeparator+"DENY is not currently supported",
 		"ALTER AUTHORIZATION"+tttSeparator+"ALTER AUTHORIZATION is not currently supported",
 		"CREATE ROLE"+tttSeparator+"DB-level roles are not currently supported, except the predefined db_owner role",
-		"ALTER ROLE"+tttSeparator+"DB-level roles are not currently supported, except the predefined db_owner role",
+		"ALTER ROLE"+tttSeparator+"ALTER ROLE for DB-level roles is not currently supported",
 		"CREATE SERVER ROLE"+tttSeparator+"Server-level roles are not currently supported, except the predefined sysadmin role",
+		"ALTER SERVER ROLE"+tttSeparator+"ALTER SERVER ROLE for server-level roles is not currently supported, except the predefined sysadmin role",
 		"CREATE USER"+tttSeparator+"DB users are not currently supported, except dbo and guest",
 		"ALTER USER"+tttSeparator+"DB users are not currently supported, except dbo and guest",
 		"ALTER VIEW"+tttSeparator+"ALTER VIEW is not currently supported; use DROP+CREATE",
@@ -446,7 +447,7 @@ tooltipsHTMLPlaceholder +
 		"ALTER TABLE..ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",		
 		"ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",		
 		"CREATE TRIGGER, INSTEAD OF"+tttSeparator+"INSTEAD-OF triggers are not currently supported. Rewrite as FOR trigger",		
-		"CREATE TRIGGER (DDL)"+tttSeparator+"DDL triggers are not currently supported",
+		"CREATE TRIGGER (DDL"+tttSeparator+"DDL triggers are not currently supported",
 		CompassAnalyze.TriggerSchemaName+tttSeparator+"CREATE TRIGGER schemaname.triggername is not currently supported; Remove 'schemaname'",
 		"\\w+, WHERE CURRENT OF"+tttSeparator+"Updatable cursors are not currently supported. Rewrite the application to use direct UPDATE/DELETE",
 		"UPDATE STATISTICS"+tttSeparator+"UPDATE STATISTICS is not currently supported; use PG's ANALYZE instead",
@@ -1825,11 +1826,17 @@ tooltipsHTMLPlaceholder +
 	public String unEscapeHTMLChars(String line) {
 		if (line.contains("&")) {
 			line = applyPatternAll(line, "&amp;", "&");
+			line = applyPatternAll(line, "&amp"+captureFileSeparatorMarker, "&");
 			line = applyPatternAll(line, "&lt;", "<");
+			line = applyPatternAll(line, "&lt"+captureFileSeparatorMarker, "<");
 			line = applyPatternAll(line, "&gt;", ">");
+			line = applyPatternAll(line, "&gt"+captureFileSeparatorMarker, ">");
 			line = applyPatternAll(line, "&quot;", "\"");
+			line = applyPatternAll(line, "&quot"+captureFileSeparatorMarker, "\"");
 			line = applyPatternAll(line, "&apos;", "\"");
+			line = applyPatternAll(line, "&apos"+captureFileSeparatorMarker, "\"");
 			line = applyPatternAll(line, "&nbsp;", " ");
+			line = applyPatternAll(line, "&nbsp"+captureFileSeparatorMarker, " ");
 		}
 		return line;
 	}
@@ -3698,7 +3705,7 @@ tooltipsHTMLPlaceholder +
 				String srcFile = itemList.get(capPosSrcFile);
 				String misc = itemList.get(capPosMisc);
 
-				//if (debugging) dbgOutput(thisProc() + "capLine=[" + capLine + "] objType=[" + objType + "] item=[" + item + "] itemDetail=[" + itemDetail + "] itemGroup=[" + itemGroup + "] status=[" + status + "] lineNr=[" + lineNr + "] misc=[" + misc + "] ", debugReport);
+				if (debugging) dbgOutput(thisProc() + "capLine=[" + capLine + "] objType=[" + objType + "] item=[" + item + "] itemDetail=[" + itemDetail + "] itemGroup=[" + itemGroup + "] status=[" + status + "] lineNr=[" + lineNr + "] misc=[" + misc + "] ", debugReport);
 				assert supportOptions.contains(status) : "Invalid status value[" + status + "] in line=[" + capLine + "] ";
 
 				if (!objType.isEmpty()) {
@@ -3709,11 +3716,15 @@ tooltipsHTMLPlaceholder +
 							if (objType.startsWith("TRIGGER,")) objType = "TRIGGER";
 							objType = objType.replaceFirst(", external", "");
 							objType = objType.replaceFirst(", CLUSTERED", "");
+							if (objType.contains("<"))  // for cases like CREATE xxx <somename>
+								objType = objType.substring(0,objType.indexOf("<"));
+							if (objType.contains("&"))  // for cases like CREATE xxx &gt;somename&lt;
+								objType = objType.substring(0,objType.indexOf("&"));
 							if (objType.contains(captureFileSeparatorMarker))
 								objType = getPatternGroup(objType, "^(.*?)\\s*\\b\\w*" + captureFileSeparatorMarker + ".*$", 1);       // for proc versioning
 							objType = objType.trim();
 							objTypeCount.put(objType, objTypeCount.getOrDefault(objType, 0) + 1);
-							//if (debugging) dbgOutput(thisProc() + "counting objType=[" + objType + "] ", debugReport);
+							if (debugging) dbgOutput(thisProc() + "counting objType=[" + objType + "] ", debugReport);
 							int loc = 0;
 							if (!misc.isEmpty()) loc = Integer.parseInt(misc);
 							objTypeLineCount.put(objType, objTypeLineCount.getOrDefault(objType, 0) + loc);  // misc contains #lines for procedural CREATE object stmts
