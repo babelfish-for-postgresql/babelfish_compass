@@ -3714,6 +3714,7 @@ tooltipsHTMLPlaceholder +
 						if ((!objType.equals("constraint column DEFAULT")) && (!objType.equals("constraint PRIMARY KEY/UNIQUE"))) {
 							objType = applyPatternFirst(objType, "^(.*?,.*?),.*$", "$1");
 							if (objType.startsWith("TRIGGER,")) objType = "TRIGGER";
+							if (objType.startsWith("TRIGGER (DDL")) objType = "TRIGGER (DDL)";							
 							objType = objType.replaceFirst(", external", "");
 							objType = objType.replaceFirst(", CLUSTERED", "");
 							if (objType.contains("<"))  // for cases like CREATE xxx <somename>
