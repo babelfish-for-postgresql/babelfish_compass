@@ -1061,7 +1061,7 @@ public class CompassAnalyze {
 				String trigName = ctx.simple_name().getText();
 
 				// set context
-				u.setContext("TRIGGER", trigName);								
+				u.setContext("TRIGGER", trigName);
 
 				//visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -3231,7 +3231,7 @@ public class CompassAnalyze {
 					kwd = "ALTER";
 					status = featureSupportedInVersion("ALTER TRIGGER");
 				}
-				
+
 				// ToDo: get & validate DDL events
 				List<TerminalNode> trigActionList = ctx.ID();
 				for (TerminalNode n : trigActionList) {
@@ -3243,7 +3243,7 @@ public class CompassAnalyze {
 
 				// set context
 				u.setContext("TRIGGER", trigName);
-				
+
 				// options
 				List<TSQLParser.Trigger_optionContext> options = ctx.trigger_option();
 				captureTriggerOptions("DDL", trigName, options, ctx.start.getLine());
