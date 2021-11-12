@@ -1,6 +1,8 @@
 # 1.1
 Mac/Linux support
+
 Added user-definable classification overrides
+
 Expanded version of User Guide
 
 # 1.0.2
