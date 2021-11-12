@@ -236,6 +236,12 @@ public class CompassAnalyze {
 	static final List<String> baseDateTimeTypes = Arrays.asList("DATE", "TIME", "DATETIME", "SMALLDATETIME", "DATETIME2", "DATETIMEOFFSET");
 	static final List<String> baseBinaryTypes   = Arrays.asList("UNIQUEIDENTIFIER", "BINARY", "VARBINARY", "IMAGE", "TIMESTAMP", "ROWVERSION");
 
+	// predefined DB-level roles
+	static final List<String> dbRoles  = Arrays.asList("DB_OWNER", "DB_SECURITYADMIN", "DB_ACCESSADMIN", "DB_BACKUPOPERATOR", "DB_DDLADMIN", "DB_DATAWRITER", "DB_DATAREADER", "DB_DENYDATAWRITER", "DB_DENYDATAREADER");
+	
+	// predefined server-level roles
+	static final List<String> srvRoles  = Arrays.asList("SYSADMIN", "SERVERADMIN", "SECURITYADMIN", "PROCESSADMIN", "SETUPADMIN", "BULKADMIN", "DISKADMIN", "DBCREATOR");
+	
 	// encoded BIF arg values for lookup
 	static final String BIFArgStar = CompassUtilities.BBFMark + "STAR";
 	static final String BIFSingleArg = "SINGLE ARGUMENT";	
@@ -3227,11 +3233,13 @@ public class CompassAnalyze {
 				}
 
 				// ToDo: get & validate DDL events
-				String trigAction = "ToBeRetrieved";
-				if (featureSupportedInVersion(DDLTrigger, trigAction).equals(u.NotSupported)) {
-					status = u.NotSupported;
-				}
-				captureItem(kwd + " TRIGGER (DDL)", trigName, DDLTrigger, trigAction, status, ctx.start.getLine(),  batchLines.toString());
+				List<TerminalNode> trigActionList = ctx.ID();
+				for (TerminalNode n : trigActionList) {
+					String trigAction = n.getText().toUpperCase();
+					status = featureSupportedInVersion(DDLTrigger, trigAction);
+					// capturing each action separately
+					captureItem(kwd + " TRIGGER (DDL, "+trigAction+")", trigName, DDLTrigger, trigAction, status, ctx.start.getLine(),  batchLines.toString());									
+				}				
 
 				// set context
 				u.setContext("TRIGGER", trigName);
@@ -6270,9 +6278,11 @@ public class CompassAnalyze {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 
 				String name = u.normalizeName(ctx.role_name.getText());
+				String fmtRole = "<dbrole>";
  				// find out if CREATE ROLE is supported at all
  				String status = featureSupportedInVersion(CreateDbRole);
- 				captureItem(CreateDbRole, name, UsersReportGroup, "", status, ctx.start.getLine());
+ 				captureItem(CreateDbRole+" "+u.escapeHTMLChars(fmtRole), name, UsersReportGroup, "", status, ctx.start.getLine());
+ 				
 				if (status.equals(u.Supported)) {
 					if (ctx.AUTHORIZATION() != null)
 						captureOption(DbRoleOptions, "AUTHORIZATION", ctx.start.getLine(), ", in "+CreateDbRole);
@@ -6288,19 +6298,21 @@ public class CompassAnalyze {
 
  				String name = u.normalizeName(ctx.role_name.getText());
 
- 				// find out if ALTER ROLE is supported at all
- 				String status = featureSupportedInVersion(AlterDbRole);
- 				captureItem(AlterDbRole, name, UsersReportGroup, "", status, ctx.start.getLine());
+ 				// find out if ALTER ROLE is supported for this role
+ 				String status = featureSupportedInVersion(AlterDbRole, name);
+				String fmtRole = "<dbrole>";
+				if (dbRoles.contains(name.toUpperCase())) fmtRole = name.toUpperCase(); 				
+ 				captureItem(AlterDbRole+" "+u.escapeHTMLChars(fmtRole), name, UsersReportGroup, "", status, ctx.start.getLine());
 
  				if (status.equals(u.Supported)) {
 					if (ctx.ADD() != null)
-						captureOption(DbRoleOptions, "ADD MEMBER", ctx.start.getLine(), ", in "+AlterDbRole);
+						captureOption(DbRoleOptions, "ADD MEMBER", ctx.start.getLine(), ", in "+AlterDbRole+" "+u.escapeHTMLChars(fmtRole));
 
 					else if (ctx.DROP() != null)
-						captureOption(DbRoleOptions, "DROP MEMBER", ctx.start.getLine(), ", in "+AlterDbRole);
+						captureOption(DbRoleOptions, "DROP MEMBER", ctx.start.getLine(), ", in "+AlterDbRole+" "+u.escapeHTMLChars(fmtRole));
 
 					else if (ctx.NAME() != null)
-						captureOption(DbRoleOptions, "NAME", ctx.start.getLine(), ", in "+AlterDbRole);
+						captureOption(DbRoleOptions, "NAME", ctx.start.getLine(), ", in "+AlterDbRole+" "+u.escapeHTMLChars(fmtRole));
 				}
 
 				visitChildren(ctx);
@@ -6319,10 +6331,11 @@ public class CompassAnalyze {
 
  				// find out if CREATE SERVER ROLE is supported at all
  				String status = featureSupportedInVersion(CreateSrvRole);
- 				captureItem(CreateSrvRole, name, UsersReportGroup, "", status, ctx.start.getLine());
+				String fmtRole = "<srvrole>"; 				
+ 				captureItem(CreateSrvRole+" "+u.escapeHTMLChars(fmtRole), name, UsersReportGroup, "", status, ctx.start.getLine());
 				if (status.equals(u.Supported)) {
 					if (ctx.AUTHORIZATION() != null)
-						captureOption(SrvRoleOptions, "AUTHORIZATION", ctx.start.getLine(), ", in "+CreateSrvRole);
+						captureOption(SrvRoleOptions, "AUTHORIZATION", ctx.start.getLine(), ", in "+CreateSrvRole+" "+u.escapeHTMLChars(fmtRole));
 				}
 
 				visitChildren(ctx);
@@ -6334,19 +6347,21 @@ public class CompassAnalyze {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 				String name = u.normalizeName(ctx.server_role_name.getText());
 
- 				// find out if ALTER SERVER ROLE is supported at all
- 				String status = featureSupportedInVersion(AlterSrvRole);
- 				captureItem(AlterSrvRole, name, UsersReportGroup, "", status, ctx.start.getLine());
-				if (status.equals(u.Supported)) {
+ 				// find out if ALTER SERVER ROLE is supported for this role
+ 				String status = featureSupportedInVersion(AlterSrvRole,name);
+				String fmtRole = "<srvrole>";
+				if (srvRoles.contains(name.toUpperCase())) fmtRole = name.toUpperCase(); 	
+ 				captureItem(AlterSrvRole+" "+u.escapeHTMLChars(fmtRole), name, UsersReportGroup, "", status, ctx.start.getLine());
+ 				
+ 				if (status.equals(u.Supported)) {
 					if (ctx.ADD() != null)
-						captureOption(SrvRoleOptions, "ADD MEMBER", ctx.start.getLine(), ", in "+AlterSrvRole);
+						captureOption(SrvRoleOptions, "ADD MEMBER", ctx.start.getLine(), ", in "+AlterSrvRole+" "+u.escapeHTMLChars(fmtRole));
 
 					else if (ctx.DROP() != null)
-						captureOption(SrvRoleOptions, "DROP MEMBER", ctx.start.getLine(), ", in "+AlterSrvRole);
+						captureOption(SrvRoleOptions, "DROP MEMBER", ctx.start.getLine(), ", in "+AlterSrvRole+" "+u.escapeHTMLChars(fmtRole));
 
 					else if (ctx.NAME() != null)
-						captureOption(SrvRoleOptions, "NAME", ctx.start.getLine(), ", in "+AlterSrvRole);
-
+						captureOption(SrvRoleOptions, "NAME", ctx.start.getLine(), ", in "+AlterSrvRole+" "+u.escapeHTMLChars(fmtRole));
 				}
 
 				visitChildren(ctx);
