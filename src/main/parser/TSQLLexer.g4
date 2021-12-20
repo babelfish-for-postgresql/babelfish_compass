@@ -947,6 +947,7 @@ TIES:                                            T I E S;
 TIME:                                            T I M E;
 TIMEOUT:                                         T I M E O U T;
 TIMER:                                           T I M E R;
+TIMESTAMP:                                       T I M E S T A M P;
 TINYINT:                                         T I N Y I N T;
 TO:                                              T O;
 TOP:                                             T O P;

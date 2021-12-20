@@ -1673,11 +1673,11 @@ merge_statement
 
 when_matches
     : (WHEN MATCHED (AND search_condition)?
-          THEN merge_matched)+
+          THEN merge_matched)
     | (WHEN NOT MATCHED (BY TARGET)? (AND search_condition)?
           THEN merge_not_matched)
     | (WHEN NOT MATCHED BY SOURCE (AND search_condition)?
-          THEN merge_matched)+
+          THEN merge_matched)
     ;
 
 merge_matched
@@ -3148,6 +3148,7 @@ column_definition
     : id (data_type system_versioning_column? | AS expression PERSISTED? ) ( special_column_option | collation | null_notnull )*
       ( column_constraint? IDENTITY (LR_BRACKET sign? seed=DECIMAL COMMA sign? increment=DECIMAL RR_BRACKET)? )? for_replication? ROWGUIDCOL?
       column_constraint* column_inline_index?
+    | TIMESTAMP null_notnull? column_constraint?
     ;
 	    
 column_inline_index
@@ -3225,7 +3226,7 @@ column_constraint
     :(CONSTRAINT constraint=id)?
       ((PRIMARY KEY | UNIQUE) clustered? with_index_options?
       | CHECK for_replication? LR_BRACKET search_condition RR_BRACKET
-      | (FOREIGN KEY)? REFERENCES table_name LR_BRACKET pk = column_name_list RR_BRACKET (on_update | on_delete)*  for_replication?
+      | (FOREIGN KEY)? REFERENCES table_name (LR_BRACKET pk = column_name_list RR_BRACKET)? (on_update | on_delete)*  for_replication?
       | DEFAULT expression
       | null_notnull
       | WITH VALUES 
@@ -3691,7 +3692,7 @@ function_call
     | built_in_functions                               
     | freetext_function                                
     | NEXT VALUE FOR full_object_name		         
-    | L_CURLY FN odbc_scalar_function R_CURLY           
+    | odbc_scalar_function           
     | partition_function_call                           
     ;
 
@@ -3742,8 +3743,12 @@ bif_other
     | STRING_AGG LR_BRACKET expr=expression COMMA separator=expression RR_BRACKET (WITHIN GROUP LR_BRACKET order_by_clause RR_BRACKET )?  #STRING_AGG    
     ;
     
-// ODBC scalar functions/literals are called 'escape sequences' in the docs
+// ODBC scalar functions/literals are called 'escape sequences' in the docs 
 odbc_scalar_function
+    : L_CURLY FN odbc_scalar_function_name R_CURLY
+    ;
+    
+odbc_scalar_function_name
     : CONVERT LR_BRACKET expression COMMA data_type RR_BRACKET
     | EXTRACT LR_BRACKET (YEAR | MONTH | DAY | HOUR | MINUTE | SECOND) FROM expression RR_BRACKET
 	| INSERT LR_BRACKET expression (COMMA expression)+ RR_BRACKET
@@ -3776,6 +3781,7 @@ hierarchyid_coloncolon_methods
     : id colon_colon  method=(GETROOT | PARSE) LR_BRACKET expression? RR_BRACKET
     ;
 
+// this is no longer used:
 xml_data_type_methods
     : xml_value_method
     | xml_query_method
@@ -4820,6 +4826,7 @@ keyword
     | TIME
     | TIMEOUT
     | TIMER
+    | TIMESTAMP
     | TINYINT
     | TORN_PAGE_DETECTION
     | TOSTRING

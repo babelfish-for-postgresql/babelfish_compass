@@ -16,6 +16,7 @@ import java.io.RandomAccessFile;
 import java.nio.file.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import static java.nio.file.StandardCopyOption.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -29,14 +30,15 @@ import java.text.SimpleDateFormat;
 public class CompassUtilities {
 
 	// not-initialized strings
-	public final String uninitialized = "-init-";
+	public static final String uninitialized = "-init-";
 
-	public static boolean onWindows = false;;
-	public static boolean onMac     = false;
-	public static boolean onLinux   = false;
+	public static boolean onWindows  = false;
+	public static boolean onMac      = false;
+	public static boolean onLinux    = false;
+	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "1.1";
-	public static final String thisProgVersionDate  = "November 2021";
+	public static final String thisProgVersion      = "1.2";
+	public static final String thisProgVersionDate  = "December 2021";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -77,6 +79,12 @@ public class CompassUtilities {
 
 	// .cfg file timestamp
 	public String cfgFileTimestamp = uninitialized;
+	
+	// capture file format
+	// if this format is ever changed, we need to provide an option to keep generating a previous version so that we don't break apps relying on the format
+	public static String captureFileFormatBaseVersion = "1";  // lowest format version
+	public static List<String> captureFileFormatVersionList = Arrays.asList(captureFileFormatBaseVersion);  // supported format versions
+	public static String captureFileFormatVersion = captureFileFormatBaseVersion;  // actual format version used
 
 	// user-specified
 	public static final String fileNameCharsAllowed = "[^\\w\\_\\.\\-\\/\\(\\)]";
@@ -107,8 +115,14 @@ public class CompassUtilities {
 	public final String symTabFileTag = "bbf~symtab";
 	public final String symTabFileSuffix = "dat";
 	public final String importDirName = "imported";
+	public final String importHTMLDirName = "html";
 	public final String importFileTag = "bbf~imported";
 	public final String importFileSuffix = "dat";
+	public final String rewrittenDirName = "rewritten";
+	public final String rewrittenFileSuffix = "rewritten";
+	public final String rewrittenHTMLDirName = "html";
+	public final String rewrittenFileTag = "bbf~rewritten";
+	public final String rewrittenTmpFile = "bbf~rewritten.tmp";
 	public final String textSuffix = "txt";
 	public final String HTMLSuffix = "html";
 	public final String logDirName = "log";
@@ -130,11 +144,33 @@ public class CompassUtilities {
 	public BufferedWriter importFileWriter;
 	public String importFileHTMLPathName;
 	public BufferedWriter importFileHTMLWriter;
-	public int importFileWritelineNr = 0;
+	public int importFileWriteLineNr = 0;
 	public String sessionLogPathName;
 	public BufferedWriter sessionLogWriter;
 	public BufferedWriter userCfgFileWriter;	
+	public String extractedFilePathName;
+	public BufferedWriter extractedFileWriter;	
+	public BufferedReader rewrittenInFileReader;	
+	public BufferedWriter rewrittenFileWriter;	
 
+	// importformat options
+	public static final String autoFmt = "auto";
+	public static final String sqlcmdFmt = "sqlcmd";
+	public static final String jsonQueryFmt = "jsonQuery";
+	public static final String extendedEventsXMLFmt = "extendedEventsXML";
+	public static final String genericSQLXMLFmt = "sqlXML";
+	public static List<String> importFormatOption        = Arrays.asList(autoFmt, sqlcmdFmt, jsonQueryFmt,  extendedEventsXMLFmt, genericSQLXMLFmt);
+	public static List<String> importFormatOptionDisplay = Arrays.asList(autoFmt, sqlcmdFmt, "JSON query", "extended events/XML", "generic SQL XML");
+	
+	// user-definable, default = auto
+	public static String importFormat = autoFmt.toLowerCase();
+	
+	// unduplication
+	public static boolean deDupExtracted = true;
+	public static int deDupSkipped = 0;
+	private Map<String, String> deDupQueries = new HashMap<>();
+	private Map<String, Integer> dupQueryCount = new HashMap<>();
+	
 	// HTML header/footer
 	public String docLinkIcon              = "<div class=\"tooltip\"><span class=\"tooltip_icon\">&#x1F56E;</span> ";
 	public String docLinkURL               = "<a href=\""+userDocURL+"\" target=\"_blank\">"+ userDocText +"</a></div>"; 
@@ -147,11 +183,13 @@ public class CompassUtilities {
 	public String footerHTMLPlaceholder    = "BBF_FOOTERHTMLPLACEHOLDER";
 	public String reportHTMLPlaceholder    = "BBF_REPORTHTMLPLACEHOLDER";
 	public String inputfileHTMLPlaceholder = "BBF_INPUTFILEHTMLPLACEHOLDER";
+	public String inputfileTxtPlaceholder  = "BBF_INPUTFILETXTPLACEHOLDER";
 	public String appnameHTMLPlaceholder   = "BBF_APPNAMEHTMLPLACEHOLDER";
 	public String tooltipsHTMLPlaceholder  = "BBF_TOOLTIPSHTMLPLACEHOLDER";
 	public String tagApps                  = "apps";
 	public String tagEstimate              = "estimate";
 	public String tagObjcount              = "objcount";
+	public String tagRewrite               = "rewrite";
 	public String tagSummaryTop            = "summary";
 	public String tagSummary               = "summary_";
 	public String tagByFeature             = "byfeature_";
@@ -330,7 +368,7 @@ tooltipsHTMLPlaceholder +
 "<body> \n"+
 "<table border=\"0\" cellpadding=\"0\"> \n"+
 "<tr><td class=\"hdr\">Report</td><td class=\"hdr\">:</td><td class=\"hdr\">"+reportHTMLPlaceholder+"</td></tr> \n"+
-"<tr><td class=\"hdr\">Imported file</td><td class=\"hdr\">:</td><td class=\"hdr\">"+inputfileHTMLPlaceholder+"</td></tr> \n"+
+"<tr><td class=\"hdr\">"+inputfileTxtPlaceholder+"</td><td class=\"hdr\">:</td><td class=\"hdr\">"+inputfileHTMLPlaceholder+"</td></tr> \n"+
 "<tr><td class=\"hdr\">Application</td><td class=\"hdr\">:</td><td class=\"hdr\">"+appnameHTMLPlaceholder+"</td></tr> \n"+
 "</table> \n"+
 "<table border=\"0\" cellpadding=\"0\"> \n"+
@@ -363,17 +401,21 @@ tooltipsHTMLPlaceholder +
 		"TRY_PARSE("+tttSeparator+"PARSE() is not currently supported; rewrite with CAST() or CONVERT()",
 		"SQUARE("+tttSeparator+"SQUARE() is not currently supported; rewrite with POWER()",
 		"UNICODE("+tttSeparator+"UNICODE() returns the Unicode code point for the first character in a string; this is not currently supported",
-		"HASHBYTES("+tttSeparator+"HASHBYTES() currently supports only MD5, SHA1, SHA2_256, SHA2_512",
+		"HASHBYTES("+tttSeparator+"HASHBYTES() currently supports only MD5, SHA1, SHA2_256, SHA2_512",  /// this needs to be adjusted if additional agorithms are implemented
 		"IDENTITY("+tttSeparator+"The IDENTITY() function in SELECT-INTO is not currently supported. Use ALTER TABLE to add an identity column",
 		"CHOOSE("+tttSeparator+"CHOOSE(): Rewrite as a CASE expression",
 		"OBJECT_SCHEMA_NAME()"+tttSeparator+"OBJECT_SCHEMA_NAME(): Rewrite as catalog query",
-		"ORIGINAL_LOGIN("+tttSeparator+"ORIGINAL_LOGIN(): Rewrite as SUSER_NAME()",
-		"SESSION_USER"+tttSeparator+"SESSION_USER: Rewrite as USER_NAME()",
-		"FORMAT("+tttSeparator+"FORMAT(): Rewrite the formatting using available functions such as CONVERT()",
+		"ORIGINAL_LOGIN("+tttSeparator+"ORIGINAL_LOGIN() is not currently supported; Rewrite as SUSER_NAME()",
+		"SESSION_USER"+tttSeparator+"SESSION_USER is not currently supported; Rewrite as USER_NAME()",
+		"SYSTEM_USER"+tttSeparator+"SYSTEM_USER is not currently supported; Rewrite as SUSER_NAME()",
+		"DATABASE_PRINCIPAL_ID("+tttSeparator+"DATABASE_PRINCIPAL_ID() is not currently supported; Rewrite as USER_NAME()",
+		"FORMAT("+tttSeparator+"FORMAT() is not currently supported; Rewrite the formatting using available functions such as CONVERT()",
+		"FILEGROUP_NAME("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
+		"FILEPROPERTY("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"NEWSEQUENTIALID()"+tttSeparator+"NEWSEQUENTIALID() is implemented as NEWID(); the sequential nature of the generated values is however not guaranteed, as is the case in SQL Server",
-		"SERVERPROPERTY("+tttSeparator+"This particular attribute for SERVERPROPERTY() is not currently supported",
-		"CONNECTIONPROPERTY("+tttSeparator+"This particular attribute for CONNECTIONPROPERTY() is not currently supported",
-		"DATABASEPROPERTYEX("+tttSeparator+"This particular attribute for DATABASEPROPERTYEX() is not currently supported",
+		"\\w+PROPERTY\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
+		"\\w+PROPERTYEX\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
+		"\\w+\\(\\),"+CompassAnalyze.withoutArgumentValidateStr+tttSeparator+"This built-in function is not currently supported when called without arguments",
 		"CONTAINS("+tttSeparator+"Fulltext search is not currently supported",
 		"CONTAINSTABLE("+tttSeparator+"Fulltext search is not currently supported",
 		"FREETEXTTABLE("+tttSeparator+"Fulltext search is not currently supported",
@@ -396,22 +438,26 @@ tooltipsHTMLPlaceholder +
 		"EXECUTE procedure sp_recompile"+tttSeparator+"The recompile feature is not currently supported",
 		"EXECUTE procedure, name in variable"+tttSeparator+"Executing a stored procedure whose name is in a variable (i.e. EXECUTE @p) is not currently supported. Rewrite with dynamic SQL (i.e. EXECUTE(...) or sp_executesql)",
 		"CREATE SYNONYM"+tttSeparator+"Synonyms are not currently supported; try to rewrite with views (for tables) or procedures/functions (for procedures/functions)",
-		"BACKUP"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled through PostgreSQL",
-		"RESTORE"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled through PostgreSQL",
+		"BACKUP"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
+		"RESTORE"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
 		"GRANT"+tttSeparator+"GRANT is not currently supported",
 		"REVOKE"+tttSeparator+"REVOKE is not currently supported",
 		"DENY"+tttSeparator+"DENY is not currently supported",
 		"ALTER AUTHORIZATION"+tttSeparator+"ALTER AUTHORIZATION is not currently supported",
-		"CREATE ROLE"+tttSeparator+"DB-level roles are not currently supported, except the predefined db_owner role",
+		"CREATE ROLE"+tttSeparator+"DB-level roles are not currently supported, except the predefined 'db_owner' role",
 		"ALTER ROLE"+tttSeparator+"ALTER ROLE for DB-level roles is not currently supported",
-		"CREATE SERVER ROLE"+tttSeparator+"Server-level roles are not currently supported, except the predefined sysadmin role",
-		"ALTER SERVER ROLE"+tttSeparator+"ALTER SERVER ROLE for server-level roles is not currently supported, except the predefined sysadmin role",
-		"CREATE USER"+tttSeparator+"DB users are not currently supported, except dbo and guest",
-		"ALTER USER"+tttSeparator+"DB users are not currently supported, except dbo and guest",
+		"CREATE SERVER ROLE"+tttSeparator+"Server-level roles are not currently supported, except the predefined 'sysadmin' role",
+		"ALTER SERVER ROLE"+tttSeparator+"ALTER SERVER ROLE for server-level roles is not currently supported, except the predefined 'sysadmin' role",
+		"CREATE USER"+tttSeparator+"DB users are not currently supported, except 'dbo' and 'guest'",
+		"ALTER USER"+tttSeparator+"DB users are not currently supported, except 'dbo' and 'guest'",
 		"ALTER VIEW"+tttSeparator+"ALTER VIEW is not currently supported; use DROP+CREATE",
+		"CREATE OR ALTER VIEW"+tttSeparator+"CREATE OR ALTER VIEW is not currently supported; use DROP+CREATE",
 		"ALTER PROCEDURE"+tttSeparator+"ALTER PROCEDURE is not currently supported; use DROP+CREATE",
+		"CREATE OR ALTER PROCEDURE"+tttSeparator+"CREATE OR ALTER PROCEDURE is not currently supported; use DROP+CREATE",
 		"ALTER FUNCTION"+tttSeparator+"ALTER FUNCTION is not currently supported; use DROP+CREATE",
+		"CREATE OR ALTER FUNCTION"+tttSeparator+"CREATE OR ALTER FUNCTION is not currently supported; use DROP+CREATE",
 		"ALTER TRIGGER"+tttSeparator+"ALTER TRIGGER is not currently supported; use DROP+CREATE",
+		"CREATE OR ALTER TRIGGER"+tttSeparator+"CREATE OR ALTER TRIGGER is not currently supported; use DROP+CREATE",
 		"ALTER DATABASE"+tttSeparator+"ALTER DATABASE is not currently supported",
 		"Column attribute FILESTREAM"+tttSeparator+"The FILESTREAM attribute is not currently supported and will be ignored",
 		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported and will be ignored",
@@ -430,8 +476,9 @@ tooltipsHTMLPlaceholder +
 		"@@DBTS"+tttSeparator+"The database timestamp mechanism (with also the TIMESTAMP/ROWVERSION datatype) is not currently supported",
 		"@@PROCID"+tttSeparator+"Rewrite as OBJECT_ID('object-name')",
 		"HIERARCHYID"+tttSeparator+"The HIERARCHYID datatype is not supported",
-		"TIMESTAMP "+tttSeparator+"The TIMESTAMP (=ROWVERSION) datatype is not supported",
-		"ROWVERSION "+tttSeparator+"The ROWVERSION (=TIMESTAMP) datatype is not supported",
+		CompassAnalyze.TimestampColumnSolo+tttSeparator+"Declaring a TIMESTAMP column without a column name is not currently supported; declare as 'TIMESTAMP TIMESTAMP'",
+		"TIMESTAMP "+tttSeparator+"The TIMESTAMP (=ROWVERSION) datatype is not currently supported",
+		"ROWVERSION "+tttSeparator+"The ROWVERSION (=TIMESTAMP) datatype is not currently supported",
 		"GEOGRAPHY "+tttSeparator+"The GEOGRAPHY datatype is not supported; consider using the PG PostGIS extension",
 		"GEOMETRY "+tttSeparator+"The GEOMETRY datatype is not supported; consider using the PG PostGIS extension",
 		CompassAnalyze.AtAtErrorValueRef+tttSeparator+"The application explicitly references the @@ERROR value shown here, but this particular SQL Server error code is not currently supported by Babelfish. Rewrite manually to check for the PostgreSQL error code",
@@ -504,6 +551,7 @@ tooltipsHTMLPlaceholder +
 		"Indexed view "+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
 		"CREATE TABLE ##"+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, and is dropped automatically when the last session accessing the table disconnects",
 		"CREATE TABLE (temporal)"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
+		CompassAnalyze.NumericColNonNumDft+tttSeparator+"NUMERIC/DECIMAL table columns with a non-numeric column default still allow the table to be created in SQL Server but will raise an error only when the default is used; in Babelfish, the error is raised when the table is created. Remove the non-numeric default",
 		CompassAnalyze.TableValueConstructor+tttSeparator+"Rewrite the VALUES() clause as SELECT statements and/or UNIONs",
 		CompassAnalyze.MergeStmt+tttSeparator+"Rewrite MERGE as a series of INSERT/UPDATE/DELETE statements",
 		CompassAnalyze.DynamicSQLEXECStringReview+tttSeparator+"Dynamic SQL with EXECUTE(string) is supported by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
@@ -514,6 +562,7 @@ tooltipsHTMLPlaceholder +
 		"EXECUTE proc;version"+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
 		"CREATE PROCEDURE proc;version"+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
 		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action, in case the trigger body references the transition tables INSERTED or DELETED",
+		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported",
 		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported",
 		"SET QUOTED_IDENTIFIER \\w+, before end of batch"+tttSeparator+"SET QUOTED_IDENTIFIER takes effect only at the start of the next batch in Babelfish; the SQL Server semantics where it applies to the next statement, is not currently supported",
 		"SET DEADLOCK_PRIORITY"+tttSeparator+"Setting the deadlock victimization priority is not currently supported",
@@ -645,6 +694,7 @@ tooltipsHTMLPlaceholder +
 	public final String captureFileLinePart1 = "# Captured items for report ";
 	public final String captureFileLinePart2 = " with targeted "+babelfishProg+ "version ";
 	public final String captureFileLinePart3 = " generated at ";
+	public final String captureFileLinePart4 = " with capture file format ";
 
 	// line separator
 	public final String newLine = System.getProperty("line.separator");
@@ -669,7 +719,6 @@ tooltipsHTMLPlaceholder +
 	public static int maxLineNrsInListDefault = 10;
 	public static int maxLineNrsInList = maxLineNrsInListDefault;
 	public final static String reportInputFileFmt = "input file";
-	public static boolean generateHTML = true;
 	public static boolean linkInNewTab = true;
 	public static String tgtBlank = " target=\"_blank\"";
 	public static boolean showPercentage = false;
@@ -761,7 +810,7 @@ tooltipsHTMLPlaceholder +
 	static final List<String> OnOffOption = Arrays.asList("ON", "OFF");
 
 	// debug flags
-	public final HashSet<String> dbgOptions = new HashSet<>(Arrays.asList("all", "batch", "ptree", "cfg", "dir", "symtab", "report", "calc", "os"));
+	public final HashSet<String> dbgOptions = new HashSet<>(Arrays.asList("all", "batch", "ptree", "cfg", "dir", "symtab", "report", "calc", "os", "fmt", "rewrite"));
 	public final HashSet<String> specifiedDbgOptions = new HashSet<>(dbgOptions.size());
 	public boolean debugBatch;
 	public boolean debugPtree;
@@ -771,6 +820,8 @@ tooltipsHTMLPlaceholder +
 	public boolean debugSymtab;
 	public boolean debugReport;
 	public boolean debugCalc;
+	public boolean debugFmt;	
+	public boolean debugRewrite;	
 	public boolean debugging;
 	public int debugSpecial = 0;
 
@@ -782,11 +833,12 @@ tooltipsHTMLPlaceholder +
 	public static final String ReviewManually    = "REVIEWMANUALLY";
 	public static final String Ignored           = "IGNORED";
 	public static final String ObjCountOnly      = "OBJECTCOUNTONLY";
+	public static final String Rewritten         = "REWRITTEN";
 
 	// TODO Convert these lists in sets for efficiency
-	public static List<String> supportOptions        = Arrays.asList(Supported,    NotSupported,    ReviewSemantics,    ReviewPerformance,    ReviewManually,    Ignored, ObjCountOnly);
+	public static List<String> supportOptions        = Arrays.asList(Supported,    NotSupported,    ReviewSemantics,    ReviewPerformance,    ReviewManually,    Ignored, ObjCountOnly, Rewritten);
 	// values for default_classification in .cfg file:
-	public static List<String> supportOptionsCfgFile = Arrays.asList("Supported", "NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually",  "Ignored", ObjCountOnly);
+	public static List<String> supportOptionsCfgFile = Arrays.asList("Supported", "NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually",  "Ignored", ObjCountOnly, Rewritten);
 	public static List<String> validSupportOptionsCfgFileOrig = Arrays.asList("NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually", "Ignored");
 	public static List<String> validSupportOptionsCfgFile = new ArrayList<>();
 	// keys for default_classification in .cfg file, e.g. '-ReviewSemantics':
@@ -799,24 +851,26 @@ tooltipsHTMLPlaceholder +
 	public static List<String> overrideClassificationsKeys = new ArrayList<>();
 
 	// display values
-	public static List<String> supportOptionsDisplay = Arrays.asList("Supported", "Not Supported", "Review Semantics", "Review Performance", "Review Manually", "Ignored", ObjCountOnly);
+	public static List<String> supportOptionsDisplay = Arrays.asList("Supported", "Not Supported", "Review Semantics", "Review Performance", "Review Manually", "Ignored", ObjCountOnly, "Rewritten by Babelfish Compass");
 
 	// iteration order for report
 	public static List<String> supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Supported);
 
 	// default weight factors for computing compatibility %age, corresponding to each option value in the list above
+	// NB: this is not used
 	public static List<Integer> supportOptionsWeightDefault = Arrays.asList(100,   // Supported
 	                                                                 200,   // NotSupported
 	                                                                 150,    // ReviewSemantics
 	                                                                 150,    // ReviewPerformance
 	                                                                 150,    // ReviewManually
 	                                                                 0,     // Ignored
-	                                                                 0      // ObjCountOnly, not applicable
+	                                                                 0,     // ObjCountOnly, not applicable
+	                                                                 100    // Rewritten
 	                                                                );
 	public final String WeightedStr = "Weighted";
 
 	// user-defined weight factors
-	Map<String, Integer> userWeightFactor = new HashMap<>();
+	public Map<String, Integer> userWeightFactor = new HashMap<>();
 
 	// used in both CompassAnalyze and for reporting, need to be same string
 	static final String Datatypes           = "Datatypes";
@@ -824,15 +878,44 @@ tooltipsHTMLPlaceholder +
 	static final String DatatypeConversion  = "Datatype conversion";
 
 	// overall compatibility %age
-	String compatPctStr = uninitialized;
-	String compatPctStrRaw = uninitialized;
+	public String compatPctStr = uninitialized;
+	public String compatPctStrRaw = uninitialized;
 
 	// for recording overrides
-	static final String overrideSeparator = ";;";
-	Map<String, Integer> statusOverrides       = new HashMap<>();
-	Map<String, Integer> statusOverridesDetail = new HashMap<>();
-	Map<String, Integer> groupOverrides        = new HashMap<>();
-	Map<String, Integer> groupOverridesDetail  = new HashMap<>();
+	public static final String overrideSeparator = ";;";
+	public Map<String, Integer> statusOverrides       = new HashMap<>();
+	public Map<String, Integer> statusOverridesDetail = new HashMap<>();
+	public Map<String, Integer> groupOverrides        = new HashMap<>();
+	public Map<String, Integer> groupOverridesDetail  = new HashMap<>();
+	
+	// for SQL rewrites
+	public static boolean rewrite = false;  // main switch
+	public static final String rewriteBlankLine = "BBF_REWRITE_BLANKLINE";	
+			
+	// text rewrites that need to be applied
+	public static List<String>        rewriteTextListKeys = new ArrayList<>();	
+	public static Map<String,String>  rewriteTextList     = new HashMap<>();	
+	public static Map<String,String>  rewriteTextListOrigText = new HashMap<>();	
+	//public static Map<String,String>  rewriteIDList = new HashMap<>();	
+	public static Map<Integer, Map<String, List<Integer>>> rewriteIDDetails = new HashMap<>();
+	public static Map<String,Integer> rewrittenOppties = new HashMap<>();	
+	public static String rewriteNotes = uninitialized;	
+	public static Map<String,Integer> rewriteOppties = new HashMap<>();	
+	public static final String        rewriteOpptiesTotal = "totalcount";
+	public static Integer nrRewritesDone = 0;
+	public static String rewriteTypeExpr1 = "expr(1)";
+	public static String rewriteTypeReplace = "replace";	
+	public static String rewriteTypeODBCfunc1 = "ODBCfunc1";	
+	public static String rewriteTypeODBClit1 = "ODBClit1";	
+	public static String rewriteTypeBlockReplace = "BlockReplace";	
+
+	// added lines/columns: list index=iteration#; map key = line#; subkey = col# on line; value = #chars added at (line,col)	
+	public static List<Map<Integer, Map<Integer, Integer>>> offsetCols = new ArrayList<>();
+	public static Map<String, Map<Integer, Integer>> offsetLines = new HashMap<>();
+	public static final Integer calcOffsetIterationMax = 999999;
+
+	// SQL rewrites performed	
+	public static List<String> rewritesDone = new ArrayList<>();
 
 	// flags
 	public static boolean devOptions = false;
@@ -881,7 +964,13 @@ tooltipsHTMLPlaceholder +
     	listToUpperCase(defaultClassificationsKeys);
 	   	
 	   	overrideClassificationsKeys = new ArrayList<>(overrideClassificationsKeysOrig);
-    	listToUpperCase(overrideClassificationsKeys);    	
+    	listToUpperCase(overrideClassificationsKeys);   
+    	
+    	listToLowerCase(importFormatOption);    
+    	
+    	if (rewrite) {	
+    		supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Rewritten, Supported);
+    	} 	
     }
 
     public void getPlatform () {
@@ -889,17 +978,20 @@ tooltipsHTMLPlaceholder +
 		
 		if (osName.startsWith("windows")) {
 			onWindows = true;
+			onPlatform  = "Windows";
 			thisProgExec = thisProgExecWindows;
 			BabelfishCompassFolderName = BabelfishCompassFolderNameWindows;
 		}
 		else if (osName.startsWith("mac os x")) {			
 			onMac = true;
+			onPlatform  = "MacOS";
 			thisProgExec = thisProgExecMac;
 			BabelfishCompassFolderName = BabelfishCompassFolderNameMac;
 		}
 		else {
 			// assume Linux
 			onLinux = true;
+			onPlatform  = "Linux";
 			thisProgExec = thisProgExecLinux;
 			BabelfishCompassFolderName = BabelfishCompassFolderNameLinux;
 		}
@@ -957,7 +1049,24 @@ tooltipsHTMLPlaceholder +
 
 	public static String getPatternGroup(String s, String patt, int groupNr)
 	{
-		Pattern p = Pattern.compile(patt, Pattern.CASE_INSENSITIVE);
+		return getPatternGroup(s, patt, groupNr, "");
+	}
+
+	public static String getPatternGroup(String s, String patt, int groupNr, String options)
+	{
+		Pattern p;
+		int flags = 0;
+		if (options.contains("case_sensitive")) {
+			flags = 0;
+		}
+		else {
+			flags = flags | Pattern.CASE_INSENSITIVE;
+		}
+		if (options.contains("multiline")) {
+			flags = flags | Pattern.MULTILINE | Pattern.DOTALL;
+		}
+		p = Pattern.compile(patt, flags);
+				
 		return getPatternGroup(s, p, groupNr, MatchMethod.FIND);
 	}
 
@@ -995,12 +1104,19 @@ tooltipsHTMLPlaceholder +
 	public String applyPattern(String s, String patt, String replace, String options)
 	{
 		Pattern p;
+		int flags = 0;
 		if (options.contains("case_sensitive")) {
-			p = Pattern.compile(patt);
+			flags = 0;
 		}
 		else {
-			p = Pattern.compile(patt, Pattern.CASE_INSENSITIVE);
+			flags = flags | Pattern.CASE_INSENSITIVE;
 		}
+		if (options.contains("multiline")) {
+			flags = flags | Pattern.MULTILINE | Pattern.DOTALL;
+		}
+		
+		p = Pattern.compile(patt, flags);
+		
     	Matcher m = p.matcher(s);
     	if (options.contains("first"))
     		s = m.replaceFirst(replace);
@@ -1013,8 +1129,16 @@ tooltipsHTMLPlaceholder +
 		return applyPattern(s, patt, replace, "first");
 	}
 
+	public String applyPatternFirst(String s, String patt, String replace, String options) {
+		return applyPattern(s, patt, replace, "first "+options);
+	}
+
 	public String applyPatternAll(String s, String patt, String replace) {
 		return applyPattern(s, patt, replace, "");
+	}
+
+	public String applyPatternAll(String s, String patt, String replace, String options) {
+		return applyPattern(s, patt, replace, options);
 	}
 
 	public StringBuilder applyPatternSB(StringBuilder s, String patt, String replace, String options)
@@ -1055,6 +1179,33 @@ tooltipsHTMLPlaceholder +
 		return shortened;
 	}
 
+	// remove the enclosing quotes from a string constant
+	public static String stripStringQuotes(String s) {
+		if ((s.charAt(0) == '\'') && (s.charAt(s.length()-1) == '\'')) {
+			s = s.substring(1,s.length()-1);
+		}
+		else if ((s.charAt(0) == '"') && (s.charAt(s.length()-1) == '"')) {
+			s = s.substring(1,s.length()-1);
+		}
+		else if ((s.toUpperCase().startsWith("N'")) && (s.charAt(s.length()-1) == '\'')) {
+			s = s.substring(2,s.length()-1);
+		}
+		return s;
+	}
+	
+	// remove enclosing brackets from an expression - assuming cases like ((a)+(b)) do not occur 
+	public static String stripEnclosingBrackets(String s) {
+		while (true) {
+			if ((s.charAt(0) == '(') && (s.charAt(s.length()-1) == ')')) {
+				s = s.substring(1,s.length()-1);
+			}
+			else {
+				break;
+			}
+		}
+		return s;
+	}
+	
 	public static String capitalizeFirstChar(String s) {
 		String capitalized = null;
 		if (s != null) {
@@ -1233,19 +1384,15 @@ tooltipsHTMLPlaceholder +
 	public String composeSeparatorBar(String s, String tag, boolean generateTocLink) {
 		String filler = "-";
 		String tagHTML = "";
-		if (generateHTML) {
-			tagHTML = "<a name=\""+tag.toLowerCase()+"\"></a>";
-		}
+		tagHTML = "<a name=\""+tag.toLowerCase()+"\"></a>";
 		String s2 = tagHTML;
 		s2 += composeOutputLine("", "-") + "\n";
 		s2 += composeOutputLine("--- "+s+" ", "-") + "\n";
 		s2 += composeOutputLine("", "-") + "\n";
-		if (generateHTML) {
-			if (generateTocLink) {
-				// s2 += tocLinkIcon + " " + tocLinkURL + "\n";   // dos not look good
-				s2 += tocLinkURL + "\n";
-			}
-		}		
+		if (generateTocLink) {
+			// s2 += tocLinkIcon + " " + tocLinkURL + "\n";   // dos not look good
+			s2 += tocLinkURL + "\n";
+		}
 		return s2;
 	}
 
@@ -1311,6 +1458,12 @@ tooltipsHTMLPlaceholder +
 		}
 		if (specifiedDbgOptions.contains("calc") || specifiedDbgOptions.contains("all")) {
 			debugCalc = true;
+		}
+		if (specifiedDbgOptions.contains("fmt") || specifiedDbgOptions.contains("all")) {
+			debugFmt = true;
+		}
+		if (specifiedDbgOptions.contains("rewrite") || specifiedDbgOptions.contains("all")) {
+			debugRewrite = true;
 		}
 	}
 
@@ -1425,8 +1578,7 @@ tooltipsHTMLPlaceholder +
 		return result;
 	}
 
-	// doc dir pathname: %USERPROFILE% on Windows, /home/<user> on Linux
-	// ToDo: test on Linux/Mac
+	// doc dir root pathname: %USERPROFILE% on Windows, /home/<user> on Linux
     public String getDocDirPathname() {
 		String dirPath = "";
 		if (onWindows) {
@@ -1546,6 +1698,7 @@ tooltipsHTMLPlaceholder +
 					// sometimes this fails for no apparent reason; unclear why. Wait a little while and retry
 					try {
 						Thread.sleep(500); /* argument=millisecs */
+						//appOutput(thisProc()+"waiting a little while for creating "+dirPath+" ");
 					} catch (Exception e) {
 					}
 					if (docDir.mkdirs()) {
@@ -1605,6 +1758,12 @@ tooltipsHTMLPlaceholder +
 		// strip off suffix
 		f = applyPatternFirst(f, "^(.*)\\.\\w*$", "$1");
 		return f;
+	}
+
+	public void copyFile(String fnameSrc, String fnameDest) throws IOException {
+		File fsrc  = new File(fnameSrc);
+		File fdest = new File(fnameDest);
+    	Files.copy(fsrc.toPath(), fdest.toPath(), REPLACE_EXISTING);
 	}
 
 	public String openErrBatchFile(String reportName, String inputFileName, String runStartTime) throws IOException {
@@ -1705,6 +1864,7 @@ tooltipsHTMLPlaceholder +
 
 	public String getImportFileHTMLPathName(String reportName, String inputFileName, String appName) throws IOException {
 		String f = getImportFilePathName(reportName, inputFileName, appName);
+		f = applyPatternFirst(f, "(" + escapeRegexChars(File.separator) + importDirName + escapeRegexChars(File.separator)+")", "$1" + importHTMLDirName + escapeRegexChars(File.separator));
 		f = changeFilenameSuffix(f, importFileSuffix, HTMLSuffix);
 		return f;
 	}
@@ -1714,19 +1874,20 @@ tooltipsHTMLPlaceholder +
 		importFilePathName = getImportFilePathName(reportName, inputFileName, appName);
 		importFileHTMLPathName = getImportFileHTMLPathName(reportName, inputFileName, appName);
 		checkDir(getReportDirPathname(reportName, importDirName), true);
+		if (debugging) dbgOutput("opening importFilePathName=["+importFilePathName+"] ", debugDir);
 		importFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(importFilePathName), StandardCharsets.UTF_8)));
 		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
 		String initLine = importFileLinePart1 +"["+fullPath.toString()+"]"+importFileLinePart2+"["+appName+"]" + importFileLinePart3 +"["+encoding+"]" + importFileLinePart4 +"["+importFileNrBatchesPlaceholder+"/"+importFileNrLinesPlaceholder+"]" + importFileLinePart5 + now;
 		writeImportFile(initLine, false);
-		if (generateHTML) {
-			importFileWritelineNr = 0;
-			importFileHTMLWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(importFileHTMLPathName), StandardCharsets.UTF_8)));
-			String hdr = headerHTML + headerHTMLSQL;
-			hdr = formatHeaderHTML(hdr, now, reportName, inputFileName, appName);
-			formatFooterHTML();
-			importFileHTMLWriter.write(hdr);
-			importFileHTMLWriter.flush();
-		}
+
+		importFileWriteLineNr = 0;
+		importFileHTMLWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(importFileHTMLPathName), StandardCharsets.UTF_8)));
+		String hdr = headerHTML + headerHTMLSQL;
+		hdr = formatHeaderHTML(hdr, now, reportName, inputFileName, appName, "Imported file");
+		formatFooterHTML();
+		importFileHTMLWriter.write(hdr);
+		importFileHTMLWriter.flush();
+
 		return;
 	}
 
@@ -1749,7 +1910,7 @@ tooltipsHTMLPlaceholder +
 		return hdr;
 	}
 
-	public String formatHeaderHTML(String hdr, String now, String reportName, String inputFileName, String appName) {
+	public String formatHeaderHTML(String hdr, String now, String reportName, String inputFileName, String appName, String inputfileTxt) {
 		String hdr1 = "Generated by " + thisProgName + " at " + now;
 		// fill in various parts in the HTML header
 		hdr = applyPatternAll(hdr, headerHTMLPlaceholder, hdr1);
@@ -1758,6 +1919,7 @@ tooltipsHTMLPlaceholder +
 		hdr = applyPatternFirst(hdr, reportHTMLPlaceholder, reportName);
 		hdr = applyPatternFirst(hdr, inputfileHTMLPlaceholder, inputFileName);
 		hdr = applyPatternFirst(hdr, appnameHTMLPlaceholder, appName);
+		hdr = applyPatternFirst(hdr, inputfileTxtPlaceholder, inputfileTxt);
 		return hdr;
 	}
 
@@ -1773,16 +1935,91 @@ tooltipsHTMLPlaceholder +
 	public void writeImportFile(String line, boolean writeHTML) throws IOException {
 		importFileWriter.write(line + "\n");
 		importFileWriter.flush();
-
 		if (writeHTML) {
-			if (generateHTML) {
-				importFileWritelineNr++;
-				String lineEscaped = escapeHTMLChars(line);
-				String lineHTML = "<tr><td class=\"linenr\"><a name=\""+importFileWritelineNr+"\"></a>" +importFileWritelineNr+ "</td><td class=\"sql\">" + lineEscaped + "</td></tr>";
-				importFileHTMLWriter.write(lineHTML + "\n");
-				importFileHTMLWriter.flush();
-			}
+			importFileWriteLineNr++;
+			String lineEscaped = escapeHTMLChars(line);
+			String lineHTML = "<tr><td class=\"linenr\"><a name=\""+importFileWriteLineNr+"\"></a>" +importFileWriteLineNr+ "</td><td class=\"sql\">" + lineEscaped + "</td></tr>";
+			importFileHTMLWriter.write(lineHTML + "\n");
+			importFileHTMLWriter.flush();
 		}
+	}
+
+	public void openRewrittenFile(String reportName, String appName, String tmpFile, String rewrittenFile) throws IOException {		
+		FileInputStream fis = new FileInputStream(tmpFile);
+		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);				
+		rewrittenInFileReader = new BufferedReader(isr);	
+		rewrittenFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(rewrittenFile), StandardCharsets.UTF_8)));
+		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
+		return;
+	}
+			
+	public void writeRewrittenFile(String line) throws IOException {
+		if (rewrittenFileWriter == null) {
+			appOutput(line);
+			return;
+		}
+		rewrittenFileWriter.write(line);
+		rewrittenFileWriter.flush();	
+	}
+	
+	
+	public void writeRewrittenHTMLFile(String reportName, String appName, String rewrittenFile, String rewrittenHTMLFile) throws IOException {
+		FileInputStream fis = new FileInputStream(rewrittenFile);
+		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);				
+		BufferedReader rewrittenInFileReader = new BufferedReader(isr);	
+		
+		BufferedWriter rewrittenHTMLFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(rewrittenHTMLFile), StandardCharsets.UTF_8)));
+		String hdr = headerHTML + headerHTMLSQL;
+		String f = Paths.get(rewrittenFile).getFileName().toString();
+		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
+		f = renameRewrittenFile(appName,f) + " (in "+ escapeRegexChars(getReportDirPathname(reportName, rewrittenDirName)) +")";
+		hdr = formatHeaderHTML(hdr, now, reportName, f, appName, "Rewritten file");
+		formatFooterHTML();
+		rewrittenHTMLFileWriter.write(hdr);
+		rewrittenHTMLFileWriter.flush();
+
+		int rewrittenFileWriteLineNr = 0;
+		while (true) {							
+			String line = rewrittenInFileReader.readLine();
+			if (line == null) break;
+			
+			rewrittenFileWriteLineNr++;
+			String lineHTML = "<tr><td class=\"linenr\"><a name=\""+rewrittenFileWriteLineNr+"\"></a>" +rewrittenFileWriteLineNr+ "</td><td class=\"sql\">"+escapeHTMLChars(line)+"</td></tr>\n";
+			rewrittenHTMLFileWriter.write(lineHTML);
+		}		
+		
+		rewrittenHTMLFileWriter.write(footerHTML);
+		rewrittenHTMLFileWriter.flush();
+   		rewrittenHTMLFileWriter.close();
+   		rewrittenInFileReader.close();
+	}
+	
+	public void closeRewrittenFile() throws IOException {	
+		rewrittenInFileReader.close();							
+		rewrittenFileWriter.close();			
+	}	
+
+	public String renameRewrittenFile(String appName, String rewrittenFile) {
+		// internal name => rewritten file
+		String f = Paths.get(rewrittenFile).getFileName().toString();
+		String p = rewrittenFile.substring(0,(rewrittenFile.length() - f.length()));
+		f = f.substring(0,f.indexOf(rewrittenFileTag));  
+		String renamedFile = p + f + rewrittenFileSuffix;
+		return renamedFile;
+	}
+
+	public String renameRewrittenFile(String reportName, String appName, String inputFile) {
+		// original input file => rewritten file
+		String inFileCopy = "";
+		try {
+			inFileCopy = getImportFilePathName(reportName, inputFile, appName);
+		} catch  (Exception e) { /* nothing */ }
+		
+		String fName = Paths.get(inFileCopy).getFileName().toString().replaceAll(importFileTag, rewrittenFileTag);
+		String renamedFile = getFilePathname(getReportDirPathname(reportName, rewrittenDirName), fName); 
+				
+		renamedFile = renameRewrittenFile(appName, renamedFile);
+		return renamedFile;
 	}
 
 	public String writePsqlFile(boolean append, String reportName, String cmd) throws IOException {
@@ -1843,14 +2080,12 @@ tooltipsHTMLPlaceholder +
 
     public void closeImportFile() throws IOException {
 	    importFileWriter.close();
-		if (generateHTML) {
-			if (importFileHTMLWriter != null) {
-				importFileHTMLWriter.write(footerHTML);
-				importFileHTMLWriter.flush();
-		   		importFileHTMLWriter.close();
-		   		importFileHTMLWriter = null;
-		   	}
-		}
+		if (importFileHTMLWriter != null) {
+			importFileHTMLWriter.write(footerHTML);
+			importFileHTMLWriter.flush();
+	   		importFileHTMLWriter.close();
+	   		importFileHTMLWriter = null;
+	   	}
 	}
 
 	// get attribute from imported file's first line
@@ -1900,47 +2135,74 @@ tooltipsHTMLPlaceholder +
 	// validate all capture files for this report
 	// if valid, returns an empty string
 	// if invalid, return message why it's invalid
-    public String captureFilesValid(List<Path> captureFiles) throws IOException {
+    public String captureFilesValid(String type, List<Path> captureFiles) throws IOException {
     	String result = "";
-    	String tmp = "";
-    	boolean identicalTargetVersion = true;
+    	String errInfo = "";
+    	String errInfoOtherwise = "";
+    	String errInfoTargetVersion = "";
+    	String errInfoFormatVersion = "";
     	boolean otherwiseInvalid = false;
     	String targetVersionTest = null;
+    	boolean identicalTargetVersion = true;
+    	String formatVersionTest = null;
+   		boolean identicalFormatVersion = true;
 		for (Path cf: captureFiles) {
 			String line = captureFileFirstLine(cf.toString());   // read only first line
 			String reportName     = captureFileAttribute(line, 1);
 			String tgtVersion     = captureFileAttribute(line, 2);
 			String dt             = captureFileAttribute(line, 3);
+			String fmtVersion     = captureFileAttribute(line, 4);
 
 			if (targetVersionTest == null) {
 				targetVersionTest = tgtVersion;
 			}
 			if (!targetVersionTest.equals(tgtVersion)) {
-				identicalTargetVersion = false;
+				identicalTargetVersion = false;				
 			}
+			if (fmtVersion == null) {
+				// capture files from Babelfish Compass 1.0 and 1.1 do not have the capture file format version yet
+				fmtVersion = captureFileFormatBaseVersion;
+			}
+			else if (fmtVersion.isEmpty()) {
+				// capture files from Babelfish Compass 1.0 and 1.1 do not have the capture file format version yet
+				fmtVersion = captureFileFormatBaseVersion;
+			}
+			if (formatVersionTest == null) {
+				formatVersionTest = fmtVersion;
+			}
+			if (!formatVersionTest.equals(fmtVersion)) {
+				identicalFormatVersion = false;
+			}
+
+			errInfoTargetVersion += " - version "+tgtVersion+ " is target of report "+reportName+" ("+cf.toString()+")\n";
+			errInfoFormatVersion += " - file format version "+fmtVersion+ " for report "+reportName+" ("+cf.toString()+")\n";
 
 			if (tgtVersion.isEmpty()) {
 				otherwiseInvalid = true;
-				tmp += "   Missign header line? No targeted "+babelfishProg+" version "+tgtVersion+ " in "+cf.toString()+"\n";
-			}
-			else {
-				tmp += "   version "+tgtVersion+ " is target of report "+reportName+"("+cf.toString()+")\n";
-			}
+				errInfoOtherwise += " - missing header line? Targeted "+babelfishProg+" version "+tgtVersion+ " not found in "+cf.toString()+"\n";
+			}			
 		}
 
 		if (!targetVersionTest.equals(targetBabelfishVersion)) {
 			result = "Analysis was performed for a different "+babelfishProg+" version than targeted by this run (v."+targetBabelfishVersion+"):\n";
 		}
-		if (!identicalTargetVersion) {
+		else if (!identicalTargetVersion) {
 			result = "Analysis files are for different "+babelfishProg+" versions:\n";
+			errInfo = errInfoTargetVersion;
 		}
-		if (otherwiseInvalid) {
+		else if (!identicalFormatVersion) {
+			result = "Analysis files are for different file format versions:\n";
+			errInfo = errInfoFormatVersion;
+		}
+		else if (otherwiseInvalid) {
 			result = "Invalid analysis file(s) found:\n";
+			errInfo = errInfoOtherwise;
 		}
 		if (!result.isEmpty()) {
-			result = "\nCannot generate report based on existing analysis files.\n" + result;
-			result += tmp;
-			result += "\nRe-run analysis for all imported files with -analyze";
+			if (type.equals("report")) result = "\nCannot generate report based on these analysis files with incompatible attributes.\n" + result;
+			else result = "\nCannot import analysis files with incompatible attributes.\n" + result;
+			result += errInfo;
+			result += "\nRe-run analysis for all imported files with -analyze.";
 		}
 		return result;
  	}
@@ -2061,6 +2323,7 @@ tooltipsHTMLPlaceholder +
 
 			// create subdirs
 			checkDir(getReportDirPathname(reportName, importDirName), false);
+			checkDir(getReportDirPathname(reportName, importDirName, importHTMLDirName), false);			
 			checkDir(getReportDirPathname(reportName, importDirName, symTabDirName), false);
 			checkDir(getReportDirPathname(reportName, capDirName), false);
 			checkDir(getReportDirPathname(reportName, logDirName), false);
@@ -2128,6 +2391,7 @@ tooltipsHTMLPlaceholder +
 
 		//recreate
 		checkDir(getReportDirPathname(reportName, importDirName, symTabDirName), false);
+		checkDir(getReportDirPathname(reportName, importDirName, importHTMLDirName), false);
 		checkDir(getReportDirPathname(reportName, capDirName), false);
 	}
 
@@ -2217,21 +2481,318 @@ tooltipsHTMLPlaceholder +
 		return encodingFound;
 	}
 
-	// validate an input file: check minimum requirements, and figure out if this was created
-	// by an unsupported reveng tool
-	public boolean inputScriptValid(String inputFileName)
-	{
-		// to be written
-		return true;
+	// validate an input file: check format, figure out if this was created
+	// by an unsupported reveng tool -- etc.
+	public String detectImportFileFormat(String inputFileName, String importFormat, Charset charset) throws IOException {		
+		String fullPath = Paths.get(inputFileName).toAbsolutePath().toString();
+		if (debugging) dbgOutput(thisProc()+"inputFileName=["+inputFileName+"] fullPath=["+fullPath+"] importFormat=["+importFormat+"] ", debugFmt);
+		FileInputStream fis = new FileInputStream(fullPath);
+		InputStreamReader isr = new InputStreamReader(fis, charset);							
+		BufferedReader inFileReader = new BufferedReader(isr);
+		
+		// read first N lines to try and determine format
+		int goFound = 0;
+		int createFound = 0;
+		int alterFound = 0;
+		int jsonQueryFmtFound = 0;
+		int extendedEventsXMLFound = 0;
+		int genericSQLXMLFound = 0;
+		
+		int nrLinesPreRead = 500;
+		int lineNr = 0;
+		StringBuilder lines  = new StringBuilder("");
+		while (lineNr < nrLinesPreRead) {
+			lineNr++;
+			String line = inFileReader.readLine();
+			if (line == null) {
+				break;
+			}
+			line = line.trim();
+			//lines.append(line).append("\n");
+			
+			// look for fingerprints
+			if (line.equalsIgnoreCase("go")) goFound++;
+			else {
+				if (line.toUpperCase().startsWith("CREATE ")) createFound++;
+				else if (line.toUpperCase().startsWith("ALTER ")) alterFound++;
+				else if (line.startsWith("\"query")) {      
+					if (!getPatternGroup(line,"(\"query_\\d+\":\\s+)", 1).isEmpty()) {				
+						jsonQueryFmtFound++;
+					}
+				}		
+				else if (line.startsWith("<event name=\"sql_statement_completed\"")) { 
+					extendedEventsXMLFound++;
+				}
+				else if (line.startsWith("<data name=\"statement\"")) { 
+					extendedEventsXMLFound++;			
+				}		
+//				else if (line.startsWith("<sql>")) { 
+//					genericSQLXMLFound++;			
+//				}		
+			}
+		}
+		inFileReader.close();
+		//lines.append("\n");
+		
+		//if (debugging) dbgOutput(thisProc()+"First "+lineNr+" lines read: ["+lines.toString()+"]", debugFmt);
+		if (debugging) dbgOutput(thisProc()+"First "+lineNr+" lines read", debugFmt);
+		
+		if (debugging) dbgOutput(thisProc()+"goFound               =["+goFound+"]", debugFmt);
+		if (debugging) dbgOutput(thisProc()+"createFound           =["+createFound+"]", debugFmt);
+		if (debugging) dbgOutput(thisProc()+"alterFound            =["+alterFound+"]", debugFmt);
+		if (debugging) dbgOutput(thisProc()+"jsonQueryFmtFound   =["+jsonQueryFmtFound+"]", debugFmt);
+		if (debugging) dbgOutput(thisProc()+"extendedEventsXMLFound=["+extendedEventsXMLFound+"]", debugFmt);
+		if (debugging) dbgOutput(thisProc()+"genericSQLXMLFound    =["+genericSQLXMLFound+"]", debugFmt);
+		
+		String seemsFormat = "";
+		String seemsFormatDisplay = "";
+		if (jsonQueryFmtFound > 0) {
+			seemsFormat = jsonQueryFmt;
+		}
+		else if (extendedEventsXMLFound > 0) {
+			seemsFormat = extendedEventsXMLFmt;
+		}		
+		else if (goFound > 0) { 
+			seemsFormat = sqlcmdFmt;
+		}	
+		if (!seemsFormatDisplay.isEmpty()) {
+			seemsFormatDisplay = importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()));
+		}
+	
+		
+		if (importFormat.equalsIgnoreCase(jsonQueryFmt)) {
+			//appOutput(thisProc()+"jsonQueryFmt Found=["+jsonQueryFmtFound+"] ");
+			if (jsonQueryFmtFound == 0) {
+				importFormatSeemsInvalidMsg(inputFileName, jsonQueryFmt, seemsFormat, "prefix: \"query_999\"");			
+			}			
+		}
+		if (importFormat.equalsIgnoreCase(extendedEventsXMLFmt)) {
+			//appOutput(thisProc()+"jsonQueryFmt, jsonQueryFmtFound=["+jsonQueryFmtFound+"] ");
+			if (extendedEventsXMLFound == 0) {
+				importFormatSeemsInvalidMsg(inputFileName, extendedEventsXMLFmt, seemsFormat, "tag: <event name=\"sql_statement_completed\"");			
+			}			
+		}
+		
+		else if (importFormat.equalsIgnoreCase(sqlcmdFmt)) {
+			if (jsonQueryFmtFound + extendedEventsXMLFound + genericSQLXMLFound > 0) {
+				importFormatSeemsInvalidMsg(inputFileName, sqlcmdFmt, seemsFormat, "batch delimiters: 'go'");			
+			}
+			else {
+				// was reverse-engineered by wrong tool? (i.e. batch delimiters missing)
+				if (createFound + alterFound > 5) { // arbitrary number
+					if (goFound == 0) {
+						appOutput("Input file '"+inputFileName+"' formatting:\nNo batch delimiters 'go' were found. Input scripts need to be in 'sqlcmd' format,\nusing 'go' as batch delimiters.\nTo reverse engineer you SQL server database(s), best use SQL Server Management Studio.\nProceeding, but errors may occur.\n");		
+					}
+				}
+			}
+		}
+		
+		return seemsFormat;
+	}
+	
+	private void importFormatSeemsInvalidMsg(String inputFileName, String importFmtSpecified, String seemsFormat, String fmtExample) {
+		//appOutput(thisProc()+"inputFileName=["+inputFileName+"] seemsFormat=["+seemsFormat+"] importFmtSpecified=["+importFmtSpecified+"] ");
+		String s = "Input file '"+inputFileName+"' formatting:\n";
+		s = "Input format '"+importFmtSpecified+"' was specified, but input file does not seem to be in this format";
+		if (seemsFormat.isEmpty()) 
+			s += ",\nsince no corresponding formatting was found ("+fmtExample+").\n";
+		else
+			s += ".\nInstead, it seems to be in '"+importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()))+"' format. To process accordingly, specify '-importfmt "+seemsFormat+"'.\n";
+		s += "Proceeding, but errors may occur.\n";
+		//appOutput(s);	
+	}
+		
+	// convert a special-format file to sqlcmd format
+	public String convertInputFileFormat(String reportName, String inputFileName, String appName, String importFormat, Charset charset) throws IOException  {
+		String fullPath = Paths.get(inputFileName).toAbsolutePath().toString();
+		if (debugging) dbgOutput(thisProc()+"inputFileName=["+inputFileName+"] fullPath=["+fullPath+"] importFormat=["+importFormat+"] with charset=["+charset+"] deDupExtracted=["+deDupExtracted+"] ", debugFmt);
+		FileInputStream fis = new FileInputStream(fullPath);
+		InputStreamReader isr = new InputStreamReader(fis, charset);							
+		BufferedReader inFileReader = new BufferedReader(isr);
+		
+		// open file for extracted queries
+		String extractedFilePathName = openExtractedFile(reportName, inputFileName, fullPath, appName, charset.toString());
+				
+		int lineNr = 0;
+		int queriesExtracted = 0;
+		int queriesWritten = 0;
+		StringBuilder linesNew  = new StringBuilder("");
+		while (true) {
+			lineNr++;
+			String line = inFileReader.readLine();
+			if (line == null) {
+				break;
+			}
+			String lineCopy = line;
+			line = line.trim();
+			//linesNew.append(line).append("\n");
+			
+			if (importFormat.equals(jsonQueryFmt)) {
+				// each line has one query: "query_1234":  "(@v int[...]) query ",
+				if (!line.startsWith("\"query")) continue;   
+				line = applyPatternFirst(line,"^\"query_\\d+\":\\s*", "");
+				if (!line.startsWith("\"")) {
+					if (line.startsWith("null")) continue;
+					else {
+						appOutput("Unexpected formatting on line "+lineNr+", skipping line: ["+lineCopy+"] ");
+						continue;
+					}
+				}
+				line = line.substring(1);
+				if (!line.startsWith("(")) {
+					// no parameters 
+				}
+				else {
+					// strip parameters
+					String params = findClosingBracket(line);
+					line = line.substring(params.length());
+					params = removeLastChar(params.substring(1));
+					line = "declare " + params + "\n" + line;
+					//appOutput(thisProc()+"params=["+params+"] ");
+				}
+				//appOutput(thisProc()+"line C=["+line+"]");
+				
+				if (line.endsWith("\",")) line = removeLastChars(line,2);
+				else if (line.endsWith("\"")) line = removeLastChar(line);
+				else {
+					// should not happen, not sure what to do. just hope it's all OK
+				}
+				//appOutput(thisProc()+"line Z=["+line+"] ");	
+				
+				line = patchupSpecialCharsExtractedSQL(line);
+				
+				if (deDupExtracted) {
+					deDuplicateExtractedQueries(line);
+				}
+				else {
+					// do not unduplicate, but write directly
+					writeExtractedFile(line);
+					writeExtractedFile("go\n");
+					queriesWritten++;
+				}
+				
+				queriesExtracted++;
+			}			
+		}
+		inFileReader.close();	
+		
+		if (deDupExtracted) {
+			for (String qry : deDupQueries.keySet()) {
+				int dupCnt = dupQueryCount.getOrDefault(qry, 0);
+				if (dupCnt > 0) {
+					writeExtractedFile("-- Duplicate queries skipped: "+dupCnt);
+				}
+				writeExtractedFile(deDupQueries.get(qry));
+				writeExtractedFile("go\n");				
+				queriesWritten++;
+			}
+		}
+//		appOutput(thisProc()+"Queries extracted         : "+queriesExtracted);
+//		appOutput(thisProc()+"Queries written           : "+queriesWritten);
+//		appOutput(thisProc()+"Duplicate queries skipped : "+deDupSkipped);
+		
+		closeExtractedFile();
+//		appOutput(thisProc()+"queriesExtracted=["+queriesExtracted+"] extractedFilePathName=["+extractedFilePathName+"] ");	
+		return extractedFilePathName;
+	}
+	
+	// deDuplicate extracted/capture queries
+	public void deDuplicateExtractedQueries (String qry) {
+		String qryOrig = qry;
+		qry = applyPatternAll(qry, "\\s+", " ");
+		qry = applyPatternAll(qry, "\\s*;\\s*", "");
+		//appOutput(thisProc()+"qry A=["+qry+"]");
+		qry = qry.toLowerCase() + " ";
+		qry = applyPatternAll(qry, "([^\\w#])#[#\\w]+([^\\w#])", "$1"+"#tmptab"+"$2");
+		//appOutput(thisProc()+"qry B=["+qry+"]");
+		
+		//mask all bracketed identifiers:
+		qry = applyPatternAll(qry, "[\\[].*?[\\]]", "[bracketedID]");
+		
+		//mask all numbers:
+		qry = applyPatternAll(qry, "\\b\\d+\\b", "9999");
+		
+		//mask all stringd:
+		qry = applyPatternAll(qry, "\\'.*?\\'", "'string'");
+		qry = applyPatternAll(qry, "\\'string\\'\\'string\\'", "'string'");
+		
+	
+		if (deDupQueries.containsKey(qry)) {
+			// duplicate query found, skipped
+			deDupSkipped++;
+			dupQueryCount.put(qry, dupQueryCount.getOrDefault(qry, 0)+1);
+		}
+		else {
+			// new query found
+			deDupQueries.put(qry, qryOrig);
+		}	
+	}
+	
+	public String patchupSpecialCharsExtractedSQL (String s) {
+		if (s.contains("\\n")) s = s.replaceAll("\\\\n", "\n");
+		if (s.contains("\\r")) s = s.replaceAll("\\\\r", "\r");
+		if (s.contains("\\t")) s = s.replaceAll("\\\\t", "\t");
+		if (s.contains("\\f")) s = s.replaceAll("\\\\f", "\f");		
+		if (s.contains("\\u0027")) s = s.replaceAll("\\\\u0027", "'");		
+		if (s.contains("\\u003c")) s = s.replaceAll("\\\\u003c", "<");		
+		if (s.contains("\\u003e")) s = s.replaceAll("\\\\u003e", ">");		
+		return s;
+	}
+		
+	public String openExtractedFile(String reportName, String inputFileName, String fullPath, String appName, String encoding) throws IOException {
+		String extractedFileName = Paths.get(inputFileName).getFileName().toString() + ".extracted.sql";
+		String dirName = getFilePathname(getFilePathname(getDocDirPathname(), reportName), importDirName);
+		extractedFilePathName = getFilePathname(dirName, extractedFileName);
+		if (debugging) dbgOutput(thisProc()+"inputFileName=["+inputFileName+"] extractedFileName=["+extractedFileName+"] extractedFilePathName=["+extractedFilePathName+"] ", debugFmt);
+		
+		checkDir(getReportDirPathname(reportName, importDirName), true);
+		extractedFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(extractedFilePathName), StandardCharsets.UTF_8)));		
+		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
+		String initLine = "-- Extracted from "+fullPath+" (format '"+importFormat+"', encoding '"+encoding+"') at " + now;
+		writeExtractedFile(initLine);
+		return extractedFilePathName;
+	}	
+
+	public void writeExtractedFile(String line) throws IOException {
+		extractedFileWriter.write(line + "\n");
+		extractedFileWriter.flush();
 	}
 
+    public void closeExtractedFile() throws IOException {
+	    extractedFileWriter.close();
+	    extractedFileWriter = null;
+	}
+
+	// find the closing bracket that matches the opening bracket on the start position
+	public String findClosingBracket(String s)  {
+		return findClosingBracket(s,0);
+	}
+	public String findClosingBracket(String s, int startPos) 
+	{
+		if (s.isEmpty()) return "";
+		if (s.charAt(startPos) != '(') {
+			// should throw an exception, but don't worry for now
+		}
+		int brktCnt = 0;
+		for (int i  = startPos; i < s.length() ; i++) {
+			char c = s.charAt(i);
+			if (c == '(') brktCnt++;
+			else if (c == ')') brktCnt--;
+			if (brktCnt == 0) {
+				String item = s.substring(startPos,i+1);
+				return item;
+			}
+		}
+	    return ""; // didn't find closing bracket
+	}
+	
 	// capture file
     public void openCaptureFile(String reportName, String fileName, String appName) throws IOException {
     	captureFilePathName = getCaptureFilePathname(reportName, fileName, appName);
     	checkDir(getReportDirPathname(reportName, capDirName), true);
 		captureFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(captureFilePathName), StandardCharsets.UTF_8)));
 		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
-		String initLine = captureFileLinePart1+"["+reportName+"]" + captureFileLinePart2 +"["+targetBabelfishVersion+"]" + captureFileLinePart3 + now;
+		String initLine = captureFileLinePart1+"["+reportName+"]" + captureFileLinePart2 +"["+targetBabelfishVersion+"]" + captureFileLinePart3 + now + captureFileLinePart4 +"["+captureFileFormatVersion+"]";
 		appendCaptureFile(initLine);
 	}
 
@@ -2247,8 +2808,9 @@ tooltipsHTMLPlaceholder +
 
 	// get attribute from imported file first line
     public String captureFileAttribute(String line, int part) throws IOException {
-    	assert (part >= 1 && part <= 3): "invalid part value ["+part+"] ";
-    	return getPatternGroup(line, "^"+captureFileLinePart1+"[\\[](.*?)[\\]]"+captureFileLinePart2+"[\\[](.*?)[\\]]"+captureFileLinePart3+"(.*)$", part);
+    	assert (part >= 1 && part <= 4): "invalid part value ["+part+"] ";
+    	if (part == 4) part++;
+    	return getPatternGroup(line, "^"+captureFileLinePart1+"[\\[](.*?)[\\]]"+captureFileLinePart2+"[\\[](.*?)[\\]]"+captureFileLinePart3+"(.*?)("+captureFileLinePart4+"[\\[](.*?)[\\]])?\\s*$", part);
     }
 
 	// read capture file first line
@@ -2768,15 +3330,13 @@ tooltipsHTMLPlaceholder +
 			}
     	}
 		reportFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(reportFileTextPathName), StandardCharsets.UTF_8)));	
-		if (generateHTML) {
-			String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
-			reportFileWriterHTML = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(reportFileHTMLPathName), StandardCharsets.UTF_8)));
-			String hdr = headerHTML + headerHTMLReport;
-			hdr = formatHeaderHTML(hdr, now, reportName, reportName, "");
-			hdr = formatToolTips(hdr);
-			reportFileWriterHTML.write(hdr);
-			reportFileWriterHTML.write("<pre>\n");
-		}
+		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
+		reportFileWriterHTML = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(reportFileHTMLPathName), StandardCharsets.UTF_8)));
+		String hdr = headerHTML + headerHTMLReport;
+		hdr = formatHeaderHTML(hdr, now, reportName, reportName, "", "");
+		hdr = formatToolTips(hdr);
+		reportFileWriterHTML.write(hdr);
+		reportFileWriterHTML.write("<pre>\n");
 	}
 
 	public void writeReportFile(StringBuilder line) throws IOException {
@@ -2784,11 +3344,9 @@ tooltipsHTMLPlaceholder +
 	}
 
 	public void writeReportFile(String line) throws IOException {
-		if (generateHTML) {
-			reportFileWriterHTML.write(line + "\n");
-			reportFileWriterHTML.flush();
-		}
-		
+		reportFileWriterHTML.write(line + "\n");
+		reportFileWriterHTML.flush();
+	
 		// for the .txt version, remove HTML tags
 		if (line.contains("<a ")) {			
 			line = applyPatternFirst(line,docLinkURL, docLinkURLText);						
@@ -2814,18 +3372,14 @@ tooltipsHTMLPlaceholder +
 	public void writeReportFile() throws IOException {
 		reportFileWriter.write("\n");
 		reportFileWriter.flush();
-		if (generateHTML) {
-			reportFileWriterHTML.write("\n");
-			reportFileWriterHTML.flush();
-		}
+		reportFileWriterHTML.write("\n");
+		reportFileWriterHTML.flush();
 	}
 
 	public void closeReportFile() throws IOException {
 		reportFileWriter.close();
-		if (generateHTML) {
-			reportFileWriterHTML.write("\n</pre>\n");
-			reportFileWriterHTML.close();
-		}
+		reportFileWriterHTML.write("\n</pre>\n");
+		reportFileWriterHTML.close();
 	}
 
 	public String progressCnt(int currentCount, int totalCount) {
@@ -2835,14 +3389,15 @@ tooltipsHTMLPlaceholder +
 		return "("+currentCount+"/"+totalCount+") ";
 	}
 
-	public void reportSummaryItems(String status, List<String> sortedList, Map<String, Integer> itemCount, Map<String, String>appItemList) throws IOException {
+	public void reportSummaryStatus(String status, List<String> sortedList, Map<String, Integer> itemCount, Map<String, String>appItemList) throws IOException {
 		StringBuilder lines = new StringBuilder();
 		StringBuilder prevGroup = new StringBuilder(uninitialized);
 		final String statsMarker = "~STATSHERE~";
 		
 		//progress indicator
 		printProgress();
-
+		
+		Integer totalCnt = 0;
 		int grpCount = 0;
 		Map<String, Integer> itemCnt = new HashMap<>();
 		for (String s: sortedList) {
@@ -2866,8 +3421,9 @@ tooltipsHTMLPlaceholder +
 				lines.append(group + " ("+statsMarker+")\n");
 			}
 			grpCount += itemCount.get(s);
+			totalCnt += itemCount.get(s);
 			itemCnt.put(item.toString(),0);
-			StringBuilder thisItem = new StringBuilder(hLinkHint(item.toString(),status,group.toString()) + " : " + itemCount.get(s).toString());
+			StringBuilder thisItem = new StringBuilder(popupHint(item.toString(),status,group.toString()) + " : " + itemCount.get(s).toString());
 			lines.append(thisItem);
 			if (reportAppsCount) {
 				int minSpacer = 3;
@@ -2890,10 +3446,23 @@ tooltipsHTMLPlaceholder +
 
 		if (lines.toString().length() > 0) {
 			writeReportFile();
-			writeReportFile(composeSeparatorBar("SQL features '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' in " + babelfishProg +" v." + targetBabelfishVersion, tagSummary+status));
+			String totalCntStr = "";
+			if (totalCnt > 0) totalCntStr = " --- (total="+totalCnt.toString() + ")";
+			String hdrText = "SQL features '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' in " + babelfishProg +" v." + targetBabelfishVersion + totalCntStr;
+			if (status.equals(Rewritten)) hdrText = "SQL features '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"'" + totalCntStr;
+			writeReportFile(composeSeparatorBar(hdrText, tagSummary+status));
 
 			if (status.equals(ReviewManually) && writeNote) {
-				writeReportFile("Note: Items in this section could not be assessed automatically");
+				writeReportFile("Note: Items in this section could not be assessed by " + thisProgName);
+			}
+			if (status.equals(Rewritten) && writeNote) {
+				rewriteNotes = "Notes:\n";
+				rewriteNotes += "  * non-supported SQL features were rewritten by "+thisProgName+" v."+ thisProgVersion+ " for " + babelfishProg + " v." + targetBabelfishVersion + "\n";
+				rewriteNotes += "  * rewritten SQL files are located in " + getReportDirPathname(reportName, rewrittenDirName) + "\n";
+				if (rewrittenOppties.containsKey(CompassAnalyze.MergeStmt)) {
+				rewriteNotes += "  * rewritten MERGE statements should be reviewed manually" + "\n";
+				}
+				writeReportFile(rewriteNotes);
 			}
 			writeReportFile();
 			writeReportFile(lines);
@@ -2993,7 +3562,7 @@ tooltipsHTMLPlaceholder +
 						lines.append(hdr).append(itemCount.toString()).append(")\n");
 
 						// complete current line
-						linesTmp.append(completeLineByFeature(linesTmp, lineNrs, lineNrsBatch, prevContext, prevBatchNr, prevLineNrInFile, prevSrcFile, prevAppName));
+						linesTmp.append(completeLineByFeature(status, linesTmp, lineNrs, lineNrsBatch, prevContext, prevBatchNr, prevLineNrInFile, prevSrcFile, prevAppName));
 						lineNrs.clear();
 						lineNrsBatch.clear();
 						if (debugging) dbgOutput(thisProc()+"item change, completing current line, linesTmp=["+linesTmp+"] context=["+context+"] prevContext=["+prevContext+"] ", debugReport);
@@ -3038,7 +3607,7 @@ tooltipsHTMLPlaceholder +
 				else {
 					if (linesTmp.length() > 0) {
 						// complete previous line
-						linesTmp.append(completeLineByFeature(linesTmp, lineNrs, lineNrsBatch, prevContext, prevBatchNr, prevLineNrInFile, prevSrcFile, prevAppName));
+						linesTmp.append(completeLineByFeature(status, linesTmp, lineNrs, lineNrsBatch, prevContext, prevBatchNr, prevLineNrInFile, prevSrcFile, prevAppName));
 						if (debugging) dbgOutput(thisProc()+"new line, changed context, completing current line completed linesTmp=["+linesTmp+"] ", debugReport);
 					}
 
@@ -3062,29 +3631,38 @@ tooltipsHTMLPlaceholder +
 				prevAppName = new StringBuilder(appName);
 			}
 		}
+		else {
+			if (status.equals(Rewritten)) rewriteNotes = "";
+		}
 
 		String filterMsg = "";
 		if (skippedFilter > 0) {
 			filterMsg = "Filter applied: "+skippedFilter.toString()+" of " + countFilter.toString()+" items skipped by filter '"+reportOptionFilter+"'\n\n";
 		}
 
-		if (lines.length() == 0) lines = new StringBuilder("-no items to report-\n");
+		if (lines.toString().trim().length() == 0) {
+			lines = new StringBuilder("-no items to report-\n");
+		}		
 		writeReportFile();
 		writeReportFile(composeSeparatorBar("X-ref: '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' by SQL feature", tagByFeature+status));
-		writeReportFile(filterMsg+lines);
+		writeReportFile(filterMsg);
+		if (status.equals(Rewritten) && !rewriteNotes.isEmpty()) {
+			writeReportFile(rewriteNotes);
+		}		
+		writeReportFile(lines);
 	}
 
-	private String completeLineByFeature(StringBuilder linesTmp, List<String> lineNrs, List<String> lineNrsBatch, StringBuilder prevContext, StringBuilder prevBatchNr, StringBuilder prevLineNrInFile, StringBuilder srcFile, StringBuilder appName) {
+	private String completeLineByFeature(String status, StringBuilder linesTmp, List<String> lineNrs, List<String> lineNrsBatch, StringBuilder prevContext, StringBuilder prevBatchNr, StringBuilder prevLineNrInFile, StringBuilder srcFile, StringBuilder appName) {
 		String inFile = reportInputFileFmt;
 		if (reportShowSrcFile) inFile = srcFile.toString();
-		String ln = makeLineNrList(lineNrs, lineNrsBatch, inFile, appName.toString());
+		String ln = makeLineNrList(status, lineNrs, lineNrsBatch, inFile, appName.toString());
 
 		if (!reportShowBatchNr.isEmpty()) {
-			ln += " in batch "+ prevBatchNr.toString() + " (at line " + hLink(Integer.parseInt(prevLineNrInFile.toString()),inFile, appName.toString())+")";
+			ln += " in batch "+ prevBatchNr.toString() + " (at line " + hLink(status, Integer.parseInt(prevLineNrInFile.toString()),inFile, appName.toString())+")";
 		}
 
 		if (reportShowSrcFile && !inFile.equals(reportInputFileFmt)) {
-			ln += " in " + hLink(inFile, appName.toString());
+			ln += " in " + hLink(status, inFile, appName.toString());
 		}
 		if (reportShowAppName) ln += ", app "+ appName;
 		return ln + "\n";
@@ -3181,7 +3759,7 @@ tooltipsHTMLPlaceholder +
 
 					// complete the current line
 					if (init) {
-						lines.append(completeLineByObject(lineNrs, lineNrsBatch, prevSrcFile, prevAppName));
+						lines.append(completeLineByObject(status, lineNrs, lineNrsBatch, prevSrcFile, prevAppName));
 					}
 					lineNrs.clear();
 					lineNrsBatch.clear();
@@ -3194,8 +3772,8 @@ tooltipsHTMLPlaceholder +
 
 					String inFile = reportInputFileFmt;
 					if (reportShowSrcFile) inFile = srcFile.toString();
-					lines.append(batchNr.toString()+ ", at line " + hLink(Integer.parseInt(lineNrInFile.toString()),inFile, appName.toString()));
-					lines.append(" in " + hLink(inFile, appName.toString()));
+					lines.append(batchNr.toString()+ ", at line " + hLink(status, Integer.parseInt(lineNrInFile.toString()),inFile, appName.toString()));
+					lines.append(" in " + hLink(status, inFile, appName.toString()));
 
 					if (reportShowAppName) lines.append(", app "+ appName);
 					lines.append("\n");
@@ -3212,7 +3790,7 @@ tooltipsHTMLPlaceholder +
 				if ((!prevItemGroupSort.toString().equalsIgnoreCase(itemGroupSort.toString()) && !s.startsWith(lastItem)) || changedContext) {
 					if (!changedContext) {
 						// complete the current line
-						lines.append(completeLineByObject(lineNrs, lineNrsBatch, prevSrcFile, prevAppName));
+						lines.append(completeLineByObject(status, lineNrs, lineNrsBatch, prevSrcFile, prevAppName));
 						lineNrs.clear();
 						lineNrsBatch.clear();
 					}
@@ -3227,7 +3805,7 @@ tooltipsHTMLPlaceholder +
 
 				if (s.startsWith(lastItem)) {
 					if (lineNrs.size() > 0) {
-						lines.append(completeLineByObject(lineNrs, lineNrsBatch, prevSrcFile, prevAppName));
+						lines.append(completeLineByObject(status, lineNrs, lineNrsBatch, prevSrcFile, prevAppName));
 						break;
 					}
 				}
@@ -3238,23 +3816,32 @@ tooltipsHTMLPlaceholder +
 				prevAppName = new StringBuilder(appName);
 			}
 		}
-
+		else {
+			if (status.equals(Rewritten)) rewriteNotes = "";
+		}
+		
 		String filterMsg = "";
 		if (skippedFilter > 0) {
 			filterMsg = "Filter applied: "+skippedFilter.toString()+" of " + countFilter.toString()+" items skipped by filter '"+reportOptionFilter+"'\n\n";
 		}
 
-		if (lines.toString().trim().length() == 0) lines = new StringBuilder("-no items to report-\n");
+		if (lines.toString().trim().length() == 0) {
+			lines = new StringBuilder("-no items to report-\n");
+		}
 		writeReportFile();
 		writeReportFile(composeSeparatorBar("X-ref: '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' by object", tagByObject+status));
-		writeReportFile(filterMsg+lines);
+		writeReportFile(filterMsg);
+		if (status.equals(Rewritten) && !rewriteNotes.isEmpty()) {
+			writeReportFile(rewriteNotes);
+		}			
+		writeReportFile(lines);
 	}
 
-	private String completeLineByObject(List<String> lineNrs, List<String> lineNrsBatch, StringBuilder srcFile, StringBuilder appName) {
+	private String completeLineByObject(String status, List<String> lineNrs, List<String> lineNrsBatch, StringBuilder srcFile, StringBuilder appName) {
 		String inFile = reportInputFileFmt;
 		if (reportShowSrcFile) inFile = srcFile.toString();
 
-		String ln = makeLineNrList(lineNrs, lineNrsBatch, inFile, appName.toString());
+		String ln = makeLineNrList(status, lineNrs, lineNrsBatch, inFile, appName.toString());
 //		if (reportShowSrcFile && !inFile.equals(reportInputFileFmt)) {
 //			ln += " in " + hLink(inFile, appName.toString());
 //		}
@@ -3268,7 +3855,8 @@ tooltipsHTMLPlaceholder +
 				if (status.equals(NotSupported) ||
 				    status.equals(ReviewSemantics) ||
 				    status.equals(ReviewManually) ||
-				    status.equals(ReviewPerformance))
+				    status.equals(ReviewPerformance) ||
+				    status.equals(Rewritten))
 				    {
 				    	doIt = true;
 				    }
@@ -3293,7 +3881,7 @@ tooltipsHTMLPlaceholder +
 		return s;
 	}
 
-	private String makeLineNrList(List<String> lineNrs, List<String> lineNrsBatch, String fileName, String appName) {
+	private String makeLineNrList(String status, List<String> lineNrs, List<String> lineNrsBatch, String fileName, String appName) {
 		int nrLineNrs = lineNrs.size();
 		String xtra = "";
 		if (maxLineNrsInList < nrLineNrs) {
@@ -3309,7 +3897,7 @@ tooltipsHTMLPlaceholder +
 				int batchLineNr = Integer.parseInt(lineNrsBatch.get(i));
 				adjLineNr = batchLineNr + lineNr - 1;
 			}
-			joined += hLink(lineNr, fileName, appName, adjLineNr);
+			joined += hLink(status, lineNr, fileName, appName, adjLineNr);
 		}
 		return joined.trim() + xtra;
 	}
@@ -3368,7 +3956,8 @@ tooltipsHTMLPlaceholder +
 		return itemHintKey;
 	}
 
-	private String hLinkHint (String item, String status, String group) {
+	private String popupHint (String item, String status, String group) {
+		if (status.equals(Rewritten)) return lineIndent + item;
 		boolean blank = false;
 		if ((status.equals(Supported)) || (status.equals(Ignored))) blank = true;
 		String itemHintKey = getItemHintKey(item);
@@ -3381,7 +3970,7 @@ tooltipsHTMLPlaceholder +
 		return hint;
 	}
 
-	private String hLinkFileName (String file, String appName) {
+	private String hLinkFileName (String status, String file, String appName) {
 		if (!file.contains(importFileTag)) {
 			try {
 				String inFileCopy = getImportFilePathName(reportName, file, appName);
@@ -3389,38 +3978,75 @@ tooltipsHTMLPlaceholder +
 			} catch  (Exception e) { /* nothing */ }
 		}
 		file = file.substring(file.lastIndexOf(File.separator)+1);
+		String dirname = importDirName +File.separator+ importHTMLDirName;
+		if (status.equals(Rewritten)) {
+			dirname = rewrittenDirName +File.separator+ rewrittenHTMLDirName;
+			file = file.replaceFirst(importFileTag, rewrittenFileTag);
+		}		
 		file = changeFilenameSuffix(file, importFileSuffix, HTMLSuffix);
-		return importDirName+File.separator+ file;
+		String result = dirname+File.separator+ file;
+		return result;
 	}
 
-	private String hLink (String file) {
+	private String hLink (String status, String file) {
 		file = file.substring(file.lastIndexOf(File.separator)+1);
 		file = logDirName + File.separator + file;
 		String line = "<a href=\""+ file +"\""+tgtBlank+">"+file+"</a>";
 		return line;
 	}
 
-	private String hLink (String file, String appName) {
+	private String hLink (String status, String file, String appName) {
 		String line = "";
+		String thisFile = reportInputFileFmt;
+		if (status.equals(Rewritten)) {
+			if (file.equals(reportInputFileFmt)) {
+				thisFile = "rewritten file";
+			}
+		}
+		
 		if (file.equals(reportInputFileFmt)) {
-			line = "<a href=\""+ hLinkFileName(importFilePathName, appName) +"\""+tgtBlank+">"+reportInputFileFmt+"</a>";
+			line = "<a href=\""+ hLinkFileName(status, importFilePathName, appName) +"\""+tgtBlank+">"+thisFile+"</a>";
 		}
 		else {
-			line = "<a href=\""+ hLinkFileName(file, appName) +"\""+tgtBlank+">"+file+"</a>";
+			String hLinkFile = hLinkFileName(status, file, appName);
+			String fileDisplay = file;
+			if (status.equals(Rewritten)) {
+				fileDisplay = renameRewrittenFile(reportName, appName, file);
+				fileDisplay = fileDisplay.substring(fileDisplay.lastIndexOf(File.separator));
+				fileDisplay = rewrittenDirName + fileDisplay;
+			}
+			line = "<a href=\""+ hLinkFile +"\""+tgtBlank+">"+fileDisplay+"</a>";
 		}
 		return line;
 	}
 
-	private String hLink (Integer lineNr, String file, String appName) {
-		return hLink(lineNr, file, appName, lineNr);
+	private String hLink (String status, Integer lineNr, String file, String appName) {
+		return hLink(status, lineNr, file, appName, lineNr);
 	}
-	private String hLink (Integer lineNr, String file, String appName, Integer lineNrDisplay) {
+	private String hLink (String status, Integer lineNr, String file, String appName, Integer lineNrDisplay) {
+		if (status.equals(Rewritten)) {
+			// adjust line numbers in case of rewrite
+			if (offsetLines.size() > 0) {
+				String tmpFName = "";
+				if (file.equals(reportInputFileFmt)) {
+					// keep blank
+				}
+				else {
+					try { tmpFName = getImportFilePathName("DONTCARE", file, appName); }
+					catch (Exception e) { /* shouldn't ever get here */ errorExitStackTrace(); }
+					tmpFName = Paths.get(tmpFName).getFileName().toString().replaceAll(importFileTag, rewrittenFileTag);
+				}
+				Integer adjustedLineNr = calcOffsetLineHLink(tmpFName, lineNr);
+				lineNr = lineNrDisplay = adjustedLineNr;
+			}
+		}
+		
 		String line = "";
 		if (file.equals(reportInputFileFmt)) {
-			line = "<a href=\""+ hLinkFileName(importFilePathName, appName) +"#"+lineNrDisplay.toString()+"\""+tgtBlank+">"+lineNr.toString()+"</a>";
+			line = "<a href=\""+ hLinkFileName(status, importFilePathName, appName) +"#"+lineNrDisplay.toString()+"\""+tgtBlank+">"+lineNr.toString()+"</a>";
 		}
 		else {
-			line = "<a href=\""+ hLinkFileName(file, appName) +"#"+lineNrDisplay.toString()+"\""+tgtBlank+">"+lineNr.toString()+"</a>";
+			line = "<a href=\""+ hLinkFileName(status, file, appName) +"#"+lineNrDisplay.toString()+"\""+tgtBlank+">"+lineNr.toString()+"</a>";
 		}
 		return line;
 	}
@@ -3536,7 +4162,7 @@ tooltipsHTMLPlaceholder +
 		writeReportFile(composeOutputLine("--- Report Setup ", "-"));
 		writeReportFile(reportHdrLines);
 		writeReportFile("This report                : "+reportFilePathName);
-		writeReportFile("Session log                : "+hLink(sessionLogPathName));
+		writeReportFile("Session log                : "+hLink("", sessionLogPathName));
 		writeReportFile(composeOutputLine("", "=") + "\n");
 
 
@@ -3590,7 +4216,7 @@ tooltipsHTMLPlaceholder +
 			}
 			errorExit();
 		}
-		String cfv = captureFilesValid(captureFiles);
+		String cfv = captureFilesValid("report", captureFiles);
 		if (!cfv.isEmpty()) {
 			// print error message and exit
 			appOutput(cfv);
@@ -3617,7 +4243,7 @@ tooltipsHTMLPlaceholder +
 			}
 			if (!reportName.equalsIgnoreCase(cfReportName)) {
 				String rDir = getFilePathname(getDocDirPathname(), capDirName);
-				appOutput("Found analysis file for report '" + cfReportName + "' in " + rDir + " -- including contents in this report");
+				appOutput("Found analysis file for report '" + cfReportName + "' in " + rDir + ": adding contents to report "+reportName);
 			}
 
 			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
@@ -3714,7 +4340,7 @@ tooltipsHTMLPlaceholder +
 						if ((!objType.equals("constraint column DEFAULT")) && (!objType.equals("constraint PRIMARY KEY/UNIQUE"))) {
 							objType = applyPatternFirst(objType, "^(.*?,.*?),.*$", "$1");
 							if (objType.startsWith("TRIGGER,")) objType = "TRIGGER";
-							if (objType.startsWith("TRIGGER (DDL")) objType = "TRIGGER (DDL)";							
+							if (objType.startsWith("TRIGGER (DDL")) objType = "TRIGGER (DDL)";
 							objType = objType.replaceFirst(", external", "");
 							objType = objType.replaceFirst(", CLUSTERED", "");
 							if (objType.contains("<"))  // for cases like CREATE xxx <somename>
@@ -3895,30 +4521,38 @@ tooltipsHTMLPlaceholder +
 
 		StringBuilder summarySection = new StringBuilder();
 
-		if (generateHTML) {
-			summarySection.append(composeSeparatorBar("Table Of Contents", "toc", false));
+		summarySection.append(composeSeparatorBar("Table Of Contents", "toc", false));
 
-			summarySection.append(tocLink(tagApps, "Applications Analyzed", "", ""));
-			summarySection.append(tocLink(tagSummaryTop, "Assessment Summary", "", ""));
-			if (showPercentage) {
-				summarySection.append(tocLink(tagEstimate, "Compatibility Estimate", "", ""));
-			}
-			summarySection.append(tocLink(tagObjcount, "Object Count", "", ""));
-			summarySection.append("\n");
-
-			for (int i=0; i <supportOptionsIterate.size(); i++) {
-				summarySection.append(tocLink(tagSummary, "Summary of SQL Features '", "'", supportOptionsIterate.get(i)));
-			}
-			summarySection.append("\n");
-			for (int i=0; i <supportOptionsIterate.size(); i++) {
-				summarySection.append(tocLink(tagByFeature, "X-ref: '", "' by SQL feature", supportOptionsIterate.get(i)));
-			}
-			summarySection.append("\n");
-			for (int i=0; i <supportOptionsIterate.size(); i++) {
-				summarySection.append(tocLink(tagByObject, "X-ref: '", "' by object", supportOptionsIterate.get(i)));
-			}
-			summarySection.append("\n\n");
+		summarySection.append(tocLink(tagApps, "Applications Analyzed", "", ""));
+		summarySection.append(tocLink(tagSummaryTop, "Assessment Summary", "", ""));
+		if (showPercentage) {
+			summarySection.append(tocLink(tagEstimate, "Compatibility Estimate", "", ""));
 		}
+		summarySection.append(tocLink(tagObjcount, "Object Count", "", ""));
+		summarySection.append("\n");
+				
+		for (int i=0; i <supportOptionsIterate.size(); i++) {
+			summarySection.append(tocLink(tagSummary, "Summary of SQL Features '", "'", supportOptionsIterate.get(i)));
+		}
+		
+		if (!rewrite) {
+			if (rewriteOppties.containsKey(rewriteOpptiesTotal)) {
+				if (rewriteOppties.get(rewriteOpptiesTotal) > 0) {
+					summarySection.append("\n");
+					summarySection.append(tocLink(tagRewrite, "Automatic SQL Rewrite Opportunities", "", ""));
+				}
+			}
+		}
+		
+		summarySection.append("\n");
+		for (int i=0; i <supportOptionsIterate.size(); i++) {
+			summarySection.append(tocLink(tagByFeature, "X-ref: '", "' by SQL feature", supportOptionsIterate.get(i)));
+		}
+		summarySection.append("\n");
+		for (int i=0; i <supportOptionsIterate.size(); i++) {
+			summarySection.append(tocLink(tagByObject, "X-ref: '", "' by object", supportOptionsIterate.get(i)));
+		}
+		summarySection.append("\n\n");
 
 		summarySection.append(composeSeparatorBar("Applications Analyzed (" + appCount.size() + ")", tagApps));
 		summarySection.append("\n");
@@ -3938,6 +4572,7 @@ tooltipsHTMLPlaceholder +
 		statusCount.put("inputfiles", Long.valueOf(srcFileCount.size()));
 		statusCount.put("apps", Long.valueOf(appCount.size()));
 		statusCount.put("invalid syntax", Long.valueOf(totalErrorBatches)); // #batches with parse errors
+		statusCount.put("constructs", Long.valueOf(constructsFound));
 		statusCount.put("constructs", Long.valueOf(constructsFound));
 
 		StringBuilder summaryTmp2 = new StringBuilder();
@@ -3962,8 +4597,7 @@ tooltipsHTMLPlaceholder +
 			}
 			String hrefStart = "";
 			String hrefEnd= "";
-			if (false) {  // disabled thes ehyperlinks as it messes up the alignment of columns; need to use a HTML table structure instead
-			//if (generateHTML) {
+			if (false) {  // disabled these hyperlinks as it messes up the alignment of columns; need to use a HTML table structure instead
 				if (supportOptions.contains(fmtStatus.get(i))) {
 					String tag = "summary_"+fmtStatus.get(i);
 					hrefStart = "<a href=\"#"+tag.toLowerCase()+"\">";
@@ -3971,6 +4605,13 @@ tooltipsHTMLPlaceholder +
 				}
 			}
 			summaryTmp2.append(lineIndent).append(hrefStart+fmtStatusDisplay.get(i) + hrefEnd + " : " + statusCount.get(reportItem) + xtra + "\n");
+		}
+		if (!rewrite) {
+			if (rewriteOppties.containsKey(rewriteOpptiesTotal)) {
+				if (rewriteOppties.get(rewriteOpptiesTotal) > 0) {
+					summaryTmp2.append(lineIndent).append("Automatic SQL rewrite opportunities" +  " : " + rewriteOppties.get(rewriteOpptiesTotal) + "\n");
+				}
+			}
 		}
 		summaryTmp2 = new StringBuilder(alignColumn(summaryTmp2, " : ", "before", "left"));
 		summaryTmp2 = new StringBuilder(alignColumn(summaryTmp2, " : ", "after", "right"));
@@ -3985,7 +4626,6 @@ tooltipsHTMLPlaceholder +
 				summarySection.append("are applied during analysis, not during report generation (this was a report-only run).\n");
 				summarySection.append("To apply overrides for this report's imported files, use -analyze.\n");
 				summarySection.append("\n");			
-				appOutput(thisProc()+"inside, NB append");		
 			}
 			else {
 				// there are no overrides in the user .cfg file, so no need to print any warnings
@@ -4092,7 +4732,7 @@ tooltipsHTMLPlaceholder +
 			summaryTmp = new StringBuilder("No objects were found.\n");
 		}
 		summarySection.append(summaryTmp);
-
+		
 		writeReportFile(summarySection);
 
 		writeReportFile();
@@ -4103,11 +4743,30 @@ tooltipsHTMLPlaceholder +
 		sortedList.add(stringRepeat(lastItem + sortKeySeparator, 5));
 
 		for (int i=0; i <supportOptionsIterate.size(); i++) {
-			reportSummaryItems(supportOptionsIterate.get(i), sortedList, itemCount, appItemList);
+			reportSummaryStatus(supportOptionsIterate.get(i), sortedList, itemCount, appItemList);
 		}
 		sortedList.clear();
 		itemCount.clear();
 		appItemList.clear();
+
+		if (!rewrite) {
+			if (rewriteOppties.containsKey(rewriteOpptiesTotal)) {
+				if (rewriteOppties.get(rewriteOpptiesTotal) > 0) {
+					StringBuilder rStr = new StringBuilder();
+					rStr.append("\n");
+					rStr.append(composeSeparatorBar("Automatic SQL Rewrite Opportunities", tagRewrite));
+					rStr.append("\n" + rewriteOppties.get(rewriteOpptiesTotal) + " unsupported SQL aspects that may be rewritten with the -rewrite option:\n\n");
+									
+					for (String r : rewriteOppties.keySet().stream().sorted().collect(Collectors.toList())) { 
+						if (r.equals(rewriteOpptiesTotal)) continue;
+						Integer cnt = rewriteOppties.get(r);
+						rStr.append(lineIndent + r + " : " + cnt.toString() + "\n");
+					}				
+					
+					writeReportFile(rStr);
+				}
+			}
+		}	
 
 		// sort for X-ref by feature
 		List<String> sortedListXRefByFeature = xRefByFeature.stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList());
@@ -4166,7 +4825,7 @@ tooltipsHTMLPlaceholder +
 			appOutput("No analysis files found. Use -analyze to perform analysis and generate a report.");
 			errorExit();
 		}
-		String cfv = captureFilesValid(captureFiles);
+		String cfv = captureFilesValid("import", captureFiles);
 		if (!cfv.isEmpty()) {
 			// print error message and exit
 			appOutput(cfv);
@@ -4191,7 +4850,7 @@ tooltipsHTMLPlaceholder +
 			}
 			if (!reportName.equalsIgnoreCase(cfReportName)) {
 				String rDir = getFilePathname(getDocDirPathname(), capDirName);
-				appOutput("Found analysis file for report '" + cfReportName + "' in " + rDir + " -- including contents in this report");
+				appOutput("Found analysis file for report '" + cfReportName + "' in " + rDir + ": adding to import");
 			}
 
 			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
@@ -4373,6 +5032,911 @@ tooltipsHTMLPlaceholder +
 		statusOverridesDetail.put(key, statusOverridesDetail.getOrDefault(key,0)+1);		
 	}	
 	
+	// keep track of added characters
+	public void addOffsets(Integer iteration) {						
+		Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
+		for (int i = offsetCols.size(); i < iteration; i++) {
+			offsetCols.add(offsetIteration);
+			if (debugging) dbgOutput(thisProc()+"initializing iteration=["+(i+1)+"] at ["+i+"]", debugRewrite);
+		}
+	}
+	
+	public void addOffsets(Integer iteration, Integer lineNo, Integer lineNoOrig, Integer startColOrig, String origStr, String newStr, String newStrNoComment, String report, String fName) {						
+		addOffsets(iteration);
+		assert (offsetCols.get(iteration-1) != null) : thisProc()+"iteration=["+iteration+"] not found in offsetCols";
+		
+		List<String> linesOrig = new ArrayList<>(Arrays.asList(origStr.split("\n")));
+		List<String> linesNew  = new ArrayList<>(Arrays.asList(newStr.split("\n")));
+		
+		int numChars = newStr.length() - origStr.length();
+		if (debugging) dbgOutput(thisProc()+"adding: iteration=["+iteration+"] lineNo=["+lineNo+"] lineNoOrig=["+lineNoOrig+"] startColOrig=["+startColOrig+"]  numChars=["+numChars+"] linesOrig=["+linesOrig.size()+"]  linesNew=["+linesNew.size()+"] fName=["+fName+"] ", debugRewrite);
+		
+		Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
+		offsetIteration = offsetCols.get(iteration-1);
+		
+		if (linesOrig.size() == linesNew.size()) {
+			// #lines remains the same
+			for (int i = lineNo; i<=(lineNo+linesNew.size()-1); i++) {
+				
+				int diffLength = linesNew.get(i-lineNo).length() - linesOrig.get(i-lineNo).length();
+				if (debugging) dbgOutput(thisProc()+"lineNo=i=["+i+"] diffLength=["+diffLength+"]", debugRewrite);
+				if (diffLength == 0) continue;
+								
+				Map<Integer, Integer> offsetLineNo = new LinkedHashMap<>();
+				if (!offsetIteration.containsKey(i)) offsetIteration.put(i, offsetLineNo);
+				offsetLineNo = offsetIteration.get(i);
+				
+				int col = 0;
+				if (i == lineNo) col = startColOrig;
+				offsetLineNo.put(col, diffLength);	
+			}					
+		}
+		else if (linesOrig.size() < linesNew.size()) {
+			// for lines that have been added: indicate by col = -1, and the #lines added as diffLength
+			for (int i = lineNo; i<=(lineNo+linesNew.size()-1); i++) {
+				Map<Integer, Integer> offsetLineNo = new LinkedHashMap<>();
+				if (!offsetIteration.containsKey(i)) offsetIteration.put(i, offsetLineNo);
+				offsetLineNo = offsetIteration.get(i);	
+								
+				if (i == (lineNo+linesOrig.size()-1)) {					
+					int extraLines = linesNew.size() - linesOrig.size();
+					offsetLineNo.put(-1, extraLines);	
+					
+					Map<Integer, Integer> lineNrOffset = new LinkedHashMap<>();
+					if (!offsetLines.containsKey(fName)) offsetLines.put(fName, lineNrOffset);
+					lineNrOffset = offsetLines.get(fName);
+					lineNrOffset.put(i,extraLines);
+					
+					//if (debugging) dbgOutput(thisProc()+"lineNo=i=["+i+"] adding "+extraLines+" extra lines at col= -1", debugRewrite);
+					break;	
+				}
+
+				int origLen = linesOrig.get(i-lineNo).length();
+				int diffLength = linesNew.get(i-lineNo).length() - origLen;
+				//if (debugging) dbgOutput(thisProc()+"lineNo=i=["+i+"] origLen=["+origLen+"] newlen=["+linesNew.get(i-lineNo).length()+"]  diffLength=["+diffLength+"]", debugRewrite);
+				if (diffLength == 0) continue;
+				
+				int col = 0;
+				if (i == lineNo) col = startColOrig;
+				offsetLineNo.put(col, diffLength);	
+			}					
+		}
+		else {
+			// never reduce the number of lines
+			assert false : thisProc()+"bad branch, linesOrig=["+linesOrig.size()+"]  linesNew=["+linesNew.size()+"]";
+		}
+		
+		// log the rewrite
+		if (origStr.length() > 100) origStr = origStr.substring(0,100) + "(...)";
+		if (newStrNoComment.length() > 100) newStrNoComment = newStrNoComment.substring(0,100) + "(...)";
+		String msg = String.format("%08d", lineNoOrig) + captureFileSeparator +  String.format("%08d", rewritesDone.size()) + captureFileSeparator +  Integer.toString(lineNoOrig + linesOrig.size() - 1) + captureFileSeparator+ report+": changed ["+origStr+"] to ["+newStrNoComment+"]";
+		rewritesDone.add(msg);
+	}
+
+
+	public void resetRewrites() {						
+		rewriteTextListKeys.clear();
+		rewriteTextList.clear();
+		rewriteTextListOrigText.clear();
+		//rewriteIDList.clear();
+		rewriteIDDetails.clear();
+		offsetCols.clear();
+		offsetLines.clear();
+		rewritesDone.clear();
+	}
+		
+	// calculate adjusted line number, taking earlier added lines into account
+	public Integer calcOffsetLine (Integer iteration, Integer lineOrig) {		
+		Integer lineNew = lineOrig;
+		if (debugging) dbgOutput(thisProc()+"entry: iteration=["+iteration+"] lineOrig=["+lineOrig+"] offsetCols.size()=["+offsetCols.size()+"] ", debugRewrite);
+		if (iteration > 0) {
+			for (int i = 0; i < iteration; i++) {		
+				if (i >= offsetCols.size()) {
+					if (debugging) dbgOutput(thisProc()+"i=["+i+"], exiting", debugRewrite);
+					break;		
+				}
+				Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
+				offsetIteration = offsetCols.get(i);
+				for (Integer lineNo : offsetIteration.keySet().stream().sorted().collect(Collectors.toList())) {
+					for (Integer colx : offsetIteration.get(lineNo).keySet().stream().sorted().collect(Collectors.toList())) {
+						Integer offset = offsetIteration.get(lineNo).get(colx);
+						if (debugging) dbgOutput(thisProc()+"     offsets: lineNo=["+lineNo+"] colx=["+colx+"] offset=["+offset+"]", debugRewrite);
+						if (colx != -1) continue; // this is not an added-line count
+						if (lineOrig >= lineNo) {
+							lineNew += offset;
+							if (debugging) dbgOutput(thisProc()+"Adding line offset=["+offset+"], lineNew=["+lineNew+"]", debugRewrite);
+						}							
+					}
+				}						
+			}
+		}
+		if (debugging) dbgOutput(thisProc()+"result: lineNew=["+lineNew+"]", debugRewrite);
+		return lineNew;
+	}
+	
+			
+	// calculate adjusted line number for the hyperlinks
+	public Integer calcOffsetLineHLink (String fName, Integer lineOrig) {	
+		Integer lineNew = lineOrig;
+		if (debugging) dbgOutput(thisProc()+"entry: fName=["+fName+"] lineOrig=["+lineOrig+"]", debugRewrite);
+		Map<Integer, Integer> lineNrOffset = new LinkedHashMap<>();		
+		if (fName.isEmpty()) {
+			fName = offsetLines.keySet().iterator().next();
+		}
+		if (offsetLines.containsKey(fName)) {			
+			lineNrOffset = offsetLines.get(fName);	
+			
+			for (Integer l : lineNrOffset.keySet().stream().sorted().collect(Collectors.toList())) {
+				Integer extraLines = lineNrOffset.get(l);
+				if (debugging) dbgOutput(thisProc()+"fName=["+fName+"] line=["+l+"] extraLines=["+extraLines+"]", debugRewrite);				
+				if (lineOrig >= l) {
+					lineNew += extraLines;
+					if (debugging) dbgOutput(thisProc()+"Adding extraLines=["+extraLines+"], lineNew=["+lineNew+"]", debugRewrite);
+				}					
+			}	
+		}						
+		if (debugging) dbgOutput(thisProc()+"result: lineNew=["+lineNew+"]", debugRewrite);
+		return lineNew;
+	}			
+	
+	// calculate adjusted column position, taking earlier added chars into account
+	public Integer calcOffsetCol (Integer iteration, Integer lineNo, Integer col) {		
+		Integer colNew = col;
+		if (debugging) dbgOutput(thisProc()+"entry: iteration=["+iteration+"] lineNo=["+lineNo+"] col=["+col+"]", debugRewrite);
+		if (iteration > 0) {
+			if (offsetCols.size() >= iteration) {		
+				for (int i = 0; i < iteration; i++) {
+					Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
+					offsetIteration = offsetCols.get(i);
+					if (offsetIteration.containsKey(lineNo)) {
+						if (debugging) dbgOutput(thisProc()+"found "+offsetIteration.get(lineNo).keySet().size()+" entries for iteration=["+(i+1)+"] lineNo=["+lineNo+"]", debugRewrite);
+						for (Integer colx : offsetIteration.get(lineNo).keySet().stream().sorted().collect(Collectors.toList())) {
+							Integer offset = offsetIteration.get(lineNo).get(colx);
+							if (debugging) dbgOutput(thisProc()+"   lineNo=["+lineNo+"] colx=["+colx+"] offset=["+offset+"]", debugRewrite);
+							if (colx == -1) continue; // this is an added-line count
+							if (col > colx) {
+								colNew += offset;
+								if (debugging) dbgOutput(thisProc()+"Adding offset=["+offset+"], colNew=["+colNew+"]", debugRewrite);
+							}
+						}			
+					}
+				}
+			}
+		}
+		if (debugging) dbgOutput(thisProc()+"result: colNew=["+colNew+"]", debugRewrite);
+		return colNew;
+	}
+	
+	// calculate adjusted length, taking earlier added chars into account
+	public Integer calcOffsetLength (Integer iteration, Integer startLineNo, Integer startCol, Integer endLineNo, Integer endCol) {			
+		Integer lengthNew = 0;
+		if (debugging) dbgOutput(thisProc()+"entry: iteration=["+iteration+"] startLineNo=["+startLineNo+"] startCol=["+startCol+"] endLineNo=["+endLineNo+"] endCol=["+endCol+"]", debugRewrite);
+		if (iteration > 0) {
+			if (offsetCols.size() >= iteration) {		
+				for (int i = 0; i < iteration; i++) {
+					if (debugging) dbgOutput(thisProc()+"i=["+i+"]", debugRewrite);
+					Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();	
+					offsetIteration = offsetCols.get(i);
+					for (Integer lineNo=startLineNo; lineNo<=endLineNo; lineNo++) {
+						if (debugging) dbgOutput(thisProc()+"lineNo=["+lineNo+"]", debugRewrite);
+						if (offsetIteration.containsKey(lineNo)) {
+							if (debugging) dbgOutput(thisProc()+"found entries for iteration=["+(i+1)+"] lineNo=["+lineNo+"]", debugRewrite);
+							for (Integer colx : offsetIteration.get(lineNo).keySet().stream().sorted().collect(Collectors.toList())) {
+								Integer offset = offsetIteration.get(lineNo).get(colx);
+								if (debugging) dbgOutput(thisProc()+"   lineNo=["+lineNo+"] colx=["+colx+"] offset=["+offset+"]", debugRewrite);
+								if (colx == -1) continue; // this is an added-line count
+								
+								if ((lineNo.equals(startLineNo)) && (startCol > colx)) {
+									if (debugging) dbgOutput(thisProc()+"   == startLineNo: before startCol, skip, lengthNew=["+lengthNew+"]", debugRewrite);
+									continue;
+								}
+								if ((lineNo.equals(startLineNo)) && (colx > endCol)) {
+									if (debugging) dbgOutput(thisProc()+"   == startLineNo: after endCol, skip, lengthNew=["+lengthNew+"]", debugRewrite);
+									continue;
+								}
+																
+								if ((lineNo.equals(startLineNo)) && (colx >= startCol)) {
+									lengthNew += offset;
+									if (debugging) dbgOutput(thisProc()+"   == startLineNo: Adding offset=["+offset+"], lengthNew=["+lengthNew+"]", debugRewrite);
+								}
+								else if ((lineNo.equals(endLineNo)) && (endCol > colx)) {
+									lengthNew += offset;
+									if (debugging) dbgOutput(thisProc()+"   == endLineNo: Adding offset=["+offset+"], lengthNew=["+lengthNew+"]", debugRewrite);
+								}
+								else if ((lineNo > startLineNo) && (lineNo < endLineNo)) {
+									lengthNew += offset;
+									if (debugging) dbgOutput(thisProc()+"   >startlineNo, < endlineNo: Adding offset=["+offset+"], lengthNew=["+lengthNew+"]", debugRewrite);
+								}
+								else {
+									if (debugging) dbgOutput(thisProc()+"   no match, lengthNew=["+lengthNew+"] ", debugRewrite);
+								}
+							}	
+						}		
+					}
+				}
+			}
+		}
+		if (debugging) dbgOutput(thisProc()+"result: lengthNew=["+lengthNew+"]", debugRewrite);
+		return lengthNew;
+	}
+
+	public void dumpOffsetCols(String s) {
+		if (debugging) dbgOutput(thisProc()+s+": offsetCols: #iteration levels=["+offsetCols.size()+"]", debugRewrite);
+		for (int i = 0; i < offsetCols.size(); i++) {
+			if (debugging) dbgOutput(thisProc()+"iteration=["+(i+1)+"] at i=["+i+"]", debugRewrite);
+			Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
+			offsetIteration = offsetCols.get(i);
+			for (Integer lineNo : offsetIteration.keySet().stream().sorted().collect(Collectors.toList())) {
+				//if (debugging) dbgOutput(thisProc()+"   offsets: lineNo=["+lineNo+"]", debugRewrite);
+				for (Integer col : offsetIteration.get(lineNo).keySet().stream().sorted().collect(Collectors.toList())) {
+					if (debugging) dbgOutput(thisProc()+"     offsets: lineNo=["+lineNo+"] col=["+col+"] offset=["+offsetIteration.get(lineNo).get(col)+"]", debugRewrite);
+				}
+			}		
+		}
+	}
+
+	public void dumpOffsetLines(String s) {
+		if (debugging) dbgOutput(thisProc()+s+": offsetLines: #files=["+offsetLines.size()+"]", debugRewrite);
+		for (String f : offsetLines.keySet().stream().sorted().collect(Collectors.toList())) {
+			Map<Integer, Integer> lineNrOffset = new LinkedHashMap<>();
+			lineNrOffset = offsetLines.get(f);	
+			for (Integer l : lineNrOffset.keySet().stream().sorted().collect(Collectors.toList())) {
+				Integer extraLines = lineNrOffset.get(l);
+				if (debugging) dbgOutput(thisProc()+"f=["+f+"] line=["+l+"] extraLines=["+extraLines+"]", debugRewrite);
+			}	
+		}
+	}
+
+	// apply text substitutions 
+	public void performRewriting(String reportName, String appName, String inFileCopy) throws IOException {
+		if (debugging) dbgOutput(thisProc()+"performing rewrites=["+rewriteTextListKeys.size()+"] to copy of ["+inFileCopy+"]", debugRewrite);
+		if (rewriteTextListKeys.size() == 0) return;
+		
+		// determine whether there are any substitutions that are overlapping with other ones
+		// when sorted by startPos, the larger range will be sorted first, and the smaller range within that range will be next
+		// subs which contain a smaller sub will be processed in a second pass, since the smaller sub may also extend over multiple lines
+
+		int startLine = -1;
+		int startCol = -1;		
+		int endLine = -1;
+		int endCol = -1;		
+		int startPos = -1;
+		int endPos = -1;
+		int origLen = -1;
+		int batchLine = -1;
+		int batchNo = -1;
+		int batchNoPrev = -1;
+		int batchLineInFile = -1;
+		String srcFile = "";
+		String rewriteType = "";
+		String rewriteText = "";
+		String report = "";
+		int startPrev = -1;
+		int endPrev = -1;
+		String sPrev = "";
+		List<String> tmpRemovedItems = new ArrayList<>();
+		List<String> tmpToDoItems = new ArrayList<>();
+		tmpToDoItems.addAll(rewriteTextListKeys);
+		
+		// next: copy inputfile copy to tmp file; read tmp file as input; write target file as output
+		// next: keep track of added lines/columns and adjust in subsequent cycles
+		String rewrittenDir = getReportDirPathname(reportName, rewrittenDirName);
+		String rewrittenHTMLDir = getReportDirPathname(reportName, rewrittenDirName, rewrittenHTMLDirName);
+		checkDir(rewrittenDir, false, true);	
+		checkDir(rewrittenHTMLDir, false, true);	
+					
+		String tmpFile = getFilePathname(rewrittenDir, rewrittenTmpFile);	
+		String fName = Paths.get(inFileCopy).getFileName().toString().replaceAll(importFileTag, rewrittenFileTag);
+		String rewrittenFile = getFilePathname(rewrittenDir, fName); 
+		String rewrittenHTMLFile = getFilePathname(rewrittenHTMLDir, fName); 
+		rewrittenHTMLFile = changeFilenameSuffix(rewrittenHTMLFile, importFileSuffix, HTMLSuffix);
+		String inFile = inFileCopy;
+		
+		Integer tmpCnt = 0;
+		Integer iteration = -1;
+		boolean abortNow = false;
+				
+		while (tmpToDoItems.size() > 0) {
+			iteration++;
+			if (debugging) dbgOutput(thisProc()+"top: iteration=["+iteration+"]", debugRewrite);
+
+			checkDir(rewrittenDir, true, true);	
+			checkDir(rewrittenHTMLDir, true, true);	
+			deleteFile(tmpFile);
+			copyFile(inFile, tmpFile);
+			if (debugging) dbgOutput(thisProc()+"copied inFile=["+inFile+"] to tmpFile=["+tmpFile+"] target rewrittenFile=["+rewrittenFile+"] rewrittenHTMLFile=["+rewrittenHTMLFile+"] ", debugRewrite);
+
+			openRewrittenFile(reportName, appName, tmpFile, rewrittenFile);
+			inFile = rewrittenFile;
+			
+			// DEBUG Only: for next iteration, keep temp file
+			if (debugging && debugRewrite) {
+				tmpCnt++;
+				tmpFile = applyPatternFirst(tmpFile, "\\.\\d+$", "") + "." + tmpCnt.toString();
+			}
+
+			List<String> tmpSorted = tmpToDoItems.stream().sorted().collect(Collectors.toList());
+			tmpRemovedItems.clear();
+			if (debugging) dbgOutput(thisProc()+"tmpToDoItems top=["+tmpToDoItems.size()+"]", debugRewrite);
+			
+			for (String s : tmpToDoItems.stream().sorted().collect(Collectors.toList())) {
+				if (debugging) dbgOutput(thisProc()+"s=["+s+"]", debugRewrite);
+				List<String> tmp = new ArrayList<>(Arrays.asList(s.split(captureFileSeparator)));
+				batchNo  = Integer.parseInt(tmp.get(0));				
+				startPos = Integer.parseInt(tmp.get(1));
+				endPos = Integer.parseInt(tmp.get(2));
+				startLine = Integer.parseInt(tmp.get(3));
+				startCol  = Integer.parseInt(tmp.get(4));
+				endLine = Integer.parseInt(tmp.get(6));
+				endCol  = Integer.parseInt(tmp.get(7));
+				origLen  = endPos - startPos + 1;
+				rewriteType  = tmp.get(8);
+				report   = tmp.get(9);
+				rewriteText = rewriteTextList.get(s);
+				if (debugging) dbgOutput(thisProc()+"startLine=["+startLine+"] startCol=["+startCol+"] startPos=["+startPos+"] endPos=["+endPos+"] endLine=["+endLine+"] endCol=["+endCol+"] origLen=["+origLen+"] rewriteType=["+rewriteType+"]  rewriteText=["+rewriteText+"] report=["+report+"]", debugRewrite);
+				
+				if (batchNoPrev == batchNo) {
+					if (startPos >= startPrev && endPos <= endPrev) {
+						// this one falls inside the range of the previous one
+						// delete the previous one from the sorted list
+						if (debugging) dbgOutput(thisProc()+"this rewrite is within range of previous. deleting previous sPrev=["+sPrev+"]", debugRewrite);
+						tmpRemovedItems.add(sPrev);
+						tmpSorted.remove(sPrev);
+					}
+					else if (startPos >= startPrev && endPos > endPrev) {
+						// not expecting this, should not be possible
+					}
+				}
+				
+				batchNoPrev = batchNo;
+				startPrev = startPos;
+				endPrev = endPos;
+				sPrev = s;
+			}
+			tmpToDoItems.clear();
+			tmpToDoItems.addAll(tmpRemovedItems);
+			
+			if (debugging && debugRewrite) {
+				for (String s : tmpSorted) {
+					appOutput(thisProc()+"tmpSorted: after range check: s=["+s+"] ");
+				}		
+								
+				for (String s : tmpToDoItems) {
+					appOutput(thisProc()+"tmpToDoItems: after range check: s=["+s+"] ");
+				}		
+				dumpOffsetCols("after range chk");				
+			}		
+										
+			int rewriteCount = 0;
+			boolean nextRewrite = true;
+			
+			int lineNo = 0;
+			int remainingLength = -1;
+			boolean endOfFile = false;
+			String origStrFull = "";
+			int startLineOrig = -1;
+			
+			while (true) {							
+				String line = rewrittenInFileReader.readLine();
+				if (line == null) {
+					endOfFile = true;
+					break;
+				}
+				if (lineNo == 0) {
+					if (!importFileAttribute(line,1).isEmpty()) {
+						if (!importFileAttribute(line,2).isEmpty()) {
+							// this is the header line from the import copy, discard it
+							continue;
+						}
+					}					
+				}
+				lineNo++;
+				int lineCut = 0;
+				boolean keepLine = false;
+				int startColOrig = -1;				
+				while (true) {		
+					if (nextRewrite) {
+						String k = tmpSorted.get(rewriteCount);
+						rewriteText = rewriteTextList.get(k);
+						if (debugging) dbgOutput(thisProc()+"rewriteCount=["+rewriteCount+"]  k=["+k+"] rewriteText=["+rewriteText+"]", debugRewrite);
+										
+						List<String> tmp = new ArrayList<>(Arrays.asList(k.split(captureFileSeparator)));
+						batchNo  = Integer.parseInt(tmp.get(0));	
+						startPos = Integer.parseInt(tmp.get(1));
+						endPos = Integer.parseInt(tmp.get(2));
+						startLine = Integer.parseInt(tmp.get(3));
+						startCol  = Integer.parseInt(tmp.get(4));
+						endLine = Integer.parseInt(tmp.get(6));
+						endCol  = Integer.parseInt(tmp.get(7));
+						origLen  = endPos - startPos + 1;
+						rewriteType  = tmp.get(8);
+						report   = tmp.get(9);
+
+						if (debugging) dbgOutput(thisProc()+"rewriteCount=["+rewriteCount+"] iteration=["+iteration+"] startPos=["+startPos+"] endPos=["+endPos+"] startLine=["+startLine+"] startCol=["+startCol+"] endLine=["+endLine+"] endCol=["+endCol+"] origLen=["+origLen+"] rewriteType=["+rewriteType+"] rewriteText=["+rewriteText+"] report=["+report+"]", debugRewrite);
+						
+						if (debugging && debugRewrite) dumpOffsetCols("before calc");
+										
+						startLineOrig = startLine;
+						startLine = calcOffsetLine(iteration, startLine);
+						if (debugging) dbgOutput(thisProc()+"startLine after adjust=["+startLine+"]", debugRewrite);
+						
+						Integer startColNew = calcOffsetCol(iteration, startLine, startCol);
+						if (debugging) dbgOutput(thisProc()+"startCol=["+startCol+"] startColNew=["+startColNew+"]", debugRewrite);
+
+						Integer endColNew = calcOffsetCol(iteration, endLine, endCol);
+						if (debugging) dbgOutput(thisProc()+"endCol=["+startCol+"] endColNew=["+endColNew+"]", debugRewrite);
+						
+						Integer offsetLength = calcOffsetLength(iteration, startLine, startCol, endLine, endCol);
+						Integer origLenNew = origLen + offsetLength;
+						if (debugging) dbgOutput(thisProc()+"offsetLength=["+offsetLength+"]", debugRewrite);
+						if (debugging) dbgOutput(thisProc()+"origLen=["+origLen+"] origLenNew=["+origLenNew+"]", debugRewrite);
+						
+						startCol = startColNew;
+						startColOrig = startCol;
+						origLen = origLenNew;
+						
+						nextRewrite = false;
+					}
+
+					//appOutput(thisProc()+"lineNo=["+lineNo+"]=["+line+"]  lineCut=["+lineCut+"]");
+					if (debugging) dbgOutput(thisProc()+"lineNo=["+lineNo+"]=["+line+"]  lineCut=["+lineCut+"]", debugRewrite);
+					if (debugging) dbgOutput(thisProc()+"startLine=["+startLine+"] remainingLength=["+remainingLength+"]", debugRewrite);					
+					if (lineNo == startLine) {
+						// reached startline for sub; apply it
+						if (debugging) dbgOutput(thisProc()+"*** applying rewrite=["+rewriteCount+"] origLen=["+origLen+"]", debugRewrite);
+																
+						if (debugging) dbgOutput(thisProc()+"startCol orig=["+startColOrig+"] lineCut=["+lineCut+"] ", debugRewrite);
+						if (startColOrig == -1) startColOrig = startCol;
+						startCol = startColOrig - lineCut;
+						if (debugging) dbgOutput(thisProc()+"startCol adjusted=["+startCol+"] ", debugRewrite);	
+																	
+						// sanity check on line length
+						if (line.length() < startCol+1) {
+							// something went wrong, exit without further processing
+							appOutput(thisProc()+inFileCopy+": Internal error at line "+lineNo+": length="+line.length()+". expected at least "+(startCol+1)+". Aborting rewrite for this file.");
+							appOutput(thisProc()+"line=["+line+"] ");
+							abortNow = true;
+							if (debugging || devOptions) errorExit(); 
+							break;
+						}					
+						
+						// find start & end of original part
+						remainingLength = origLen;
+						String pre = line.substring(0,startCol);
+						lineCut += pre.length();
+						writeRewrittenFile(pre);
+						if (debugging) dbgOutput(thisProc()+"pre=["+pre+"] ", debugRewrite);
+								
+						if (debugging) dbgOutput(thisProc()+"remainingLength=["+remainingLength+"] line.length()=["+line.length()+"] pre.length()=["+pre.length()+"] ", debugRewrite);
+						if (line.length() - pre.length() >= remainingLength) {
+							if (debugging) dbgOutput(thisProc()+"ends on this line(A), remainingLength=["+remainingLength+"]", debugRewrite);
+							// it's all on this line
+							String origStr = line.substring(startCol, startCol+remainingLength);
+							origStrFull += origStr;
+							remainingLength -= origStr.length();
+							if (debugging) dbgOutput(thisProc()+"origStr A=["+origStr+"] remainingLength=["+remainingLength+"]", debugRewrite);
+							if (debugging) dbgOutput(thisProc()+"origStrFull=["+origStrFull+"] ", debugRewrite);
+							assert (remainingLength == 0) : thisProc()+"error, remainingLength("+remainingLength+") should be 0: line=["+line+"] pre=["+pre+"] ";
+							String post = line.substring(pre.length() + origStr.length());	
+							line = post;
+							lineCut += origStr.length();
+							keepLine = true;				
+							
+							List<String> newStr = applyRewrite(rewriteType, report, rewriteText, origStrFull); 													
+							addOffsets(iteration+1, startLine, startLineOrig, startColOrig, origStrFull, newStr.get(0), newStr.get(1), report, fName);
+							
+							writeRewrittenFile(newStr.get(0));
+							origStrFull = "";
+						}
+						else {
+							// original text extends to next line(s)
+							if (debugging) dbgOutput(thisProc()+"extends on next line(B), remainingLength=["+remainingLength+"]", debugRewrite);
+							String origStr = line.substring(startCol);
+							origStrFull += origStr + "\n";
+							remainingLength -= origStr.length();
+							remainingLength--; // for the newline char
+							if (debugging) dbgOutput(thisProc()+"extends on next line(B), origStrFull=["+origStrFull+"]", debugRewrite);							
+						}				
+					}
+					else if (remainingLength > 0) {
+						if (debugging) dbgOutput (thisProc()+"extending from previous line(C), remainingLength=["+remainingLength+"]", debugRewrite);
+
+						if (debugging) dbgOutput(thisProc()+"startCol orig=["+startColOrig+"] lineCut=["+lineCut+"] ", debugRewrite);
+						if (startColOrig == -1) startColOrig = startCol;
+						startCol = startColOrig - lineCut;
+						if (debugging) dbgOutput(thisProc()+"startCol adjusted=["+startCol+"] ", debugRewrite);	
+												
+						// continue collecting the original string
+						if (line.length() < remainingLength) {
+							// extends to another line
+							remainingLength -= line.length();
+							remainingLength--; // for the newline char	
+							origStrFull += line + "\n";			
+							if (debugging) dbgOutput(thisProc()+"extends on next line(D)=["+line+"] remainingLength=["+remainingLength+"] origStrFull=["+origStrFull+"]=["+origStrFull.length()+"]", debugRewrite);
+						}
+						else {
+							// ends on this line
+							if (debugging) dbgOutput(thisProc()+"ends on this line(E), remainingLength=["+remainingLength+"]", debugRewrite);
+							String origStr = line.substring(0,remainingLength);
+							origStrFull += origStr;
+							remainingLength -= origStr.length();
+							assert (remainingLength == 0) : "error, remainingLength("+remainingLength+") should be 0: line=["+line+"] ";
+							String post = line.substring(origStr.length());
+							line = post;
+							lineCut += origStr.length();
+							keepLine = true;
+							
+							if (debugging) dbgOutput(thisProc()+"origStrFull=["+origStrFull+"]=["+origStrFull.length()+"]", debugRewrite);
+							List<String> newStr = applyRewrite(rewriteType, report, rewriteText, origStrFull); 														
+							addOffsets(iteration+1, startLine, startLineOrig, startColOrig, origStrFull,  newStr.get(0),  newStr.get(1), report, fName);			
+											
+							writeRewrittenFile(newStr.get(0));							
+							origStrFull = "";
+						}
+					}
+					else {
+						String newStr = line + "\n";
+						writeRewrittenFile(newStr);
+						if (debugging) dbgOutput(thisProc()+"write newStr(F), =["+newStr+"] ", debugRewrite);						
+						break;
+					}
+					
+					if (remainingLength == 0) {
+						// when sub is done, move to next sub
+						rewriteCount++;
+						if (debugging) dbgOutput(thisProc()+"next rewrite: rewriteCount=["+rewriteCount+"]", debugRewrite);
+						nextRewrite = true;
+						remainingLength = -1;
+						if (rewriteCount >= tmpSorted.size()) {
+							// no more subs to apply
+							if (debugging) dbgOutput(thisProc()+"rewriteCount=["+rewriteCount+"] no more rewrites to apply", debugRewrite);
+							startLine = -1;
+							nextRewrite = false;
+						}
+					}			
+					
+					if (!keepLine) break;
+				}
+				if (abortNow) break;
+			}
+			if (abortNow) break;
+			
+			// add list of rewrites to bottom of rewritten file
+			if (tmpToDoItems.size() == 0) {
+				writeRewrittenFile("\n");
+				writeRewrittenFile("/*\n");
+				writeRewrittenFile("SQL code section rewritten by " + thisProgName+": "+rewritesDone.size()+"\n");		
+				if (rewritesDone.size() > 0) {
+					for (String s : rewritesDone.stream().sorted().collect(Collectors.toList())) {
+						nrRewritesDone++;
+						List<String> tmp = new ArrayList<>(Arrays.asList(s.split(captureFileSeparator)));
+						Integer firstLine = Integer.parseInt(tmp.get(0));
+						Integer lastLine = Integer.parseInt(tmp.get(2));
+						String origMsg = tmp.get(3);
+						
+						firstLine = calcOffsetLine(calcOffsetIterationMax, firstLine);
+						lastLine = calcOffsetLine(calcOffsetIterationMax, lastLine);						
+						
+						String lastLineStr = "";
+						if (!firstLine.equals(lastLine)) {
+							lastLineStr = "-"  + lastLine.toString();
+						}
+						String msg = lineIndent + "line " + firstLine.toString() + lastLineStr + ": " + origMsg;
+						msg = msg.replaceAll("[\\t ]+", " ");
+						msg = msg.replaceAll("\n\\s*", " \\\\n ");						
+						writeRewrittenFile(msg+"\n");
+					}
+				}
+				writeRewrittenFile("*/\n");
+				writeRewrittenFile("reset\n");				
+			}
+			closeRewrittenFile();
+			
+			if (!(debugging && debugRewrite)) {
+				deleteFile(tmpFile);
+			}			
+		}
+						
+		if (abortNow) {
+			// clean up
+			closeRewrittenFile();			
+			deleteFile(rewrittenFile);
+			deleteFile(rewrittenHTMLFile);
+		}
+		else {
+			// copy to HTML format
+			writeRewrittenHTMLFile(reportName, appName, rewrittenFile, rewrittenHTMLFile);
+			
+			// rename rewritten file
+			File fSrc  = new File(rewrittenFile);
+			File fDest = new File(renameRewrittenFile(appName, rewrittenFile));
+	    	Files.move(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);		
+	    }					
+		
+	}
+	
+	private List<String> applyRewrite(String rewriteType, String report, String rewriteText, String origStrFull) {
+		if (debugging) dbgOutput(thisProc()+"rewriteType=["+rewriteType+"] report=["+report+"] rewriteText=["+rewriteText+"] origStrFull=["+origStrFull+"]", debugRewrite);
+		List<String> result = new ArrayList<>();
+		String newStr = "";
+		String newStrNoComment = "";		
+		rewrittenOppties.put(report, rewrittenOppties.getOrDefault(report, 0)+1);
+		if (rewriteType.equals(rewriteTypeExpr1)) {			
+			newStr = rewriteText.replace("~~1~~", origStrFull);	
+			newStr = newStr.trim();
+			newStrNoComment = newStr;	
+		}
+		else if (rewriteType.equals(rewriteTypeReplace)) {
+			newStr = rewriteText + " /*"+origStrFull+"*/";
+			newStr = newStr.trim();
+			newStrNoComment = rewriteText;
+		}
+		else if (rewriteType.equals(rewriteTypeODBCfunc1)) {
+			String origStrCopy = applyPatternAll(origStrFull, "\\/\\*.*?\\*\\/", " ", "multiline");  // this won't handle nested comments, but let's ignore that
+			origStrCopy = applyPatternAll(origStrCopy, "\\s+", " ");  
+			String funcName = getPatternGroup(origStrCopy, "\\bFN\\b\\s+\\b(\\w+)\\b", 1);		
+			String commentFuncName = " /*" + funcName + "*/ ";
+			if (rewriteText.contains("(")) {
+				newStr = applyPatternFirst(origStrFull, "\\b"+funcName+"\\b.*?\\(", rewriteText + commentFuncName);							
+			}
+			else {
+				newStr = applyPatternFirst(origStrFull, "\\b"+funcName+"\\b", rewriteText + commentFuncName);			
+			}
+			newStrNoComment = newStr;			
+			newStr = applyPatternFirst(newStr, "(\\{.*?\\bFN\\b)", "/*$1*/", "multiline");
+			newStr = applyPatternFirst(newStr, "(\\})$", "/*$1*/");
+			newStr = newStr.trim();
+			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\{.*\\bFN\\b)", "", "multiline");
+			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\})$", "");
+		}
+		else if (rewriteType.equals(rewriteTypeODBClit1)) {
+			String origStrCopy = applyPatternAll(origStrFull, "\\/\\*.*?\\*\\/", " ",  "multiline");  // won't handle nested comments, but let's ignore that
+			origStrCopy = applyPatternAll(origStrCopy, "\\s+", " "); 
+			String funcName = getPatternGroup(origStrCopy, "\\{.*?\\b(D|T|TS|GUID|INTERVAL)\\b", 1);			
+			if (rewriteText.contains("(")) {
+				newStr = applyPatternFirst(origStrFull, "\\b"+funcName+"\\b", rewriteText);		
+			}
+			else {
+				newStr = applyPatternFirst(origStrFull, "\\b"+funcName+"\\b", rewriteText);			
+			}
+			newStrNoComment = newStr;			
+			newStr = applyPatternFirst(newStr, "(\\{)", "/*$1*/ ");
+			newStr = applyPatternFirst(newStr, "(\\})$", ") /*$1*/");
+			newStr = newStr.trim();
+			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\{)", "");
+			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\})$", ")");
+		}
+		else if (rewriteType.equals(rewriteTypeBlockReplace) && report.equals(CompassAnalyze.MergeStmt)) {
+			// for MERGE, pick up the various parts 
+			Integer rwrID = Integer.valueOf(rewriteText);
+			
+			assert (rewriteIDDetails.containsKey(rwrID)) : thisProc()+"rwrID not found: "+rwrID;			
+			Map<String, List<Integer>> positions = new HashMap<>();
+			positions = rewriteIDDetails.get(rwrID);
+			
+			int startCtx = positions.get("start").get(0);
+						
+			Map<String, String> tmpMerge = new HashMap<>();
+			
+			for (String p : positions.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
+				if (p.equals("start")) continue;
+				if (p.equals("when_matches")) continue;
+				int startPos = positions.get(p).get(0);
+				int endPos = positions.get(p).get(1);
+				//if (debugging) dbgOutput(thisProc()+"     p=["+p+"] startPos=["+startPos+"]  endPos=["+endPos+"] ", debugRewrite);
+				startPos -= startCtx;
+				endPos -= startCtx;
+				endPos++;
+				String s = origStrFull.substring(startPos, endPos);
+				// strip comments
+				if (s.contains("/*")) {
+					s = applyPatternAll(s, "\\/\\*.*?\\*\\/", " ","multiline");  // this won't handle nested comments, but let's ignore that
+				}
+				if (s.contains("--")) {
+					s = applyPatternAll(s, "\\-\\-.*?\n", "\n","multiline");  // betting that '--' won't occur in a string
+				}				
+				if (debugging) dbgOutput(thisProc()+"     p=["+p+"] startPos=["+startPos+"]  endPos=["+endPos+"]  s=["+s+"] ", debugRewrite);
+				tmpMerge.put(p, s);
+				
+				if (p.toUpperCase().startsWith("WHEN_MATCHES WHENNOTMATCHED")) {
+					if (!p.toUpperCase().endsWith("INSERT")) {
+						// NOT MATCHED BY SOURCE: DELETE or UPDATE				
+						// condition specified for BY SOURCE?
+						String cond = getPatternGroup(s, "^.*?\\bMATCHED\\s+BY\\s+SOURCE\\s+AND\\b(.*?)\\bTHEN\\s+(UPDATE|DELETE)\\b.*$", 1, "multiline");
+						if (!cond.isEmpty()) {						
+							tmpMerge.put("by source cond", cond);    					
+						}	
+					}
+				}
+				
+				if (p.toUpperCase().startsWith("WHEN_MATCHES WHENMATCHED")) {
+					// MATCHED: DELETE or UPDATE				
+					// condition specified?
+					String cond = getPatternGroup(s, "^.*?\\bWHEN\\s+MATCHED\\s+AND\\b(.*?)\\bTHEN\\s+(UPDATE|DELETE)\\b.*$", 1, "multiline");
+					if (!cond.isEmpty()) {
+						tmpMerge.put("when matched cond", cond);  
+					}  						
+				}
+										
+			}
+			
+			String mergeSteps = "\n/* --- start rewritten MERGE statement --- */\n";
+			mergeSteps += "BEGIN TRANSACTION\n";
+			mergeSteps += "DECLARE @MERGE_ROWCOUNT INT = 0\n";
+			String blankLine = "\n"+rewriteBlankLine+"\n";
+			for (String p : tmpMerge.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
+				if (p.equals("start")) continue;
+				if (p.equals("when_matches")) continue;
+				String s = tmpMerge.get(p);
+				if (debugging) dbgOutput(thisProc()+"    p=["+p+"]  s=["+s+"] ", debugRewrite);				
+				
+				String action = "INSERT";				
+				if (p.toUpperCase().endsWith("UPDATE")) action = "UPDATE";
+				else if (p.toUpperCase().endsWith("DELETE")) action = "DELETE";
+				
+				String bytgt = "";
+				if (action.equals("INSERT") && !getPatternGroup(s, "(\\bBY\\s+TARGET\\b)", 1, "multiline").isEmpty()) bytgt = "BY TARGET ";
+								
+				// condition?
+				String cond = "";
+				String condDisplay = "";
+				if (!getPatternGroup(s, "^.*?\\bMATCHED\\s+(BY\\s+\\w+\\s+)?\\bAND\\b(.*?)\\bTHEN\\s+(UPDATE|DELETE|INSERT)\\b.*$", 2, "multiline").isEmpty()) {
+					cond = applyPatternFirst(s, "^.*?\\bMATCHED\\s+\\bAND\\b(.*?)\\bTHEN\\s+(UPDATE|DELETE|INSERT)\\b.*$", "$1", "multiline");
+					condDisplay = "AND (condition) ";
+				}		
+
+				if (p.toUpperCase().startsWith("WHEN_MATCHES WHENNOTMATCHED")) {
+					if (action.equals("INSERT")) {
+						String insCollist = applyPatternFirst(s, "^.*?\\bINSERT\\b", "", "multiline");
+						if (tmpMerge.containsKey("output_clause")) {
+							String outputClause = rewriteMergeStmtOutput(tmpMerge.get("output_clause"), action) + "\n";
+							insCollist = applyPatternFirst(insCollist, "\\bVALUES\\b", "\n"+escapeRegexChars(outputClause+"\nVALUES"));
+						}								
+						if (!getPatternGroup(insCollist, "(\\bVALUES\\b.*?\\()", 1, "multiline").isEmpty()) {
+							insCollist = applyPatternFirst(insCollist, "\\bVALUES\\b.*?\\(", "SELECT ");
+							insCollist = applyPatternFirst(insCollist, "\\)$", " ");
+						}
+						
+						String insStmt = blankLine;
+						insStmt += "/* WHEN NOT MATCHED "+bytgt+condDisplay+"THEN "+action+" */\n";
+						insStmt += "INSERT INTO " + tmpMerge.get("ddl_object") + "\n";					
+						insStmt += insCollist;
+						if (tmpMerge.containsKey("with_expression")) {
+							insStmt = applyPatternFirst(insStmt, "(\\bSELECT )", "\n"+escapeRegexChars(tmpMerge.get("with_expression")+"\nSELECT "));
+						}
+						insStmt += "\nFROM " + tmpMerge.get("table_sources");
+						insStmt += "\nWHERE NOT EXISTS (";
+						insStmt += "\nSELECT * FROM " + tmpMerge.get("ddl_object") + " " + tmpMerge.get("table_alias");
+						insStmt += "\nWHERE " + tmpMerge.get("search_condition") ;
+						insStmt += "\n)\n";			
+						insStmt += "SET @MERGE_ROWCOUNT += @@ROWCOUNT\n";			
+						mergeSteps += insStmt;
+					}	
+					else {
+						// NOT MATCHED BY SOURCE: DELETE or UPDATE
+						String stmt = blankLine;
+						stmt += "/* WHEN NOT MATCHED BY SOURCE "+condDisplay+"THEN "+action+" */\n";
+						if (tmpMerge.containsKey("with_expression")) stmt += tmpMerge.get("with_expression") + "\n";
+						String tgtName = tmpMerge.get("ddl_object");
+						String updSet = "";
+						if (tmpMerge.containsKey("table_alias")) {
+							tgtName = tmpMerge.get("table_alias");
+						}
+						if (action.equals("DELETE")) {
+							stmt += "DELETE " + tgtName + "\n";
+						}
+						else {
+							updSet = applyPatternFirst(s, "^.*?\\bUPDATE\\b\\s*", "", "multiline");
+							stmt += "UPDATE " + tgtName + "\n";
+							stmt += updSet + "\n";
+						}
+						if (tmpMerge.containsKey("output_clause")) {
+							stmt += rewriteMergeStmtOutput(tmpMerge.get("output_clause"), action) + "\n";
+						}						
+						if (tmpMerge.containsKey("table_alias")) {
+							stmt += "FROM " + tmpMerge.get("ddl_object") + " " + tmpMerge.get("table_alias") + "\n";
+						}
+						stmt += "WHERE NOT EXISTS (\n";
+						stmt += "SELECT * FROM " + tmpMerge.get("table_sources") + "\n";
+						stmt += "WHERE " + tmpMerge.get("search_condition")+"\n";
+						if (!cond.isEmpty()) {
+							stmt += "AND (" + cond+")\n";						
+						}			
+						else if (tmpMerge.containsKey("by source cond")) {
+							stmt += "AND NOT (" + tmpMerge.get("by source cond")+")\n"; //"
+						}			
+						stmt += ")\n";
+						stmt += "SET @MERGE_ROWCOUNT += @@ROWCOUNT\n";			
+						mergeSteps += stmt;
+					}			
+				}
+				else if (p.toUpperCase().startsWith("WHEN_MATCHES WHENMATCHED")) {
+					// MATCHED: DELETE or UPDATE
+					String stmt = blankLine;
+					stmt += "/* WHEN MATCHED "+condDisplay+"THEN "+action+" */\n";					
+					if (tmpMerge.containsKey("with_expression")) stmt += tmpMerge.get("with_expression") + "\n";
+					String tgtName = tmpMerge.get("ddl_object");
+					String updSet = "";
+					if (tmpMerge.containsKey("table_alias")) {
+						tgtName = tmpMerge.get("table_alias");
+					}
+					if (action.equals("DELETE")) {
+						stmt += "DELETE " + tgtName + "\n";
+					}
+					else {
+						updSet = applyPatternFirst(s, "^.*?\\bUPDATE\\b\\s*", "", "multiline");
+						stmt += "UPDATE " + tgtName + "\n";
+						stmt += updSet + "\n";
+					}
+					if (tmpMerge.containsKey("output_clause")) {
+						stmt += rewriteMergeStmtOutput(tmpMerge.get("output_clause"), action) + "\n";
+					}						
+					if (tmpMerge.containsKey("table_alias")) {
+						stmt += "FROM " + tmpMerge.get("ddl_object") + " " + tmpMerge.get("table_alias") + "\n";
+					}
+					stmt += ", " + tmpMerge.get("table_sources") + "\n";
+					stmt += "WHERE " + tmpMerge.get("search_condition")+"\n";
+					if (!cond.isEmpty()) {
+						stmt += "AND (" + cond+")\n";						
+					}			
+					else if (tmpMerge.containsKey("when matched cond")) {
+						stmt += "AND NOT (" + tmpMerge.get("when matched cond")+")\n"; //"
+					}	
+					stmt += "SET @MERGE_ROWCOUNT += @@ROWCOUNT\n";			
+					mergeSteps += stmt;
+				}			
+			}
+			mergeSteps += blankLine;
+			mergeSteps += "\nCOMMIT\n";
+			mergeSteps += "/* --- end rewritten MERGE statement --- */\n";
+			mergeSteps = rewriteMergeStmtPatchup(mergeSteps, origStrFull);	
+			rewriteText = mergeSteps;
+			
+			// comment out original block and append new block
+			// NB: first line should not get shorter so start comment on first line
+			String origStrCopy = applyPatternAll(origStrFull, "\\/\\*.*?\\*\\/", " "); 
+			origStrCopy = applyPatternAll(origStrCopy, "\\s+", " "); 		
+			newStr = "/* original MERGE statement -- " + origStrFull + " -- end original MERGE statement */\n" + rewriteText + "\n";
+			
+			// let last line past end of original text continue at original offset
+			String lastLineTmp = origStrFull.substring(origStrFull.lastIndexOf("\n")+1);
+			String lastLine = stringRepeat(" ", lastLineTmp.length());
+			newStr += lastLine;
+		}		
+		else {
+			assert false : thisProc()+"invalid rewriteType=["+rewriteType+"] ";
+		}
+		
+		result.add(newStr);
+		if (newStrNoComment.isEmpty()) newStrNoComment = newStr;
+		result.add(newStrNoComment.trim());
+		return result;				
+	}
+	
+	public String rewriteMergeStmtOutput(String s, String action) {
+		s = applyPatternAll(s, "\\$ACTION\\b", "'"+action+"'");
+		if (action.equals("DELETE")) {
+			s = applyPatternAll(s, "\\bINSERTED\\.\\w+\\b", "NULL");
+			s = applyPatternAll(s, "\\bINSERTED\\.[\\[].*?[\\]]", "NULL");
+		}
+		if (action.equals("INSERT")) {
+			s = applyPatternAll(s, "\\bDELETED\\.\\w+\\b", "NULL");
+			s = applyPatternAll(s, "\\bDELETED\\.[\\[].*?[\\]]", "NULL");
+		}
+		return s;
+	}	
+	
+	public String rewriteMergeStmtPatchup(String s, String origStmt) {
+		String leading = getPatternGroup("\n"+origStmt, "\n([^\n]*?)USING\\b", 1, "multiline");
+		leading = applyPatternAll(leading, "\\S", " ");
+		s = applyPatternAll(s, "\\n[ ]*\\n", "\n");
+		s = applyPatternAll(s, "\\n[\\t ]*\\n", "\n");
+		s = applyPatternAll(s, "\\n[\\t ]+", "\n");
+		s = applyPatternAll(s, "\\n", "\n"+leading);
+		s = applyPatternAll(s, rewriteBlankLine, "");
+		return s;
+	}	
+										
  	// ---- error handling in Lexer ----------------------------------------
 	private String errorMsg;
 
