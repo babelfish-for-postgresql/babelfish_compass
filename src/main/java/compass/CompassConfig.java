@@ -378,8 +378,8 @@ public class CompassConfig {
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + section + "]  requestVersion=[" + requestVersion + "] arg=[" + arg + "] argValue=[" + argValue + "] ", u.debugCfg);
 		if (featureArgOptions.containsKey(section)) {
 			argValue = argValue.toUpperCase();
-			if (argValue.charAt(0) == '\'') {
-				argValue = argValue.substring(1, argValue.length() - 1);
+			if ((argValue.charAt(0) == '\'') || (argValue.charAt(0) == '"')) {
+				argValue = u.stripStringQuotes(argValue);
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " stripped quotes: argValue=[" + argValue + "] ", u.debugCfg);
 			}
 			if (argValue.charAt(0) == '@') {

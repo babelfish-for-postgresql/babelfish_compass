@@ -110,6 +110,7 @@ public class Compass {
 
 	public static List<String> inputFiles = new ArrayList<>();
 	public static List<String> inputFilesOrig = new ArrayList<>();
+	public static Map<String,String> inputFilesMapped = new HashMap<>();
 	public static List<String> cmdFlags = new ArrayList<>();
 	public static List<String> pgImportFlags = new ArrayList<>();
 
@@ -201,6 +202,9 @@ public class Compass {
 				u.appOutput("                                  <comma-list> is: host,port,username,password,dbname");
 				u.appOutput("                                  (requires psql to be installed)");
 				u.appOutput("   -pgimportappend              : with -pgimport, appends to existing table (instead of drop/recreate)");
+  				u.appOutput("   -rewrite                     : (beta) rewrites selected unsupported SQL features");
+//				u.appOutput("   -importfmt <fmt>             : process special-format captured query files");
+//				u.appOutput("   -nodedup                     : do not deduplicate captured query files");
 				u.appOutput("   -version                     : show version of this tool");
 				u.appOutput("   -help                        : show this information");		
 				u.appOutput("   -explain                     : some high-level migration guidance");		
@@ -283,6 +287,23 @@ public class Compass {
 				u.userConfig = false;
 				continue;
 			}			
+			if (arg.equals("-importfmt") || arg.equals("-importformat")) {
+				if (i == args.length) {
+					u.appOutput("Must specify argument for -importfmt");
+					u.errorExit();
+				}
+				u.importFormat = args[i].toLowerCase();
+				if (!u.importFormatOption.contains(u.importFormat)) {
+					u.appOutput("Invalid value for  -importfmt. Valid values are: "+u.importFormatOption);
+					u.errorExit();
+				}
+				i++;
+				continue;
+			}			
+			if (arg.equals("-nodedup")) {
+				u.deDupExtracted = false;
+				continue;			
+			}
 			if (arg.equals("-delete")) {
 				deleteReport = true;
 				continue;			
@@ -314,6 +335,10 @@ public class Compass {
 			}	
 			if (arg.equals("-importonly")) {
 				importOnly = true;
+				continue;
+			}				
+			if (arg.equals("-rewrite")) {
+				u.rewrite = true;
 				continue;
 			}				
 			if (arg.equals("-encoding")) {
@@ -574,6 +599,9 @@ public class Compass {
  		
  		// perform PG import
 		if (pgImport) {
+			if (!optionsValid()) {
+				return;
+			}			
 			runPGImport();
 			return;
 		}
@@ -626,6 +654,14 @@ public class Compass {
 				}
 				return;
 			}
+			
+			// process specified encoding 
+			try {
+				charset = Charset.forName(userEncoding);
+			} catch (Exception e) {
+				u.appOutput("Invalid -encoding value specified: [" + userEncoding + "]\nUse '-encoding help' to list available encodings.");
+				return;
+			}			
 		}
 		
 		startRunDate = new Date();		
@@ -667,7 +703,7 @@ public class Compass {
 			cmdFlags.removeAll(inputFilesOrig);			
 								
 			u.appOutput("");
-			u.appOutput("Run starting               : "+startRunFmt);
+			u.appOutput("Run starting               : "+startRunFmt+ " (" + u.onPlatform +")");
 			String tmp = "";
 			tmp =       u.cfgFileName+" file : v."+cfg.latestBabelfishVersion() + ", " + u.cfgFileTimestamp;			
 			CompassUtilities.reportHdrLines += tmp + "\n";			
@@ -778,24 +814,26 @@ public class Compass {
 		elapsedRun = (endRun - startRun)/ 1000;
 
 		comp.reportFinalStats();
-		if (!parseOnly) u.closeReportFile();
+		if (!(parseOnly || importOnly)) u.closeReportFile();
 		
 		// open generated report in browser
 		if (!CompassUtilities.devOptions) {
-			if (CompassUtilities.onWindows) {
-				u.runOScmd("cmd /c \"explorer.exe /n,/select,\"\""+u.reportFilePathName+"\"\" \"");
-				u.runOScmd("cmd /c \"explorer.exe \"\""+u.reportFilePathName+"\"\" \"");
-			}
-			else if (CompassUtilities.onMac) {
-				String cmd = " open . " + u.reportFilePathName;
-				// temporary:
-				u.appOutput("*** Mac (dev msg): opening report in browser: cmd=["+cmd+"] ");			
-				u.runOScmd(cmd);
-			}
-			else if (CompassUtilities.onLinux) {
-				// TBD - assuming no GUI is present
-				//String cmd = " open . " + u.reportFilePathName;
-				//u.runOScmd(cmd);				
+			if (!(parseOnly || importOnly)) {
+				if (CompassUtilities.onWindows) {
+					u.runOScmd("cmd /c \"explorer.exe /n,/select,\"\""+u.reportFilePathName+"\"\" \"");
+					u.runOScmd("cmd /c \"explorer.exe \"\""+u.reportFilePathName+"\"\" \"");
+				}
+				else if (CompassUtilities.onMac) {
+					String cmd = " open . " + u.reportFilePathName;
+					// temporary:
+					u.appOutput("*** Mac (dev msg): opening report in browser: cmd=["+cmd+"] ");			
+					u.runOScmd(cmd);
+				}
+				else if (CompassUtilities.onLinux) {
+					// TBD - assuming no GUI is present
+					//String cmd = " open . " + u.reportFilePathName;
+					//u.runOScmd(cmd);				
+				}
 			}
 		}
 	}
@@ -818,10 +856,10 @@ public class Compass {
 				nrFileNotFound++;
 				u.appOutput("Input file '" + inFile + "' not found");
 			}
-			if (!u.inputScriptValid(inFile)) {
-				u.appOutput("Input file '" + inFile + "' not valid");
-				inputValid.set(false);
-			}
+//			if (!u.inputScriptValid(inFile)) {
+//				u.appOutput("Input file '" + inFile + "' not valid");
+//				inputValid.set(false);
+//			}
 			return pathValid;
 		}).collect(Collectors.toList());
 
@@ -858,9 +896,13 @@ public class Compass {
 			}
 		}
 		
- 		if (pgImport || pgImportAppend) {
- 			if (readStdin || listContents || importOnly || inputFiles.size() > 0 || reAnalyze || deleteReport || reportOnly) {
+ 		if (pgImport) {
+ 			if (readStdin || listContents || importOnly || reAnalyze || deleteReport || reportOnly) {
 				u.appOutput("-pgimport cannot be combined with other options");
+				return false;
+			}
+ 			if (inputFiles.size() > 0) {
+				u.appOutput("-pgimport cannot be combined with input files");
 				return false;
 			}
 			return true;
@@ -1049,7 +1091,6 @@ public class Compass {
 		if ((inputFiles.size() == 0) && (!reportOnly)) { 
 			if (!reAnalyze) {
 				reportOnly = true;
-				u.appOutput(CompassUtilities.thisProc()+"setting reportOnly=["+reportOnly+"] ");
 			}
 		}
 		
@@ -1062,6 +1103,7 @@ public class Compass {
 		try { u.importPG(pgImportAppend, pgImportFlags); } catch (Exception e) { /*nothing*/ }		
 		
 		//Note: by exiting here, the password entered on command line is not getting written into the log files		
+		// If this is ever changed, the password should be blanked out in the command-line argument before written to the log file
 		u.errorExit();
 	}
 
@@ -1098,7 +1140,7 @@ public class Compass {
 		if (linesSQLPerSec > 0) linesSQLPerSecFmt = "  ("+linesSQLPerSec.toString()+" lines/sec)";
 
 		boolean writeToReport = true;
-		if (parseOnly) writeToReport = false;
+		if (parseOnly || importOnly) writeToReport = false;
 		
 		u.appOutput("");
 		u.appOutput(u.composeOutputLine("--- Run Metrics ", "-"), writeToReport);
@@ -1136,8 +1178,12 @@ public class Compass {
 		}
 		}
 		
+		if (u.rewrite) u.appOutput("SQL rewrites         : "+ u.nrRewritesDone, writeToReport);
+		else           u.appOutput("SQL rewrite oppties  : "+ u.rewriteOppties.get(u.rewriteOpptiesTotal), writeToReport);
 		u.appOutput("Session log          : "+ sessionLog, writeToReport);
-		u.appOutput("Assessment report    : "+ u.reportFilePathName, writeToReport);
+		if (!u.reportFilePathName.equals(u.uninitialized)) {
+			u.appOutput("Assessment report    : "+ u.reportFilePathName, writeToReport);
+		}
 		u.appOutput(u.composeOutputLine("","="), writeToReport);
 		
 		if (CompassUtilities.devOptions) {
@@ -1208,6 +1254,8 @@ public class Compass {
 
 		int nrFiles = inputFiles.size();
 		int fileCount = 0;
+	
+		fileCount = 0;
 		for (String inFile : inputFiles) {
 			fileCount++;
 			String appName = "";
@@ -1215,7 +1263,9 @@ public class Compass {
 			String inFileCopy = "";
 			FileInputStream fis = null;
 			InputStreamReader isr = null;
+			if (u.rewrite) u.resetRewrites();
 			u.currentDatabase  = "";
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "u.analysisPass=["+u.analysisPass+"] inFile=["+inFile+"] ", u.debugDir);
 			
 			if (!reAnalyze) {
 				// process the input files when importing. i.e. the very first time
@@ -1238,12 +1288,17 @@ public class Compass {
 				inFileCopy = u.getImportFilePathName(reportName, inFile, appName);
 			} 
 			else {
-				// process the already-imported files				
+				// re-analyze: process the already-imported files				
 				inFileCopy = inFile;
 				String line = u.importFileFirstLine(inFile);   // read only first line to pick up file attributes
 				u.currentSrcFile = u.importFileAttribute(line, 1);
 				u.currentAppName = u.importFileAttribute(line, 2);
 				appName = u.currentAppName;
+			}
+						
+			if (inputFilesMapped.containsKey(inFileCopy)) {
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "using mapped inFileCopy=["+inputFilesMapped.get(inFileCopy)+"] instead of ["+inFileCopy+"]" , u.debugFmt || u.debugDir);
+				inFileCopy = inputFilesMapped.get(inFileCopy);
 			}
 
 			if (u.analysisPass == 1) {
@@ -1297,10 +1352,33 @@ public class Compass {
 					}
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "Using encoding=[" + charset.toString() + "]", u.debugBatch);
 
-					u.openImportFile(reportName, inFile, appName, charset.toString());  // open to write a copy of the input file
+					String detectedFmt = u.detectImportFileFormat(inFile, u.importFormat, charset);
+					String useImportFormat = u.sqlcmdFmt;
+					if (u.importFormat.equals(u.autoFmt)) useImportFormat = detectedFmt;
+					if (useImportFormat.isEmpty()) useImportFormat = u.sqlcmdFmt; // catchall
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "u.importFormat=["+u.importFormat+"] detected fmt=["+detectedFmt+"] useImportFormat=["+useImportFormat+"] ", u.debugFmt || u.debugDir);
+					
+    				String useCharset = charset.toString();
+					if (useImportFormat.equalsIgnoreCase(u.sqlcmdFmt)) {	
+						// continue, no conversion needed
+					}
+					else {			
+						// need to convert input format first
+						String inFileConverted = u.convertInputFileFormat(reportName, inFile, appName, useImportFormat, charset);
+						inFile = inFileConverted;
+						useCharset = "UTF-8";
+						charset = StandardCharsets.UTF_8;
+						String inFileCopyCopy = inFileCopy;
+						inFileCopy = u.getImportFilePathName(reportName, inFileConverted, appName);
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "mapping inFileCopy from ["+inFileCopyCopy+"] to ["+inFileCopy+"]  inFileConverted=["+inFileConverted+"] ", u.debugFmt || u.debugDir);
+						inputFilesMapped.put(inFileCopyCopy, inFileCopy);
+					}
+					
+					u.openImportFile(reportName, inFile, appName, useCharset);  // open to write a copy of the input file
 
 					fis = new FileInputStream(inFile);
 					isr = new InputStreamReader(fis, charset);
+					if (u.debugging) u.dbgOutput("reading inFile=["+inFile+"] ", u.debugDir);
 				}
 			}
 
@@ -1319,7 +1397,8 @@ public class Compass {
 				}
 			
 				fis = new FileInputStream(inFileCopy);
-				isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+				isr = new InputStreamReader(fis, StandardCharsets.UTF_8);				
+				if (u.debugging) u.dbgOutput("reading inFileCopy=["+inFileCopy+"] ", u.debugDir);
 			}
 			
 			BufferedReader inFileReader = new BufferedReader(isr);
@@ -1354,6 +1433,7 @@ public class Compass {
 
 			// set to true to ignore leading blank lines in a batch; 
 			// this has the downside of line numbers being off by as many lines as were ignored
+			// also, it may mess up the -rewrite functionality, so keep this set to FALSE!
 			boolean skipLeadingBlankLines = false; 
 			
 			// keeps track if leading lines are all blank
@@ -1390,12 +1470,27 @@ public class Compass {
 					}
 				} 
 				else {
+					// make sure it's not a file taken from the imported directory that is used as source here; this will cause trouble downstream
 					if (u.analysisPass == 1) {
-
+						if (lineNr == 0) {
+							if (!u.importFileAttribute(line,1).isEmpty()) {
+								if (!u.importFileAttribute(line,2).isEmpty()) {
+									// this is the header line from the import copy, abort
+									u.appOutput("This file contains a header line that indicates it was taken from an 'imported' subdirectory\nof a "+u.thisProgName+" report.");
+									u.appOutput("Remove the first line; when reprocessing, ensure the file is encoded as UTF-8, or use '-encoding utf8'.");
+									u.appOutput("Aborting...");
+									u.errorExit();
+								}
+							}					
+						}
+					}
+									
+					if (u.analysisPass == 1) {
 						if (!reAnalyze) {
 							u.writeImportFile(line);
 						}
 					}
+					
 					if ((u.analysisPass == 2) || (reAnalyze && (u.analysisPass == 1))) {
 						if ((lineNr == 0) && (!pass2Init)) {
 							// skip first line
@@ -1637,6 +1732,10 @@ public class Compass {
 
 				if (endBatchFound) {
 					// process the batch
+					batchNr++;
+					u.batchNrInFile = batchNr;
+					u.lineNrInFile = startBatchLineNr;	
+					
 					if (startOfNewBatch || leadingBlankLines) {
 						// nothing to process
 						if (endOfFile) {
@@ -1648,11 +1747,20 @@ public class Compass {
 							break;
 						}
 						if (u.debugging) u.dbgOutput("endBatchFound, startOfNewBatch: nothing to process leadingBlankLines=["+leadingBlankLines+"] ", u.debugBatch);
+
+						// prep for next batch
 						endBatchFound = false;
+						startOfNewBatch = true;
+						leadingBlankLines = true;
+						startBatchLineNr = lineNr + 1;
+						batchText = new StringBuilder();
+						nrLinesInFile += batchLines;
+						batchLines = 0;
+						inComment = 0;
+						inString = false;						
 						continue;
 					} 
 					else {
-						batchNr++;
 						batchLines--; // subtract the last line
 
 						if (u.analysisPass == 1) {
@@ -1661,9 +1769,6 @@ public class Compass {
 						if (u.analysisPass == 2) {
 							nrLinesTotalP2 += batchLines;
 						}
-
-						u.batchNrInFile = batchNr;
-						u.lineNrInFile = startBatchLineNr;
 
 						if (dumpBatchFile) {
 							if (u.analysisPass == 1) {
@@ -1695,20 +1800,17 @@ public class Compass {
 							nrParseErrors++;
 						}
 
-						if (hasParseError) {
-							boolean printErrMsg = true;
-							if (u.analysisPass == 2) {
-								if (!dumpParseTree) {
-									printErrMsg = false;
-								}
+						boolean printErrMsg = true;
+						if (u.analysisPass == 2) {
+							if (!dumpParseTree) {
+								printErrMsg = false;
 							}
+						}
+						if (hasParseError) {
 							if (printErrMsg) {
 								// print to session
 								String errMsg = "Syntax error in batch " + batchNr + ", starting at line " + startBatchLineNr + " in input file\n" + parseErrorMsg.toString().trim();
 								u.appOutput(errMsg);
-								if (!dumpParseTree) {
-									u.appOutput("");
-								}  // need separator line
 							}
 						}
 
@@ -1722,7 +1824,14 @@ public class Compass {
 								// log error batch to file
 								u.writeErrBatchFile("Syntax error in batch " + batchNr + ", starting at line " + startBatchLineNr + " in file " + Paths.get(inFile).toAbsolutePath() + "\nBatch=[" + batchText + "]");
 								u.writeErrBatchFile(parseErrorMsg.toString().trim() + "\n");
-								u.writeErrBatchFile(u.composeOutputLine("-", "-") + "\n");
+								u.writeErrBatchFile(u.composeOutputLine("-", "-") + "\n");			
+								
+								if (printErrMsg) {
+									if (!dumpParseTree) {
+										u.appOutput("(see "+u.errBatchFilePathName+")");									
+										u.appOutput("");
+									}  // need separator line	
+								}											
 							}
 
 							if (dumpParseTree) {
@@ -1807,6 +1916,13 @@ public class Compass {
 			if (u.analysisPass == 2) {
 				u.appendCaptureFile(CompassUtilities.makeMetricsLine(u.currentSrcFile, u.currentAppName, batchNr, nrParseErrors, lineNr));
 				u.closeCaptureFile();
+			}
+				
+			if (u.analysisPass == 2) {
+				// if substitutions required, apply them
+				if (u.rewriteTextList.size() > 0) {					
+					u.performRewriting(reportName, u.currentAppName,inFileCopy);			
+				}
 			}
 
 			if (u.analysisPass == 2) {
