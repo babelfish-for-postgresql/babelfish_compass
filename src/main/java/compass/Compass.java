@@ -1179,7 +1179,7 @@ public class Compass {
 		}
 		
 		if (u.rewrite) u.appOutput("SQL rewrites         : "+ u.nrRewritesDone, writeToReport);
-		else           u.appOutput("SQL rewrite oppties  : "+ u.rewriteOppties.get(u.rewriteOpptiesTotal), writeToReport);
+		else           u.appOutput("SQL rewrite oppties  : "+ u.rewriteOppties.getOrDefault(u.rewriteOpptiesTotal,0), writeToReport);
 		u.appOutput("Session log          : "+ sessionLog, writeToReport);
 		if (!u.reportFilePathName.equals(u.uninitialized)) {
 			u.appOutput("Assessment report    : "+ u.reportFilePathName, writeToReport);
@@ -1472,16 +1472,18 @@ public class Compass {
 				else {
 					// make sure it's not a file taken from the imported directory that is used as source here; this will cause trouble downstream
 					if (u.analysisPass == 1) {
-						if (lineNr == 0) {
-							if (!u.importFileAttribute(line,1).isEmpty()) {
-								if (!u.importFileAttribute(line,2).isEmpty()) {
-									// this is the header line from the import copy, abort
-									u.appOutput("This file contains a header line that indicates it was taken from an 'imported' subdirectory\nof a "+u.thisProgName+" report.");
-									u.appOutput("Remove the first line; when reprocessing, ensure the file is encoded as UTF-8, or use '-encoding utf8'.");
-									u.appOutput("Aborting...");
-									u.errorExit();
-								}
-							}					
+						if (!reAnalyze) {
+							if (lineNr == 0) {
+								if (!u.importFileAttribute(line,1).isEmpty()) {
+									if (!u.importFileAttribute(line,2).isEmpty()) {
+										// this is the header line from the import copy, abort
+										u.appOutput("This file contains a header line that indicates it was taken from an 'imported' subdirectory\nof a "+u.thisProgName+" report.");
+										u.appOutput("Remove the first line; when reprocessing, ensure the file is encoded as UTF-8, or use '-encoding utf8'.");
+										u.appOutput("Aborting...");
+										u.errorExit();
+									}
+								}					
+							}
 						}
 					}
 									

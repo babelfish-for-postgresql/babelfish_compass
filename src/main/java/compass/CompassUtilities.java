@@ -407,7 +407,7 @@ tooltipsHTMLPlaceholder +
 		"OBJECT_SCHEMA_NAME()"+tttSeparator+"OBJECT_SCHEMA_NAME(): Rewrite as catalog query",
 		"ORIGINAL_LOGIN("+tttSeparator+"ORIGINAL_LOGIN() is not currently supported; Rewrite as SUSER_NAME()",
 		"SESSION_USER"+tttSeparator+"SESSION_USER is not currently supported; Rewrite as USER_NAME()",
-		"SYSTEM_USER"+tttSeparator+"SYSTEM_USER is not currently supported; Rewrite as SUSER_NAME()",
+		"SYSTEM_USER"+tttSeparator+"SYSTEM_USER is not currently supported; Rewrite as SUSER_NAME() (the -rewrite option handles this for you)",
 		"DATABASE_PRINCIPAL_ID("+tttSeparator+"DATABASE_PRINCIPAL_ID() is not currently supported; Rewrite as USER_NAME()",
 		"FORMAT("+tttSeparator+"FORMAT() is not currently supported; Rewrite the formatting using available functions such as CONVERT()",
 		"FILEGROUP_NAME("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
@@ -416,6 +416,7 @@ tooltipsHTMLPlaceholder +
 		"\\w+PROPERTY\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+PROPERTYEX\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+\\(\\),"+CompassAnalyze.withoutArgumentValidateStr+tttSeparator+"This built-in function is not currently supported when called without arguments",
+		"\\w+\\(\\),"+CompassAnalyze.withNArgumentValidateStrRegex+tttSeparator+"This built-in function is not currently supported when called with this number of arguments",
 		"CONTAINS("+tttSeparator+"Fulltext search is not currently supported",
 		"CONTAINSTABLE("+tttSeparator+"Fulltext search is not currently supported",
 		"FREETEXTTABLE("+tttSeparator+"Fulltext search is not currently supported",
@@ -430,8 +431,8 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.ExecuteSQLFunction+tttSeparator+"Calling a SQL function with EXECUTE is not currently supported. Call the function in an expression instead",
 		CompassAnalyze.ColonColonFunctionCall+tttSeparator+"Old-style function call with :: syntax is not supported; rewrite without ::",
 		CompassAnalyze.TemporaryProcedures+tttSeparator+"Temporary stored procedures (with a name starting with #) are created, but not dropped automatically at the end of a session",
-		CompassAnalyze.NumericAsDateTime+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00",
-		CompassAnalyze.NumericDateTimeVarAssign+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00",
+		CompassAnalyze.NumericAsDateTime+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 (the -rewrite option handles this for you)",
+		CompassAnalyze.NumericDateTimeVarAssign+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 (the -rewrite option handles this for you)",
 		"EXECUTE procedure sp_oacreate"+tttSeparator+"This OLE system stored procedure is not currently supported",
 		"EXECUTE procedure sp_oadestroy"+tttSeparator+"This OLE system stored procedure is not currently supported",
 		"EXECUTE procedure sp_oamethod"+tttSeparator+"This OLE system stored procedure is not currently supported",
@@ -466,8 +467,8 @@ tooltipsHTMLPlaceholder +
 		"ALTER TABLE..CHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
 		"ALTER TABLE..NOCHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
 		"DBCC "+tttSeparator+"DBCC statements are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
-		CompassAnalyze.ODBCScalarFunction+tttSeparator+"ODBC scalar functions are not currently supported; rewrite with an equivalent built-in function",
-		CompassAnalyze.ODBCLiterals+tttSeparator+"ODBC literal expressions are not currently supported; rewrite with CAST() to the desired datatype",
+		CompassAnalyze.ODBCScalarFunction+tttSeparator+"ODBC scalar functions are not currently supported; rewrite with an equivalent built-in function (some cases can be handled automatically with the -rewrite option)",
+		CompassAnalyze.ODBCLiterals+tttSeparator+"ODBC literal expressions are not currently supported; rewrite with CAST() to the desired datatype (some cases can be handled automatically with the -rewrite option)",
 		CompassAnalyze.Traceflags+tttSeparator+"Traceflags are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
 		CompassAnalyze.RollupCubeOldSyntax+tttSeparator+"Deprecated WITH CUBE/ROLLUP syntax is not currently supported; rewrite as GROUP BY CUBE/ROLLUP",
 		CompassAnalyze.GroupByAll+tttSeparator+"Deprecated GROUP BY ALL syntax is not currently supported; rewrite query",
@@ -542,7 +543,7 @@ tooltipsHTMLPlaceholder +
 		"SELECT TOP <number> PERCENT"+tttSeparator+"Only TOP 100 PERCENT is currently supported. Rewrite as TOP without PERCENT. Rewrite manually",
 		"CROSS APPLY"+tttSeparator+"CROSS APPLY: lateral joins are not currently supported. Rewrite manually",
 		"OUTER APPLY"+tttSeparator+"OUTER APPLY: lateral joins are not currently supported. Rewrite manually",
-		"WAITFOR DELAY"+tttSeparator+"WAITFOR DELAY: Until supported, rewrite this as a call to pg_sleep, e.g. EXECUTE pg_sleep 60",
+		"WAITFOR DELAY"+tttSeparator+"WAITFOR DELAY: Rewrite this as a call to pg_sleep, e.g. EXECUTE pg_sleep 60 (the -rewrite option handles this for you)",
 		CompassAnalyze.SelectTopWoOrderBy+tttSeparator+"SELECT TOP without ORDER BY: without ORDER BY, the order of rows in the result is not guaranteed, and therefore the TOP n rows aren't either. Even though the order may still have been deterministic in SQL Server (for example, due to a clustered index), this cannot be relied on when migrating to Babelfish/PostgreSQL. Recommendation is to review these queries and in case it is possible that the result set has >1 row, add an ORDER BY before migrating to Babelfish",
 		"Constraint PRIMARY KEY/UNIQUE, CLUSTERED,"+tttSeparator+"CLUSTERED constraints are not currently supported. The constraint will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
 		"Index, CLUSTERED,"+tttSeparator+"CLUSTERED indexes are not currently supported. The index will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
@@ -553,7 +554,7 @@ tooltipsHTMLPlaceholder +
 		"CREATE TABLE (temporal)"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
 		CompassAnalyze.NumericColNonNumDft+tttSeparator+"NUMERIC/DECIMAL table columns with a non-numeric column default still allow the table to be created in SQL Server but will raise an error only when the default is used; in Babelfish, the error is raised when the table is created. Remove the non-numeric default",
 		CompassAnalyze.TableValueConstructor+tttSeparator+"Rewrite the VALUES() clause as SELECT statements and/or UNIONs",
-		CompassAnalyze.MergeStmt+tttSeparator+"Rewrite MERGE as a series of INSERT/UPDATE/DELETE statements",
+		CompassAnalyze.MergeStmt+tttSeparator+"Rewrite MERGE as a series of INSERT/UPDATE/DELETE statements (the -rewrite option handles this for you)",
 		CompassAnalyze.DynamicSQLEXECStringReview+tttSeparator+"Dynamic SQL with EXECUTE(string) is supported by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
 		CompassAnalyze.DynamicSQLEXECSPReview+tttSeparator+"Dynamic SQL with sp_executesql is supported by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
 		CompassAnalyze.FKrefDBname+tttSeparator+"Remove the database name from the referenced table. E.g. change: REFERENCES yourdb.dbo.yourtable(yourcol) to: REFERENCES dbo.yourtable(yourcol)",
@@ -569,10 +570,10 @@ tooltipsHTMLPlaceholder +
 		"SET LOCK_TIMEOUT"+tttSeparator+"Setting the lock timeout is not currently supported",
 		CompassAnalyze.SetXactIsolationLevel+tttSeparator+"This transaction isolation level is not currently supported, due to PostgreSQL\'s MVCC mechanism",
 		
-		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index "+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish",
-		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish",
-		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index, on multiple columns"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with  multiple NULL values in such a column, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish",
-		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint, on multiple columns"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with  multiple NULL values, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index "+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_unique_constraint', 'ignore' [, 'server']\\\\\" to override and create the table anyway",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_unique_constraint', 'ignore' [, 'server']\\\\\" to override and create the table anyway",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index, on multiple columns"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with  multiple NULL values in such a column, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_unique_constraint', 'ignore' [, 'server']\\\\\" to override and create the table anyway",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint, on multiple columns"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with  multiple NULL values, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_unique_constraint', 'ignore' [, 'server']\\\\\" to override and create the table anyway",
 		
 		CompassAnalyze.DropIndex+" index ON schema.table"+tttSeparator+"Syntax 'DROP INDEX indexname ON schema.table' is not currently supported; remove schema name",
 		CompassAnalyze.DropIndex+" table.index"+tttSeparator+"Syntax 'DROP INDEX table.indexname' is not currently supported; use 'DROP INDEX indexname ON tablename'",
@@ -810,6 +811,7 @@ tooltipsHTMLPlaceholder +
 	static final List<String> OnOffOption = Arrays.asList("ON", "OFF");
 
 	// debug flags
+	public boolean dbgTimestamp = true;
 	public final HashSet<String> dbgOptions = new HashSet<>(Arrays.asList("all", "batch", "ptree", "cfg", "dir", "symtab", "report", "calc", "os", "fmt", "rewrite"));
 	public final HashSet<String> specifiedDbgOptions = new HashSet<>(dbgOptions.size());
 	public boolean debugBatch;
@@ -1181,6 +1183,7 @@ tooltipsHTMLPlaceholder +
 
 	// remove the enclosing quotes from a string constant
 	public static String stripStringQuotes(String s) {
+		if (s.isEmpty()) return s;
 		if ((s.charAt(0) == '\'') && (s.charAt(s.length()-1) == '\'')) {
 			s = s.substring(1,s.length()-1);
 		}
@@ -1469,9 +1472,11 @@ tooltipsHTMLPlaceholder +
 
 	public void dbgOutput(String s, boolean toDebug) {
 		if (toDebug) {
-			System.out.println("DEBUG: " + s);
+			String ts = "";
+			if (dbgTimestamp) ts = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date()) + " ";
+			System.out.println(ts + "DEBUG: " + s);
 			if (sessionLogWriter != null) {
-				try { writeSessionLogFile("DEBUG: " + s +"\n"); } catch (Exception e) { System.out.println("Error writing to "+ sessionLogPathName); }
+				try { writeSessionLogFile(ts + "DEBUG: " + s +"\n"); } catch (Exception e) { System.out.println("Error writing to "+ sessionLogPathName); }
 			}
 		}
 	}
@@ -4212,7 +4217,9 @@ tooltipsHTMLPlaceholder +
 				appOutput("No imported files found. Specify input file(s) to add to this report.");
 			}
 			else {
-				appOutput("No analysis files found. Use -analyze to perform analysis and generate a report.");
+				String msg = "No analysis files found. Use -analyze to perform analysis and generate a report.";
+				appOutput(msg);
+				writeReportFile("\n"+msg);
 			}
 			errorExit();
 		}
