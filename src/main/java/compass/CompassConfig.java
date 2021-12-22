@@ -94,7 +94,7 @@ public class CompassConfig {
 		// user .cfg file
 		validateUserCfgFile(pUserCfgFileName); 
 		if (!userCfgFileValid) {
-			cfgOutput(userConfigFilePathName, "User configuration file not valid");
+			cfgOutput(userConfigFilePathName, "User configuration file not valid. Delete file or remove offendng sections.");
 			u.errorExit();	
 		}
 	}
@@ -267,7 +267,7 @@ public class CompassConfig {
 			if (!allowStar) { return false; }
 			// found 1.* or 1.2.* or similar: a version with a number instead of * must exist
 			String vStar = version.substring(0,version.indexOf("*")-1);
-			for (String v : Babelfish_VersionList) {
+			for (String v : Babelfish_VersionList) {				
 				if (v.startsWith(vStar)) {
 					return true;
 				}
@@ -1058,9 +1058,15 @@ public class CompassConfig {
 					if (optionKey.equals(validVersionsTag)) {
 						Babelfish_VersionList = new ArrayList<>(Arrays.asList(optionVal.split(",")));
 						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "Valid versions (" + Babelfish_VersionList.size() + ") :" + Babelfish_VersionList, u.debugCfg);
+						
+						// strip off any spaces
+						for (int i = 0; i<Babelfish_VersionList.size(); i++) {
+							Babelfish_VersionList.set(i, Babelfish_VersionList.get(i).trim());
+						}						
+						
 						for (String v : Babelfish_VersionList) {
 							if (!u.PatternMatches(v, "\\d+(\\.\\d+)*")) {
-								cfgOutput("[" + Babelfish_Compass_Name + "]: Invalid version number found:" + v);
+								cfgOutput("[" + Babelfish_Compass_Name + "]: Invalid version number found: [" + v + "]");
 								cfgFileValid = false;
 							} 
 							else {
