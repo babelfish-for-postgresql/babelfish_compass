@@ -260,16 +260,16 @@ public class CompassAnalyze {
 	static String rewriteNumericAsDateZero = "DATETIMEFROMPARTS(1900,1,1,0,0,0,0)";
 
 	// some 1:1 string rewrites
-	static List<String> rewriteDirectOrig    = Arrays.asList( "SYSTEM_USER"
+	static List<String> rewriteDirectOrig    = Arrays.asList( "SYSTEM_USER", "{ FN CURRENT_DATE }", "{ FN CURDATE }", "{ FN CURRENT_TIME }", "{ FN CURTIME }"
 													 );
-	static List<String> rewriteDirectReplace = Arrays.asList( "SUSER_NAME()"
+	static List<String> rewriteDirectReplace = Arrays.asList( "SUSER_NAME()",  "CONVERT(VARCHAR(10),CONVERT(DATE,GETDATE()))", "CONVERT(VARCHAR(10),CONVERT(DATE,GETDATE()))", "CONVERT(VARCHAR(30),CONVERT(TIME,GETDATE()))", "CONVERT(VARCHAR(30),CONVERT(TIME,GETDATE()))"
 													 );
 	static List<String> rewriteDirectODBCfuncOrig    = Arrays.asList("REPEAT", "UCASE", "LCASE", "SPACE", "LTRIM", "RTRIM", "LEFT", "RIGHT", "REPLACE", "CONCAT", "ASCII", "LENGTH", "CHARACTER_LENGTH", "CHAR_LENGTH",
-	                                                                 "NOW", "HOUR", "MINUTE", "SECOND", "WEEK", "MONTH", "QUARTER", "YEAR",
+	                                                                 "NOW", "HOUR", "MINUTE", "SECOND", "WEEK", "MONTH", "QUARTER", "YEAR", 	                                                                 
 	                                                                 "D", "T", "TS"
 													 );
 	static List<String> rewriteDirectODBCfuncReplace = Arrays.asList("REPLICATE", "UPPER", "LOWER", "SPACE", "LTRIM", "RTRIM", "LEFT", "RIGHT", "REPLACE", "CONCAT", "ASCII", "LEN", "LEN", "LEN",
-	                                                                 "GETDATE", "DATEPART(hour,", "DATEPART(minute,",  "DATEPART(second,", "DATEPART(week,", "DATEPART(month,", "DATEPART(quarter,",  "DATEPART(year,",
+	                                                                 "GETDATE", "DATEPART(hour,", "DATEPART(minute,",  "DATEPART(second,", "DATEPART(week,", "DATEPART(month,", "DATEPART(quarter,",  "DATEPART(year,",	                                                                
 	                                                                 "CONVERT(DATE,", "CONVERT(TIME,", "CONVERT(DATETIME,"
 													 );
 
@@ -1736,7 +1736,9 @@ public class CompassAnalyze {
 								status = u.Rewritten;
 							}
 							else {
-								addRewrite(BuiltInFunctions + " " + funcNameReport);
+								String group = BuiltInFunctions;
+								group = u.applyPatternFirst(group, "s$", "");							
+								addRewrite(group + " " + funcNameReport);
 							}
 						}
 					}
@@ -5042,11 +5044,12 @@ public class CompassAnalyze {
 				String funcName = ctx.odbc_scalar_function_name().getText().toUpperCase();
 				funcName = funcName.substring(0,funcName.indexOf("("));
 				String status = featureSupportedInVersion(ODBCScalarFunction,funcName);
-				if (rewriteDirectODBCfuncOrig.contains(funcName)) {
-					if (!status.equals(u.Supported)) {
+				
+				if (!status.equals(u.Supported)) {
+					String origText = ctx.getText();
+					if (rewriteDirectODBCfuncOrig.contains(funcName)) {
 						if (u.rewrite) {
-							// for most ODBC functions, the argument list can be copied more or less unchanged, but for some cases (POSITION, EXTRACT, INSERT, TRUNCATE,...) more changes are needed; those are not currently supported for rewriting
-							String origText = ctx.getText();
+							// for most ODBC functions, the argument list can be copied more or less unchanged, but for some cases (POSITION, EXTRACT, INSERT, TRUNCATE,...) more changes are needed; those are not currently supported for rewriting								
 							String rewriteText = rewriteDirectODBCfuncReplace.get(rewriteDirectODBCfuncOrig.indexOf(funcName));
 
 							String rewriteType = "";
@@ -5063,7 +5066,20 @@ public class CompassAnalyze {
 							addRewrite(ODBCScalarFunction + " { fn " + funcName + "() }");
 						}
 					}
-				}
+					else {
+						String f = "{ FN " + funcName + " }";
+						if (rewriteDirectOrig.contains(f)) {
+							if (u.rewrite) {
+								String rewriteText = rewriteDirectReplace.get(rewriteDirectOrig.indexOf(f));
+								addRewrite(ODBCScalarFunction, origText, u.rewriteTypeReplace, rewriteText, ctx.L_CURLY().getSymbol().getLine(), ctx.L_CURLY().getSymbol().getCharPositionInLine(), ctx.R_CURLY().getSymbol().getLine(), ctx.R_CURLY().getSymbol().getCharPositionInLine(), ctx.L_CURLY().getSymbol().getStartIndex(), ctx.R_CURLY().getSymbol().getStopIndex());
+								status = u.Rewritten;
+							}
+							else {
+								addRewrite(ODBCScalarFunction + " { fn " + funcName + "() }");
+							}						
+						}
+					}
+				}				
 				captureItem(ODBCScalarFunction+" { fn "+funcName+"() }", ctx.getText(), ODBCScalarFunction, funcName, status, ctx.start.getLine());
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
