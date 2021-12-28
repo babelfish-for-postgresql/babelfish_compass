@@ -826,7 +826,7 @@ public class Compass {
 				else if (CompassUtilities.onMac) {
 					String cmd = " open . " + u.reportFilePathName;
 					// temporary:
-					u.appOutput("*** Mac (dev msg): opening report in browser: cmd=["+cmd+"] ");			
+					//u.appOutput("*** Mac (dev msg): opening report in browser: cmd=["+cmd+"] ");			
 					u.runOScmd(cmd);
 				}
 				else if (CompassUtilities.onLinux) {

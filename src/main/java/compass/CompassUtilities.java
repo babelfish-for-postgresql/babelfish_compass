@@ -185,6 +185,7 @@ public class CompassUtilities {
 	public String inputfileHTMLPlaceholder = "BBF_INPUTFILEHTMLPLACEHOLDER";
 	public String inputfileTxtPlaceholder  = "BBF_INPUTFILETXTPLACEHOLDER";
 	public String appnameHTMLPlaceholder   = "BBF_APPNAMEHTMLPLACEHOLDER";
+	public String tocHTMLPlaceholder       = "BBF_TOCHTMLPLACEHOLDER";
 	public String tooltipsHTMLPlaceholder  = "BBF_TOOLTIPSHTMLPLACEHOLDER";
 	public String tagApps                  = "apps";
 	public String tagEstimate              = "estimate";
@@ -194,6 +195,7 @@ public class CompassUtilities {
 	public String tagSummary               = "summary_";
 	public String tagByFeature             = "byfeature_";
 	public String tagByObject              = "byobject_";
+	public String anchorListOfRewrites     = "anchorlistofrewrites";
 
 	public String cssText =
 "a:visited { color: #6d00E6; }\n"+
@@ -370,6 +372,7 @@ tooltipsHTMLPlaceholder +
 "<tr><td class=\"hdr\">Report</td><td class=\"hdr\">:</td><td class=\"hdr\">"+reportHTMLPlaceholder+"</td></tr> \n"+
 "<tr><td class=\"hdr\">"+inputfileTxtPlaceholder+"</td><td class=\"hdr\">:</td><td class=\"hdr\">"+inputfileHTMLPlaceholder+"</td></tr> \n"+
 "<tr><td class=\"hdr\">Application</td><td class=\"hdr\">:</td><td class=\"hdr\">"+appnameHTMLPlaceholder+"</td></tr> \n"+
+"<tr><td colspan=\"2\" class=\"hdr\">"+tocHTMLPlaceholder+"</td></tr> \n"+
 "</table> \n"+
 "<table border=\"0\" cellpadding=\"0\"> \n"+
 "<tr><td class=\"hdr\">"+headerHTMLPlaceholder+"</td></tr> \n"+
@@ -391,8 +394,9 @@ tooltipsHTMLPlaceholder +
 "</body></html>\n"
 ;
 	private Map<String, String> toolTipsKeys = new HashMap<>();
+	static final List<String> toolTipsKeysList = new ArrayList<>();
 	static final String tttSeparator = "~~~";
-	static final List<String> toolTipsText = Arrays.asList(
+	static final List<String> toolTipsText = Arrays.asList(		
 		"STR("+tttSeparator+"STR() is not currently supported; rewrite with CONVERT()",
 		"CHECKSUM(*)"+tttSeparator+"CHECKSUM(*) is not currently supported; CHECKSUM() with a single non-asterisk argment is supported",
 		"CHECKSUM(arg,arg,...)"+tttSeparator+"CHECKSUM() with multiple arguments is not currently supported; CHECKSUM() with a single non-asterisk argment is supported",
@@ -413,6 +417,7 @@ tooltipsHTMLPlaceholder +
 		"FILEGROUP_NAME("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"FILEPROPERTY("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"NEWSEQUENTIALID()"+tttSeparator+"NEWSEQUENTIALID() is implemented as NEWID(); the sequential nature of the generated values is however not guaranteed, as is the case in SQL Server",
+		"DIFFERENCE()"+tttSeparator+"DIFFERENCE() is not currently supported; this is a soundex-related function",
 		"\\w+PROPERTY\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+PROPERTYEX\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+\\(\\),"+CompassAnalyze.withoutArgumentValidateStr+tttSeparator+"This built-in function is not currently supported when called without arguments",
@@ -613,7 +618,8 @@ tooltipsHTMLPlaceholder +
 		"\\w+ MATERIALIZED VIEW"+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
 		"\\w+ TRANSACTION not supported with PostgreSQL SECURITY DEFINER"+tttSeparator+"T-SQL objects created with EXECUTE AS OWNER are mapped to PostgreSQL SECURITY DEFINER; PostgreSQL does not support transaction mgmt statementds for objects created with SECURITY DEFINER",
 		"\\w+ ASSEMBLY"+tttSeparator+"This object type is not currently supported",
-		"\\w+ AGGREGATE"+tttSeparator+"This object type is not currently supported"
+		"\\w+ AGGREGATE"+tttSeparator+"This object type is not currently supported",
+"\\w+.*?, in computed column"+tttSeparator+"This feature may be supported by itself, but is not currently supported when used in a computed column"		
 	);
 
 	// emoji to indicate popup info is available
@@ -904,7 +910,11 @@ tooltipsHTMLPlaceholder +
 	public static String rewriteNotes = uninitialized;	
 	public static Map<String,Integer> rewriteOppties = new HashMap<>();	
 	public static final String        rewriteOpptiesTotal = "totalcount";
+	public static final String        SQLcodeRewrittenText = "SQL code sections rewritten by " + thisProgName+": ";
+	public static final String rwrTag = " /*REWRITTEN*/ ";
+	public static String rwrTabRegex = "";
 	public static Integer nrRewritesDone = 0;
+	public static Integer nrMergeRewrites = 0;
 	public static String rewriteTypeExpr1 = "expr(1)";
 	public static String rewriteTypeReplace = "replace";	
 	public static String rewriteTypeODBCfunc1 = "ODBCfunc1";	
@@ -972,7 +982,7 @@ tooltipsHTMLPlaceholder +
     	
     	if (rewrite) {	
     		supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Rewritten, Supported);
-    	} 	
+    	} 	    	
     }
 
     public void getPlatform () {
@@ -1622,7 +1632,7 @@ tooltipsHTMLPlaceholder +
 
 	// change filename suffix
 	private String changeFilenameSuffix(String f, String oldSuffix, String newSuffix) {
-		f = applyPatternFirst(f, oldSuffix + "$", newSuffix);
+		f = applyPatternFirst(f, "\\." + oldSuffix + "$", "." + newSuffix);
 		return f;
 	}
 
@@ -1908,6 +1918,7 @@ tooltipsHTMLPlaceholder +
 			String key = makeItemHintKey(item);
 			if (!tooltipText.endsWith(".")) tooltipText += ".";
 			toolTipsKeys.put(key, item.toLowerCase());
+			toolTipsKeysList.add(key);
 			css += ".tooltip .tooltip-content[data-tooltip='"+key+"']::before { content: \""+tooltipText+"\"; }\n";
 		}
 		// put tooltips CSS lines in the HTML header
@@ -1925,6 +1936,14 @@ tooltipsHTMLPlaceholder +
 		hdr = applyPatternFirst(hdr, inputfileHTMLPlaceholder, inputFileName);
 		hdr = applyPatternFirst(hdr, appnameHTMLPlaceholder, appName);
 		hdr = applyPatternFirst(hdr, inputfileTxtPlaceholder, inputfileTxt);
+		
+		if (inputfileTxt.contains("Rewritten")) {			
+			hdr = applyPatternFirst(hdr, tocHTMLPlaceholder, "<br>Note: see end of file (<a href=\"#"+anchorListOfRewrites+"\">here</a>) for list of rewritten sections.");
+		}
+		else {
+			hdr = applyPatternFirst(hdr, tocHTMLPlaceholder, " ");
+		}
+		
 		return hdr;
 	}
 
@@ -1984,12 +2003,22 @@ tooltipsHTMLPlaceholder +
 		rewrittenHTMLFileWriter.flush();
 
 		int rewrittenFileWriteLineNr = 0;
+		boolean tocFound = false;
 		while (true) {							
 			String line = rewrittenInFileReader.readLine();
 			if (line == null) break;
 			
 			rewrittenFileWriteLineNr++;
-			String lineHTML = "<tr><td class=\"linenr\"><a name=\""+rewrittenFileWriteLineNr+"\"></a>" +rewrittenFileWriteLineNr+ "</td><td class=\"sql\">"+escapeHTMLChars(line)+"</td></tr>\n";
+			line = escapeHTMLChars(line);
+			if (line.contains(SQLcodeRewrittenText)) {
+				tocFound = true;
+				line = line.replace(SQLcodeRewrittenText, "<a name=\""+anchorListOfRewrites+"\"></a>" + SQLcodeRewrittenText);
+			}
+			if (tocFound) {
+				line = applyPatternFirst(line, "^("+lineIndent+")(line )(\\d+)\\b", "$1<a href=\"#$3\">$2$3</a>");		
+			}
+			String lineHTML = "<tr><td class=\"linenr\"><a name=\""+rewrittenFileWriteLineNr+"\"></a>" +rewrittenFileWriteLineNr+ "</td><td class=\"sql\">"+line+"</td></tr>\n";
+
 			rewrittenHTMLFileWriter.write(lineHTML);
 		}		
 		
@@ -2008,8 +2037,16 @@ tooltipsHTMLPlaceholder +
 		// internal name => rewritten file
 		String f = Paths.get(rewrittenFile).getFileName().toString();
 		String p = rewrittenFile.substring(0,(rewrittenFile.length() - f.length()));
-		f = f.substring(0,f.indexOf(rewrittenFileTag));  
-		String renamedFile = p + f + rewrittenFileSuffix;
+		f = f.substring(0,f.indexOf(rewrittenFileTag)-1);  
+		String suffix = "";
+		if (f.indexOf(".") == -1) {
+			suffix = "";
+		}
+		else {
+			suffix = "." + f.substring(f.lastIndexOf(".")+1);
+			f = removeLastChars(f, suffix.length());
+		}
+		String renamedFile = p + f + "." + rewrittenFileSuffix + suffix;
 		return renamedFile;
 	}
 
@@ -3351,7 +3388,12 @@ tooltipsHTMLPlaceholder +
 	public void writeReportFile(String line) throws IOException {
 		reportFileWriterHTML.write(line + "\n");
 		reportFileWriterHTML.flush();
-	
+		line = removeHTMLTags(line);
+		reportFileWriter.write(unEscapeHTMLChars(line) + "\n");
+		reportFileWriter.flush();
+	}
+
+	public String removeHTMLTags (String line) {
 		// for the .txt version, remove HTML tags
 		if (line.contains("<a ")) {			
 			line = applyPatternFirst(line,docLinkURL, docLinkURLText);						
@@ -3370,8 +3412,7 @@ tooltipsHTMLPlaceholder +
 		if (line.contains("<span ")) {
 			line = applyPatternAll(line,"<span class.*?</span>", "");
 		}
-		reportFileWriter.write(unEscapeHTMLChars(line) + "\n");
-		reportFileWriter.flush();
+		return line;		
 	}
 
 	public void writeReportFile() throws IOException {
@@ -3930,9 +3971,10 @@ tooltipsHTMLPlaceholder +
 			itemHintKey = item;
 		}
 		else {
-			for (Map.Entry<String,String> e : toolTipsKeys.entrySet()) {
-				String k = e.getKey();
-				String v = e.getValue();
+			for (int i=0; i<toolTipsKeysList.size(); i++) {			
+			//for (Map.Entry<String,String> e : toolTipsKeys.entrySet()) {
+				String k = toolTipsKeysList.get(i);
+				String v = toolTipsKeys.get(k);
 
 				if (item.equalsIgnoreCase(k)) {
 					itemHintKey = k;
@@ -3957,7 +3999,7 @@ tooltipsHTMLPlaceholder +
 				//appOutput("no tooltip key found for item=["+itemOrig+"] ");
 			}
 		}
-		//appOutput(thisProc()+"item=["+itemOrig+"] item=["+item+"]  itemHintKey=["+itemHintKey+"] ");
+		//appOutput(thisProc()+"final: item=["+itemOrig+"] item=["+item+"]  itemHintKey=["+itemHintKey+"] ");
 		return itemHintKey;
 	}
 
@@ -5113,7 +5155,8 @@ tooltipsHTMLPlaceholder +
 			assert false : thisProc()+"bad branch, linesOrig=["+linesOrig.size()+"]  linesNew=["+linesNew.size()+"]";
 		}
 		
-		// log the rewrite
+		// log the rewrite				
+		origStr = applyPatternAll(origStr, rwrTabRegex, "");	
 		if (origStr.length() > 100) origStr = origStr.substring(0,100) + "(...)";
 		if (newStrNoComment.length() > 100) newStrNoComment = newStrNoComment.substring(0,100) + "(...)";
 		String msg = String.format("%08d", lineNoOrig) + captureFileSeparator +  String.format("%08d", rewritesDone.size()) + captureFileSeparator +  Integer.toString(lineNoOrig + linesOrig.size() - 1) + captureFileSeparator+ report+": changed ["+origStr+"] to ["+newStrNoComment+"]";
@@ -5324,6 +5367,9 @@ tooltipsHTMLPlaceholder +
 		List<String> tmpRemovedItems = new ArrayList<>();
 		List<String> tmpToDoItems = new ArrayList<>();
 		tmpToDoItems.addAll(rewriteTextListKeys);
+		
+		// one-time init
+		if (rwrTabRegex.isEmpty()) rwrTabRegex = escapeRegexChars(rwrTag.trim());
 		
 		// next: copy inputfile copy to tmp file; read tmp file as input; write target file as output
 		// next: keep track of added lines/columns and adjust in subsequent cycles
@@ -5606,13 +5652,13 @@ tooltipsHTMLPlaceholder +
 				}
 				if (abortNow) break;
 			}
-			if (abortNow) break;
+			if (abortNow) break;						
 			
 			// add list of rewrites to bottom of rewritten file
 			if (tmpToDoItems.size() == 0) {
 				writeRewrittenFile("\n");
 				writeRewrittenFile("/*\n");
-				writeRewrittenFile("SQL code section rewritten by " + thisProgName+": "+rewritesDone.size()+"\n");		
+				writeRewrittenFile(SQLcodeRewrittenText +rewritesDone.size()+"\n");		
 				if (rewritesDone.size() > 0) {
 					for (String s : rewritesDone.stream().sorted().collect(Collectors.toList())) {
 						nrRewritesDone++;
@@ -5628,9 +5674,11 @@ tooltipsHTMLPlaceholder +
 						if (!firstLine.equals(lastLine)) {
 							lastLineStr = "-"  + lastLine.toString();
 						}
-						String msg = lineIndent + "line " + firstLine.toString() + lastLineStr + ": " + origMsg;
+						
+						String msg = "line " + firstLine.toString() + lastLineStr + ": " + origMsg;
 						msg = msg.replaceAll("[\\t ]+", " ");
-						msg = msg.replaceAll("\n\\s*", " \\\\n ");						
+						msg = msg.replaceAll("\n\\s*", " \\\\n ");		
+						msg = lineIndent + msg;		
 						writeRewrittenFile(msg+"\n");
 					}
 				}
@@ -5664,19 +5712,22 @@ tooltipsHTMLPlaceholder +
 	
 	private List<String> applyRewrite(String rewriteType, String report, String rewriteText, String origStrFull) {
 		if (debugging) dbgOutput(thisProc()+"rewriteType=["+rewriteType+"] report=["+report+"] rewriteText=["+rewriteText+"] origStrFull=["+origStrFull+"]", debugRewrite);
-		List<String> result = new ArrayList<>();
+	
+		List<String> result = new ArrayList<>();		
 		String newStr = "";
 		String newStrNoComment = "";		
 		rewrittenOppties.put(report, rewrittenOppties.getOrDefault(report, 0)+1);
 		if (rewriteType.equals(rewriteTypeExpr1)) {			
-			newStr = rewriteText.replace("~~1~~", origStrFull);	
+			newStr = rwrTag + rewriteText.replace("~~1~~", origStrFull);	
 			newStr = newStr.trim();
 			newStrNoComment = newStr;	
+			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");
 		}
 		else if (rewriteType.equals(rewriteTypeReplace)) {
-			newStr = rewriteText + " /*"+origStrFull+"*/";
+			newStr = rwrTag + rewriteText + " /*"+origStrFull+"*/";
 			newStr = newStr.trim();
 			newStrNoComment = rewriteText;
+			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");
 		}
 		else if (rewriteType.equals(rewriteTypeODBCfunc1)) {
 			String origStrCopy = applyPatternAll(origStrFull, "\\/\\*.*?\\*\\/", " ", "multiline");  // this won't handle nested comments, but let's ignore that
@@ -5692,7 +5743,8 @@ tooltipsHTMLPlaceholder +
 			newStrNoComment = newStr;			
 			newStr = applyPatternFirst(newStr, "(\\{.*?\\bFN\\b)", "/*$1*/", "multiline");
 			newStr = applyPatternFirst(newStr, "(\\})$", "/*$1*/");
-			newStr = newStr.trim();
+			newStr = rwrTag + newStr.trim();
+			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");
 			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\{.*\\bFN\\b)", "", "multiline");
 			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\})$", "");
 		}
@@ -5709,7 +5761,8 @@ tooltipsHTMLPlaceholder +
 			newStrNoComment = newStr;			
 			newStr = applyPatternFirst(newStr, "(\\{)", "/*$1*/ ");
 			newStr = applyPatternFirst(newStr, "(\\})$", ") /*$1*/");
-			newStr = newStr.trim();
+			newStr = rwrTag + newStr.trim();
+			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");
 			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\{)", "");
 			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\})$", ")");
 		}
@@ -5723,7 +5776,7 @@ tooltipsHTMLPlaceholder +
 			
 			int startCtx = positions.get("start").get(0);
 						
-			Map<String, String> tmpMerge = new HashMap<>();
+			Map<String, String> tmpMerge = new HashMap<>();		
 			
 			for (String p : positions.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
 				if (p.equals("start")) continue;
@@ -5767,9 +5820,23 @@ tooltipsHTMLPlaceholder +
 										
 			}
 			
-			String mergeSteps = "\n/* --- start rewritten MERGE statement --- */\n";
+			nrMergeRewrites++;
+			String savePt   = "savept_merge_rewritten_"+nrMergeRewrites;			
+			String errVar   = "@MERGE_REWRITTEN_ERROR_"+nrMergeRewrites;			
+			String rcTmpVar = "@MERGE_REWRITTEN_RCTMP_"+nrMergeRewrites;	
+			String rcVar    = "@MERGE_REWRITTEN_ROWCOUNT_"+nrMergeRewrites;	
+			String rollbkLbl= "lbl_rollback_merge_rewritten_"+nrMergeRewrites;	
+			String commitLbl= "lbl_commit_merge_rewritten_"+nrMergeRewrites;	
+			String stmtEnd  = "SELECT "+errVar+ "=@@ERROR, "+rcTmpVar+ "=@@ROWCOUNT\nIF "+errVar+ " <> 0 GOTO "+rollbkLbl+"\nSET "+rcVar+" += "+rcTmpVar+ "\n";		
+			
+			String mergeSteps = "\n"+rwrTag+"\n/* --- start rewritten MERGE statement #"+nrMergeRewrites+" --- */\n";
+			mergeSteps += "/* Note: please review/modify the rewritten SQL code below, especially for handling of ROLLBACK */\n";
+			mergeSteps += "/* Note: please review/modify the rewritten SQL code below, especially for handling of ROLLBACK */\n";
 			mergeSteps += "BEGIN TRANSACTION\n";
-			mergeSteps += "DECLARE @MERGE_ROWCOUNT INT = 0\n";
+			mergeSteps += "SAVE TRANSACTION "+savePt+"\n";
+			mergeSteps += "DECLARE "+rcVar+" INT = 0 /* replaces original @@ROWOCUNT */\n";
+			mergeSteps += "DECLARE "+errVar+" INT /* temporary variable */\n";
+			mergeSteps += "DECLARE "+rcTmpVar+" INT /* temporary variable */\n";
 			String blankLine = "\n"+rewriteBlankLine+"\n";
 			for (String p : tmpMerge.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
 				if (p.equals("start")) continue;
@@ -5806,24 +5873,22 @@ tooltipsHTMLPlaceholder +
 						
 						String insStmt = blankLine;
 						insStmt += "/* WHEN NOT MATCHED "+bytgt+condDisplay+"THEN "+action+" */\n";
+						if (tmpMerge.containsKey("with_expression")) insStmt += ";" +tmpMerge.get("with_expression") + "\n";						
 						insStmt += "INSERT INTO " + tmpMerge.get("ddl_object") + "\n";					
 						insStmt += insCollist;
-						if (tmpMerge.containsKey("with_expression")) {
-							insStmt = applyPatternFirst(insStmt, "(\\bSELECT )", "\n"+escapeRegexChars(tmpMerge.get("with_expression")+"\nSELECT "));
-						}
 						insStmt += "\nFROM " + tmpMerge.get("table_sources");
 						insStmt += "\nWHERE NOT EXISTS (";
 						insStmt += "\nSELECT * FROM " + tmpMerge.get("ddl_object") + " " + tmpMerge.get("table_alias");
 						insStmt += "\nWHERE " + tmpMerge.get("search_condition") ;
 						insStmt += "\n)\n";			
-						insStmt += "SET @MERGE_ROWCOUNT += @@ROWCOUNT\n";			
+						insStmt += stmtEnd;			
 						mergeSteps += insStmt;
 					}	
 					else {
 						// NOT MATCHED BY SOURCE: DELETE or UPDATE
 						String stmt = blankLine;
 						stmt += "/* WHEN NOT MATCHED BY SOURCE "+condDisplay+"THEN "+action+" */\n";
-						if (tmpMerge.containsKey("with_expression")) stmt += tmpMerge.get("with_expression") + "\n";
+						if (tmpMerge.containsKey("with_expression")) stmt += ";" +tmpMerge.get("with_expression") + "\n";
 						String tgtName = tmpMerge.get("ddl_object");
 						String updSet = "";
 						if (tmpMerge.containsKey("table_alias")) {
@@ -5853,7 +5918,7 @@ tooltipsHTMLPlaceholder +
 							stmt += "AND NOT (" + tmpMerge.get("by source cond")+")\n"; //"
 						}			
 						stmt += ")\n";
-						stmt += "SET @MERGE_ROWCOUNT += @@ROWCOUNT\n";			
+						stmt += stmtEnd;
 						mergeSteps += stmt;
 					}			
 				}
@@ -5861,7 +5926,7 @@ tooltipsHTMLPlaceholder +
 					// MATCHED: DELETE or UPDATE
 					String stmt = blankLine;
 					stmt += "/* WHEN MATCHED "+condDisplay+"THEN "+action+" */\n";					
-					if (tmpMerge.containsKey("with_expression")) stmt += tmpMerge.get("with_expression") + "\n";
+					if (tmpMerge.containsKey("with_expression")) stmt += ";"+tmpMerge.get("with_expression") + "\n";
 					String tgtName = tmpMerge.get("ddl_object");
 					String updSet = "";
 					if (tmpMerge.containsKey("table_alias")) {
@@ -5889,13 +5954,15 @@ tooltipsHTMLPlaceholder +
 					else if (tmpMerge.containsKey("when matched cond")) {
 						stmt += "AND NOT (" + tmpMerge.get("when matched cond")+")\n"; //"
 					}	
-					stmt += "SET @MERGE_ROWCOUNT += @@ROWCOUNT\n";			
+					stmt += stmtEnd;
 					mergeSteps += stmt;
 				}			
 			}
 			mergeSteps += blankLine;
-			mergeSteps += "\nCOMMIT\n";
-			mergeSteps += "/* --- end rewritten MERGE statement --- */\n";
+			mergeSteps += "\n"+"GOTO "+commitLbl+"\n";					
+			mergeSteps += "\n"+rollbkLbl+": ROLLBACK TRANSACTION "+savePt+"\n";	
+			mergeSteps += "\n"+commitLbl+":   COMMIT\n";			
+			mergeSteps += ";/* --- end rewritten MERGE statement #"+nrMergeRewrites+" --- */\n";
 			mergeSteps = rewriteMergeStmtPatchup(mergeSteps, origStrFull);	
 			rewriteText = mergeSteps;
 			
