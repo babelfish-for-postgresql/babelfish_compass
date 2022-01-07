@@ -1,3 +1,10 @@
+# 1.2
+New -rewrite feature
+
+.cfg file updated for Babelfish Compass 1.1.0
+
+Various minor fixes
+
 # 1.1
 Mac/Linux support
 
