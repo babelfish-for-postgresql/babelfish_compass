@@ -1668,7 +1668,7 @@ merge_statement
       when_matches+
       output_clause?
       option_clause? 
-      SEMI  /// semicolon is required!
+      final_char=(SEMI | RR_BRACKET)  /// semicolon is required for stand-alone statement, but not inside INSERT-SELECT FROM (MERGE), where we expect a bracket instead
     ;
 
 when_matches
@@ -3620,9 +3620,19 @@ select_list_elem
     ;
 
 table_sources
+//    : table_source_item (COMMA table_source_item)*
     : table_source_item (COMMA table_source_item)*
+    | LR_BRACKET table_source_item_dml as_table_alias column_alias_list
     ;
 
+// these DML statements must have an OUTPUT clause to be used in INSERT-SELECT FROM ()
+table_source_item_dml
+    : merge_statement
+    | delete_statement RR_BRACKET
+    | insert_statement RR_BRACKET
+    | update_statement RR_BRACKET
+    ;
+    
 table_source_item
 	: table_source_item (ij=INNER join_hint?)? JOIN table_source_item ON search_condition
 	| table_source_item oj=(LEFT|RIGHT|FULL) OUTER? join_hint? JOIN table_source_item ON search_condition
