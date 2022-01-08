@@ -38,7 +38,7 @@ public class CompassUtilities {
 	public static String  onPlatform = uninitialized;
 
 	public static final String thisProgVersion      = "1.2";
-	public static final String thisProgVersionDate  = "December 2021";
+	public static final String thisProgVersionDate  = "January 2022";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -542,6 +542,7 @@ tooltipsHTMLPlaceholder +
 		"INSERT TOP..SELECT"+tttSeparator+"Rewrite as INSERT.. SELECT TOP",
 		CompassAnalyze.InsertBulkStmt+tttSeparator+"INSERT BULK is not a T-SQL statement, but only available through specific client-server APIs",
 		CompassAnalyze.BulkInsertStmt+tttSeparator+"BULK INSERT is not currently supported. Use a different method to load data from a file, for example PostgreSQL's COPY statement",
+		CompassAnalyze.DMLTableSrcFmt+tttSeparator+"A DML statement with OUTPUT clause, as source of an INSERT-SELECT, is not currently supported. Rewrite with OUTPUT into a temp table or table variable, and INSERT-SELECT from that",
 		CompassAnalyze.SelectPivot+tttSeparator+"SELECT..PIVOT is not currently supported. Rewrite manually",
 		CompassAnalyze.SelectUnpivot+tttSeparator+"SELECT..UNPIVOT is not currently supported. Rewrite manually",
 		"SELECT TOP WITH TIES"+tttSeparator+"SELECT TOP WITH TIES is not currently supported. Rewrite manually",

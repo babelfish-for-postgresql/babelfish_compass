@@ -34,6 +34,7 @@ public class CompassAnalyze {
 	static final String UsersReportGroup       = "Users";
 	static final String PermissionsReportGroup = "Permissions";
 	static final String TransitionTableMultiDMLTrigFmt = "INSERTED/DELETED cannot be referenced in trigger with >1 action";
+	static final String DMLTableSrcFmt         = "INSERT-SELECT FROM(";
 
 	// for reporting items that do not fit elsewhere
 	static final String MiscReportGroup       = "Miscellaneous SQL Features";
@@ -195,6 +196,7 @@ public class CompassAnalyze {
 	static final String AlterTable            = "ALTER TABLE";
 	static final String TimestampColumnSolo   = "TIMESTAMP column without column name";
 	static final String NumericColNonNumDft  = "NUMERIC/DECIMAL column with non-numeric default";
+	static final String DMLTableSrc          = "DML Table Source";
 
 	// matching special values in the .cfg file
 	static final String CfgNonZero            = "NONZERO";
@@ -779,25 +781,19 @@ public class CompassAnalyze {
 		String itemGroup = section;
 		String reportGroupCfg = "";
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"getting reportGroup: section=["+section+"] sectionItem=["+sectionItem+"]  ", u.debugCfg);
-		//u.appOutput(CompassUtilities.thisProc()+"getting reportGroup A: section=["+section+"] sectionItem=["+sectionItem+"]  ");
 		if (!sectionItem.isEmpty()) {
 			reportGroupCfg = featureGroup(section, sectionItem);
-			//u.appOutput(CompassUtilities.thisProc()+"getting reportGroup B: section=["+section+"] sectionItem=["+sectionItem+"] reportGroupCfg=["+reportGroupCfg+"]  ");
 			if (reportGroupCfg.isEmpty()) {
 				reportGroupCfg = featureGroup(section);
-				//u.appOutput(CompassUtilities.thisProc()+"getting reportGroup C: section=["+section+"] sectionItem=["+sectionItem+"]  reportGroupCfg=["+reportGroupCfg+"] ");
 				if (reportGroupCfg.isEmpty())  {
 					reportGroupCfg = featureGroup(sectionItem);
-					//u.appOutput(CompassUtilities.thisProc()+"getting reportGroup D: section=["+section+"] sectionItem=["+sectionItem+"]  reportGroupCfg=["+reportGroupCfg+"] ");
 				}
 			}
 		}
 		else {
 			reportGroupCfg = featureGroup(section);
-			//u.appOutput(CompassUtilities.thisProc()+"getting reportGroup E: section=["+section+"] sectionItem=["+sectionItem+"]  ");
 		}
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"reportGroupCfg=["+reportGroupCfg+"] ", u.debugCfg);
-		//u.appOutput(CompassUtilities.thisProc()+"reportGroupCfg=["+reportGroupCfg+"] ");
 		if (!reportGroupCfg.isEmpty()) itemGroup = reportGroupCfg;
 		if (itemGroup.isEmpty() || itemGroup.equalsIgnoreCase("DEFAULT")) {
 			itemGroup = MiscReportGroup;
@@ -4481,7 +4477,7 @@ public class CompassAnalyze {
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
-			}
+			}			
 
 			@Override public String visitJoin_hint(TSQLParser.Join_hintContext ctx) {
 				String hint = ctx.getText().toUpperCase();
@@ -5576,15 +5572,29 @@ public class CompassAnalyze {
 						status = featureSupportedInVersion(InsertStmt,"CTE");
 					}
 				}
-
-				captureItem("INSERT"+top+".."+type+CTE+outputClause, itemDetail, InsertStmt, "", status, ctx.start.getLine());
-
-				CaptureXMLNameSpaces(ctx.parent, "INSERT", ctx.start.getLine());
+				
+				if (!captureTableSrcDML(ctx.parent, tableName, "INSERT", ctx.start.getLine())) {
+					captureItem("INSERT"+top+".."+type+CTE+outputClause, itemDetail, InsertStmt, "", status, ctx.start.getLine());
+					CaptureXMLNameSpaces(ctx.parent, "INSERT", ctx.start.getLine());
+				}
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
 			}
+			
+			public boolean captureTableSrcDML(RuleContext parent, String tableName, String stmt, int lineNr) {
+				if (!hasParent(parent,"table_source_item_dml")) return false;
+				
+				// not expecting to support this soon
+				// assuming there is an OUTPUT clause, but not checking it
+				String DMLTableSrcStatus = u.NotSupported;
+				DMLTableSrcStatus = featureSupportedInVersion(DMLTableSrc, stmt);
+				String msg = DMLTableSrcFmt+stmt+"..OUTPUT)";
+				captureItem(msg, tableName, DMLTableSrc, msg, DMLTableSrcStatus, lineNr);	
+				
+				return true;	
+			}			
 
 			public String getOutputClause(TSQLParser.Output_clauseContext opClause, String status, String section, String callType) {
 				return getOutputClause(opClause, status, section, callType, "");
@@ -5782,9 +5792,7 @@ public class CompassAnalyze {
 					}
 				}
 
-				CaptureXMLNameSpaces(ctx.parent, "UPDATE", ctx.start.getLine());
-
-				// this bug was fixed
+				// this bug was fixed in Babelfish 1.0.0
 //				if (ctx.FROM() != null) {
 //					captureUpdDelFromBug("UPDATE", tableName, ctx.table_sources(), ctx.table_sources().table_source_item(), ctx.start.getLine());
 //				}
@@ -5794,8 +5802,12 @@ public class CompassAnalyze {
 
 				visitChildren(ctx);
 
-				captureItem("UPDATE"+top+updVarAssign+CTE+outputClause+whereCurrentOf, tableName, UpdateStmt, "UPDATE", status, ctx.start.getLine());
-				captureVariabeAssignDepends("UPDATE", ctx.start.getLine());
+				if (!captureTableSrcDML(ctx.parent, tableName, "UPDATE", ctx.start.getLine())) {
+					CaptureXMLNameSpaces(ctx.parent, "UPDATE", ctx.start.getLine());
+
+					captureItem("UPDATE"+top+updVarAssign+CTE+outputClause+whereCurrentOf, tableName, UpdateStmt, "UPDATE", status, ctx.start.getLine());
+					captureVariabeAssignDepends("UPDATE", ctx.start.getLine());
+				}
 
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -5923,11 +5935,13 @@ public class CompassAnalyze {
 						status = featureSupportedInVersion(DeleteStmt,whereCurrentOf);
 					}
 				}
-				captureItem("DELETE"+top+CTE+outputClause+whereCurrentOf, tableName, DeleteStmt, "DELETE", status, ctx.start.getLine());
+				
+				if (!captureTableSrcDML(ctx.parent, tableName, "DELETE", ctx.start.getLine())) {
+					captureItem("DELETE"+top+CTE+outputClause+whereCurrentOf, tableName, DeleteStmt, "DELETE", status, ctx.start.getLine());
+					CaptureXMLNameSpaces(ctx.parent, "DELETE", ctx.start.getLine());
+				}
 
-				CaptureXMLNameSpaces(ctx.parent, "DELETE", ctx.start.getLine());
-
-				// this bug was fixed
+				// this bug was fixed in Babelfish 1.0.0
 //				if (ctx.table_sources() != null) {
 //					captureUpdDelFromBug("DELETE", tableName, ctx.table_sources(), ctx.table_sources().table_source_item(), ctx.start.getLine());
 //				}
@@ -5937,7 +5951,7 @@ public class CompassAnalyze {
 				return null;
 			}
 
-			// this bug was fixed
+			// this bug was fixed in Babelfish 1.0.0
 			// happens only for FROM clause with a single table or comma-join syntax , not with ANSI join syntax
 //			private void captureUpdDelFromBug(String stmt, String tableName, TSQLParser.Table_sourcesContext ts, List<TSQLParser.Table_source_itemContext> tabs, int lineNr) {
 //				String section = UpdateStmt;
@@ -6007,22 +6021,24 @@ public class CompassAnalyze {
 					}
 				}
 
-				if (!status.equals(u.Supported)) {
-					if (u.rewrite) {
-						String rewriteText = "";
-						Integer rwrID = rewriteMerge(ctx);
-						
-						addRewrite(MergeStmt, ctx.getText(), u.rewriteTypeBlockReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.SEMI().getSymbol().getLine(), ctx.SEMI().getSymbol().getCharPositionInLine(), ctx.start.getStartIndex(), ctx.SEMI().getSymbol().getStopIndex(), rwrID);
-						status = u.Rewritten;
+				if (!captureTableSrcDML(ctx.parent, tableName, "MERGE", ctx.start.getLine())) {
+					if (!status.equals(u.Supported)) {
+						if (u.rewrite) {
+							String rewriteText = "";
+							Integer rwrID = rewriteMerge(ctx);
+							
+							addRewrite(MergeStmt, ctx.getText(), u.rewriteTypeBlockReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.final_char.getLine(), ctx.final_char.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.final_char.getStopIndex(), rwrID);
+							status = u.Rewritten;
+						}
+						else {
+							addRewrite(MergeStmt);
+						}
 					}
-					else {
-						addRewrite(MergeStmt);
-					}
+
+					captureItem("MERGE"+top+CTE+outputClause, tableName, MergeStmt, "MERGE", status, ctx.start.getLine());
+
+					CaptureXMLNameSpaces(ctx.parent, "MERGE", ctx.start.getLine());
 				}
-
-				captureItem("MERGE"+top+CTE+outputClause, tableName, MergeStmt, "MERGE", status, ctx.start.getLine());
-
-				CaptureXMLNameSpaces(ctx.parent, "MERGE", ctx.start.getLine());
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -6051,7 +6067,7 @@ public class CompassAnalyze {
 				String topClause = "";
 				if (ctx.TOP() != null) {
 //					topClause = "TOP("+ctx.expression().getText()+")";
-					int endIx = ctx.RR_BRACKET().getSymbol().getStopIndex();
+					int endIx = ctx.final_char.getStopIndex();
 					if (ctx.PERCENT() != null) endIx = ctx.PERCENT().getSymbol().getStopIndex();
 					positions.put("top", Arrays.asList(ctx.TOP().getSymbol().getStartIndex(),endIx));	
 				}

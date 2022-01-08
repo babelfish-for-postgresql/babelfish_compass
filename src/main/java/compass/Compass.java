@@ -107,7 +107,7 @@ public class Compass {
 	public static String reportName = null; // must be null when not initialized
 	public static String applicationName;
 	public static String sessionLog;
-
+	
 	public static List<String> inputFiles = new ArrayList<>();
 	public static List<String> inputFilesOrig = new ArrayList<>();
 	public static Map<String,String> inputFilesMapped = new HashMap<>();
