@@ -96,6 +96,7 @@ public class Compass {
 	protected static boolean listContents = false;
 	protected static boolean pgImport = false;
 	protected static boolean pgImportAppend = false;
+	protected static boolean anonymizedReport = false;
 
 	protected static boolean antlrSLL = true;
 	protected static boolean antlrShowTokens = false;
@@ -531,6 +532,10 @@ public class Compass {
 					CompassUtilities.caching = true;
 					continue;
 				}
+				if (arg.equals("-anon")) { // development only
+					anonymizedReport = true;
+					continue;
+				}
 			}
 			// arguments must start with [A-Z0-9 _-./] : anything else is invalid
 			if (CompassUtilities.getPatternGroup(arg.substring(0,1), "^([\\w\\-\\.\\/])$", 1).isEmpty()) {
@@ -606,6 +611,15 @@ public class Compass {
 			return;
 		}
 		
+		//generate anon report file
+		if (anonymizedReport) {
+			if (!optionsValid()) {
+				return;
+			}			
+			runAnonymizedReport();
+			return;			
+		}
+		
  		// read config file
  		u.cfgFileName = u.defaultCfgFileName; // todo: make configurable?
  		u.userCfgFileName = u.defaultUserCfgFileName; // todo: make configurable?
@@ -625,8 +639,7 @@ public class Compass {
 //			CompassTestConfig.testConfig();
 //		}
 
-		// copy cfg structure
-		// TODO there is no copy - it's static
+		// cfg structure
 		a.cfg = cfg;
 
 		// init Babelfish target version at latest version, unless user specified a version
@@ -896,6 +909,18 @@ public class Compass {
 			}
 		}
 		
+ 		if (anonymizedReport) {
+ 			if (readStdin || listContents || importOnly || reAnalyze || deleteReport || reportOnly) {
+				u.appOutput("-anon cannot be combined with other options");
+				return false;
+			}
+ 			if (inputFiles.size() > 0) {
+				u.appOutput("-anon cannot be combined with input files");
+				return false;
+			}
+			return true;
+		}		
+				
  		if (pgImport) {
  			if (readStdin || listContents || importOnly || reAnalyze || deleteReport || reportOnly) {
 				u.appOutput("-pgimport cannot be combined with other options");
@@ -906,7 +931,7 @@ public class Compass {
 				return false;
 			}
 			return true;
-		}
+		}		
 		
  		if (pgImportAppend) {
  			if (!pgImport) {
@@ -1104,6 +1129,12 @@ public class Compass {
 		
 		//Note: by exiting here, the password entered on command line is not getting written into the log files		
 		// If this is ever changed, the password should be blanked out in the command-line argument before written to the log file
+		u.errorExit();
+	}
+
+	private static void runAnonymizedReport () { 
+		// generated anon report file 		
+		try { u.createAnonymizedReport(); } catch (Exception e) { /*nothing*/ }		
 		u.errorExit();
 	}
 

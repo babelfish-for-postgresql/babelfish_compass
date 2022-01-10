@@ -127,6 +127,8 @@ public class CompassUtilities {
 	public final String HTMLSuffix = "html";
 	public final String logDirName = "log";
 	public final String PGImportFileName = "pg_import";
+	
+	public final String getAnonymizedItemsFilename = "anonymizedBabelfishItems.dat";
 
 	public String reportFileTextPathName = uninitialized;
 	public String reportFileHTMLPathName = uninitialized;
@@ -1652,6 +1654,13 @@ tooltipsHTMLPlaceholder +
 		return filePath;
 	}
 
+	// anon items file pathname
+    public String getAnonymizedItemsPathname(String reportName) {
+		String f = getAnonymizedItemsFilename;
+		String filePath = getFilePathname(getReportDirPathname(reportName, capDirName), f);
+		return filePath;
+	}
+
 	// session log pathname
     public String getSessionLogPathName(String reportName, Date now) {
     	String now_fname = new SimpleDateFormat("yyyy-MMM-dd-HH.mm.ss").format(now);
@@ -2179,6 +2188,9 @@ tooltipsHTMLPlaceholder +
 	// if valid, returns an empty string
 	// if invalid, return message why it's invalid
     public String captureFilesValid(String type, List<Path> captureFiles) throws IOException {
+    	return captureFilesValid(type, captureFiles, false);
+    }
+    public String captureFilesValid(String type, List<Path> captureFiles, boolean export) throws IOException {
     	String result = "";
     	String errInfo = "";
     	String errInfoOtherwise = "";
@@ -2203,11 +2215,11 @@ tooltipsHTMLPlaceholder +
 				identicalTargetVersion = false;				
 			}
 			if (fmtVersion == null) {
-				// capture files from Babelfish Compass 1.0 and 1.1 do not have the capture file format version yet
+				// capture files from Babelfish Compass 1.0 and 1.1 do not have the capture file format version yet (no version for 1.0)
 				fmtVersion = captureFileFormatBaseVersion;
 			}
 			else if (fmtVersion.isEmpty()) {
-				// capture files from Babelfish Compass 1.0 and 1.1 do not have the capture file format version yet
+				// capture files from Babelfish Compass 1.0 and 1.1 do not have the capture file format version yet (no version for 1.0)
 				fmtVersion = captureFileFormatBaseVersion;
 			}
 			if (formatVersionTest == null) {
@@ -2226,8 +2238,8 @@ tooltipsHTMLPlaceholder +
 			}			
 		}
 
-		if (!targetVersionTest.equals(targetBabelfishVersion)) {
-			result = "Analysis was performed for a different "+babelfishProg+" version than targeted by this run (v."+targetBabelfishVersion+"):\n";
+		if (!export && !targetVersionTest.equals(targetBabelfishVersion)) {
+			result = "Analysis was performed for a different "+babelfishProg+" version ("+targetVersionTest+") than targeted by this run (v."+targetBabelfishVersion+"):\n";
 		}
 		else if (!identicalTargetVersion) {
 			result = "Analysis files are for different "+babelfishProg+" versions:\n";
@@ -2246,6 +2258,11 @@ tooltipsHTMLPlaceholder +
 			else result = "\nCannot import analysis files with incompatible attributes.\n" + result;
 			result += errInfo;
 			result += "\nRe-run analysis for all imported files with -analyze.";
+		}
+		else {
+			if (type.equals("tgtversion")) {
+				result = targetVersionTest;
+			}
 		}
 		return result;
  	}
@@ -4875,12 +4892,13 @@ tooltipsHTMLPlaceholder +
 			appOutput("No analysis files found. Use -analyze to perform analysis and generate a report.");
 			errorExit();
 		}
-		String cfv = captureFilesValid("import", captureFiles);
+		String cfv = captureFilesValid("import", captureFiles, true);
 		if (!cfv.isEmpty()) {
 			// print error message and exit
 			appOutput(cfv);
 			errorExit();
 		}
+		String cfVersion = captureFilesValid("tgtversion", captureFiles, true);
 
 		Date now = new Date();
 		String nowFmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now);
@@ -4927,9 +4945,11 @@ tooltipsHTMLPlaceholder +
 				// strip off the last two semicolons
 				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
 				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
+				
+				capLine = unEscapeHTMLChars(capLine);
 
 				// add date & babelfish version
-				capLine = targetBabelfishVersion + captureFileSeparator + nowFmt + captureFileSeparator + capLine;
+				capLine = cfVersion + captureFileSeparator + nowFmt + captureFileSeparator + capLine;
 
 				PGImportFileWriter.write(capLine+"\n");
 			}
@@ -6010,6 +6030,150 @@ tooltipsHTMLPlaceholder +
 		s = applyPatternAll(s, "\\n", "\n"+leading);
 		s = applyPatternAll(s, rewriteBlankLine, "");
 		return s;
+	}	
+	
+	public void createAnonymizedReport() throws IOException {
+		// platform-dependent parts
+		String envvarSet = "SET ";
+		String cmdSeparator = "& ";
+		String envvarPrefix = "%";
+		String envvarSuffix = "%";
+		if (onMac || onLinux) {
+			envvarSet = "export ";		
+			cmdSeparator = "; ";
+			envvarPrefix = "\\$";
+			envvarSuffix = "";
+		}
+				
+		// get capture files
+		List<Path> captureFiles = getCaptureFiles(reportName);
+		if (debugging) dbgOutput(thisProc() + "captureFiles(" + captureFiles.size() + ")=[" + captureFiles + "] ", debugReport);
+		if (captureFiles.size() == 0) {
+			appOutput("No analysis files found. Use -analyze to perform analysis and generate a report.");
+			errorExit();
+		}
+		String cfv = captureFilesValid("import", captureFiles, true);
+		if (!cfv.isEmpty()) {
+			// print error message and exit
+			appOutput(cfv);
+			errorExit();
+		}
+		String cfVersion = captureFilesValid("tgtversion", captureFiles, true);		
+
+		Date now = new Date();
+		String nowFmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now);
+
+		BufferedWriter anonItemsFileWriter = null;
+    	String anonItemPathName = getAnonymizedItemsPathname(reportName);
+    	checkDir(getReportDirPathname(reportName, capDirName), true);
+		anonItemsFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(anonItemPathName), StandardCharsets.UTF_8)));
+
+		int itemCount = 0;
+		Map<String,String> appNames = new HashMap<>();
+		Map<String,String> objNames = new HashMap<>();
+		Map<String,String> dbNames = new HashMap<>();
+		for (Path cf : captureFiles) {
+			String cfLine = captureFileFirstLine(cf.toString());   // read only first line
+			String cfReportName = captureFileAttribute(cfLine, 1);
+			if (cfReportName.isEmpty()) {
+				appOutput("Invalid format in "+cfReportName+"; run with -analyze to fix.");
+				errorExit();
+			}
+			if (!reportName.equalsIgnoreCase(cfReportName)) {
+				String rDir = getFilePathname(getDocDirPathname(), capDirName);
+				appOutput("Found analysis file for report '" + cfReportName + "' in " + rDir + ": adding to import");
+			}
+
+			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
+			InputStreamReader cfisr = new InputStreamReader(cfis, StandardCharsets.UTF_8);
+			BufferedReader capFile = new BufferedReader(cfisr);
+
+			String capLine = "";
+
+			while (true) {
+				capLine = capFile.readLine();
+				if (capLine == null) {
+					//EOF
+					break;
+				}
+				capLine = capLine.trim();
+				if (capLine.isEmpty()) continue;
+				if ((capLine.charAt(0) == '#') || (capLine.charAt(0) == '*')) {
+					continue;
+				}
+				if (capLine.contains(captureFileSeparator+ObjCountOnly+captureFileSeparator)) continue;
+
+				itemCount++;
+
+				// strip off the last two semicolons
+				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
+				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));							
+				capLine = unEscapeHTMLChars(capLine);
+					
+				// remove customer-specific items
+				List<String> tmp = new ArrayList<>(Arrays.asList(capLine.split(captureFileSeparator)));
+				
+				if (!(tmp.get(9).equals(BatchContext))) {
+					// wipe out identifiers in context
+					String objType = getPatternGroup(tmp.get(9),"^(\\w+)\\s+(.*)$",1);	
+					String objName = getPatternGroup(tmp.get(9),"^(\\w+)\\s+(.*)$",2).toLowerCase();
+					if (!objNames.containsKey(objName)) objNames.put(objName, objType.toLowerCase()+(objNames.size()+1));
+					tmp.set(9, objType+" "+objNames.get(objName));
+				}
+				if (tmp.size() >= 11) {
+					if (!tmp.get(10).isEmpty()) {
+						// wipe out identifiers in context
+						String objType = getPatternGroup(tmp.get(10),"^(\\w+)\\s+(.*)$",1);							
+						String objName = getPatternGroup(tmp.get(10),"^\\w+\\s+(.*)$",1).toLowerCase();
+						if (!objNames.containsKey(objName)) objNames.put(objName, "table"+(objNames.size()+1));
+						tmp.set(10, objType+" "+objNames.get(objName));
+					}
+				}
+				
+				// remove user-specific fields
+				if (tmp.size() >= 12) {
+					tmp.remove(11);	
+				}
+				tmp.remove(8);	
+				tmp.remove(7);	
+				tmp.remove(6);	
+
+				// wipe out appname
+				if (!appNames.containsKey(tmp.get(5).toLowerCase())) appNames.put(tmp.get(5).toLowerCase(), "app"+(appNames.size()+1));
+				tmp.set(5,appNames.get(tmp.get(5).toLowerCase()));
+				
+				tmp.remove(4);	
+				tmp.remove(3);	
+				tmp.remove(1);	
+				
+				// wipe out UDD name				
+				if (tmp.get(0).indexOf(" (UDD ") > -1) {
+					tmp.set(0, tmp.get(0).substring(0, tmp.get(0).indexOf(" (UDD "))+" (UDD)" + tmp.get(0).substring(tmp.get(0).lastIndexOf(")")+1));			
+				}	
+				
+				// wipe out DB name
+				if (tmp.get(0).startsWith("USE ")) {
+					String dbName = tmp.get(0).substring(4).toLowerCase();
+					if (!dbNames.containsKey(dbName)) dbNames.put(dbName, "db"+(dbNames.size()+1));
+					tmp.set(0, "USE " +dbNames.get(dbName));			
+				}	
+				if (tmp.get(0).contains(" DATABASE ")) {
+					String dbName = tmp.get(0).substring(tmp.get(0).indexOf(" DATABASE ")+" DATABASE ".length()).toLowerCase();
+					if (!dbNames.containsKey(dbName)) dbNames.put(dbName, "db"+(dbNames.size()+1));
+					tmp.set(0, tmp.get(0).substring(0, tmp.get(0).indexOf(" DATABASE ")+" DATABASE ".length())+dbNames.get(dbName));			
+				}	
+				
+				capLine = String.join(captureFileSeparator, tmp);
+
+				// add babelfish version & compass version
+				capLine = cfVersion + captureFileSeparator + thisProgVersion + captureFileSeparator + capLine;
+				anonItemsFileWriter.write(capLine+"\n");
+			}
+			capFile.close();
+		}
+		anonItemsFileWriter.close();
+		appOutput("Items for anonymized reporting: "+itemCount);
+		appOutput("All identifiers and customer-specific details have been removed from the captured items\nin "+anonItemPathName);
 	}	
 										
  	// ---- error handling in Lexer ----------------------------------------
