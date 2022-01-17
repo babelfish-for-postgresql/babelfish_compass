@@ -4564,6 +4564,8 @@ tooltipsHTMLPlaceholder +
 			else
 				objTypeIssueCount.put(type, objTypeIssueCount.getOrDefault(type, 0) + 1);
 		}
+		
+		// for debugging:		
 //		for (String t : objTypeIssueMap.keySet()) {
 //			Integer iX = objTypeIssueCount.getOrDefault(t,0);
 //			Integer i0 = objTypeNoIssueCount.getOrDefault(t,0);
