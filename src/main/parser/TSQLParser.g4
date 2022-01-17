@@ -1152,7 +1152,7 @@ alter_message_type
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-partition-function-transact-sql
 alter_partition_function
-    : ALTER PARTITION FUNCTION partition_function_name=id LR_BRACKET RR_BRACKET (SPLIT|MERGE) RANGE LR_BRACKET DECIMAL RR_BRACKET
+    : ALTER PARTITION FUNCTION partition_function_name=id LR_BRACKET RR_BRACKET (SPLIT|MERGE) RANGE LR_BRACKET expression RR_BRACKET
     ;
 
 create_partition_function
@@ -1980,7 +1980,7 @@ func_body_returns_table
     : RETURNS LOCAL_ID table_type_definition
         (WITH function_option (COMMA function_option)*)?
         AS?
-        BEGIN sql_clauses* RETURN SEMI? END
+        BEGIN sql_clauses* SEMI? END
     ;
 
 func_body_returns_table_clr
@@ -1995,7 +1995,7 @@ func_body_returns_scalar
     : RETURNS data_type
         (WITH function_option (COMMA function_option)*)?
         AS?
-        ( BEGIN atomic_func_body? sql_clauses* RETURN ret=expression SEMI? END | external_name )
+		( BEGIN atomic_func_body? sql_clauses* SEMI? END | external_name )
     ;
 
 atomic_func_body    
@@ -4126,7 +4126,8 @@ sign
     ;
 
 keyword
-    : ABORT_AFTER_WAIT
+    : ABORT
+    | ABORT_AFTER_WAIT
     | ABSENT
     | ABSOLUTE
     | ACCELERATED_DATABASE_RECOVERY

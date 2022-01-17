@@ -30,13 +30,13 @@ SPDX-License-Identifier: Apache-2.0
 lexer grammar TSQLLexer;
 
 @header {
-    package parser;
-    import compass.CompassUtilities;
+package parser;
+import compass.CompassUtilities;
 }
 
 @members {
-	private CompassUtilities u = CompassUtilities.getInstance();
-	public static boolean QUOTED_IDENTIFIER_FLAG = true;
+private CompassUtilities u = CompassUtilities.getInstance();
+public static boolean QUOTED_IDENTIFIER_FLAG = true;
 }
 
 //Keywords 
@@ -1066,6 +1066,8 @@ CHAR_X0C_FF:        '\u000c'      -> skip;   // form feed
 
 // https://en.wikipedia.org/wiki/Whitespace_character
 CHAR_ZWSP:          '\u200b'      -> skip;   // zero width space
+CHAR_NNNBSP:        '\u202f'      -> skip;   // narrow no-break space
+CHAR_IDGSP:         '\u3000'      -> skip;   // ideographic space
 
 // https://docs.microsoft.com/en-us/sql/t-sql/language-elements/slash-star-comment-transact-sql
 COMMENT:            '/*' (COMMENT | .)*? '*/' -> skip;
@@ -1137,7 +1139,7 @@ DOUBLE_FORWARD_SLASH: '//';
 fragment DEC_DOT_DEC:  (DEC_DIGIT+ '.' DEC_DIGIT+ |  DEC_DIGIT+ '.' | '.' DEC_DIGIT+);
 fragment HEX_DIGIT:    [0-9A-Fa-f];
 fragment DEC_DIGIT:    [0-9];
- 
+
 // case-insensitive letters 
 fragment A: ('A'|'a');
 fragment B: ('B'|'b');
@@ -1167,59 +1169,59 @@ fragment Y: ('Y'|'y');
 fragment Z: ('Z'|'z');
 
 fragment CURRENCY_SYMBOL
-	: '$'       // Dollar 
-    | '\u20AC'  // Euro
-    | '\u00A2'  // Cent  	
-    | '\u00A3'  // Pound 
-    | '\u00A4'  // Currency Sign
-    | '\u00A5'  // Yen / Yuan
-    | '\u09f2'  // Bengali Rupee Mark
-    | '\u09f3'  // Bengali Rupee Sign
-    | '\u20a8'  // Rupee    
-    | '\u0e3f'  // Thai Baht
-    | '\u17db'  // Khmer Riel
-    | '\u20a0'  // Euro Currency Sign
-    | '\u20a1'  // Colon
-    | '\u20a2'  // Cruzeiro
-    | '\u20a3'  // French Franc
-    | '\u20a4'  // Lira
-    | '\u20a5'  // Mill
-    | '\u20a6'  // Naira
-    | '\u20a7'  // Peseta
-    | '\u20a9'  // Won
-    | '\u20aa'  // New Sheqel
-    | '\u20ab'  // Dong
-    | '\u20ad'  // Kip
-    | '\u20ae'  // Tugrik
-    | '\u20af'  // Drachma
-    | '\u20b0'  // German Penny
-    | '\u20b1'  // Peso
-    | '\ufdfc'  // Rial
-    | '\ufe69'  // Small Dollar 
-    | '\uff04'  // Fullwidth Dollar 
-    | '\uffe0'  // Fullwidth Cent 
-    | '\uffe1'  // Fullwidth Pound 
-    | '\uffe5'  // Fullwidth Yen 
-    | '\uffe6'  // Fullwidth Won     
-    ;
-    
+: '$'       // Dollar 
+| '\u20AC'  // Euro
+| '\u00A2'  // Cent  	
+| '\u00A3'  // Pound 
+| '\u00A4'  // Currency Sign
+| '\u00A5'  // Yen / Yuan
+| '\u09f2'  // Bengali Rupee Mark
+| '\u09f3'  // Bengali Rupee Sign
+| '\u20a8'  // Rupee    
+| '\u0e3f'  // Thai Baht
+| '\u17db'  // Khmer Riel
+| '\u20a0'  // Euro Currency Sign
+| '\u20a1'  // Colon
+| '\u20a2'  // Cruzeiro
+| '\u20a3'  // French Franc
+| '\u20a4'  // Lira
+| '\u20a5'  // Mill
+| '\u20a6'  // Naira
+| '\u20a7'  // Peseta
+| '\u20a9'  // Won
+| '\u20aa'  // New Sheqel
+| '\u20ab'  // Dong
+| '\u20ad'  // Kip
+| '\u20ae'  // Tugrik
+| '\u20af'  // Drachma
+| '\u20b0'  // German Penny
+| '\u20b1'  // Peso
+| '\ufdfc'  // Rial
+| '\ufe69'  // Small Dollar 
+| '\uff04'  // Fullwidth Dollar 
+| '\uffe0'  // Fullwidth Cent 
+| '\uffe1'  // Fullwidth Pound 
+| '\uffe5'  // Fullwidth Yen 
+| '\uffe6'  // Fullwidth Won     
+;
+
 // use standard alphabet + extended Latin + Greek only; add more later if desired.        
 fragment LETTER
-	: '\u0041'..'\u005a'  // A-Z
-	| '\u0061'..'\u007a'  // a-z
-	| '\u00c0'..'\u00d6'  // Latin-1 Supplement
-	| '\u00d8'..'\u00f6'  
-	| '\u00f8'..'\u00ff'  
-	| '\u0100'..'\u017f'  // Latin Extended-A
-	| '\u0180'..'\u024f'  // Latin Extended-B
-	| '\u0250'..'\u02ad'  // IPA extensions 
-	| '\u0386'            // Greek
-	| '\u0388'..'\u038a'
-	| '\u038c'
-	| '\u038e'..'\u03a1'
-	| '\u03a3'..'\u03ce'
-	| '\u03d0'..'\u03d7'
-	| '\u03da'..'\u03f3'
+: '\u0041'..'\u005a'  // A-Z
+| '\u0061'..'\u007a'  // a-z
+| '\u00c0'..'\u00d6'  // Latin-1 Supplement
+| '\u00d8'..'\u00f6'  
+| '\u00f8'..'\u00ff'  
+| '\u0100'..'\u017f'  // Latin Extended-A
+| '\u0180'..'\u024f'  // Latin Extended-B
+| '\u0250'..'\u02ad'  // IPA extensions 
+| '\u0386'            // Greek
+| '\u0388'..'\u038a'
+| '\u038c'
+| '\u038e'..'\u03a1'
+| '\u03a3'..'\u03ce'
+| '\u03d0'..'\u03d7'
+| '\u03da'..'\u03f3'
 //	| '\u0400'..'\u0481'  // Cyrillic
 //	| '\u048c'..'\u04c4' 
 //	| '\u04c7'..'\u04c8'
@@ -1306,10 +1308,10 @@ fragment LETTER
 //	| '\uffca'..'\uffcf'
 //	| '\uffd2'..'\uffd7'
 //	| '\uffda'..'\uffdc'
-	// | '\u10000'..'\u1F9FF'  //not supporting 4-byte chars
-	// | '\u20000'..'\u2FA1F' 
- ;
-        
+// | '\u10000'..'\u1F9FF'  //not supporting 4-byte chars
+// | '\u20000'..'\u2FA1F' 
+;
+
 
 UNMATCHED_CHARACTER: .+?    { u.setErrorMsg(getLine(), getCharPositionInLine(), getText()); }
-    ;
+;

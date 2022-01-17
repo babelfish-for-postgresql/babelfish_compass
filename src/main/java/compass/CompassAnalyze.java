@@ -523,7 +523,7 @@ public class CompassAnalyze {
 	// lookup an object's type (only table or view)
 	private String lookupObjType(String name) {
 		String objType = "";
-		String resolvedName = u.resolveName(name.toUpperCase());
+		String resolvedName = u.decodeIdentifier(u.resolveName(name.toUpperCase()));
 		if (CompassUtilities.objTypeSymTab.containsKey(resolvedName)) {
 			objType = CompassUtilities.objTypeSymTab.get(resolvedName);
 		}
@@ -539,7 +539,7 @@ public class CompassAnalyze {
 	// lookup an SUDF
 	private String lookupSUDF(String name) {
 		String resultType = "";
-		String resolvedName = u.resolveName(name.toUpperCase());
+		String resolvedName = u.decodeIdentifier(u.resolveName(name.toUpperCase()));
 		if (CompassUtilities.SUDFSymTab.containsKey(resolvedName)) {
 			resultType = CompassUtilities.SUDFSymTab.get(resolvedName);
 		}
@@ -555,7 +555,7 @@ public class CompassAnalyze {
 	// lookup a TUDF
 	private String lookupTUDF(String name) {
 		String resultType = "";
-		String resolvedName = u.resolveName(name.toUpperCase());
+		String resolvedName = u.decodeIdentifier(u.resolveName(name.toUpperCase()));
 		if (CompassUtilities.TUDFSymTab.containsKey(resolvedName)) {
 			resultType = CompassUtilities.TUDFSymTab.get(resolvedName);
 		}
@@ -571,7 +571,7 @@ public class CompassAnalyze {
 	// lookup a UDD
 	private String lookupUDD(String name) {
 		String resultType = "";
-		String resolvedName = u.resolveName(name.toUpperCase());
+		String resolvedName = u.decodeIdentifier(u.resolveName(name.toUpperCase()));
 		if (CompassUtilities.UDDSymTab.containsKey(resolvedName)) {
 			resultType = CompassUtilities.UDDSymTab.get(resolvedName);
 		}
@@ -588,7 +588,7 @@ public class CompassAnalyze {
 	private String lookupCol(String name) {
 		String resultType = "";
 		//String resolvedName = u.resolveName(name.toUpperCase());
-		String resolvedName = name.toUpperCase();
+		String resolvedName = u.decodeIdentifier(name.toUpperCase());
 		if (CompassUtilities.colSymTab.containsKey(resolvedName)) {
 			resultType = CompassUtilities.colSymTab.get(resolvedName);
 		}
@@ -3349,6 +3349,9 @@ public class CompassAnalyze {
 				String trigName = u.normalizeName(ctx.simple_name().getText());
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"proc "+ ctx.getText()+", trigName=["+trigName+"] ", u.debugPtree);
 
+				// set context
+				u.setContext("TRIGGER", trigName);
+
 				String kwd = "CREATE";
 				String status = u.Supported;
 				if (ctx.ALTER() != null) {
@@ -3420,9 +3423,6 @@ public class CompassAnalyze {
 					}
 				}
 
-				// set context
-				u.setContext("TRIGGER", trigName);
-
 				String trigSchema = u.getSchemaNameFromID(trigName);
 				if (!trigSchema.isEmpty()) {
 					String statusSchema = featureSupportedInVersion(TriggerSchemaName);
@@ -3469,6 +3469,9 @@ public class CompassAnalyze {
 				String trigName = u.normalizeName(ctx.simple_name().getText());
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"proc "+ ctx.getText()+", trigName=["+trigName+"] ", u.debugPtree);
 
+				// set context
+				u.setContext("TRIGGER", trigName);
+				
 				String kwd = "CREATE";
 				String status = u.Supported;
 				if (ctx.ALTER() != null) {
@@ -3485,9 +3488,6 @@ public class CompassAnalyze {
 					// capturing each action separately
 					captureItem(kwd + " TRIGGER (DDL, "+trigAction+")", trigName, DDLTrigger, trigAction, status, ctx.start.getLine(),  batchLines.toString());
 				}
-
-				// set context
-				u.setContext("TRIGGER", trigName);
 
 				// options
 				List<TSQLParser.Trigger_optionContext> options = ctx.trigger_option();
@@ -3549,14 +3549,16 @@ public class CompassAnalyze {
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"UDF "+ ctx.getText()+", funcName=["+funcName+"] sudfDataType=["+sudfDataType+"] ", u.debugPtree);
 					captureItem(sudfDataType + sudfDataTypeOrig + " scalar function result type", "", Datatypes, getBaseDataType(sudfDataType), statusDataType, ctx.start.getLine());
 
-					if (ctx.func_body_returns_scalar().RETURN() != null) {
-						captureItem("RETURN"+" scalar, in function", "", ControlFlowReportGroup, "RETURN", u.Supported, ctx.func_body_returns_scalar().RETURN().getSymbol().getLine());
-					}
+//					if (ctx.func_body_returns_scalar().RETURN() != null) {
+						// this is captured as a RETURN statement now
+//						captureItem("RETURN"+" scalar, in function", "", ControlFlowReportGroup, "RETURN", u.Supported, ctx.func_body_returns_scalar().RETURN().getSymbol().getLine());
+//					}
 				}
 				else if (ctx.func_body_returns_table() != null) {
 					udfType = "table";
 					options = ctx.func_body_returns_table().function_option();
-					captureItem("RETURN"+" result set, in function", "", ControlFlowReportGroup, "RETURN", u.Supported, ctx.func_body_returns_table().RETURN().getSymbol().getLine());
+					// this is captured as a RETURN statement now
+//					captureItem("RETURN"+" result set, in function", "", ControlFlowReportGroup, "RETURN", u.Supported, ctx.func_body_returns_table().RETURN().getSymbol().getLine());
 				}
 				else if (ctx.func_body_returns_select() != null) {
 					udfType = "inline table";
@@ -3630,6 +3632,9 @@ public class CompassAnalyze {
 				String procName = u.normalizeName(ctx.func_proc_name_schema().getText());
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"proc "+ ctx.getText()+", procName=["+procName+"] ", u.debugPtree);
 
+				// set context
+				u.setContext("PROCEDURE", procName);
+				
 				String procType = "";
 				if (ctx.atomic_proc_body() != null) {
 					procType = "atomic natively compiled";
@@ -3677,8 +3682,6 @@ public class CompassAnalyze {
 					captured = true;
 				}
 
-				// set context
-				u.setContext("PROCEDURE", procName);
 				captureParameters("procedure", ctx.procedure_param());
 
 				// options
@@ -3822,7 +3825,7 @@ public class CompassAnalyze {
 					if (ctx.CREATE() != null) kwd = "CREATE OR ALTER";
 					status = featureSupportedInVersion("ALTER VIEW");  // ALTER and CREATE OR ALTER go together
 				}
-				captureItem(kwd + " VIEW", "", ViewsReportGroup, "", status, ctx.start.getLine(),  batchLines.toString());
+				captureItem(kwd + " VIEW", viewName, ViewsReportGroup, "", status, ctx.start.getLine(),  batchLines.toString());
 
 				// set context
 				u.setContext("VIEW", viewName);
@@ -4380,7 +4383,9 @@ public class CompassAnalyze {
 						if (name.equalsIgnoreCase("INSERTED") || name.equalsIgnoreCase("DELETED")) {
 							if (u.currentObjectAttributes.contains(" " + TrigMultiDMLAttr + " ")) {
 								String status = featureSupportedInVersion(TransitionTableMultiDMLTrig);
-								captureItem(TransitionTableMultiDMLTrig, u.currentObjectName, TransitionTableMultiDMLTrig, name.toUpperCase(), status, ctx.start.getLine());
+								if (!status.equals(u.Supported)) {
+									captureItem(TransitionTableMultiDMLTrig, u.currentObjectName, TransitionTableMultiDMLTrig, name.toUpperCase(), status, ctx.start.getLine());
+								}
 							}
 						}
 					}
@@ -6372,10 +6377,9 @@ public class CompassAnalyze {
 					if (ctx.expression() != null) context = " integer, in procedure";
 					else context = ", in procedure";
 				}
-				else if (u.currentObjectType.equals("FUNCTION")) {
-					context = ", in function";
-					if (!lookupSUDF(u.currentObjectName.toUpperCase()).isEmpty()) context = " scalar, in function";
-					else if (!lookupTUDF(u.currentObjectName.toUpperCase()).isEmpty()) context = " result set, in function";
+				else if (u.currentObjectType.equals("FUNCTION")) {				
+					if (hasParent(ctx.parent,"func_body_returns_scalar")) context = " scalar, in function";
+					else context = " result set, in function";
 				}
 				else if (u.currentObjectType.equals("TRIGGER")) {
 					context = ", in trigger";
