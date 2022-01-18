@@ -472,7 +472,7 @@ tooltipsHTMLPlaceholder +
 		"Column attribute FILESTREAM"+tttSeparator+"The FILESTREAM attribute is not currently supported and will be ignored",
 		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported and will be ignored",
 		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported and will be ignored",
-		"ALTER TABLE..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements",
+		"ALTER TABLE..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements (the -rewrite option handles this for you)",
 		"ALTER TABLE..CHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
 		"ALTER TABLE..NOCHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
 		"DBCC "+tttSeparator+"DBCC statements are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
@@ -910,7 +910,6 @@ tooltipsHTMLPlaceholder +
 	public static List<String>        rewriteTextListKeys = new ArrayList<>();	
 	public static Map<String,String>  rewriteTextList     = new HashMap<>();	
 	public static Map<String,String>  rewriteTextListOrigText = new HashMap<>();	
-	//public static Map<String,String>  rewriteIDList = new HashMap<>();	
 	public static Map<Integer, Map<String, List<Integer>>> rewriteIDDetails = new HashMap<>();
 	public static Map<String,Integer> rewrittenOppties = new HashMap<>();	
 	public static String rewriteNotes = uninitialized;	
@@ -2187,6 +2186,27 @@ tooltipsHTMLPlaceholder +
 		return captureFiles;
  	}
 
+	// handle backward compatibility for the html subdir
+	// we do a copy instead of a move to make sure any existing reports with hyperlinks keep working
+    public void moveImportedHTMLFiles(String reportName) throws IOException {
+    	checkDir(getReportDirPathname(reportName, importDirName, importHTMLDirName), false);
+		String dirPath = getReportDirPathname(reportName, importDirName);
+		File importDir = new File(dirPath);
+		if (importDir.exists()) {
+			List<Path> htmlFiles = getFilesPattern(dirPath, "^.+"+importFileTag+".+\\." + HTMLSuffix);			
+			for (Path p : htmlFiles) {
+				//Path fullPath = Paths.get(p).toAbsolutePath();
+				String pFull = p.toAbsolutePath().toString();
+				File fSrc  = new File(pFull);
+				String f = Paths.get(pFull).getFileName().toString();
+				String pDir = pFull.substring(0,pFull.length()-f.length());
+				String pNew = pDir + importHTMLDirName + File.separator + f;
+				File fDest = new File(pNew);
+				Files.copy(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);			 	
+			}
+		}
+ 	}
+
 	// validate all capture files for this report
 	// if valid, returns an empty string
 	// if invalid, return message why it's invalid
@@ -2260,7 +2280,7 @@ tooltipsHTMLPlaceholder +
 			if (type.equals("report")) result = "\nCannot generate report based on these analysis files with incompatible attributes.\n" + result;
 			else result = "\nCannot import analysis files with incompatible attributes.\n" + result;
 			result += errInfo;
-			result += "\nRe-run analysis for all imported files with -analyze.";
+			result += "\nRe-run analysis for all imported files with -analyze, or specify\nthe corresponding "+babelfishProg+" version with -babelfish-version.";
 		}
 		else {
 			if (type.equals("tgtversion")) {
@@ -4207,6 +4227,12 @@ tooltipsHTMLPlaceholder +
 		if (debugging) dbgOutput(thisProc()+"reportOptionApps=["+reportOptionApps+"] ", debugReport);
 		if (debugging) dbgOutput(thisProc()+"reportOptionFilter=["+reportOptionFilter+"] ", debugReport);
 
+		// upgrade check for Compass 1.0/1.1 reports
+		if (!reportOptionXref.isEmpty()) {
+			// move any HTML files
+			moveImportedHTMLFiles(reportName);
+		}
+		
 		Date now = new Date();
 		String now_report = new SimpleDateFormat("yyyy-MMM-dd HH:mm:ss").format(now);
 		reportFileTextPathName = getreportFilePathName(reportName, now);
@@ -4565,7 +4591,7 @@ tooltipsHTMLPlaceholder +
 				objTypeIssueCount.put(type, objTypeIssueCount.getOrDefault(type, 0) + 1);
 		}
 		
-		// for debugging:		
+		// for debugging:
 //		for (String t : objTypeIssueMap.keySet()) {
 //			Integer iX = objTypeIssueCount.getOrDefault(t,0);
 //			Integer i0 = objTypeNoIssueCount.getOrDefault(t,0);
@@ -5277,7 +5303,6 @@ tooltipsHTMLPlaceholder +
 		rewriteTextListKeys.clear();
 		rewriteTextList.clear();
 		rewriteTextListOrigText.clear();
-		//rewriteIDList.clear();
 		rewriteIDDetails.clear();
 		offsetCols.clear();
 		offsetLines.clear();
@@ -5875,6 +5900,77 @@ tooltipsHTMLPlaceholder +
 			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\{)", "");
 			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\})$", ")");
 		}
+		else if (rewriteType.equals(rewriteTypeBlockReplace) && report.equals(CompassAnalyze.AlterTableAddMultiple)) {
+			// ToDo: combine with MERGE below as parts are identical
+			
+			// for ALTER TABLE..ADD, pick up the various parts 
+			Integer rwrID = Integer.valueOf(rewriteText);
+			
+			assert (rewriteIDDetails.containsKey(rwrID)) : thisProc()+"rwrID not found: "+rwrID;			
+			Map<String, List<Integer>> positions = new HashMap<>();
+			positions = rewriteIDDetails.get(rwrID);
+			
+			int startCtx = positions.get("start").get(0);
+			int endStmt = positions.get("start").get(1);
+			String startStmt = origStrFull.substring(0, endStmt-startCtx);
+						
+			int indent = positions.get("indent").get(0);
+			Map<String, String> tmpRwr = new HashMap<>();		
+			
+			int cnt = 0;
+			for (String p : positions.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
+				if (p.equals("start")) continue;	
+				if (p.equals("indent")) continue;	
+				int startPos = positions.get(p).get(0);
+				int endPos = positions.get(p).get(1);
+				//if (debugging) dbgOutput(thisProc()+"     p=["+p+"] startPos=["+startPos+"]  endPos=["+endPos+"] ", debugRewrite);
+				startPos -= startCtx;
+				endPos -= startCtx;
+				endPos++;
+				String s = origStrFull.substring(startPos, endPos);				
+				// strip comments
+				if (s.contains("/*")) {
+					s = applyPatternAll(s, "\\/\\*.*?\\*\\/", " ","multiline");  // this won't handle nested comments, but let's ignore that
+				}
+				if (s.contains("--")) {
+					s = applyPatternAll(s, "\\-\\-.*?\n", "\n","multiline");  // betting that '--' won't occur in a string
+				}					
+				if (debugging) dbgOutput(thisProc()+"     p=["+p+"] startPos=["+startPos+"]  endPos=["+endPos+"]  s=["+s+"] ", debugRewrite);	
+				tmpRwr.put(p, s);						
+				cnt++;
+			}
+			
+			String blankLine = "\n"+rewriteBlankLine+"\n";						
+			String rwrSteps = "\n"+rwrTag+"\n/* --- start rewritten ALTER TABLE..ADD statement --- */\n";
+						
+			boolean addBlank = false;
+			for (String p : tmpRwr.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
+				String s = tmpRwr.get(p);
+				if (debugging) dbgOutput(thisProc()+"    p=["+p+"]  s=["+s+"] ", debugRewrite);		
+				if (addBlank) rwrSteps += blankLine;
+				addBlank = true;															
+				rwrSteps += startStmt + "\n";																
+				rwrSteps += s + "\n";						
+			}
+
+			rwrSteps += "/* --- end rewritten ALTER TABLE..ADD statement --- */\n";
+			rwrSteps = rewriteStmtPatchup(rwrSteps, origStrFull, indent);	
+			rewriteText = rwrSteps;
+			
+			// comment out original block and append new block
+			// NB: first line should not get shorter so start comment on first line
+			String origStrCopy = applyPatternAll(origStrFull, "\\/\\*.*?\\*\\/", " "); 
+			origStrCopy = applyPatternAll(origStrCopy, "\\s+", " "); 		
+			newStr = "/* original ALTER TABLE statement -- " + origStrFull + " -- end original ALTER TABLE statement */\n" + rewriteText + "\n";
+			
+			// let last line past end of original text continue at original offset
+			String lastLineTmp = origStrFull.substring(origStrFull.lastIndexOf("\n")+1);
+			String lastLine = stringRepeat(" ", lastLineTmp.length());
+			newStr += lastLine;			
+			
+			newStrNoComment = "ALTER TABLE..ADD, "+ cnt + " times";
+			
+		}
 		else if (rewriteType.equals(rewriteTypeBlockReplace) && report.equals(CompassAnalyze.MergeStmt)) {
 			// for MERGE, pick up the various parts 
 			Integer rwrID = Integer.valueOf(rewriteText);
@@ -5925,8 +6021,7 @@ tooltipsHTMLPlaceholder +
 					if (!cond.isEmpty()) {
 						tmpMerge.put("when matched cond", cond);  
 					}  						
-				}
-										
+				}										
 			}
 			
 			nrMergeRewrites++;
@@ -5948,8 +6043,6 @@ tooltipsHTMLPlaceholder +
 			mergeSteps += "DECLARE "+rcTmpVar+" INT /* temporary variable */\n";
 			String blankLine = "\n"+rewriteBlankLine+"\n";
 			for (String p : tmpMerge.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
-				if (p.equals("start")) continue;
-				if (p.equals("when_matches")) continue;
 				String s = tmpMerge.get(p);
 				if (debugging) dbgOutput(thisProc()+"    p=["+p+"]  s=["+s+"] ", debugRewrite);				
 				
@@ -6072,7 +6165,7 @@ tooltipsHTMLPlaceholder +
 			mergeSteps += "\n"+rollbkLbl+": ROLLBACK TRANSACTION "+savePt+"\n";	
 			mergeSteps += "\n"+commitLbl+":   COMMIT\n";			
 			mergeSteps += ";/* --- end rewritten MERGE statement #"+nrMergeRewrites+" --- */\n";
-			mergeSteps = rewriteMergeStmtPatchup(mergeSteps, origStrFull);	
+			mergeSteps = rewriteStmtPatchup(mergeSteps, origStrFull, "USING");	
 			rewriteText = mergeSteps;
 			
 			// comment out original block and append new block
@@ -6109,9 +6202,21 @@ tooltipsHTMLPlaceholder +
 		return s;
 	}	
 	
-	public String rewriteMergeStmtPatchup(String s, String origStmt) {
-		String leading = getPatternGroup("\n"+origStmt, "\n([^\n]*?)USING\\b", 1, "multiline");
-		leading = applyPatternAll(leading, "\\S", " ");
+	public String rewriteStmtPatchup(String s, String origStmt, String kwd) {
+		return rewriteStmtPatchup(s, origStmt, kwd, 0);
+	}
+	public String rewriteStmtPatchup(String s, String origStmt, int indent) {
+		return rewriteStmtPatchup(s, origStmt, "", indent);
+	}
+	public String rewriteStmtPatchup(String s, String origStmt, String kwd, int indent) {
+		String leading = "";
+		if (indent == 0) {
+			leading = getPatternGroup("\n"+origStmt, "\n([^\n]*?)"+kwd+"\\b", 1, "multiline");
+			leading = applyPatternAll(leading, "\\S", " ");
+		}
+		else {
+			leading = stringRepeat(" ", indent);
+		}
 		s = applyPatternAll(s, "\\n[ ]*\\n", "\n");
 		s = applyPatternAll(s, "\\n[\\t ]*\\n", "\n");
 		s = applyPatternAll(s, "\\n[\\t ]+", "\n");

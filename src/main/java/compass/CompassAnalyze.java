@@ -194,6 +194,7 @@ public class CompassAnalyze {
 	static final String AtAtErrorValueRef     = "@@ERROR value";
 	static final String AlterIndex            = "ALTER INDEX";
 	static final String AlterTable            = "ALTER TABLE";
+	static final String AlterTableAddMultiple = "ADD multiple columns/constraints";
 	static final String TimestampColumnSolo   = "TIMESTAMP column without column name";
 	static final String NumericColNonNumDft  = "NUMERIC/DECIMAL column with non-numeric default";
 	static final String DMLTableSrc          = "DML Table Source";
@@ -3211,7 +3212,7 @@ public class CompassAnalyze {
 				if (ctx.DISABLE() != null) EnDisAble = "DISABLE";
 
 				String CheckNoCheck = "CHECK";
-				if (ctx.NOCHECK().size() > 0) EnDisAble = "NOCHECK";
+				if (ctx.NOCHECK().size() > 0) CheckNoCheck = "NOCHECK";
 
 				// ptns
 				if (ctx.SWITCH() != null) {
@@ -3267,10 +3268,23 @@ public class CompassAnalyze {
 					status = featureSupportedInVersion(AlterTable, subcmd);
 				}
 				else if (ctx.column_def_table_constraints() != null) {
-					int nrAdd = ctx.column_def_table_constraints().column_def_table_constraint().size();
-					if (nrAdd > 1) {
-						subcmd = "ADD multiple columns/constraints";
-						status = featureSupportedInVersion(AlterTable, subcmd);
+					int nrAdd = ctx.column_def_table_constraints().column_def_table_constraint().size(); 
+					if (nrAdd > 1) {	
+						subcmd = AlterTableAddMultiple;
+						status = featureSupportedInVersion(AlterTable, subcmd);					
+						if (!status.equals(u.Supported)) {
+							if (u.rewrite) {
+								String rewriteText = "";
+								Integer rwrID = rewriteAlterTableAddMultiple(ctx);
+								
+								addRewrite(AlterTableAddMultiple, ctx.getText(), u.rewriteTypeBlockReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.stop.getLine(), ctx.stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.stop.getStopIndex(), rwrID);
+								status = u.Rewritten;
+							}
+							else {
+								addRewrite(AlterTable+".."+AlterTableAddMultiple);
+							}
+						}
+											
 					}
 					else {
 						// report adding of single column
@@ -3342,6 +3356,34 @@ public class CompassAnalyze {
 
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
+			}
+
+			public Integer rewriteAlterTableAddMultiple(TSQLParser.Alter_tableContext ctx) {
+				Map<String, List<Integer>> positions = new HashMap<>();
+				int rwrID = u.rewriteTextListKeys.size() + 1;				
+				
+				boolean startFound = false;
+				for (TSQLParser.Column_def_table_constraintContext c : ctx.column_def_table_constraints().column_def_table_constraint()) {
+					int ixStart = c.start.getStartIndex();
+					int ixStop  = c.stop.getStopIndex();
+						
+					if (!startFound) {
+						// determine positions of each clause of the ALTER TABLE statement
+						positions.put("start", Arrays.asList(ctx.start.getStartIndex(), ixStart));			
+						positions.put("indent", Arrays.asList(ctx.start.getCharPositionInLine(), -1));			
+						startFound = true;
+					}		
+					
+					positions.put("part"+String.format("%05d", positions.size()+1), Arrays.asList(ixStart,ixStop));
+				}								
+				
+				for (String p : positions.keySet()) {
+					int startPos = positions.get(p).get(0);
+					int endPos = positions.get(p).get(1);					
+				}
+				
+				u.rewriteIDDetails.put(rwrID, positions);
+				return rwrID;
 			}
 
 			@Override public String visitCreate_or_alter_dml_trigger(TSQLParser.Create_or_alter_dml_triggerContext ctx) {
@@ -6059,19 +6101,16 @@ public class CompassAnalyze {
 
 				String tableName = "";
 				if (ctx.ddl_object() != null) {
-//					tableName = ctx.ddl_object().getText();
 					positions.put("ddl_object", Arrays.asList(ctx.ddl_object().start.getStartIndex(),ctx.ddl_object().stop.getStopIndex()));
 				}
 				
 				String tableAlias = "";
 				if (ctx.as_table_alias() != null) {
-//					tableAlias = ctx.as_table_alias().table_alias().getText();
 					positions.put("table_alias", Arrays.asList(ctx.as_table_alias().table_alias().start.getStartIndex(),ctx.as_table_alias().table_alias().stop.getStopIndex()));	
 				}
 				
 				String topClause = "";
 				if (ctx.TOP() != null) {
-//					topClause = "TOP("+ctx.expression().getText()+")";
 					int endIx = ctx.final_char.getStopIndex();
 					if (ctx.PERCENT() != null) endIx = ctx.PERCENT().getSymbol().getStopIndex();
 					positions.put("top", Arrays.asList(ctx.TOP().getSymbol().getStartIndex(),endIx));	
@@ -6079,7 +6118,6 @@ public class CompassAnalyze {
 				
 				String withExpr = "";
 				if (ctx.with_expression() != null) {					
-//					withExpr = ctx.with_expression().getText(); 
 					positions.put("with_expression", Arrays.asList(ctx.with_expression().start.getStartIndex(),ctx.with_expression().stop.getStopIndex()));
 				}
 				
@@ -6101,33 +6139,13 @@ public class CompassAnalyze {
 								
 				String outputClauseText = "";
 				if (ctx.output_clause() != null) {					
-//					outputClauseText = ctx.output_clause().getText();
 					positions.put("output_clause", Arrays.asList(ctx.output_clause().start.getStartIndex(),ctx.output_clause().stop.getStopIndex()));
 				}
 				
 				String optionClause = "";
 				if (ctx.option_clause() != null) {			
-//					optionClause = ctx.option_clause().getText();
 					positions.put("option_clause", Arrays.asList(ctx.option_clause().start.getStartIndex(), ctx.option_clause().stop.getStopIndex()));
 				}
-								
-//				u.appOutput(u.thisProc()+"==============================================");
-//				u.appOutput(u.thisProc()+"rwrID=["+rwrID+"] ");				
-//				u.appOutput(u.thisProc()+"withExpr=["+withExpr+"] ");
-//				u.appOutput(u.thisProc()+"tableName=["+tableName+"] tableAlias=["+tableAlias+"]  ");
-//				u.appOutput(u.thisProc()+"topClause=["+topClause+"]   ");
-//				u.appOutput(u.thisProc()+"topClause=["+topClause+"]   ");
-//				u.appOutput(u.thisProc()+"srcTab=["+srcTab+"] ");
-//				u.appOutput(u.thisProc()+"searchCond=["+searchCond+"] ");
-//				u.appOutput(u.thisProc()+"outputClauseText=["+outputClauseText+"] ");
-//				u.appOutput(u.thisProc()+"optionClause=["+optionClause+"] ");
-//				u.appOutput(u.thisProc()+"matches=["+matches.size()+"] ");
-//				for (TSQLParser.When_matchesContext m : matches) {			
-//					u.appOutput(u.thisProc()+"   match=["+s+"] ");
-//				}
-//				u.appOutput(u.thisProc()+"==============================================");
-//								
-//				u.appOutput(u.thisProc()+"saving: positions.size()=["+positions.size()+"] ");
 
 				u.rewriteIDDetails.put(rwrID, positions);
 
