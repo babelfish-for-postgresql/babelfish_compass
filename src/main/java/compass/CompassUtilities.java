@@ -443,7 +443,9 @@ tooltipsHTMLPlaceholder +
 		"EXECUTE procedure sp_oacreate"+tttSeparator+"This OLE system stored procedure is not currently supported",
 		"EXECUTE procedure sp_oadestroy"+tttSeparator+"This OLE system stored procedure is not currently supported",
 		"EXECUTE procedure sp_oamethod"+tttSeparator+"This OLE system stored procedure is not currently supported",
+		"EXECUTE procedure sp_oageterrorinfo"+tttSeparator+"This OLE system stored procedure is not currently supported",
 		"EXECUTE procedure sp_recompile"+tttSeparator+"The recompile feature is not currently supported",
+		"EXECUTE procedure sp_dbcmptlevel"+tttSeparator+"The SQL Server compatibility level is not currently supported",
 		"EXECUTE procedure, name in variable"+tttSeparator+"Executing a stored procedure whose name is in a variable (i.e. EXECUTE @p) is not currently supported. Rewrite with dynamic SQL (i.e. EXECUTE(...) or sp_executesql)",
 		"CREATE SYNONYM"+tttSeparator+"Synonyms are not currently supported; try to rewrite with views (for tables) or procedures/functions (for procedures/functions)",
 		"BACKUP"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
@@ -589,7 +591,8 @@ tooltipsHTMLPlaceholder +
 		
 		"Partitioning, CREATE "+tttSeparator+"Table/index partitioning is not currently supported.",
 		"$PARTITION.function"+tttSeparator+"Table/index partitioning is not currently supported.",
-		"CREATE PARTITION"+tttSeparator+"Table/index partitioning is not currently supported.",
+		"ALTER TABLE..SWITCH"+tttSeparator+"Table/index partitioning is not currently supported.",
+		"\\w+ PARTITION"+tttSeparator+"Table/index partitioning is not currently supported.",
 		
 		"CREATE DEFAULT"+tttSeparator+"DEFAULT objects are not currently supported; use column defaults instead",
 		"CREATE RULE"+tttSeparator+"RULE objects are not currently supported; use CHECK constraints instead",
@@ -2890,6 +2893,7 @@ tooltipsHTMLPlaceholder +
 
 	// strip delimiters if possible
 	public String stripDelimitedIdentifier(String ID) {
+		ID = decodeIdentifier(ID);
 		if (ID.contains("\"")) {
 			ID = applyPatternAll(ID, "(^|\\.)\"(.+?)\"", "$1\\[$2\\]");
 		}
@@ -3733,7 +3737,7 @@ tooltipsHTMLPlaceholder +
 	}
 
 	public void reportXrefByObject(String status, List<String> sortedList) throws IOException {
-		StringBuilder lines = new StringBuilder(doXrefMsg(status, "object"));
+		StringBuilder lines = new StringBuilder(doXrefMsg(status, "object")+"\n");
 		Integer skippedFilter = 0;
 		Integer countFilter = 0;
 
@@ -3795,7 +3799,7 @@ tooltipsHTMLPlaceholder +
 				itemGroupSort = new StringBuilder(createSortKey(item.toString(), group.toString()));
 
 				//if (debugging) dbgOutput(thisProc()+"contextSort=["+contextSort+"] ", debugReport);
-				//if (debugging) dbgOutput(thisProc()+"itemGroupSort=["+itemGroupSort+"] ", debugReport);
+				//if (debugging) dbgOutput(thisProc()+"item=["+item+"] itemGroupSort=["+itemGroupSort+"] ", debugReport);
 
 				if (!s.startsWith(lastItem)) {
 					if (!reportOptionFilter.isEmpty()) {
@@ -4236,8 +4240,10 @@ tooltipsHTMLPlaceholder +
 		Map<String, Integer> objTypeCount = new HashMap<>();
 		Map<String, Integer> objTypeLineCount = new HashMap<>();
 		Map<String, String>  objTypeMap = new HashMap<>();
+		Map<String, String>  objTypeMapCase = new HashMap<>();
 		Map<String, Integer> objIssueCount = new HashMap<>();
 		int linesSQLInObjects = 0;
+		boolean showObjectIssuesList = false;
 		Map<String, Long> statusCount = new HashMap<>();
 		Map<String, Integer> itemCount = new HashMap<>();
 		Map<String, Integer> appItemListRaw = new HashMap<>();
@@ -4250,11 +4256,14 @@ tooltipsHTMLPlaceholder +
 
 		// init map
 		addSrcFileNameMap(lastItem, lastItem);
+		
+		// check flag
+		if (!reportOptionXref.isEmpty()) showObjectIssuesList = true;
 
 		// sanity check
 		assert supportOptions.size() == supportOptionsCfgFile.size() : "supportOptions.size() [" + supportOptions.size() + "] must be equal to supportOptionsCfgFile.size() " + supportOptionsCfgFile.size() + "]";
 		assert supportOptions.size() == supportOptionsDisplay.size() : "supportOptions.size() [" + supportOptions.size() + "] must be equal to supportOptionsDisplay.size() " + supportOptionsDisplay.size() + "]";
-
+		
 		// set up arrays for processing groups of statuses
 		String fmtBatches = "batches";
 		String fmtLinesSQL = "linesSQL";
@@ -4427,6 +4436,9 @@ tooltipsHTMLPlaceholder +
 							if (item.startsWith("CREATE ")) {
 								if (objType.startsWith("PROCEDURE") || objType.startsWith("FUNCTION") || objType.startsWith("TRIGGER") || objType.startsWith("TABLE") || objType.startsWith("VIEW")) {
 									if (!objType.startsWith("TABLE ")) {
+										if (!objTypeMap.containsKey(itemDetail.toUpperCase())) {
+											if (showObjectIssuesList) objTypeMapCase.put(itemDetail, objType);
+										}										
 										objTypeMap.put(itemDetail.toUpperCase(), objType);
 									}
 								}
@@ -4552,11 +4564,13 @@ tooltipsHTMLPlaceholder +
 			else
 				objTypeIssueCount.put(type, objTypeIssueCount.getOrDefault(type, 0) + 1);
 		}
-		for (String t : objTypeIssueMap.keySet()) {
-			Integer iX = objTypeIssueCount.getOrDefault(t,0);
-			Integer i0 = objTypeNoIssueCount.getOrDefault(t,0);
-			//appOutput(thisProc()+"t=["+t+"] iX=["+iX+"] i0=["+i0+"] ");
-		}
+		
+		// for debugging:		
+//		for (String t : objTypeIssueMap.keySet()) {
+//			Integer iX = objTypeIssueCount.getOrDefault(t,0);
+//			Integer i0 = objTypeNoIssueCount.getOrDefault(t,0);
+//			appOutput(thisProc()+"t=["+t+"] iX=["+iX+"] i0=["+i0+"] ");
+//		}
 
 		// reporting options
 		if (srcFileCount.size() <= 1) reportShowSrcFile = false;
@@ -4787,7 +4801,13 @@ tooltipsHTMLPlaceholder +
 
 			String noIssueCnt = "";
 			if (objTypeIssueMap.containsKey(objType)) {
-				noIssueCnt = "  (no issues found: " + objTypeNoIssueCount.getOrDefault(objType,0) + " of " + objTypeCount.get(objType) + ")";
+				String anchorName = reportObjectsIssuesListTag(objType); 
+				String linkStart = "<a href=\"#"+anchorName+"\">";
+				String linkEnd = "</a>";
+				if (!showObjectIssuesList) {
+					linkStart = linkEnd = "";
+				}
+				noIssueCnt = "  ("+linkStart+"without issues: " + objTypeNoIssueCount.getOrDefault(objType,0) + " of " + objTypeCount.get(objType) + linkEnd +")";
 			}
 			summaryTmp.append(lineIndent).append(objType + " : " + objTypeCount.get(objType) + locStr.toString() + noIssueCnt + "\n");
 		}
@@ -4853,6 +4873,10 @@ tooltipsHTMLPlaceholder +
 		}
 		sortedListXRefByObject.clear();
 
+		if (showObjectIssuesList) {	
+			reportObjectsIssues(objTypeMapCase, objIssueCount);
+		}
+		
 		writeReportFile();
 		writeReportFile(composeOutputLine("", "="));
 		writeReportFile();
@@ -4862,8 +4886,72 @@ tooltipsHTMLPlaceholder +
 		return true;
 	}
 
+	private void reportObjectsIssues(Map<String, String> objTypeMap, Map<String,Integer> objIssueCount) throws IOException {
+		Map<String, Integer> objTypes = new HashMap<>();
+		for (Map.Entry<String,String> e : objTypeMap.entrySet()) {
+			String c = e.getKey();
+			String type = e.getValue();
+			Integer issues = objIssueCount.getOrDefault(c.toUpperCase(),0);
+			objTypes.put(type, 0);
+			//appOutput(thisProc()+"c=["+c+"] type=["+type+"] issues=["+issues+"] ");
+		}
 
-	public void  importPG(boolean append, List<String> pgImportFlags) throws IOException {
+		for (String type : objTypes.keySet().stream().sorted().collect(Collectors.toList())) {
+			reportObjectsIssuesList(type, objTypeMap, objIssueCount);
+		}
+	}
+
+	private void reportObjectsIssuesList(String objType, Map<String, String> objTypeMap, Map<String,Integer> objIssueCount) throws IOException {	
+		String objTypeFmt = objType;
+		if (objTypeFmt.contains(", ")) {
+			Integer i = objTypeFmt.indexOf(", ");
+			objTypeFmt = objTypeFmt.substring(i+2) + " " + objTypeFmt.substring(0,i);
+		}	
+		StringBuilder lines = new StringBuilder();
+		boolean withIssues = true;		
+		while (true) {			 
+			String withStr = "without detected issues, expected to be created without errors:";
+			if (withIssues) withStr = "with issues, may raise errors when created (for details, see above):";			
+			StringBuilder line = new StringBuilder();
+			Integer cnt = 0;
+			
+			for (String objName : objTypeMap.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
+				String type = objTypeMap.get(objName);
+				if (!type.equals(objType)) continue;
+				Integer issues = objIssueCount.getOrDefault(objName.toUpperCase(),0);
+				if (!withIssues && (issues == 0)) {
+					line.append(lineIndent + objName+"\n");
+					cnt++;
+				}	
+				else if (withIssues && (issues > 0)) {
+					line.append(lineIndent + objName+" ("+issues+" issues)\n");
+					cnt++;
+				}
+			}
+			if (line.length() > 0) {
+				lines.append(cnt + " " + capitalizeInitChar(objTypeFmt.toLowerCase()) +"s "+withStr+"\n");	
+				lines.append(line);	
+				lines.append("\n");	
+			}
+			
+			if (!withIssues) break;
+			withIssues = false;
+		}
+		
+		if (lines.length() > 0) {
+			String tag = reportObjectsIssuesListTag(objType);
+			writeReportFile(composeSeparatorBar("List of "+capitalizeInitChar(objTypeFmt.toLowerCase())+"s with/without issues", tag)+"\n");
+			writeReportFile(lines);
+		}
+	}
+
+	public String reportObjectsIssuesListTag(String objType) {
+		String result = applyPatternAll(objType.toLowerCase(), "\\W", "");	
+		result += "_issueslist";		
+		return result;	
+	}
+
+	public void importPG(boolean append, List<String> pgImportFlags) throws IOException {
 		// platform-dependent parts
 		String envvarSet = "SET ";
 		String cmdSeparator = "& ";
@@ -6032,19 +6120,7 @@ tooltipsHTMLPlaceholder +
 		return s;
 	}	
 	
-	public void createAnonymizedReport() throws IOException {
-		// platform-dependent parts
-		String envvarSet = "SET ";
-		String cmdSeparator = "& ";
-		String envvarPrefix = "%";
-		String envvarSuffix = "%";
-		if (onMac || onLinux) {
-			envvarSet = "export ";		
-			cmdSeparator = "; ";
-			envvarPrefix = "\\$";
-			envvarSuffix = "";
-		}
-				
+	public void createAnonymizedReport() throws IOException {			
 		// get capture files
 		List<Path> captureFiles = getCaptureFiles(reportName);
 		if (debugging) dbgOutput(thisProc() + "captureFiles(" + captureFiles.size() + ")=[" + captureFiles + "] ", debugReport);
