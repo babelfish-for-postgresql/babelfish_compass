@@ -6024,7 +6024,11 @@ tooltipsHTMLPlaceholder +
 				}										
 			}
 			
+			// ToDo: if we want to reset this counter in every batch (which would work fine), then 
+			// we need to take the batch number along when we identify a rewrite case. Since applying
+			// the rewrites is done on a per-file basis, there is no batch concept at this time
 			nrMergeRewrites++;
+
 			String savePt   = "savept_merge_rewritten_"+nrMergeRewrites;			
 			String errVar   = "@MERGE_REWRITTEN_ERROR_"+nrMergeRewrites;			
 			String rcTmpVar = "@MERGE_REWRITTEN_RCTMP_"+nrMergeRewrites;	
@@ -6035,10 +6039,9 @@ tooltipsHTMLPlaceholder +
 			
 			String mergeSteps = "\n"+rwrTag+"\n/* --- start rewritten MERGE statement #"+nrMergeRewrites+" --- */\n";
 			mergeSteps += "/* Note: please review/modify the rewritten SQL code below, especially for handling of ROLLBACK */\n";
-			mergeSteps += "/* Note: please review/modify the rewritten SQL code below, especially for handling of ROLLBACK */\n";
 			mergeSteps += "BEGIN TRANSACTION\n";
 			mergeSteps += "SAVE TRANSACTION "+savePt+"\n";
-			mergeSteps += "DECLARE "+rcVar+" INT = 0 /* replaces original @@ROWOCUNT */\n";
+			mergeSteps += "DECLARE "+rcVar+" INT = 0 /* use instead of original @@ROWCOUNT */\n";
 			mergeSteps += "DECLARE "+errVar+" INT /* temporary variable */\n";
 			mergeSteps += "DECLARE "+rcTmpVar+" INT /* temporary variable */\n";
 			String blankLine = "\n"+rewriteBlankLine+"\n";
@@ -6162,6 +6165,7 @@ tooltipsHTMLPlaceholder +
 			}
 			mergeSteps += blankLine;
 			mergeSteps += "\n"+"GOTO "+commitLbl+"\n";					
+			mergeSteps += "/* in case of an error, roll back to savepoint at the start but do no abort the transaction: there may be an outermost transaction active*/\n";
 			mergeSteps += "\n"+rollbkLbl+": ROLLBACK TRANSACTION "+savePt+"\n";	
 			mergeSteps += "\n"+commitLbl+":   COMMIT\n";			
 			mergeSteps += ";/* --- end rewritten MERGE statement #"+nrMergeRewrites+" --- */\n";
