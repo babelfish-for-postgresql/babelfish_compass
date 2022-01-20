@@ -1,0 +1,180 @@
+/*
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: Apache-2.0
+*/
+
+package compass;
+
+import jdk.nashorn.internal.ir.annotations.Ignore;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+public class CompassTest {
+
+    @TempDir
+    static Path tmpPath;
+
+    static Path validInputFilePath;
+    static Path emptyInputDirPath;
+    static Path invalidInputFilePath;
+
+    final PrintStream out = System.out;
+    final PrintStream err = System.err;
+    ByteArrayOutputStream stdOut;
+    ByteArrayOutputStream stdErr;
+
+    @BeforeAll
+    static void setup() throws IOException {
+        String tmpDir = tmpPath.toString();
+        Files.createDirectories(Paths.get(tmpDir, "dir1", "child1", "child2"));
+        Files.createDirectories(Paths.get(tmpDir, "dir2"));
+        validInputFilePath = Paths.get(tmpDir, "a.sql");
+        emptyInputDirPath = Paths.get(tmpDir, "invalid");
+        invalidInputFilePath = Paths.get(tmpDir, "dir2", "invalid.docx");
+        Files.createFile(validInputFilePath);
+        Files.createFile(Paths.get(tmpDir, "b.sql"));
+        Files.createFile(Paths.get(tmpDir, "dir1", "child1", "c.txt"));
+        Files.createFile(Paths.get(tmpDir, "dir1", "child1", "d.dat"));
+        Files.createFile(Paths.get(tmpDir, "dir1", "child1", "child2", "e.xml"));
+        Files.createFile(Paths.get(tmpDir, "dir2", "f.sql"));
+        Files.createDirectory(emptyInputDirPath);
+        Files.createFile(invalidInputFilePath);
+    }
+
+    @BeforeEach
+    void init() {
+        CompassTestUtils.resetStatics();
+
+        stdOut = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(stdOut));
+        stdErr = new ByteArrayOutputStream();
+        System.setErr(new PrintStream(stdErr));
+    }
+
+    @AfterEach
+    void teardown() {
+        System.setOut(out);
+        System.setErr(err);
+    }
+
+    @Test
+    @DisplayName("Main No arguments")
+    void testMainNoArgs() throws Exception {
+        Compass.main(new String[]{});
+        String output = new String(stdOut.toByteArray());
+        assertTrue(output.contains("No arguments specified. Try -help"));
+    }
+
+    @Test
+    @DisplayName("Main invalid arg list")
+    void testConstructorInvalidArgList() throws Exception {
+        Compass.main(new String[]{"foobar"});
+        String output = new String(stdOut.toByteArray());
+        assertTrue(output.contains("Must specify input file(s), or -list/-analyze/-reportonly/-reportoption"));
+    }
+
+    @Test
+    @DisplayName("Empty Constructor")
+    void testConstructorEmpty() {
+        assertThrows(NullPointerException.class, () -> new Compass(null));
+
+        new Compass(new String[]{});
+        String output = new String(stdErr.toByteArray());
+        assertTrue(output.contains("Must specify arguments. Try -help"));
+    }
+
+    @Test
+    @DisplayName("Constructor args passed from command line")
+    void testConstrutorCmdLineArgs() {
+        String[] args = new String[] {"one", "two", "three"};
+        new Compass(args);
+        for (String arg : args) {
+            assertTrue(Compass.cmdFlags.contains(arg));
+        }
+    }
+
+    @Test
+    @DisplayName("Constructor -version arg")
+    void testConstructorVersionArg() {
+        new Compass(new String[]{"-version"});
+        assertTrue(Compass.showVersion);
+    }
+
+    @Test
+    @DisplayName("Add Input File")
+    void testAddInputFile_NoRecursion_SingleValidFile() {
+        Compass compass = new Compass(new String[]{"test"});
+        compass.addInputFile(validInputFilePath.toString());
+        assertEquals(1, Compass.inputFiles.size(), "Add single valid input file");
+        assertTrue(Compass.inputFiles.contains(validInputFilePath.toString()));
+    }
+
+    @Test
+    @DisplayName("Add Input File No Recursion")
+    void testAddInputFile_NoRecursion_IgnoreDirectories() {
+        Compass compass = new Compass(new String[]{"test"});
+        compass.addInputFile(tmpPath.toString());
+        assertTrue(Compass.inputFiles.isEmpty(), "Without -recursive command line arg, directories are ignored");
+    }
+
+    @Test
+    @DisplayName("Add Input File Glob No Recursion")
+    void testAddInputFile_NoRecursion_Glob() {
+        Compass compass = new Compass(new String[]{"test"});
+        compass.addInputFile(Paths.get(tmpPath.toString(), "*").toString());
+        assertEquals(2, Compass.inputFiles.size(), "Without -recursive command line arg, directories are ignored");
+    }
+
+    @Test
+    @DisplayName("Add Input File Empty Directory")
+    void testAddInputFile_Recursion_EmptyDirectory() {
+        Compass compass2 = new Compass(new String[]{"test", "-recursive"});
+        assertTrue(Compass.recursiveInputFiles);
+        compass2.addInputFile(emptyInputDirPath.toString());
+        assertTrue(Compass.inputFiles.isEmpty(), "Empty directories are ignored");
+    }
+
+    @Test
+    @DisplayName("Add Input File Invalid File")
+    void testAddInputFile_Recursion_InvalidFile() {
+        Compass compass = new Compass(new String[]{"test", "-recursive"});
+        compass.addInputFile(invalidInputFilePath.toString());
+        assertTrue(Compass.inputFiles.isEmpty(), "Invalid filename extensions are ignored");
+    }
+
+    @Test
+    @DisplayName("Add Input File Recursive Directory")
+    void testAddInputFile_Recursion_DirectoryWalk() {
+        Compass compass = new Compass(new String[]{"test", "-recursive"});
+        compass.addInputFile(tmpPath.toString());
+        assertEquals(6, Compass.inputFiles.size(), "Add a top level directory to recursively add");
+    }
+
+    @Test
+    @DisplayName("Add Input File Mix Files and Directories")
+    void testAddInputFile_Recursion_MixFilesAndDirectory() {
+        Compass compass = new Compass(new String[]{"test", "-recursive"});
+        compass.addInputFile(Paths.get(tmpPath.toString(), "dir1").toString());
+        compass.addInputFile(validInputFilePath.toString());
+        assertEquals(4, Compass.inputFiles.size(), "Add a mix of individual files and directories");
+    }
+
+    @Test
+    @DisplayName("Input files validation")
+    @Ignore
+    // TODO Implement this
+    void testInputFilesValid() throws Exception {
+        Compass.main(new String[]{"foobar"});
+        Compass.inputFilesValid();
+    }
+
+}

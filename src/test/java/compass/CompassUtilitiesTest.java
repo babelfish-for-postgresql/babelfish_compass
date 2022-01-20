@@ -2,8 +2,10 @@
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
+
 package compass;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -13,6 +15,58 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CompassUtilitiesTest {
+
+    @BeforeEach
+    void init() {
+        CompassTestUtils.resetStatics();
+    }
+
+    @Test
+    @DisplayName("Windows platform")
+    void testSetPlatformAndOptionsWindows() {
+        CompassUtilities utilities = CompassUtilities.getInstance();
+        assertThrows(NullPointerException.class, () -> {
+            utilities.setPlatformAndOptions(null);
+        });
+        utilities.setPlatformAndOptions("Windows 10");
+        assertTrue(CompassUtilities.onWindows);
+        assertEquals("Windows", CompassUtilities.onPlatform);
+        assertEquals(CompassUtilities.thisProgExecWindows, CompassUtilities.thisProgExec);
+        assertEquals(utilities.BabelfishCompassFolderNameWindows, utilities.BabelfishCompassFolderName);
+    }
+
+    @Test
+    @DisplayName("Mac platform")
+    void testSetPlatformAndOptionsMac() {
+        CompassUtilities utilities = CompassUtilities.getInstance();
+        utilities.setPlatformAndOptions("Mac OS X");
+        assertTrue(CompassUtilities.onMac);
+        assertEquals("MacOS", CompassUtilities.onPlatform);
+        assertEquals(CompassUtilities.thisProgExecMac, CompassUtilities.thisProgExec);
+        assertEquals(utilities.BabelfishCompassFolderNameMac, utilities.BabelfishCompassFolderName);
+    }
+
+    @Test
+    @DisplayName("Linux platform")
+    void testSetPlatformAndOptionsLinux() {
+        CompassUtilities utilities = CompassUtilities.getInstance();
+        utilities.setPlatformAndOptions("Linux");
+        assertTrue(CompassUtilities.onLinux);
+        assertEquals("Linux", CompassUtilities.onPlatform);
+        assertEquals(CompassUtilities.thisProgExecLinux, CompassUtilities.thisProgExec);
+        assertEquals(utilities.BabelfishCompassFolderNameLinux, utilities.BabelfishCompassFolderName);
+    }
+
+    @Test
+    @DisplayName("Linux platform")
+    void testSetPlatformAndOptionsUnknown() {
+        CompassUtilities utilities = CompassUtilities.getInstance();
+        utilities.setPlatformAndOptions("FooBar");
+        assertTrue(CompassUtilities.onLinux);
+        assertEquals("Linux", CompassUtilities.onPlatform);
+        assertEquals(CompassUtilities.thisProgExecLinux, CompassUtilities.thisProgExec);
+        assertEquals(utilities.BabelfishCompassFolderNameLinux, utilities.BabelfishCompassFolderName);
+    }
 
     @Test
     @DisplayName("Remove last n characters")

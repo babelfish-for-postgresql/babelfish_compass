@@ -33,6 +33,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.antlr</groupId>
             <artifactId>antlr4-runtime</artifactId>
             <version>${antlr.version}</version>
@@ -71,6 +77,17 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire.version}</version>
+<!--                <configuration>-->
+<!--                    <properties>-->
+<!--                        <configurationParameters>-->
+<!--                            junit.platform.output.capture.stdout=true-->
+<!--                            junit.platform.output.capture.stderr=true-->
+<!--                        </configurationParameters>-->
+<!--                    </properties>-->
+<!--                    <forkCount>1</forkCount>-->
+<!--                    <reuseForks>true</reuseForks>-->
+<!--                    <argLine>-Xmx5000m</argLine>-->
+<!--                </configuration>-->
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>

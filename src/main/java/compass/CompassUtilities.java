@@ -990,22 +990,27 @@ tooltipsHTMLPlaceholder +
     	} 	    	
     }
 
-    public void getPlatform () {
-		String osName = System.getProperty("os.name").toLowerCase();
-		
+	/**
+	 * Sets the operating system executable name, reports folder name based on osName.
+	 * Optionally turns on the developer options flag. Optionally sets the hint icon value for reports. Optionally turns
+	 * on the visibility of percent complete.
+	 * @param osName the value of System.getProperty("os.name")
+	 * @throws NullPointerException if osName is null
+	 */
+	public void setPlatformAndOptions(String osName) {
+		osName = osName.toLowerCase();
+
 		if (osName.startsWith("windows")) {
 			onWindows = true;
 			onPlatform  = "Windows";
 			thisProgExec = thisProgExecWindows;
 			BabelfishCompassFolderName = BabelfishCompassFolderNameWindows;
-		}
-		else if (osName.startsWith("mac os x")) {			
+		} else if (osName.startsWith("mac os x")) {
 			onMac = true;
 			onPlatform  = "MacOS";
 			thisProgExec = thisProgExecMac;
 			BabelfishCompassFolderName = BabelfishCompassFolderNameMac;
-		}
-		else {
+		} else {
 			// assume Linux
 			onLinux = true;
 			onPlatform  = "Linux";
