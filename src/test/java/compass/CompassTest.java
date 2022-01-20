@@ -5,7 +5,6 @@ SPDX-License-Identifier: Apache-2.0
 
 package compass;
 
-import jdk.nashorn.internal.ir.annotations.Ignore;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -170,11 +169,35 @@ public class CompassTest {
 
     @Test
     @DisplayName("Input files validation")
-    @Ignore
-    // TODO Implement this
-    void testInputFilesValid() throws Exception {
-        Compass.main(new String[]{"foobar"});
-        Compass.inputFilesValid();
+    void testInputFilesValid() {
+        assertTrue(Compass.inputFilesValid(), "Empty input files list is valid if not -add or -delete");
+
+        Compass compass = new Compass(new String[]{"test"});
+        compass.addInputFile(validInputFilePath.toString());
+        assertTrue(Compass.inputFilesValid());
     }
 
+    @Test
+    @DisplayName("Input files validation with -add")
+    void testInputFilesValid_Add() {
+        Compass compass = new Compass(new String[]{"test", "-add"});
+        assertFalse(Compass.inputFilesValid(), "Empty input files list not allowed with -add");
+        String output = new String(stdOut.toByteArray());
+        assertTrue(output.contains("With -add, must specify input file(s)"));
+
+        compass.addInputFile(validInputFilePath.toString());
+        assertTrue(Compass.inputFilesValid(), "Input files must not be empty with -add");
+    }
+
+    @Test
+    @DisplayName("Input files validation with -delete")
+    void testInputFilesValid_Delete() {
+        Compass compass = new Compass(new String[]{"test", "-delete"});
+        assertFalse(Compass.inputFilesValid(), "Empty input files list not allowed with -delete");
+        String output = new String(stdOut.toByteArray());
+        assertTrue(output.contains("With -delete, must specify input file(s)"));
+
+        compass.addInputFile(validInputFilePath.toString());
+        assertTrue(Compass.inputFilesValid(), "Input files must not be empty with -delete");
+    }
 }

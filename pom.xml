@@ -77,17 +77,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire.version}</version>
-<!--                <configuration>-->
-<!--                    <properties>-->
-<!--                        <configurationParameters>-->
-<!--                            junit.platform.output.capture.stdout=true-->
-<!--                            junit.platform.output.capture.stderr=true-->
-<!--                        </configurationParameters>-->
-<!--                    </properties>-->
-<!--                    <forkCount>1</forkCount>-->
-<!--                    <reuseForks>true</reuseForks>-->
-<!--                    <argLine>-Xmx5000m</argLine>-->
-<!--                </configuration>-->
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>

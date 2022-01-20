@@ -575,7 +575,6 @@ public class Compass {
 							arg = arg.replaceAll("\\\\", "");
 						}						
 					}
-					//inputFiles.add(arg);
 					addInputFile(arg);
 				}
 				continue;
@@ -878,6 +877,7 @@ public class Compass {
 					try (Stream<Path> directoryStream = Files.walk(path, depth, FileVisitOption.FOLLOW_LINKS)) {
 						inputFilesToAdd = directoryStream
 								.filter(Files::isRegularFile)
+								.filter(Files::isReadable)
 								.filter(CompassInputFileFilter::test)
 								.map(Path::toString)
 								.collect(Collectors.toSet());
@@ -900,36 +900,10 @@ public class Compass {
 		}
 	}
 
-	protected static boolean inputFilesValid() throws Exception {
-		// validate input files specified
-		AtomicBoolean inputValid = new AtomicBoolean(true);
-
-		inputFiles = inputFiles.stream().filter(inFile -> {
-			boolean pathValid = true;
-			Path path = null;
-			try {
-				path = Paths.get(inFile);
-			} catch (java.nio.file.InvalidPathException ignored) {
-				pathValid = false;
-			}
-			if (!pathValid || !Files.exists(path)) {
-				pathValid = false;
-				inputValid.set(false);
-				nrFileNotFound++;
-				u.appOutput("Input file '" + inFile + "' not found");
-			}
-//			if (!u.inputScriptValid(inFile)) {
-//				u.appOutput("Input file '" + inFile + "' not valid");
-//				inputValid.set(false);
-//			}
-			return pathValid;
-		}).collect(Collectors.toList());
-
-		if (!inputValid.get()) {
-			return false;
-		}
-		
-		// do we have any input files left to process?
+	protected static boolean inputFilesValid() {
+		// Do we have any input files to process?
+		// Note that addInputFile already filters out input file paths that don't exist or can't
+		// be read or don't match our acceptance criteria defined in CompassInputFileFilter
 		if (inputFiles.size() == 0) {
 			if (deleteReport) {
 				u.appOutput("With -delete, must specify input file(s)");
