@@ -57,6 +57,7 @@ public class Compass {
 	static Integer nrLinesTotalP1 = 0;
 	static Integer nrLinesTotalP2 = 0;	
 	static Integer retrySLL = 0;
+	static Integer retrySLLFile = 0;
 	static boolean hasParseError = false;
 	static StringBuilder parseErrorMsg = new StringBuilder();
 
@@ -1294,6 +1295,7 @@ public class Compass {
 			String inFileCopy = "";
 			FileInputStream fis = null;
 			InputStreamReader isr = null;
+			retrySLLFile = 0;
 			if (u.rewrite) u.resetRewrites();
 			u.currentDatabase  = "";
 			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "u.analysisPass=["+u.analysisPass+"] inFile=["+inFile+"] ", u.debugDir);
@@ -1964,7 +1966,7 @@ public class Compass {
 					int secs = ((int) timeElapsedFile / 1000);
 					int linesSec = (secs > 0) ? (nrLinesInFile / secs) : nrLinesInFile;
 					int batchesSec = (secs > 0) ? (batchNr / secs) : batchNr;
-					u.appOutput("ELAPSED TIME: " + u.currentSrcFile + " : seconds=" + secs + "   lines/sec=" + linesSec + "   batches/sec=" + batchesSec);
+					u.appOutput("ELAPSED TIME: " + u.currentSrcFile + " : seconds=" + secs + "   lines/sec=" + linesSec + "   batches/sec=" + batchesSec + " retrySLL="+retrySLLFile ); 
 				}
 			}
 
@@ -2080,6 +2082,7 @@ public class Compass {
 			if (u.debugging) u.dbgOutput("syntax error in catch; pass=" + u.analysisPass + " useSLL=[" + useSLL + "] batchNr=[" + batchNr + "] ", u.debugPtree);
 			if (useSLL) {
 				retrySLL++;
+				retrySLLFile++;
 				parseErrorMsg = new StringBuilder();
 				hasParseError = false;
 				// retry with SLL = false
