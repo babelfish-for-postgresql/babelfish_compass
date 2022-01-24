@@ -35,6 +35,7 @@ public class CompassAnalyze {
 	static final String PermissionsReportGroup = "Permissions";
 	static final String TransitionTableMultiDMLTrigFmt = "INSERTED/DELETED cannot be referenced in trigger with >1 action";
 	static final String DMLTableSrcFmt         = "INSERT-SELECT FROM(";
+	static final String VarAggrAcrossRowsFmt   = "Variable may aggregate across rows";
 
 	// for reporting items that do not fit elsewhere
 	static final String MiscReportGroup       = "Miscellaneous SQL Features";
@@ -196,8 +197,11 @@ public class CompassAnalyze {
 	static final String AlterTable            = "ALTER TABLE";
 	static final String AlterTableAddMultiple = "ADD multiple columns/constraints";
 	static final String TimestampColumnSolo   = "TIMESTAMP column without column name";
-	static final String NumericColNonNumDft  = "NUMERIC/DECIMAL column with non-numeric default";
-	static final String DMLTableSrc          = "DML Table Source";
+	static final String NumericColNonNumDft   = "NUMERIC/DECIMAL column with non-numeric default";
+	static final String DMLTableSrc           = "DML Table Source";
+	static final String AtTimeZone            = "expression AT TIME ZONE";
+	static final String VarAggrAcrossRows     = "Variable aggregates across rows";	
+	static final String VarAssignDependency   = "Variable assignment dependency";			
 
 	// matching special values in the .cfg file
 	static final String CfgNonZero            = "NONZERO";
@@ -4981,10 +4985,11 @@ public class CompassAnalyze {
     				}
 				}
 
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"variableAssignDepends.clear(), hasTable=["+hasTable+"] ", u.debugPtree);
 				variableAssignDepends.clear();
 				visitChildren(ctx);
 
-				if (hasTable) captureVariabeAssignDepends("SELECT", ctx.start.getLine());
+				if (hasTable) captureVariableAssignDepends("SELECT", ctx.start.getLine());
 
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -5019,6 +5024,22 @@ public class CompassAnalyze {
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"added VARIABLE_ASSIGN", u.debugPtree);
 
 				}
+				visitChildren(ctx);
+				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
+				return null;
+			}
+
+			@Override public String visitTime_zone_expr(TSQLParser.Time_zone_exprContext ctx) {
+				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
+				String expr = ctx.expression().get(1).getText();
+				if (u.stripStringQuotes(expr).length() == expr.length()) {
+					// it's not a string constant, assume it's a variable
+					expr = "@v";
+				}
+				
+				String status = featureSupportedInVersion(AtTimeZone);
+				captureItem(AtTimeZone + " " + expr, "", "", "", status, ctx.start.getLine());	
+							
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -5853,7 +5874,7 @@ public class CompassAnalyze {
 					CaptureXMLNameSpaces(ctx.parent, "UPDATE", ctx.start.getLine());
 
 					captureItem("UPDATE"+top+updVarAssign+CTE+outputClause+whereCurrentOf, tableName, UpdateStmt, "UPDATE", status, ctx.start.getLine());
-					captureVariabeAssignDepends("UPDATE", ctx.start.getLine());
+					captureVariableAssignDepends("UPDATE", ctx.start.getLine());
 				}
 
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -5876,6 +5897,7 @@ public class CompassAnalyze {
 
 			private void addVariableAssignDepends(TerminalNode id, TSQLParser.ExpressionContext expr) {
 				// ToDo: need to record the assignment operator, since += indicates a string concat
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"entry: id=["+id.getText()+"] expr=["+expr.getText()+"] ", u.debugPtree);
 				if (expr instanceof TSQLParser.Constant_exprContext) {
 					// this assignment can be ignored for determining variable assignment dependencies
 					return;
@@ -5890,57 +5912,124 @@ public class CompassAnalyze {
 				variableAssignDepends.put(id.getText().toUpperCase(), expr);
 			}
 
-			private void captureVariabeAssignDepends(String stmt, int lineNr) {
-				// ToDo: rewrite logic to walk the tree to find occurrence of variable; due to whitespace being removed a variable name may concat with a keyword
+			// try to determine if a variable assignment (SELECT or UPDATE) does cross-row aggregation or 
+			// depends on other assigned variables
+			private void captureVariableAssignDepends(String stmt, int lineNr) {
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"entry", u.debugPtree);
 				if (variableAssignDepends.size() == 0) return;
-
+				
+				Map<String, String> tmpVarDepends = new HashMap<String, String>();				
+				for (String k : variableAssignDepends.keySet()) {
+					String expr = getTextSpaced(variableAssignDepends.get(k));
+					tmpVarDepends.put(k, expr);
+				}
+			
+				// first find cases like SELECT @v = @v + 1 FROM mytable, where the variable may accumulate across rows
+				for (Map.Entry<String, String> entry : tmpVarDepends.entrySet()) {
+					String k = entry.getKey();
+					String expr = entry.getValue().toUpperCase();
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+stmt+ "("+variableAssignDepends.size()+") :"+ k +" => "+expr, u.debugPtree);
+					if (expr.contains(k)) {		
+						while(true) {
+							int len1 = expr.length();
+							expr = u.applyPatternAll(expr, "( CASE\\b).*?\\bWHEN\\b.*?(\\bTHEN\\b)", "$1 $2");												
+							if (expr.length() == len1) break;			
+						}						
+						expr = u.applyPatternAll(expr, "\\b[\\w\\.]+\\(\\s*((@)?[\\w\\.]+)\\s*\\)", " $1 ");			
+												
+						if (!CompassUtilities.getPatternGroup(expr, " (" + k + ") ", 1).isEmpty()) { 
+							// try to determine if there is some sort of operation in the assigment expression. Note this is not a 100% test, but looks for some common cases
+							if (expr.contains("+") || expr.contains("-") || expr.contains("*")) {							
+								if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"capturing possible variable aggregation: k=["+k+"] ", u.debugPtree);
+								String status = u.ReviewSemantics;
+								status = featureSupportedInVersion(VarAggrAcrossRows);
+								captureItem(VarAggrAcrossRowsFmt + " in "+stmt, k, "DML", "", status, lineNr);
+							}
+						}
+					}
+				}
+				
+				// now find variable assignments depending on other variables; first remove the assigned variable from the expression
 				Map<String, String> tmp = new HashMap<String, String>();
 				String allValues = "";
-				for (Map.Entry<String, TSQLParser.ExpressionContext> entry : variableAssignDepends.entrySet()) {
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+stmt+ "("+variableAssignDepends.size()+") :"+ entry.getKey()+" = "+entry.getValue(), u.debugPtree);
-					String expr = entry.getValue().getText().toUpperCase();
-					if (expr.contains(entry.getKey())) {
-						// some variable names can perhaps be constructed that are not detected here, but that would be rather exotic
-						String varRegex = "([^@\\$\\w])" + entry.getKey() + "([^@\\$\\w])";
-						String v = u.applyPatternAll(" " + expr + " ", varRegex, "$1 $2");
+				for (Map.Entry<String, String> entry : tmpVarDepends.entrySet()) {				
+					String k = entry.getKey();
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+stmt+ "("+variableAssignDepends.size()+") :"+ k +" => "+entry.getValue(), u.debugPtree);
+					String expr = entry.getValue().toUpperCase();
+					if (expr.contains(k)) {
+						String v = u.applyPatternAll(expr, " " + k + " ", " ");
 						if (v.contains("@")) {
-							tmp.put(entry.getKey(), v);
+							tmp.put(k, v);
 							allValues += " " + v;
 						}
 						else {
-							//u.appOutput(CompassUtilities.thisProc()+"no @var left in value");
+							//no @var in value
 						}
 					}
 					else {
-						tmp.put(entry.getKey(), expr);
-						allValues += " " + expr;
+						if (expr.contains("@")) {
+							tmp.put(k, expr);
+							allValues += " " + expr;
+						}
 					}
 				}
-				allValues += " ";
+				allValues = " " + String.join(" ", tmp.values()) + " ";
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+" allValues=["+allValues+"]", u.debugPtree);
 
+				// now see if there is a case of @v = @w, while @w is also an assignment target in the same statement
 				for (Map.Entry<String, String> entry : tmp.entrySet()) {
-					String varRegex = "([^@\\$\\w]" + entry.getKey() + "[^@\\$\\w])";
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+" k=["+entry.getKey()+"]  v=["+entry.getValue()+"]  ", u.debugPtree);
-					if (allValues.contains(entry.getKey())) { // quicker test but less accurate
+					String k = entry.getKey();
+					String varRegex = "([^@\\$\\w]" + k + "[^@\\$\\w])";
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+" k=["+k+"]  v=["+entry.getValue()+"]  ", u.debugPtree);
+					if (allValues.contains(k)) { // quicker test but less accurate
 						if (!CompassUtilities.getPatternGroup(allValues, varRegex, 1).isEmpty()) { // slower test but accurate
 							// find variable on lhs for this case
 							String v = "";
 							for (Map.Entry<String, String> e2 : tmp.entrySet()) {
-								if (e2.getKey().equals(entry.getKey())) continue;
+								if (e2.getKey().equals(k)) {
+									continue;
+								}
 								if (!CompassUtilities.getPatternGroup(" " +e2.getValue()+" ", varRegex, 1).isEmpty()) {
 									v = e2.getKey();
 									break;
 								}
 							}
-							if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"k=["+entry.getKey()+"] =["+entry.getKey()+"] ", u.debugPtree);
-							captureItem("Variable assignment dependency in "+stmt+": order of assignments not guaranteed", v+"->"+entry.getKey(), "DML", "", u.ReviewSemantics, lineNr);
-							break;
+							if (!v.isEmpty()) {
+								if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"capturing: v=["+v+"] => k=["+k+"] ", u.debugPtree);
+								String status = u.ReviewSemantics;
+								status = featureSupportedInVersion(VarAssignDependency);			
+								captureItem(VarAssignDependency+" in "+stmt+": order of assignments not guaranteed", v+"->"+k, "DML", "", status, lineNr);
+								break;
+							}
 						}
 					}
 				}
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"exit", u.debugPtree);
 			}
 
+			// get text representation of subtree, with spaces between tokens and string constants removed
+			private String getTextSpaced(ParseTree ctx) {
+				String t = ctx.getText();
+				if (ctx.getChildCount() == 0) {
+					if (u.stripStringQuotes(t).length() != t.length()) {
+						return "''";
+					}
+					return t;
+				}				
+
+				String s = "";
+				for (int i = 0; i <ctx.getChildCount(); i++) {
+				    s += getTextSpaced(ctx.getChild(i)) + " ";
+				}
+				s = s.replaceAll(" \\. ", ".");
+				s = s.replaceAll("\\( ", "(");
+				s = s.replaceAll(" \\(", "(");
+				s = s.replaceAll("\\) ", ")");
+				s = s.replaceAll(" \\)", ")");
+				s = s.replaceAll("  ", " ");
+				return " " + s.trim() + " ";
+			}
+			
 			@Override public String visitDelete_statement(TSQLParser.Delete_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 				String status = u.Supported;
@@ -7106,7 +7195,7 @@ public class CompassAnalyze {
 
 			private void captureSequenceOptions(Token cache_kwd, Token cache_value, Token no_cache, int lineNr, String stmt) {
  				if ((cache_kwd != null) && (cache_value == null)) {
-					captureOption(SequenceOptions, "CACHE", lineNr, ", in "+stmt+" SEQUENCE");
+					captureOption(SequenceOptions, "CACHE (without number)", lineNr, ", in "+stmt+" SEQUENCE");
  				}
  				else if (no_cache != null) {
 					captureOption(SequenceOptions, "NO CACHE", lineNr, ", in "+stmt+" SEQUENCE");
