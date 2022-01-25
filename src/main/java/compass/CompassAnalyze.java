@@ -818,15 +818,35 @@ public class CompassAnalyze {
 		String itemLine = item +separator+ itemDetail.trim() +separator+ itemGroup.trim() +separator+ status +separator+ lineNr +separator+ u.currentAppName +separator+ u.currentSrcFile  +separator+ u.batchNrInFile +separator+ u.lineNrInFile +separator+ currentContext.trim() +separator+ subContext.trim() +separator+ misc + separator + "~" + separator;
 
 		// check for newlines -- these will mess everything up
-		// ToDo: also check for \r, \f, VT, etc.
-		if (itemLine.contains(u.newLine)) {
-			u.appOutput("Newline found in capture line: ["+itemLine+"] ");
+		// ToDo: also check for \f, VT, etc?
+		if (itemLine.contains("\r\n")) {
+			u.appOutput("CRLF found in captured item: ["+itemLine+"] ");
+			itemLine = itemLine.replaceAll("\\r\\n", "");		
 			if (CompassUtilities.devOptions) {
 				u.errorExitStackTrace();
 				// we'll never get here
 			}
-			u.appOutput("Continuing, but ignoring this item.");
-			return;
+			u.appOutput("Continuing with CRLF removed, but errors may occur.");
+		}
+
+		if (itemLine.contains("\n")) {
+			u.appOutput("Newline found in captured item: ["+itemLine+"] ");
+			itemLine = itemLine.replaceAll("\\n", "");		
+			if (CompassUtilities.devOptions) {
+				u.errorExitStackTrace();
+				// we'll never get here
+			}
+			u.appOutput("Continuing with newline removed, but errors may occur.");
+		}
+
+		if (itemLine.contains("\r")) {
+			u.appOutput("Carriage Return found in captured item: ["+itemLine+"] ");
+			itemLine = itemLine.replaceAll("\\r", "");		
+			if (CompassUtilities.devOptions) {
+				u.errorExitStackTrace();
+				// we'll never get here
+			}
+			u.appOutput("Continuing with Carriage Return removed, but errors may occur.");
 		}
 
 		// avoid end-of-input chars (\.) , for later loading into PG through COPY

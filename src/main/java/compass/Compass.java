@@ -1480,10 +1480,11 @@ public class Compass {
 
 			boolean doEncodingChecks = true;
 			int nrEncodingWarnings = 0;
-			int maxEncodingWarnings = 5;
+			int maxEncodingWarnings = 5;			
 
 			while (true) {
 				boolean somethingFoundOnLine = false;
+				boolean orphanSquareBracket = false;
 				line = inFileReader.readLine();
 				if (line == null) {
 					if (u.debugging) u.dbgOutput("end of file", u.debugBatch);
@@ -1586,8 +1587,10 @@ public class Compass {
 						}
 						if (lineCopyLoopChk > lineCopyLoopCntMax) {
 							// we seem to be in a loop...
-							if (u.debugging) u.dbgOutput("loop chk: exit: lineCopy=[" + lineCopy + "]", u.debugBatch);
-							u.appOutput("Error processing input file. Please verify input file encoding. Continuing, but errors may occur.");
+							if (u.debugging) u.dbgOutput("loop chk: exit: lineNr=["+lineNr+"] orphanSquareBracket=["+orphanSquareBracket+"] lineCopy=[" + lineCopy + "]", u.debugBatch);
+							String bracketMsg = "";
+							if (orphanSquareBracket) bracketMsg = "Possibly delimited identifier containing newline? "; 
+							u.appOutput("Error processing input file at line "+lineNr+". Is input file encoding correct? "+bracketMsg+"Continuing, but errors may occur.");
 							break;
 						}
 						if (u.debugging) u.dbgOutput("top loop: lineCopyLoopCnt=[" + lineCopyLoopCnt + "] inComment=" + inComment + ", inString=" + inString + ", lineCopy top=[" + lineCopy + "]", u.debugBatch);
@@ -1630,6 +1633,7 @@ public class Compass {
 										if (u.debugging) u.dbgOutput("bracketed identifier", u.debugBatch);
 										if (lineCopy.length() == lineCopyLen) {
 											// likely invalid syntax, avoid getting into a loop
+											orphanSquareBracket = true;
 											if (u.debugging) u.dbgOutput("ignoring orphan square bracket", u.debugBatch);
 											break;
 										}
