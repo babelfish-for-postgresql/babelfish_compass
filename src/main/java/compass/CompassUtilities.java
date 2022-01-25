@@ -704,15 +704,13 @@ tooltipsHTMLPlaceholder +
 	public int capPosContext = 9;
 	public int capPosSubContext = 10;
 	public int capPosMisc = 11;
+	public int capPosLastField = 11 + 2;   // last field in a capture record; used to perform check on data read; +2 is for the 0 start index plus the extra field at the end
 
 	// first line in capture file:
 	public final String captureFileLinePart1 = "# Captured items for report ";
 	public final String captureFileLinePart2 = " with targeted "+babelfishProg+ "version ";
 	public final String captureFileLinePart3 = " generated at ";
 	public final String captureFileLinePart4 = " with capture file format ";
-
-	// line separator
-	public final String newLine = System.getProperty("line.separator");
 
 	// report generation
 	public String reportName = uninitialized;
@@ -4399,6 +4397,13 @@ tooltipsHTMLPlaceholder +
 				}
 
 				List<String> itemList = new ArrayList<String>(Arrays.asList(capLine.split(captureFileSeparator)));
+				// sanity checks on #fields on the line read
+				if (itemList.size() < capPosLastField) {
+					appOutput("\nError at line "+capCount+" of "+cf.toString()+":");					
+					appOutput("Invalid capture item read: expected "+(capPosLastField)+" fields, found "+itemList.size()+". Skipping this item:");
+					appOutput("["+capLine+"]");
+					continue;
+				}
 				String objType = getPatternGroup(itemList.get(capPosItem), "^CREATE (.*)$", 1);
 				if (objType.isEmpty()) {
 					objType = getPatternGroup(itemList.get(capPosItem), "^Constraint (.*?)(\\(.*)?$", 1);
