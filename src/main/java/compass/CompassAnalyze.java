@@ -263,6 +263,7 @@ public class CompassAnalyze {
 	static final String withNArgumentValidateStrRegex = " with \\d arguments"; // for popups
 
 	// expression for numeric-as-date
+	static String rewriteEOMonth = "DATEADD(dd,-1,DATEADD(mm,1,DATEFROMPARTS(DATEPART(yy, CAST("+"~~1~~"+" AS DATE)),DATEPART(MM,CAST("+"~~1~~"+" AS DATE)),1)))";
 	static String rewriteNumericAsDate = "DATEADD(minute,("+"~~1~~"+")*1440,DATETIMEFROMPARTS(1900,1,1,0,0,0,0))";
 	static String rewriteNumericAsDateZero = "DATETIMEFROMPARTS(1900,1,1,0,0,0,0)";
 
@@ -1648,8 +1649,9 @@ public class CompassAnalyze {
 			private void captureBIF(String funcName, int lineNr, String options, int nrArgs) {
 				captureBIF(funcName, lineNr, options, nrArgs, null, null, null, null, null, null, null, null);
 			}
-			private void captureBIF(String funcName, int lineNr, String options, int nrArgs, List<TSQLParser.ExpressionContext> argList, List<String> argListText, TSQLParser.Func_proc_name_server_database_schemaContext func) {
-				captureBIF(funcName, lineNr, options, nrArgs, argList, argListText, func.start.getLine(), func.start.getCharPositionInLine(), func.stop.getLine(), func.stop.getCharPositionInLine(), func.start.getStartIndex(), func.stop.getStopIndex());
+			//private void captureBIF(String funcName, int lineNr, String options, int nrArgs, List<TSQLParser.ExpressionContext> argList, List<String> argListText, TSQLParser.Func_proc_name_server_database_schemaContext func) {
+			private void captureBIF(String funcName, int lineNr, String options, int nrArgs, List<TSQLParser.ExpressionContext> argList, List<String> argListText, TSQLParser.Func_proc_name_server_database_schemaContext func,  TSQLParser.Function_callContext funccall) {
+				captureBIF(funcName, lineNr, options, nrArgs, argList, argListText, funccall.start.getLine(), funccall.start.getCharPositionInLine(), funccall.stop.getLine(), funccall.stop.getCharPositionInLine(), funccall.start.getStartIndex(), funccall.stop.getStopIndex());
 			}
 
 			private void captureBIF(String funcName, int lineNr, String options, Integer nrArgs, List<TSQLParser.ExpressionContext> argList, List<String> argListText, Integer startLine, Integer startCharPositionInLine, Integer stopLine, Integer stopCharPositionInLine, Integer startIndex, Integer stopIndex) {
@@ -1705,8 +1707,8 @@ public class CompassAnalyze {
 						// report the unit used
 						String unit = argList.get(0).getText().toLowerCase();
 						funcNameReport = funcName + "()";
-						funcDetail = unit;
-
+						funcDetail = unit;			
+						
 						for (int i = 2; i <= 3; i++) {
 							if (funcName.equals("DATEADD")) {
 								if (i == 2) continue;
@@ -1757,12 +1759,27 @@ public class CompassAnalyze {
 								status = u.Rewritten;
 							}
 							else {
-								String group = BuiltInFunctions;
-								group = u.applyPatternFirst(group, "s$", "");							
+								String group = u.applyPatternFirst(BuiltInFunctions, "s$", "");							
 								addRewrite(group + " " + funcNameReport);
 							}
 						}
-					}
+					}					
+					else if (funcName.equals("EOMONTH")) {
+						if (u.rewrite) {
+							//String eomArg = argList.get(0).getText();
+							//String rewriteText = rewriteEOMonth.replaceAll("~~1~~", u.escapeRegexChars(eomArg));
+							//addRewrite(BuiltInFunctions, funcNameReport, u.rewriteTypeReplace, rewriteText, startLine, startCharPositionInLine, stopLine, stopCharPositionInLine, startIndex, stopIndex);
+							
+							String rewriteText = rewriteEOMonth;
+							addRewrite(BuiltInFunctions, funcNameReport, u.rewriteTypeExpr2, rewriteText, startLine, startCharPositionInLine, stopLine, stopCharPositionInLine, startIndex, stopIndex);
+															
+							status = u.Rewritten; 
+						}
+						else {
+							String group = u.applyPatternFirst(BuiltInFunctions, "s$", "");									
+							addRewrite(group + " " + funcNameReport);
+						}
+					}					
 				}
 				captureItem(funcNameReport, funcDetail, BuiltInFunctions, funcName, status, lineNr);
 			}
@@ -4033,7 +4050,8 @@ public class CompassAnalyze {
 
 							// is this a BIF or SUDF?
 							if (featureExists(BuiltInFunctions, funcName)) {
-								captureBIF(funcName, ctx.start.getLine(), "", nrArgs, argList, argListText, ctx.func_proc_name_server_database_schema());
+								//captureBIF(funcName, ctx.start.getLine(), "", nrArgs, argList, argListText, ctx.func_proc_name_server_database_schema());
+								captureBIF(funcName, ctx.start.getLine(), "", nrArgs, argList, argListText, ctx.func_proc_name_server_database_schema(), ctx);
 							}
 							else {
 								// check for XML/HIERARCHYID methods, these can be parsed as UDF calls
@@ -7005,77 +7023,101 @@ public class CompassAnalyze {
 				return null;
 			}
 
+			private void capturePermissions(String stmt, String permRaw, String onObject, String grantOption, int lineNo) {
+				String status = featureSupportedInVersion(stmt);
+				permRaw = u.applyPatternAll(permRaw, "\\(.+?\\)", "(col)");
+				List<String> permList = new ArrayList<String>(Arrays.asList(permRaw.split(",")));
+				for (String perm : permList.stream().sorted().collect(Collectors.toList())) {
+					if (perm.isEmpty()) continue;
+					perm = u.applyPatternAll(perm, "(CREATE|DROP|ALTER|SELECT|VIEW|ANY|COLUMN|ENCRYPTION|MASTER|KEY|DEFINITION|CONNECT|DATABASE|SCHEMA|TRIGGER|DDL|MESSAGE|SERVICE|BINDING|EVENT|OWNERSHIP|BACKUP|RESTORE|NOTIFICATION(S)?|FULLTEXT|CATALOG|SUBSCRIBE|QUERY|XML|COLLECTION|SESSION|SERVER|AVAILABILITY|ACCESS|USER|ASSEMBLY|BULK|PRIVILEGES|APPLICATION)", " $1 ");
+					if (!perm.contains("(")) {
+						if (onObject.endsWith(")")) {
+							perm += "(col)";
+						}
+					}
+					perm = perm.replaceAll("\\(col\\)", "(column)");
+					perm = perm.replaceAll(" \\(", "(");
+					String reportGrant = stmt + " " + perm;
+					reportGrant += " " + grantOption;
+					reportGrant = u.applyPatternAll(reportGrant, "[ ]+", " ");
+	 				captureItem(reportGrant.trim(), onObject, stmt, "", status, lineNo);
+	 			}				
+			}
+			
 			@Override public String visitGrant_statement(TSQLParser.Grant_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
- 				String status = featureSupportedInVersion(GrantStmt);
- 				captureItem(GrantStmt, "", GrantStmt, "", status, ctx.start.getLine());
- 				if (status.equals(u.Supported)) {
-					// Todo: check for specific permissions
-					// Todo: multiple permissionss are possible
-					// Todo: the code below needs to be done right, it does not work (but GRANT?REVOKE/DENY ar ento supprote dnayway
-					String perm = "";
-					if (ctx.ALL() != null) perm = "ALL PRIVILEGES";
-					else perm = ctx.permissions().getText().toUpperCase();  // this may be a list?
-					captureOption(GrantStmt, perm, ctx.start.getLine(), ", in GRANT"); // ToDo: yet unclear how to report this
 
-					if (ctx.ON() != null) {
-						String grantObject = ctx.permission_object().getText().toUpperCase(); // can this be a list?
-						captureOption(GrantStmt, "ON "+grantObject, ctx.start.getLine(), ", in GRANT"); // ToDo: yet unclear how to report this
-					}
+				// Todo: validate individual permissions ince GRANT/REVOKE is supported
+				
+				String permRaw = "";
+				if (ctx.ALL() != null) permRaw = "ALL PRIVILEGES";
+				else permRaw = ctx.permissions().getText().toUpperCase();  // this may be a list?
+//				captureOption(GrantStmt, perm, ctx.start.getLine(), ", in GRANT"); // ToDo: yet unclear how to report this
 
-					String grantee = "";
-					if (ctx.principals() != null) grantee = ctx.principals().getText().toUpperCase();  // list?
-
-					if (ctx.WITH() != null) {
-						String grantOption = "WITH GRANT OPTION";
-						captureOption(GrantStmt, grantOption, ctx.start.getLine(), ", in GRANT"); // ToDo: yet unclear how to report this
-					}
-
-					if (ctx.AS() != null) {
-						String grantor = ctx.principal_id().getText().toUpperCase();
-						captureOption(GrantStmt, "AS GRANTOR", ctx.start.getLine(), ", in GRANT"); // ToDo: yet unclear how to report this
-					}
+				String grantOn = "";
+				if (ctx.ON() != null) {
+					grantOn = ctx.permission_object().getText().toUpperCase();  // can this be a list?
+					//captureOption(GrantStmt, "ON "+grantObject, ctx.start.getLine(), ", in GRANT");  ToDo: yet unclear how to report this
 				}
+//
+//				String grantee = "";
+//				if (ctx.principals() != null) grantee = ctx.principals().getText().toUpperCase();   list?
+//
+				String grantOption = "";
+				if (ctx.WITH() != null) {
+					grantOption = "WITH GRANT OPTION";
+					//captureOption(GrantStmt, grantOption, ctx.start.getLine(), ", in GRANT");  ToDo: yet unclear how to report this
+				}
+//
+//				if (ctx.AS() != null) {
+//					String grantor = ctx.principal_id().getText().toUpperCase();
+//					captureOption(GrantStmt, "AS GRANTOR", ctx.start.getLine(), ", in GRANT");  ToDo: yet unclear how to report this
+//				}
+//				
+				capturePermissions(GrantStmt, permRaw, grantOn, grantOption, ctx.start.getLine());
+				 								
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
 			}
-
+			
 			@Override public String visitRevoke_statement(TSQLParser.Revoke_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
- 				String status = featureSupportedInVersion(RevokeStmt);
- 				captureItem(RevokeStmt, "", RevokeStmt, "", status, ctx.start.getLine());
- 				if (status.equals(u.Supported)) {
-					// Todo: check for specific permissions
-					// Todo: the code below needs to be done right
-					String perm = "";
-					if (ctx.ALL() != null) perm = "ALL PRIVILEGES";
-					else perm = ctx.permissions().getText().toUpperCase();  // this may be a list?
-					captureOption(PermissionsReportGroup, perm, ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
 
-					if (ctx.ON() != null) {
-						String revokeObject = ctx.permission_object().getText().toUpperCase(); // can this be a list?
-						captureOption(RevokeStmt, "ON "+revokeObject, ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
-					}
+				// Todo: validate individual permissions ince GRANT/REVOKE is supported
+				
+				String permRaw = "";
+				if (ctx.ALL() != null) permRaw = "ALL PRIVILEGES";
+				else permRaw = ctx.permissions().getText().toUpperCase();  // this may be a list?
+				//captureOption(PermissionsReportGroup, perm, ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
 
-					String grantee = "";
-					if (ctx.principals() != null) grantee = ctx.principals().getText().toUpperCase();  // list?
-
-					if (ctx.GRANT() != null) {
-						String grantOption = "GRANT OPTION FOR";
-						captureOption(RevokeStmt, grantOption, ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
-					}
-
-					if (ctx.AS() != null) {
-						String grantor = ctx.principal_id().getText().toUpperCase();
-						captureOption(RevokeStmt, "AS GRANTOR", ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
-					}
-
-					if (ctx.CASCADE() != null) {
-						String cascade = ctx.principal_id().getText().toUpperCase();
-						captureOption(RevokeStmt, "CASCADE", ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
-					}
+				String revokeOn = "";
+				if (ctx.ON() != null) {
+					revokeOn = ctx.permission_object().getText().toUpperCase(); // can this be a list?
+					//captureOption(RevokeStmt, "ON "+revokeObject, ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
 				}
+
+				String grantee = "";
+				if (ctx.principals() != null) grantee = ctx.principals().getText().toUpperCase();  // list?
+
+				String grantOption = "";
+				if (ctx.GRANT() != null) {
+					grantOption = "GRANT OPTION FOR";
+					//captureOption(RevokeStmt, grantOption, ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
+				}
+
+//				if (ctx.AS() != null) {
+//					String grantor = ctx.principal_id().getText().toUpperCase();
+//					captureOption(RevokeStmt, "AS GRANTOR", ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
+//				}
+
+//				if (ctx.CASCADE() != null) {
+//					String cascade = ctx.principal_id().getText().toUpperCase();
+//					captureOption(RevokeStmt, "CASCADE", ctx.start.getLine(), ", in REVOKE");  ToDo: yet unclear how to report this
+//				}
+
+				capturePermissions(RevokeStmt, permRaw, revokeOn, grantOption, ctx.start.getLine());
+
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -7083,34 +7125,35 @@ public class CompassAnalyze {
 
 			@Override public String visitDeny_statement(TSQLParser.Deny_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
- 				String status = featureSupportedInVersion(DenyStmt);
- 				captureItem(DenyStmt, "", DenyStmt, "", status, ctx.start.getLine());
- 				if (status.equals(u.Supported)) {
-					// Todo: check for specific permissions
-					// Todo: the code below needs to be done right
-					String perm = "";
-					if (ctx.ALL() != null) perm = "ALL PRIVILEGES";
-					else perm = ctx.permissions().getText().toUpperCase();  // this may be a list?
-					captureOption(PermissionsReportGroup, perm, ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
 
-					if (ctx.ON() != null) {
-						String revokeObject = ctx.permission_object().getText().toUpperCase(); // can this be a list?
-						captureOption(DenyStmt, "ON "+revokeObject, ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
-					}
+				// Todo: validate individual permissions ince GRANT/REVOKE is supported
+				
+				String permRaw = "";
+				if (ctx.ALL() != null) permRaw = "ALL PRIVILEGES";
+				else permRaw = ctx.permissions().getText().toUpperCase();  // this may be a list?
+				//captureOption(PermissionsReportGroup, perm, ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
 
-					String grantee = "";
-					if (ctx.principals() != null) grantee = ctx.principals().getText().toUpperCase();  // list?
-
-					if (ctx.AS() != null) {
-						String grantor = ctx.principal_id().getText().toUpperCase();
-						captureOption(DenyStmt, "AS GRANTOR", ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
-					}
-
-					if (ctx.CASCADE() != null) {
-						String cascade = ctx.principal_id().getText().toUpperCase();
-						captureOption(DenyStmt, "CASCADE", ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
-					}
+				String denyOn = "";
+				if (ctx.ON() != null) {
+					denyOn = ctx.permission_object().getText().toUpperCase(); // can this be a list?
+					//captureOption(DenyStmt, "ON "+revokeObject, ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
 				}
+
+				String grantee = "";
+				if (ctx.principals() != null) grantee = ctx.principals().getText().toUpperCase();  // list?
+
+//				if (ctx.AS() != null) {
+//					String grantor = ctx.principal_id().getText().toUpperCase();
+//					//captureOption(DenyStmt, "AS GRANTOR", ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
+//				}
+
+//				if (ctx.CASCADE() != null) {
+//					String cascade = ctx.principal_id().getText().toUpperCase();
+//					//captureOption(DenyStmt, "CASCADE", ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
+//				}
+
+				capturePermissions(DenyStmt, permRaw, denyOn, "", ctx.start.getLine());
+
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -7119,22 +7162,34 @@ public class CompassAnalyze {
 
 			@Override public String visitAlter_authorization(TSQLParser.Alter_authorizationContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
- 				String status = featureSupportedInVersion(AlterAuthStmt);
- 				captureItem(AlterAuthStmt, "", AlterAuthStmt, "", status, ctx.start.getLine());
- 				if (status.equals(u.Supported)) {
-					// Todo: check for specific permissions
-					// Todo: the code below needs to be done right
 
-					if (ctx.object_type() != null) {
-						String objType = ctx.object_type().getText().toUpperCase();
-					}
-
-					String grantee = ctx.authorization_grantee().getText().toUpperCase();
-
-					if (ctx.entity_name() != null) {
-						String objName = ctx.entity_name().getText().toUpperCase();
-					}
+				String grantee = ctx.authorization_grantee().getText().toUpperCase();
+				
+				String objType = "";
+				String objName = "";
+				if (ctx.object_type() != null) {
+					objType = ctx.object_type().getText().toUpperCase();
 				}
+
+				if (ctx.entity_name() != null) {
+					objName = ctx.entity_name().getText().toUpperCase();
+				}
+
+				// ToDo: test for object types when ALTER AUTHORIZATION gets supported
+				String status = featureSupportedInVersion(AlterAuthStmt);
+				String objDetail = objType + ", " + objName;
+				String objReport = objType;
+				if (objType.isEmpty()) {
+					objDetail = objName;
+					objReport = "object";
+				}
+				if (objReport.equals("OBJECT")) objReport = "object";
+				String granteeReport = grantee;
+				if (grantee.equals("SCHEMAOWNER")) granteeReport = "SCHEMA OWNER";
+				else granteeReport = "principal";
+				
+ 				captureItem(AlterAuthStmt+ " ON " + objReport + " TO " + granteeReport, objDetail, AlterAuthStmt, "", status, ctx.start.getLine());
+
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;

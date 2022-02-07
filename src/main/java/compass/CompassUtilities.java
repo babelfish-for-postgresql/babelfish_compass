@@ -37,8 +37,9 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "1.2";
-	public static final String thisProgVersionDate  = "January 2022";
+	//public static final String thisProgVersion      = "1.2";
+	public static final String thisProgVersion      = "2022-02";
+	public static final String thisProgVersionDate  = "February 2022";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -399,7 +400,7 @@ tooltipsHTMLPlaceholder +
 	static final List<String> toolTipsKeysList = new ArrayList<>();
 	static final String tttSeparator = "~~~";
 	static final List<String> toolTipsText = Arrays.asList(		
-		"STR("+tttSeparator+"STR() is not currently supported; rewrite with CONVERT()",
+		"STR("+tttSeparator+"STR() is not currently supported; rewrite with CONVERT(), but note the rounding that may be required",
 		"CHECKSUM(*)"+tttSeparator+"CHECKSUM(*) is not currently supported; CHECKSUM() with a single non-asterisk argment is supported",
 		"CHECKSUM(arg,arg,...)"+tttSeparator+"CHECKSUM() with multiple arguments is not currently supported; CHECKSUM() with a single non-asterisk argment is supported",
 		"TRY_CONVERT("+tttSeparator+"TRY_CONVERT() is not currently supported; rewrite with CONVERT()",
@@ -414,12 +415,15 @@ tooltipsHTMLPlaceholder +
 		"ORIGINAL_LOGIN("+tttSeparator+"ORIGINAL_LOGIN() is not currently supported; Rewrite as SUSER_NAME()",
 		"SESSION_USER"+tttSeparator+"SESSION_USER is not currently supported; Rewrite as USER_NAME()",
 		"SYSTEM_USER"+tttSeparator+"SYSTEM_USER is not currently supported; Rewrite as SUSER_NAME() (the -rewrite option handles this for you)",
+		"EOMONTH("+tttSeparator+"EOMONTH() is not currently supported; rewrite with DATEADD()/DATEPART() (the -rewrite option handles this for you)",
 		"DATABASE_PRINCIPAL_ID("+tttSeparator+"DATABASE_PRINCIPAL_ID() is not currently supported; Rewrite as USER_NAME()",
-		"FORMAT("+tttSeparator+"FORMAT() is not currently supported; Rewrite the formatting using available functions such as CONVERT()",
+		"FORMAT("+tttSeparator+"FORMAT() is not currently supported; rewrite the formatting using available functions such as CONVERT()",
 		"FILEGROUP_NAME("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"FILEPROPERTY("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"NEWSEQUENTIALID()"+tttSeparator+"NEWSEQUENTIALID() is implemented as NEWID(); the sequential nature of the generated values is however not guaranteed, as is the case in SQL Server",
 		"DIFFERENCE()"+tttSeparator+"DIFFERENCE() is not currently supported; this is a soundex-related function",
+		"SUSER_SNAME()"+tttSeparator+"SUSER_SNAME() is not currently supported; rewrite as SUSER_NAME()",
+		"SUSER_SID()"+tttSeparator+"SUSER_SID() is not currently supported; rewrite as SUSER_ID()",
 		"\\w+PROPERTY\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+PROPERTYEX\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+\\(\\),"+CompassAnalyze.withoutArgumentValidateStr+tttSeparator+"This built-in function is not currently supported when called without arguments",
@@ -453,7 +457,7 @@ tooltipsHTMLPlaceholder +
 		"GRANT"+tttSeparator+"GRANT is not currently supported",
 		"REVOKE"+tttSeparator+"REVOKE is not currently supported",
 		"DENY"+tttSeparator+"DENY is not currently supported",
-		"ALTER AUTHORIZATION"+tttSeparator+"ALTER AUTHORIZATION is not currently supported",
+		"ALTER AUTHORIZATION"+tttSeparator+"ALTER AUTHORIZATION (change object ownership) is not currently supported",
 		"CREATE ROLE"+tttSeparator+"DB-level roles are not currently supported, except the predefined 'db_owner' role",
 		"ALTER ROLE"+tttSeparator+"ALTER ROLE for DB-level roles is not currently supported",
 		"CREATE SERVER ROLE"+tttSeparator+"Server-level roles are not currently supported, except the predefined 'sysadmin' role",
@@ -574,6 +578,8 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.RemoteObjectReference+tttSeparator+"Remote object references with 4-part object names (e.g. SELECT * FROM REMOTESRVR.somedb.dbo.sometable) are not currently supported",
 		"EXECUTE proc;version"+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
 		"CREATE PROCEDURE proc;version"+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
+		"Number of procedure parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the procedure to use less parameters",
+		"Number of function parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the function to use less parameters",
 		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action, in case the trigger body references the transition tables INSERTED or DELETED",
 		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported",
 		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported",
@@ -604,6 +610,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.SpecialCharsIdentifier+tttSeparator+"Some characters are not currently supported in identifiers; go to the cross-reference section to find the specific case",		
 		CompassAnalyze.SpecialCharsParameter+tttSeparator+"Some characters are not currently supported in parameter declarations; go to the cross-reference section to find the specific case",		
 		"EXECUTE AS"+tttSeparator+"The EXECUTE AS statement (not to be confused with the EXECUTE AS clause in CREATE PROCEDURE/FUNCTION/etc.) is not currently supported",		
+		"EXECUTE procedure sp_addextendedproperty"+tttSeparator+"System stored procedure sp_addextendedproperty is not currently supported; this is most often used to create metadata comments (e.g. COMMENT ON in PostgreSQL) and does not otherwise affect SQL functionality",		
 		"REVERT"+tttSeparator+"The REVERT statement is not currently supported",		
 		
 		"\\w+, option WITH EXECUTE AS CALLER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY INVOKER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
@@ -631,15 +638,17 @@ tooltipsHTMLPlaceholder +
 	);
 
 	// emoji to indicate popup info is available
-  	static String hintIcon = "&#x1F6C8;";  // information symbol: (i)
+  	static String hintIcon      = "&#x1F6C8;";  // information symbol: (i)
+  	static String hintIconMac   = "&#x2139;";  // information symbol: i  -- x1F6C8 is not rendered correctly on some Macs
+  	static String hintIconLinux = "&#x2139;";  // information symbol: i  -- x1F6C8 is not rendered correctly on some Macs
 	
-	// alternate emojis; see COMPASS_HINT_ICON how to specify your own favorite
+	// alternate emojis; use COMPASS_HINT_ICON how to specify your own favorite,i.e. SET COMPASS_HINT_ICON=1F4A1
   	//String hintIcon = "&#x2754;";   // white question mark
   	//String hintIcon = "&#x1F4A1;";  // light bulb
   	//String hintIcon = "&#x1F6C8;";  // information symbol: (i)
-  	//String hintIcon = "&#x2606;";  // white star
-  	//String hintIcon = "&#8505;";  // blue information symbol [i]
-  	//String hintIcon = "&#10145;";  // right arrow
+  	//String hintIcon = "&#x2606;";   // white star
+  	//String hintIcon = "&#8505;";    // blue information symbol [i]
+  	//String hintIcon = "&#10145;";   // right arrow
   	//String hintIcon =   "&#9651;";  // white triangle
 
 
@@ -921,6 +930,7 @@ tooltipsHTMLPlaceholder +
 	public static Integer nrRewritesDone = 0;
 	public static Integer nrMergeRewrites = 0;
 	public static String rewriteTypeExpr1 = "expr(1)";
+	public static String rewriteTypeExpr2 = "expr(2)";
 	public static String rewriteTypeReplace = "replace";	
 	public static String rewriteTypeODBCfunc1 = "ODBCfunc1";	
 	public static String rewriteTypeODBClit1 = "ODBClit1";	
@@ -1004,6 +1014,7 @@ tooltipsHTMLPlaceholder +
 			onPlatform  = "MacOS";
 			thisProgExec = thisProgExecMac;
 			BabelfishCompassFolderName = BabelfishCompassFolderNameMac;
+			hintIcon = hintIconMac;
 		}
 		else {
 			// assume Linux
@@ -1011,6 +1022,7 @@ tooltipsHTMLPlaceholder +
 			onPlatform  = "Linux";
 			thisProgExec = thisProgExecLinux;
 			BabelfishCompassFolderName = BabelfishCompassFolderNameLinux;
+			hintIcon = hintIconLinux;
 		}
 
 		if (System.getenv().containsKey("COMPASS_DEVELOP") || System.getenv().containsKey("compass_develop")) {
@@ -5859,7 +5871,16 @@ tooltipsHTMLPlaceholder +
 		String newStrNoComment = "";		
 		rewrittenOppties.put(report, rewrittenOppties.getOrDefault(report, 0)+1);
 		if (rewriteType.equals(rewriteTypeExpr1)) {			
-			newStr = rwrTag + rewriteText.replace("~~1~~", origStrFull);	
+			newStr = rwrTag + rewriteText.replaceAll("~~1~~", origStrFull);	
+			newStr = newStr.trim();
+			newStrNoComment = newStr;	
+			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");
+		}
+		else if (rewriteType.equals(rewriteTypeExpr2)) {		
+			String origStrComment = getPatternGroup(origStrFull, "^(\\w+)\\s*\\(", 1);
+			origStrFull = applyPatternFirst(origStrFull, "^\\w+\\s*\\(", "");
+			origStrFull = applyPatternFirst(origStrFull, "\\)$", "");
+			newStr = rwrTag + " /*"+origStrComment+"()*/ "+ rewriteText.replaceAll("~~1~~", origStrFull);	
 			newStr = newStr.trim();
 			newStrNoComment = newStr;	
 			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");

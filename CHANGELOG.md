@@ -1,3 +1,8 @@
+# 2022-02
+New version numbering for Babelfish Compass
+
+Small enhancements
+
 # 1.2
 New -rewrite feature
 
