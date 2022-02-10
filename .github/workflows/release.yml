@@ -37,6 +37,12 @@ jobs:
         export RELEASE_DETAILS="$(sed '${/^# /d;}' <<< "$RELEASE_DETAILS")"
         touch RELEASE_DETAILS.md
         echo "$RELEASE_DETAILS" > RELEASE_DETAILS.md
+    - name: 'Install GPG Secret Key'
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v4
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
     - name: Package up release files
       run: |
         mkdir BabelfishCompass
@@ -49,6 +55,11 @@ jobs:
         chmod +x BabelfishCompass.sh
         cp BabelfishCompass.sh BabelfishCompass/
         mv BabelfishCompass/compass-*-jar-with-dependencies.jar BabelfishCompass/compass.jar
+        export GPG_TTY=$(tty)
+        KEYGRIP="$(gpg --with-keygrip -K | grep -Pom1 '^ *Keygrip += +\K.*')"
+        /usr/lib/gnupg2/gpg-preset-passphrase -c $KEYGRIP <<< ${{ secrets.GPG_PASSPHRASE }}
+        gpg --detach-sign --armor BabelfishCompass/compass.jar
+        gpg --verify BabelfishCompass/compass.asc
         zip -r BabelfishCompass_${{ env.RELEASE_VERSION }}.zip BabelfishCompass
     - name: Upload JARs to release
       uses: ncipollo/release-action@v1
