@@ -37,7 +37,7 @@ jobs:
         export RELEASE_DETAILS="$(sed '${/^# /d;}' <<< "$RELEASE_DETAILS")"
         touch RELEASE_DETAILS.md
         echo "$RELEASE_DETAILS" > RELEASE_DETAILS.md
-    - name: 'Install GPG Secret Key'
+    - name: Install GPG Secret Key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v4
         with:
