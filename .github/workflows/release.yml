@@ -5,7 +5,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - '*'
 
 permissions:
   actions: write
@@ -31,12 +31,12 @@ jobs:
         mvn -B package --file pom.xml
     - name: Set version env variable
       run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-    - name: Get release details
-      run: |
-        export RELEASE_DETAILS="$(awk -vN=2 'n<N;/^# /{++n}' CHANGELOG.md)" 
-        export RELEASE_DETAILS="$(sed '${/^# /d;}' <<< "$RELEASE_DETAILS")"
-        touch RELEASE_DETAILS.md
-        echo "$RELEASE_DETAILS" > RELEASE_DETAILS.md
+    - name: 'Install GPG Secret Key'
+      id: import_gpg
+      uses: crazy-max/ghaction-import-gpg@v4
+      with:
+        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+        passphrase: ${{ secrets.GPG_PASSPHRASE }}
     - name: Package up release files
       run: |
         mkdir BabelfishCompass
@@ -49,11 +49,28 @@ jobs:
         chmod +x BabelfishCompass.sh
         cp BabelfishCompass.sh BabelfishCompass/
         mv BabelfishCompass/compass-*-jar-with-dependencies.jar BabelfishCompass/compass.jar
+        export GPG_TTY=$(tty)
+        KEYGRIP="$(gpg --with-keygrip -K | grep -Pom1 '^ *Keygrip += +\K.*')"
+        /usr/lib/gnupg2/gpg-preset-passphrase -c $KEYGRIP <<< ${{ secrets.GPG_PASSPHRASE }}
+        for jar in BabelfishCompass/*.jar; do gpg --detach-sign --armor $jar; done
+        for signed in BabelfishCompass/*.asc; do gpg --verify $signed; done
         zip -r BabelfishCompass_${{ env.RELEASE_VERSION }}.zip BabelfishCompass
+    - name: Get release details
+      run: |
+        export RELEASE_DETAILS="$(awk -vN=2 'n<N;/^# /{++n}' CHANGELOG.md)" 
+        export RELEASE_DETAILS="$(sed '${/^# /d;}' <<< "$RELEASE_DETAILS")"
+        export RELEASE_DETAILS="$(sed '/^#/d' <<< "$RELEASE_DETAILS")"
+        touch RELEASE_DETAILS.md
+        echo "### What's New" > RELEASE_DETAILS.md
+        echo "$RELEASE_DETAILS" >> RELEASE_DETAILS.md
+        echo $'\n### md5 Verification\n' >> RELEASE_DETAILS.md
+        md5=($(md5sum BabelfishCompass_${{ env.RELEASE_VERSION }}.zip))
+        echo "BabelfishCompass_${{ env.RELEASE_VERSION }}.zip (\`$md5\`)" >> RELEASE_DETAILS.md
     - name: Upload JARs to release
       uses: ncipollo/release-action@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        name: "Babelfish Compass ${{ env.RELEASE_VERSION }}"
         bodyFile: "RELEASE_DETAILS.md"
         draft: true
-        artifacts: "BabelfishCompass_${{ env.RELEASE_VERSION }}.zip"
+        artifacts: BabelfishCompass_${{ env.RELEASE_VERSION }}.zip
