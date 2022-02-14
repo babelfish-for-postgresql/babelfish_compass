@@ -262,9 +262,13 @@ public class CompassAnalyze {
 	static final String withNArgumentValidateStr = " with N arguments"; // must match section name in .cfg file
 	static final String withNArgumentValidateStrRegex = " with \\d arguments"; // for popups
 
-	// expression for numeric-as-date
-	static String rewriteEOMonth = "DATEADD(dd,-1,DATEADD(mm,1,DATEFROMPARTS(DATEPART(yy, CAST("+"~~1~~"+" AS DATE)),DATEPART(MM,CAST("+"~~1~~"+" AS DATE)),1)))";
-	static String rewriteNumericAsDate = "DATEADD(minute,("+"~~1~~"+")*1440,DATETIMEFROMPARTS(1900,1,1,0,0,0,0))";
+	// expressions for rewriting
+	static String rewriteTag1 = "~~1~~";
+	static String rewriteWaitforDelay = "CASE WHEN "+rewriteTag1+" NOT LIKE '%[^0-9:.]%' THEN CASE LEN("+rewriteTag1+") - LEN(REPLACE("+rewriteTag1+",':','')) WHEN 1 THEN (SUBSTRING("+rewriteTag1+",1,CHARINDEX(':',"+rewriteTag1+")-1)*60) + SUBSTRING("+rewriteTag1+",CHARINDEX(':',"+rewriteTag1+")+1,2) WHEN 2 THEN (SUBSTRING("+rewriteTag1+",1,CHARINDEX(':',"+rewriteTag1+")-1)*3600.0) + (SUBSTRING("+rewriteTag1+",CHARINDEX(':',"+rewriteTag1+")+1,CHARINDEX(':',"+rewriteTag1+",CHARINDEX(':',"+rewriteTag1+"))-1)*60.0)+ CAST(SUBSTRING("+rewriteTag1+",CHARINDEX(':',"+rewriteTag1+",CHARINDEX(':',"+rewriteTag1+")+1)+1,9) AS NUMERIC(5,3)) ELSE 0  END ELSE 0 END";	
+	static Integer nrWaitForDelayRewrites = 0;
+	
+	static String rewriteEOMonth = "DATEADD(dd,-1,DATEADD(mm,1,DATEFROMPARTS(DATEPART(yy, CAST("+rewriteTag1+" AS DATE)),DATEPART(MM,CAST("+rewriteTag1+" AS DATE)),1)))";
+	static String rewriteNumericAsDate = "DATEADD(minute,("+rewriteTag1+")*1440,DATETIMEFROMPARTS(1900,1,1,0,0,0,0))";
 	static String rewriteNumericAsDateZero = "DATETIMEFROMPARTS(1900,1,1,0,0,0,0)";
 
 	// some 1:1 string rewrites
@@ -277,7 +281,7 @@ public class CompassAnalyze {
 	                                                                 "D", "T", "TS"
 													 );
 	static List<String> rewriteDirectODBCfuncReplace = Arrays.asList("REPLICATE", "UPPER", "LOWER", "SPACE", "LTRIM", "RTRIM", "LEFT", "RIGHT", "REPLACE", "CONCAT", "ASCII", "LEN", "LEN", "LEN",
-	                                                                 "GETDATE", "DATEPART(hour,", "DATEPART(minute,",  "DATEPART(second,", "DATEPART(week,", "DATEPART(month,", "DATEPART(quarter,",  "DATEPART(year,",	                                                                
+	                                                                 "GETDATE", "DATEPART(hour,", "DATEPART(minute,",  "DATEPART(second,", "DATEPART(week,", "DATEPART(month,", "DATEPART(quarter,",  "DATEPART(year,",	 
 	                                                                 "CONVERT(DATE,", "CONVERT(TIME,", "CONVERT(DATETIME,"
 													 );
 
@@ -1767,7 +1771,7 @@ public class CompassAnalyze {
 					else if (funcName.equals("EOMONTH")) {
 						if (u.rewrite) {
 							//String eomArg = argList.get(0).getText();
-							//String rewriteText = rewriteEOMonth.replaceAll("~~1~~", u.escapeRegexChars(eomArg));
+							//String rewriteText = rewriteEOMonth.replaceAll(rewriteTag1, u.escapeRegexChars(eomArg));
 							//addRewrite(BuiltInFunctions, funcNameReport, u.rewriteTypeReplace, rewriteText, startLine, startCharPositionInLine, stopLine, stopCharPositionInLine, startIndex, stopIndex);
 							
 							String rewriteText = rewriteEOMonth;
@@ -4681,7 +4685,7 @@ public class CompassAnalyze {
 
 				String procName = "";
 				if (ctx.func_proc_name_server_database_schema() != null) {
-					procName = ctx.func_proc_name_server_database_schema().getText();
+					procName = u.normalizeName(ctx.func_proc_name_server_database_schema().getText());
 					if (!lookupSUDF(procName).isEmpty()) {
 						String status = featureSupportedInVersion(ExecuteSQLFunction);
 						captureItem(ExecuteSQLFunction, procName, ExecuteSQLFunction, "", status, ctx.start.getLine());
@@ -4767,6 +4771,8 @@ public class CompassAnalyze {
 				String firstStmt = "";
 				if (rule.equals("execute_body_batch")) firstStmt = " (without EXECUTE keyword)";
 
+				CaptureIdentifier(procName, procName, "EXECUTE procedure", lineNr);	
+				
 				procName = u.getObjectNameFromID(procName).toLowerCase();
 				if (procName.equals("sp_executesql"))  {
 					// todo: also report OUTPUT parameters for sp_executesql?
@@ -4804,9 +4810,7 @@ public class CompassAnalyze {
 					else {
 						captureItem("EXECUTE procedure"+firstStmt+return_status, procName, section, "", u.Supported, lineNr);
 					}
-
-					CaptureIdentifier(procName, procName, "EXECUTE procedure", lineNr);
-				}
+				}							
 			}
 
 			private void captureExecOptions(String procName, List<TSQLParser.Execute_optionContext> execOptions, int lineNr) {
@@ -5772,6 +5776,9 @@ public class CompassAnalyze {
 			}
 			public void CaptureIdentifier(String objNameRaw, String objName, String stmt, int lineNr, String fmt) {
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"objNameRaw=["+objNameRaw+"] objName=["+objName+"] fmt=["+fmt+"] ", u.debugPtree);
+				if (objNameRaw.trim().isEmpty()) return;
+				if (objName.trim().isEmpty()) return;
+				
 				if (objNameRaw.charAt(0) == '.') {
 					String status = featureSupportedInVersion(LeadingDotsId);
 					captureItem(LeadingDotsId, objNameRaw, LeadingDotsId, stmt, status, lineNr);
@@ -6366,29 +6373,47 @@ public class CompassAnalyze {
 				if (type.equals("DELAY")) {
 					if (!status.equals(u.Supported)) {
 						// convert the T-SQL string to a number of seconds for pg_sleep()
-						// Todo: if the argument is a variable or expression, not currently handled
 						String arg = ctx.expression().getText();
+						boolean isString = false;
 						if (isStringConstant(arg)) {
-							if (u.rewrite) {
+							 isString = true;
+						}						
+						if (u.rewrite) {
+							double nrSeconds = 0.0d;
+							String nrSecondsStr = "0";
+							if (isString) {
 								String origTime = u.stripStringQuotes(arg);
+								u.appOutput(u.thisProc()+"origTime=["+origTime+"] ");
 								List<String> tmpTime = new ArrayList<>(Arrays.asList(origTime.split(":")));
-								boolean isOK = true;
-								double nrSeconds = 0.0d;
+								boolean isOK = true;								
 								for (int i=0; i<tmpTime.size(); i++) {
 									if (!isNumeric(tmpTime.get(i))) {
 										isOK = false;
+										u.appOutput(u.thisProc()+"isOK=["+isOK+"] ");
 										break;
 									}
 									double f = Double.parseDouble(tmpTime.get(i));
 									nrSeconds += f * Math.pow(60,2-i) ;
 								}
-								String rewriteText = "EXECUTE pg_sleep "+nrSeconds;
-								addRewrite(WaitForStmt + " DELAY", ctx.getText(), u.rewriteTypeReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.expression().stop.getLine(), ctx.expression().stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.expression().stop.getStopIndex());
-								status = u.Rewritten;
 							}
 							else {
-								addRewrite(WaitForStmt + " DELAY");
+								// variable or expression
+								nrSecondsStr = rewriteWaitforDelay.replaceAll(rewriteTag1, arg);
 							}
+							
+							if (!isString) nrWaitForDelayRewrites++;
+							String waitForDelayVar = "@WAITFORDELAY_VAR" + nrWaitForDelayRewrites;
+							String rewriteText = "";
+							if (!isString) rewriteText += "BEGIN\nDECLARE "+waitForDelayVar+" NUMERIC(8,3) = "+nrSecondsStr+"\n";
+							rewriteText += "EXECUTE pg_sleep ";
+							if (isString) rewriteText += nrSeconds;
+							else rewriteText += waitForDelayVar;
+							if (!isString) rewriteText += "\nEND\n";
+							addRewrite(WaitForStmt + " DELAY", ctx.getText(), u.rewriteTypeReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.expression().stop.getLine(), ctx.expression().stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.expression().stop.getStopIndex());
+							status = u.Rewritten;
+						}
+						else {
+							addRewrite(WaitForStmt + " DELAY");
 						}
 					}
 				}
