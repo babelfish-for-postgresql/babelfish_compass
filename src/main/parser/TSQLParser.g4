@@ -3807,7 +3807,7 @@ xml_methods
     ;
 
 xml_value_method
-    : (loc_id=LOCAL_ID | value_id=id | eventdata=EVENTDATA | query=xml_query_method | subquery)  DOT call=xml_value_call
+    : (loc_id=LOCAL_ID | value_id=id | eventdata=EVENTDATA LR_BRACKET RR_BRACKET | query=xml_query_method | subquery)  DOT call=xml_value_call
     ;
 
 xml_value_call
