@@ -3569,11 +3569,13 @@ public class CompassAnalyze {
 
 				// ToDo: get & validate DDL events
 				List<TerminalNode> trigActionList = ctx.ID();
+				Integer nrLines = batchLines;
 				for (TerminalNode n : trigActionList) {
 					String trigAction = n.getText().toUpperCase();
 					status = featureSupportedInVersion(DDLTrigger, trigAction);
 					// capturing each action separately
-					captureItem(kwd + " TRIGGER (DDL, "+trigAction+")", trigName, DDLTrigger, trigAction, status, ctx.start.getLine(),  batchLines.toString());
+					captureItem(kwd + " TRIGGER (DDL, "+trigAction+")", trigName, DDLTrigger, trigAction, status, ctx.start.getLine(),  nrLines.toString());         
+					nrLines = 0;   // do not count lines double
 				}
 
 				// options
@@ -4054,7 +4056,6 @@ public class CompassAnalyze {
 
 							// is this a BIF or SUDF?
 							if (featureExists(BuiltInFunctions, funcName)) {
-								//captureBIF(funcName, ctx.start.getLine(), "", nrArgs, argList, argListText, ctx.func_proc_name_server_database_schema());
 								captureBIF(funcName, ctx.start.getLine(), "", nrArgs, argList, argListText, ctx.func_proc_name_server_database_schema(), ctx);
 							}
 							else {

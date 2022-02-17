@@ -4464,7 +4464,13 @@ tooltipsHTMLPlaceholder +
 						if ((!objType.equals("constraint column DEFAULT")) && (!objType.equals("constraint PRIMARY KEY/UNIQUE"))) {
 							objType = applyPatternFirst(objType, "^(.*?,.*?),.*$", "$1");
 							if (objType.startsWith("TRIGGER,")) objType = "TRIGGER";
-							if (objType.startsWith("TRIGGER (DDL")) objType = "TRIGGER (DDL)";
+							if (objType.startsWith("TRIGGER (DDL")) {
+								objType = "TRIGGER (DDL)";                 
+								if (misc.equals("0")) {
+									// this comes from a multi-action DDL trigger, count avoid counting double
+									objTypeCount.put(objType, objTypeCount.getOrDefault(objType, 0) - 1);
+								}
+							}
 							objType = objType.replaceFirst(", external", "");
 							objType = objType.replaceFirst(", CLUSTERED", "");
 							if (objType.contains("<"))  // for cases like CREATE xxx <somename>
@@ -5316,6 +5322,8 @@ tooltipsHTMLPlaceholder +
 		origStr = applyPatternAll(origStr, rwrTabRegex, "");	
 		if (origStr.length() > 100) origStr = origStr.substring(0,100) + "(...)";
 		if (newStrNoComment.length() > 100) newStrNoComment = newStrNoComment.substring(0,100) + "(...)";
+		newStrNoComment = newStrNoComment.replace("/*", "/ *"); // avoid generating a nested bracketed comment causing 'reset' to be seen as a proc call
+		newStrNoComment = newStrNoComment.replace("*/", "* /");
 		String msg = String.format("%08d", lineNoOrig) + captureFileSeparator +  String.format("%08d", rewritesDone.size()) + captureFileSeparator +  Integer.toString(lineNoOrig + linesOrig.size() - 1) + captureFileSeparator+ report+": changed ["+origStr+"] to ["+newStrNoComment+"]";
 		rewritesDone.add(msg);
 	}

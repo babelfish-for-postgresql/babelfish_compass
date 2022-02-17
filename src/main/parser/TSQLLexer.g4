@@ -322,7 +322,7 @@ ERROR:                                           E R R O R;
 ERROR_BROKER_CONVERSATIONS:                      E R R O R  UNDERLINE  B R O K E R  UNDERLINE  C O N V E R S A T I O N S;
 ESCAPE:                                          E S C A P E;
 EVENT:                                           E V E N T;
-EVENTDATA:                                       E V E N T D A T A '(' ')';
+EVENTDATA:                                       E V E N T D A T A;
 EVENT_RETENTION_MODE:                            E V E N T  UNDERLINE  R E T E N T I O N  UNDERLINE  M O D E;
 EXCEPT:                                          E X C E P T;
 EXCLUSIVE:                                       E X C L U S I V E;
