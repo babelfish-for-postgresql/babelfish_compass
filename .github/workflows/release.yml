@@ -51,7 +51,7 @@ jobs:
         mv BabelfishCompass/compass-*-jar-with-dependencies.jar BabelfishCompass/compass.jar
         export GPG_TTY=$(tty)
         KEYGRIP="$(gpg --with-keygrip -K | grep -Pom1 '^ *Keygrip += +\K.*')"
-        /usr/lib/gnupg2/gpg-preset-passphrase -c $KEYGRIP <<< ${{ secrets.GPG_PASSPHRASE }}
+        /usr/lib/gnupg2/gpg-preset-passphrase -c $KEYGRIP <<< "${{ secrets.GPG_PASSPHRASE }}"
         for jar in BabelfishCompass/*.jar; do gpg --detach-sign --armor $jar; done
         for signed in BabelfishCompass/*.asc; do gpg --verify $signed; done
         zip -r BabelfishCompass_${{ env.RELEASE_VERSION }}.zip BabelfishCompass
