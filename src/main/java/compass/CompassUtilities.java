@@ -37,8 +37,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "1.2";
-	public static final String thisProgVersionDate  = "January 2022";
+	public static final String thisProgVersion      = "2022-02-a";
+	public static final String thisProgVersionDate  = "February 2022";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -399,7 +399,7 @@ tooltipsHTMLPlaceholder +
 	static final List<String> toolTipsKeysList = new ArrayList<>();
 	static final String tttSeparator = "~~~";
 	static final List<String> toolTipsText = Arrays.asList(		
-		"STR("+tttSeparator+"STR() is not currently supported; rewrite with CONVERT()",
+		"STR("+tttSeparator+"STR() is not currently supported; rewrite with CONVERT(), but note the rounding that may be required",
 		"CHECKSUM(*)"+tttSeparator+"CHECKSUM(*) is not currently supported; CHECKSUM() with a single non-asterisk argment is supported",
 		"CHECKSUM(arg,arg,...)"+tttSeparator+"CHECKSUM() with multiple arguments is not currently supported; CHECKSUM() with a single non-asterisk argment is supported",
 		"TRY_CONVERT("+tttSeparator+"TRY_CONVERT() is not currently supported; rewrite with CONVERT()",
@@ -414,12 +414,16 @@ tooltipsHTMLPlaceholder +
 		"ORIGINAL_LOGIN("+tttSeparator+"ORIGINAL_LOGIN() is not currently supported; Rewrite as SUSER_NAME()",
 		"SESSION_USER"+tttSeparator+"SESSION_USER is not currently supported; Rewrite as USER_NAME()",
 		"SYSTEM_USER"+tttSeparator+"SYSTEM_USER is not currently supported; Rewrite as SUSER_NAME() (the -rewrite option handles this for you)",
+		"EOMONTH("+tttSeparator+"EOMONTH() is not currently supported; rewrite with DATEADD()/DATEPART() (the -rewrite option handles this for you)",
 		"DATABASE_PRINCIPAL_ID("+tttSeparator+"DATABASE_PRINCIPAL_ID() is not currently supported; Rewrite as USER_NAME()",
-		"FORMAT("+tttSeparator+"FORMAT() is not currently supported; Rewrite the formatting using available functions such as CONVERT()",
+		"FORMAT("+tttSeparator+"FORMAT() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
+		"FORMATMESSAGE("+tttSeparator+"FORMATMESSAGE() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
 		"FILEGROUP_NAME("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"FILEPROPERTY("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"NEWSEQUENTIALID()"+tttSeparator+"NEWSEQUENTIALID() is implemented as NEWID(); the sequential nature of the generated values is however not guaranteed, as is the case in SQL Server",
 		"DIFFERENCE()"+tttSeparator+"DIFFERENCE() is not currently supported; this is a soundex-related function",
+		"SUSER_SNAME()"+tttSeparator+"SUSER_SNAME() is not currently supported; rewrite as SUSER_NAME()",
+		"SUSER_SID()"+tttSeparator+"SUSER_SID() is not currently supported; rewrite as SUSER_ID()",
 		"\\w+PROPERTY\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+PROPERTYEX\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+\\(\\),"+CompassAnalyze.withoutArgumentValidateStr+tttSeparator+"This built-in function is not currently supported when called without arguments",
@@ -446,6 +450,9 @@ tooltipsHTMLPlaceholder +
 		"EXECUTE procedure sp_oageterrorinfo"+tttSeparator+"This OLE system stored procedure is not currently supported",
 		"EXECUTE procedure sp_recompile"+tttSeparator+"The recompile feature is not currently supported",
 		"EXECUTE procedure sp_dbcmptlevel"+tttSeparator+"The SQL Server compatibility level is not currently supported",
+		"EXECUTE procedure sp_"+tttSeparator+"This system stored procedure is not currently supported",
+		"EXECUTE procedure xp_cmdshell"+tttSeparator+"xp_cmdshell is not currently supported; consider implementing this using a process external to the database to execute OS commands",
+		"EXECUTE procedure xp_"+tttSeparator+"This system stored procedure is not currently supported",
 		"EXECUTE procedure, name in variable"+tttSeparator+"Executing a stored procedure whose name is in a variable (i.e. EXECUTE @p) is not currently supported. Rewrite with dynamic SQL (i.e. EXECUTE(...) or sp_executesql)",
 		"CREATE SYNONYM"+tttSeparator+"Synonyms are not currently supported; try to rewrite with views (for tables) or procedures/functions (for procedures/functions)",
 		"BACKUP"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
@@ -453,7 +460,7 @@ tooltipsHTMLPlaceholder +
 		"GRANT"+tttSeparator+"GRANT is not currently supported",
 		"REVOKE"+tttSeparator+"REVOKE is not currently supported",
 		"DENY"+tttSeparator+"DENY is not currently supported",
-		"ALTER AUTHORIZATION"+tttSeparator+"ALTER AUTHORIZATION is not currently supported",
+		"ALTER AUTHORIZATION"+tttSeparator+"ALTER AUTHORIZATION (change object ownership) is not currently supported",
 		"CREATE ROLE"+tttSeparator+"DB-level roles are not currently supported, except the predefined 'db_owner' role",
 		"ALTER ROLE"+tttSeparator+"ALTER ROLE for DB-level roles is not currently supported",
 		"CREATE SERVER ROLE"+tttSeparator+"Server-level roles are not currently supported, except the predefined 'sysadmin' role",
@@ -542,11 +549,13 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.UpdateText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
 		"INSERT..EXECUTE(string)"+tttSeparator+"INSERT..EXECUTE with EXECUTE-immediate is not currently supported",
 		"INSERT..EXECUTE sp_executesql"+tttSeparator+"INSERT..EXECUTE with sp_executesql is not currently supported",
-		"INSERT..DEFAULT VALUES"+tttSeparator+"INSERT..DEFAULT VALUES: this syntax is not currently supported. Rewrite as an INSERT with actual values",
+		"INSERT..DEFAULT VALUES"+tttSeparator+"INSERT..DEFAULT VALUES: this syntax is not currently supported. Rewrite manually as an INSERT with actual values",
 		"INSERT TOP..SELECT"+tttSeparator+"Rewrite as INSERT.. SELECT TOP",
 		CompassAnalyze.InsertBulkStmt+tttSeparator+"INSERT BULK is not a T-SQL statement, but only available through specific client-server APIs",
 		CompassAnalyze.BulkInsertStmt+tttSeparator+"BULK INSERT is not currently supported. Use a different method to load data from a file, for example PostgreSQL's COPY statement",
 		CompassAnalyze.DMLTableSrcFmt+tttSeparator+"A DML statement with OUTPUT clause, as source of an INSERT-SELECT, is not currently supported. Rewrite with OUTPUT into a temp table or table variable, and INSERT-SELECT from that",
+		CompassAnalyze.VarAggrAcrossRowsFmt+tttSeparator+"In SQL Server, an assignment of a variable where the same variable also occurs in the assigned expression, may carry over its value for every qualifying row, thus creating a kind of aggregation. This is not currently supported in Babelfish. Verify if more than 1 row may qualify and if so, rewrite the query manually",
+		CompassAnalyze.VarAssignDependency+tttSeparator+"Assignment of a variable depending on another variable which is itself assigned in the same statement, may produce unexpected results since the order of assignment is not guaranteed. Rewrite the query manually",
 		CompassAnalyze.SelectPivot+tttSeparator+"SELECT..PIVOT is not currently supported. Rewrite manually",
 		CompassAnalyze.SelectUnpivot+tttSeparator+"SELECT..UNPIVOT is not currently supported. Rewrite manually",
 		"SELECT TOP WITH TIES"+tttSeparator+"SELECT TOP WITH TIES is not currently supported. Rewrite manually",
@@ -572,8 +581,10 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.RemoteObjectReference+tttSeparator+"Remote object references with 4-part object names (e.g. SELECT * FROM REMOTESRVR.somedb.dbo.sometable) are not currently supported",
 		"EXECUTE proc;version"+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
 		"CREATE PROCEDURE proc;version"+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
+		"Number of procedure parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the procedure to use less parameters",
+		"Number of function parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the function to use less parameters",
 		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action, in case the trigger body references the transition tables INSERTED or DELETED",
-		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported",
+		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\" to suppress the error message",
 		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported",
 		"SET QUOTED_IDENTIFIER \\w+, before end of batch"+tttSeparator+"SET QUOTED_IDENTIFIER takes effect only at the start of the next batch in Babelfish; the SQL Server semantics where it applies to the next statement, is not currently supported",
 		"SET DEADLOCK_PRIORITY"+tttSeparator+"Setting the deadlock victimization priority is not currently supported",
@@ -602,13 +613,14 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.SpecialCharsIdentifier+tttSeparator+"Some characters are not currently supported in identifiers; go to the cross-reference section to find the specific case",		
 		CompassAnalyze.SpecialCharsParameter+tttSeparator+"Some characters are not currently supported in parameter declarations; go to the cross-reference section to find the specific case",		
 		"EXECUTE AS"+tttSeparator+"The EXECUTE AS statement (not to be confused with the EXECUTE AS clause in CREATE PROCEDURE/FUNCTION/etc.) is not currently supported",		
+		"EXECUTE procedure sp_addextendedproperty"+tttSeparator+"System stored procedure sp_addextendedproperty is not currently supported; this is most often used to create metadata comments (e.g. COMMENT ON in PostgreSQL) and does not otherwise affect SQL functionality",		
 		"REVERT"+tttSeparator+"The REVERT statement is not currently supported",		
 		
 		"\\w+, option WITH EXECUTE AS CALLER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY INVOKER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
 		"\\w+, option WITH EXECUTE AS OWNER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY DEFINER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
 		"\\w+, option WITH EXECUTE AS SELF"+tttSeparator+"The clause WITH EXECUTE AS SELF for procedures, functions and triggers is not currently supported",
 		"\\w+, option WITH EXECUTE AS USER"+tttSeparator+"The clause WITH EXECUTE AS <user> for procedures, functions and triggers is not currently supported",
-		"Index exceeds \\d+ columns"+tttSeparator+"For the maximum number of columns per index, 'included' columns do not count in SQL Server, but they do ount in PostgreSQL",
+		"Index exceeds \\d+ columns"+tttSeparator+"For the maximum number of columns per index, 'included' columns do not count in SQL Server, but they do count in PostgreSQL",
 		"DROP \\w+, >1 object"+tttSeparator+"Use a separate DROP statement for each object to be dropped",
 		"CREATE FUNCTION, \\w+( \\w+)?, atomic"+tttSeparator+"Atomic natively compiled functions are not currently supported; rewrite as a regular SQL functions",		
 		"CREATE FUNCTION, \\w+( \\w+)?, external"+tttSeparator+"External functions are not currently supported; rewrite as a regular SQL functions",		
@@ -629,15 +641,17 @@ tooltipsHTMLPlaceholder +
 	);
 
 	// emoji to indicate popup info is available
-  	static String hintIcon = "&#x1F6C8;";  // information symbol: (i)
+  	static String hintIcon      = "&#x1F6C8;";  // information symbol: (i)
+  	static String hintIconMac   = "&#x2139;";  // information symbol: i  -- x1F6C8 is not rendered correctly on some Macs
+  	static String hintIconLinux = "&#x2139;";  // information symbol: i  -- x1F6C8 is not rendered correctly on some Macs
 	
-	// alternate emojis; see COMPASS_HINT_ICON how to specify your own favorite
+	// alternate emojis; use COMPASS_HINT_ICON how to specify your own favorite,i.e. SET COMPASS_HINT_ICON=1F4A1
   	//String hintIcon = "&#x2754;";   // white question mark
   	//String hintIcon = "&#x1F4A1;";  // light bulb
   	//String hintIcon = "&#x1F6C8;";  // information symbol: (i)
-  	//String hintIcon = "&#x2606;";  // white star
-  	//String hintIcon = "&#8505;";  // blue information symbol [i]
-  	//String hintIcon = "&#10145;";  // right arrow
+  	//String hintIcon = "&#x2606;";   // white star
+  	//String hintIcon = "&#8505;";    // blue information symbol [i]
+  	//String hintIcon = "&#10145;";   // right arrow
   	//String hintIcon =   "&#9651;";  // white triangle
 
 
@@ -702,15 +716,13 @@ tooltipsHTMLPlaceholder +
 	public int capPosContext = 9;
 	public int capPosSubContext = 10;
 	public int capPosMisc = 11;
+	public int capPosLastField = 11 + 2;   // last field in a capture record; used to perform check on data read; +2 is for the 0 start index plus the extra field at the end
 
 	// first line in capture file:
 	public final String captureFileLinePart1 = "# Captured items for report ";
 	public final String captureFileLinePart2 = " with targeted "+babelfishProg+ "version ";
 	public final String captureFileLinePart3 = " generated at ";
 	public final String captureFileLinePart4 = " with capture file format ";
-
-	// line separator
-	public final String newLine = System.getProperty("line.separator");
 
 	// report generation
 	public String reportName = uninitialized;
@@ -921,6 +933,7 @@ tooltipsHTMLPlaceholder +
 	public static Integer nrRewritesDone = 0;
 	public static Integer nrMergeRewrites = 0;
 	public static String rewriteTypeExpr1 = "expr(1)";
+	public static String rewriteTypeExpr2 = "expr(2)";
 	public static String rewriteTypeReplace = "replace";	
 	public static String rewriteTypeODBCfunc1 = "ODBCfunc1";	
 	public static String rewriteTypeODBClit1 = "ODBClit1";	
@@ -1010,12 +1023,14 @@ tooltipsHTMLPlaceholder +
 			onPlatform  = "MacOS";
 			thisProgExec = thisProgExecMac;
 			BabelfishCompassFolderName = BabelfishCompassFolderNameMac;
+			hintIcon = hintIconMac;
 		} else {
 			// assume Linux
 			onLinux = true;
 			onPlatform  = "Linux";
 			thisProgExec = thisProgExecLinux;
 			BabelfishCompassFolderName = BabelfishCompassFolderNameLinux;
+			hintIcon = hintIconLinux;
 		}
 
 		if (System.getenv().containsKey("COMPASS_DEVELOP") || System.getenv().containsKey("compass_develop")) {
@@ -4402,6 +4417,13 @@ tooltipsHTMLPlaceholder +
 				}
 
 				List<String> itemList = new ArrayList<String>(Arrays.asList(capLine.split(captureFileSeparator)));
+				// sanity checks on #fields on the line read
+				if (itemList.size() < capPosLastField) {
+					appOutput("\nError at line "+capCount+" of "+cf.toString()+":");					
+					appOutput("Invalid capture item read: expected "+(capPosLastField)+" fields, found "+itemList.size()+". Skipping this item:");
+					appOutput("["+capLine+"]");
+					continue;
+				}
 				String objType = getPatternGroup(itemList.get(capPosItem), "^CREATE (.*)$", 1);
 				if (objType.isEmpty()) {
 					objType = getPatternGroup(itemList.get(capPosItem), "^Constraint (.*?)(\\(.*)?$", 1);
@@ -4447,7 +4469,13 @@ tooltipsHTMLPlaceholder +
 						if ((!objType.equals("constraint column DEFAULT")) && (!objType.equals("constraint PRIMARY KEY/UNIQUE"))) {
 							objType = applyPatternFirst(objType, "^(.*?,.*?),.*$", "$1");
 							if (objType.startsWith("TRIGGER,")) objType = "TRIGGER";
-							if (objType.startsWith("TRIGGER (DDL")) objType = "TRIGGER (DDL)";
+							if (objType.startsWith("TRIGGER (DDL")) {
+								objType = "TRIGGER (DDL)";                 
+								if (misc.equals("0")) {
+									// this comes from a multi-action DDL trigger, count avoid counting double
+									objTypeCount.put(objType, objTypeCount.getOrDefault(objType, 0) - 1);
+								}
+							}
 							objType = objType.replaceFirst(", external", "");
 							objType = objType.replaceFirst(", CLUSTERED", "");
 							if (objType.contains("<"))  // for cases like CREATE xxx <somename>
@@ -5299,6 +5327,8 @@ tooltipsHTMLPlaceholder +
 		origStr = applyPatternAll(origStr, rwrTabRegex, "");	
 		if (origStr.length() > 100) origStr = origStr.substring(0,100) + "(...)";
 		if (newStrNoComment.length() > 100) newStrNoComment = newStrNoComment.substring(0,100) + "(...)";
+		newStrNoComment = newStrNoComment.replace("/*", "/ *"); // avoid generating a nested bracketed comment causing 'reset' to be seen as a proc call
+		newStrNoComment = newStrNoComment.replace("*/", "* /");
 		String msg = String.format("%08d", lineNoOrig) + captureFileSeparator +  String.format("%08d", rewritesDone.size()) + captureFileSeparator +  Integer.toString(lineNoOrig + linesOrig.size() - 1) + captureFileSeparator+ report+": changed ["+origStr+"] to ["+newStrNoComment+"]";
 		rewritesDone.add(msg);
 	}
@@ -5399,13 +5429,14 @@ tooltipsHTMLPlaceholder +
 	// calculate adjusted length, taking earlier added chars into account
 	public Integer calcOffsetLength (Integer iteration, Integer startLineNo, Integer startCol, Integer endLineNo, Integer endCol) {			
 		Integer lengthNew = 0;
-		if (debugging) dbgOutput(thisProc()+"entry: iteration=["+iteration+"] startLineNo=["+startLineNo+"] startCol=["+startCol+"] endLineNo=["+endLineNo+"] endCol=["+endCol+"]", debugRewrite);
+		if (debugging) dbgOutput(thisProc()+"entry: iteration=["+iteration+"] startLineNo=["+startLineNo+"] startCol=["+startCol+"] endLineNo=["+endLineNo+"] endCol=["+endCol+"] offsetCols.size()=["+offsetCols.size()+"] ", debugRewrite);
 		if (iteration > 0) {
 			if (offsetCols.size() >= iteration) {		
 				for (int i = 0; i < iteration; i++) {
 					if (debugging) dbgOutput(thisProc()+"i=["+i+"]", debugRewrite);
 					Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();	
 					offsetIteration = offsetCols.get(i);
+					if (debugging) dbgOutput(thisProc()+"offsetIteration.size()=["+offsetIteration.size()+"] ", debugRewrite);
 					for (Integer lineNo=startLineNo; lineNo<=endLineNo; lineNo++) {
 						if (debugging) dbgOutput(thisProc()+"lineNo=["+lineNo+"]", debugRewrite);
 						if (offsetIteration.containsKey(lineNo)) {
@@ -5652,13 +5683,13 @@ tooltipsHTMLPlaceholder +
 						startLine = calcOffsetLine(iteration, startLine);
 						if (debugging) dbgOutput(thisProc()+"startLine after adjust=["+startLine+"]", debugRewrite);
 						
-						Integer startColNew = calcOffsetCol(iteration, startLine, startCol);
+						Integer startColNew = calcOffsetCol(iteration, startLineOrig, startCol);
 						if (debugging) dbgOutput(thisProc()+"startCol=["+startCol+"] startColNew=["+startColNew+"]", debugRewrite);
 
 						Integer endColNew = calcOffsetCol(iteration, endLine, endCol);
 						if (debugging) dbgOutput(thisProc()+"endCol=["+startCol+"] endColNew=["+endColNew+"]", debugRewrite);
 						
-						Integer offsetLength = calcOffsetLength(iteration, startLine, startCol, endLine, endCol);
+						Integer offsetLength = calcOffsetLength(iteration, startLineOrig, startCol, endLine, endCol);
 						Integer origLenNew = origLen + offsetLength;
 						if (debugging) dbgOutput(thisProc()+"offsetLength=["+offsetLength+"]", debugRewrite);
 						if (debugging) dbgOutput(thisProc()+"origLen=["+origLen+"] origLenNew=["+origLenNew+"]", debugRewrite);
@@ -5857,7 +5888,16 @@ tooltipsHTMLPlaceholder +
 		String newStrNoComment = "";		
 		rewrittenOppties.put(report, rewrittenOppties.getOrDefault(report, 0)+1);
 		if (rewriteType.equals(rewriteTypeExpr1)) {			
-			newStr = rwrTag + rewriteText.replace("~~1~~", origStrFull);	
+			newStr = rwrTag + rewriteText.replaceAll(CompassAnalyze.rewriteTag1, origStrFull);	
+			newStr = newStr.trim();
+			newStrNoComment = newStr;	
+			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");
+		}
+		else if (rewriteType.equals(rewriteTypeExpr2)) {		
+			String origStrComment = getPatternGroup(origStrFull, "^(\\w+)\\s*\\(", 1);
+			origStrFull = applyPatternFirst(origStrFull, "^\\w+\\s*\\(", "");
+			origStrFull = applyPatternFirst(origStrFull, "\\)$", "");
+			newStr = rwrTag + " /*"+origStrComment+"()*/ "+ rewriteText.replaceAll(CompassAnalyze.rewriteTag1, origStrFull);	
 			newStr = newStr.trim();
 			newStrNoComment = newStr;	
 			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");
@@ -6029,7 +6069,11 @@ tooltipsHTMLPlaceholder +
 				}										
 			}
 			
+			// ToDo: if we want to reset this counter in every batch (which would work fine), then 
+			// we need to take the batch number along when we identify a rewrite case. Since applying
+			// the rewrites is done on a per-file basis, there is no batch concept at this time
 			nrMergeRewrites++;
+
 			String savePt   = "savept_merge_rewritten_"+nrMergeRewrites;			
 			String errVar   = "@MERGE_REWRITTEN_ERROR_"+nrMergeRewrites;			
 			String rcTmpVar = "@MERGE_REWRITTEN_RCTMP_"+nrMergeRewrites;	
@@ -6040,10 +6084,9 @@ tooltipsHTMLPlaceholder +
 			
 			String mergeSteps = "\n"+rwrTag+"\n/* --- start rewritten MERGE statement #"+nrMergeRewrites+" --- */\n";
 			mergeSteps += "/* Note: please review/modify the rewritten SQL code below, especially for handling of ROLLBACK */\n";
-			mergeSteps += "/* Note: please review/modify the rewritten SQL code below, especially for handling of ROLLBACK */\n";
 			mergeSteps += "BEGIN TRANSACTION\n";
 			mergeSteps += "SAVE TRANSACTION "+savePt+"\n";
-			mergeSteps += "DECLARE "+rcVar+" INT = 0 /* replaces original @@ROWOCUNT */\n";
+			mergeSteps += "DECLARE "+rcVar+" INT = 0 /* use instead of original @@ROWCOUNT */\n";
 			mergeSteps += "DECLARE "+errVar+" INT /* temporary variable */\n";
 			mergeSteps += "DECLARE "+rcTmpVar+" INT /* temporary variable */\n";
 			String blankLine = "\n"+rewriteBlankLine+"\n";
@@ -6062,7 +6105,7 @@ tooltipsHTMLPlaceholder +
 				String cond = "";
 				String condDisplay = "";
 				if (!getPatternGroup(s, "^.*?\\bMATCHED\\s+(BY\\s+\\w+\\s+)?\\bAND\\b(.*?)\\bTHEN\\s+(UPDATE|DELETE|INSERT)\\b.*$", 2, "multiline").isEmpty()) {
-					cond = applyPatternFirst(s, "^.*?\\bMATCHED\\s+\\bAND\\b(.*?)\\bTHEN\\s+(UPDATE|DELETE|INSERT)\\b.*$", "$1", "multiline");
+					cond = applyPatternFirst(s, "^.*?\\bMATCHED\\s+(BY\\s+\\w+\\s+)?\\bAND\\b(.*?)\\bTHEN\\s+(UPDATE|DELETE|INSERT)\\b.*$", "$2", "multiline");
 					condDisplay = "AND (condition) ";
 				}		
 
@@ -6073,9 +6116,23 @@ tooltipsHTMLPlaceholder +
 							String outputClause = rewriteMergeStmtOutput(tmpMerge.get("output_clause"), action) + "\n";
 							insCollist = applyPatternFirst(insCollist, "\\bVALUES\\b", "\n"+escapeRegexChars(outputClause+"\nVALUES"));
 						}								
-						if (!getPatternGroup(insCollist, "(\\bVALUES\\b.*?\\()", 1, "multiline").isEmpty()) {
-							insCollist = applyPatternFirst(insCollist, "\\bVALUES\\b.*?\\(", "SELECT ");
-							insCollist = applyPatternFirst(insCollist, "\\)$", " ");
+						// determine in VALUES clause contains anythinig other than constants/variables/function calls
+						String valuesTest = applyPatternFirst(insCollist, "^.*?\\bVALUES\\b.*?\\(", " ", "multiline");
+						valuesTest = applyPatternAll(valuesTest, "'.*?'", " ");
+						valuesTest = applyPatternAll(valuesTest, "\\b0x[0-9A-F]+\\b", " ");
+						valuesTest = applyPatternAll(valuesTest, "(\\W)@(@)?\\w+\\b", "$1 ");
+						valuesTest = applyPatternAll(valuesTest, "([\\+\\-])?\\d*\\.\\d*(e([\\+\\-])?\\d+)?", " ");
+						valuesTest = applyPatternAll(valuesTest, "\\b[\\w\\.]+\\s*\\(", " (");
+						valuesTest = applyPatternAll(valuesTest, "\\b(CURRENT_TIMESTAMP|CURRENT_USER|SESSION_USER|SYSTEM_USER|USER)\\b", " ");
+						valuesTest = applyPatternAll(valuesTest, "\\bAT\\s+TIME\\s+ZONE\\b", " ");
+						boolean varsConstantsOnly = false;
+						if (getPatternGroup(valuesTest, "(\\w)", 1).isEmpty()) varsConstantsOnly = true;
+						
+						if (!varsConstantsOnly) {
+							if (!getPatternGroup(insCollist, "(\\bVALUES\\b.*?\\()", 1, "multiline").isEmpty()) {
+								insCollist = applyPatternFirst(insCollist, "\\bVALUES\\b.*?\\(", "SELECT ", "multiline");
+								insCollist = applyPatternFirst(insCollist, "\\)$", " ");
+							}
 						}
 						
 						String insStmt = blankLine;
@@ -6083,12 +6140,19 @@ tooltipsHTMLPlaceholder +
 						if (tmpMerge.containsKey("with_expression")) insStmt += ";" +tmpMerge.get("with_expression") + "\n";						
 						insStmt += "INSERT INTO " + tmpMerge.get("ddl_object") + "\n";					
 						insStmt += insCollist;
-						insStmt += "\nFROM " + tmpMerge.get("table_sources");
-						insStmt += "\nWHERE NOT EXISTS (";
-						insStmt += "\nSELECT * FROM " + tmpMerge.get("ddl_object") + " " + tmpMerge.get("table_alias");
-						insStmt += "\nWHERE " + tmpMerge.get("search_condition") ;
-						insStmt += "\n)\n";			
-						insStmt += stmtEnd;			
+						
+						if (!varsConstantsOnly) {
+							insStmt += "\nFROM " + tmpMerge.get("table_sources");
+							insStmt += "\nWHERE NOT EXISTS (";
+							insStmt += "\nSELECT * FROM " + tmpMerge.get("ddl_object") + " " + tmpMerge.getOrDefault("table_alias", "");
+							insStmt += "\nWHERE " + tmpMerge.get("search_condition") ;
+							insStmt += "\n)\n";			
+						}
+						else {
+							insStmt += "\n";			
+						}
+						insStmt += stmtEnd;		
+						if (debugging) dbgOutput(thisProc()+"insStmt=["+insStmt+"] ", debugRewrite);
 						mergeSteps += insStmt;
 					}	
 					else {
@@ -6113,7 +6177,7 @@ tooltipsHTMLPlaceholder +
 							stmt += rewriteMergeStmtOutput(tmpMerge.get("output_clause"), action) + "\n";
 						}						
 						if (tmpMerge.containsKey("table_alias")) {
-							stmt += "FROM " + tmpMerge.get("ddl_object") + " " + tmpMerge.get("table_alias") + "\n";
+							stmt += "FROM " + tmpMerge.get("ddl_object") + " " + tmpMerge.getOrDefault("table_alias", "") + "\n";
 						}
 						stmt += "WHERE NOT EXISTS (\n";
 						stmt += "SELECT * FROM " + tmpMerge.get("table_sources") + "\n";
@@ -6126,6 +6190,7 @@ tooltipsHTMLPlaceholder +
 						}			
 						stmt += ")\n";
 						stmt += stmtEnd;
+						if (debugging) dbgOutput(thisProc()+"stmt=["+stmt+"] ", debugRewrite);
 						mergeSteps += stmt;
 					}			
 				}
@@ -6147,13 +6212,23 @@ tooltipsHTMLPlaceholder +
 						stmt += "UPDATE " + tgtName + "\n";
 						stmt += updSet + "\n";
 					}
+					if (debugging) dbgOutput(thisProc()+"stmt=["+stmt+"] ", debugRewrite);					
 					if (tmpMerge.containsKey("output_clause")) {
 						stmt += rewriteMergeStmtOutput(tmpMerge.get("output_clause"), action) + "\n";
 					}						
-					if (tmpMerge.containsKey("table_alias")) {
-						stmt += "FROM " + tmpMerge.get("ddl_object") + " " + tmpMerge.get("table_alias") + "\n";
+					if (tmpMerge.containsKey("table_alias") || tmpMerge.containsKey("table_sources") ) {
+						stmt += "FROM \n";
 					}
-					stmt += ", " + tmpMerge.get("table_sources") + "\n";
+					if (tmpMerge.containsKey("table_alias")) {
+						stmt += tmpMerge.get("ddl_object") + " " + tmpMerge.get("table_alias");
+						if (tmpMerge.containsKey("table_sources")) {
+							stmt += ", ";
+						}
+						stmt += "\n";
+					}
+					if (tmpMerge.containsKey("table_sources")) {
+						stmt += tmpMerge.get("table_sources") + "\n";
+					}
 					stmt += "WHERE " + tmpMerge.get("search_condition")+"\n";
 					if (!cond.isEmpty()) {
 						stmt += "AND (" + cond+")\n";						
@@ -6162,11 +6237,13 @@ tooltipsHTMLPlaceholder +
 						stmt += "AND NOT (" + tmpMerge.get("when matched cond")+")\n"; //"
 					}	
 					stmt += stmtEnd;
+					if (debugging) dbgOutput(thisProc()+"stmt=["+stmt+"] ", debugRewrite);
 					mergeSteps += stmt;
 				}			
 			}
 			mergeSteps += blankLine;
 			mergeSteps += "\n"+"GOTO "+commitLbl+"\n";					
+			mergeSteps += "/* in case of an error, roll back to savepoint at the start but do no abort the transaction: there may be an outermost transaction active*/\n";
 			mergeSteps += "\n"+rollbkLbl+": ROLLBACK TRANSACTION "+savePt+"\n";	
 			mergeSteps += "\n"+commitLbl+":   COMMIT\n";			
 			mergeSteps += ";/* --- end rewritten MERGE statement #"+nrMergeRewrites+" --- */\n";
@@ -6203,6 +6280,20 @@ tooltipsHTMLPlaceholder +
 		if (action.equals("INSERT")) {
 			s = applyPatternAll(s, "\\bDELETED\\.\\w+\\b", "NULL");
 			s = applyPatternAll(s, "\\bDELETED\\.[\\[].*?[\\]]", "NULL");
+			
+			// for an INSERT..OUTPUT, we don;t seem to be able to reference anything other than INSERTED
+			String tmp = applyPatternAll(s, "\\b(OUTPUT)\\b", "");
+			tmp = applyPatternAll(tmp, "[\\(\\)]", ",");
+			tmp = "," + tmp + ",";
+			List<String> tmpCols = new ArrayList<>(Arrays.asList(tmp.split(",")));
+			for (String col : tmpCols) {
+				String p = getPatternGroup(col.trim(), "^(\\w+)\\.", 1);
+				if (p.isEmpty()) continue;
+				if (!p.equalsIgnoreCase("INSERTED")) {
+					s = applyPatternAll(s, "([^\\.])"+p+"\\.", "$1 INSERTED.");
+				}
+			}
+
 		}
 		return s;
 	}	

@@ -35,6 +35,7 @@ public class CompassAnalyze {
 	static final String PermissionsReportGroup = "Permissions";
 	static final String TransitionTableMultiDMLTrigFmt = "INSERTED/DELETED cannot be referenced in trigger with >1 action";
 	static final String DMLTableSrcFmt         = "INSERT-SELECT FROM(";
+	static final String VarAggrAcrossRowsFmt   = "Variable may aggregate across rows";
 
 	// for reporting items that do not fit elsewhere
 	static final String MiscReportGroup       = "Miscellaneous SQL Features";
@@ -196,8 +197,11 @@ public class CompassAnalyze {
 	static final String AlterTable            = "ALTER TABLE";
 	static final String AlterTableAddMultiple = "ADD multiple columns/constraints";
 	static final String TimestampColumnSolo   = "TIMESTAMP column without column name";
-	static final String NumericColNonNumDft  = "NUMERIC/DECIMAL column with non-numeric default";
-	static final String DMLTableSrc          = "DML Table Source";
+	static final String NumericColNonNumDft   = "NUMERIC/DECIMAL column with non-numeric default";
+	static final String DMLTableSrc           = "DML Table Source";
+	static final String AtTimeZone            = "expression AT TIME ZONE";
+	static final String VarAggrAcrossRows     = "Variable aggregates across rows";	
+	static final String VarAssignDependency   = "Variable assignment dependency";			
 
 	// matching special values in the .cfg file
 	static final String CfgNonZero            = "NONZERO";
@@ -258,8 +262,13 @@ public class CompassAnalyze {
 	static final String withNArgumentValidateStr = " with N arguments"; // must match section name in .cfg file
 	static final String withNArgumentValidateStrRegex = " with \\d arguments"; // for popups
 
-	// expression for numeric-as-date
-	static String rewriteNumericAsDate = "DATEADD(minute,("+"~~1~~"+")*1440,DATETIMEFROMPARTS(1900,1,1,0,0,0,0))";
+	// expressions for rewriting
+	static String rewriteTag1 = "~~1~~";
+	static String rewriteWaitforDelay = "CASE WHEN "+rewriteTag1+" NOT LIKE '%[^0-9:.]%' THEN CASE LEN("+rewriteTag1+") - LEN(REPLACE("+rewriteTag1+",':','')) WHEN 1 THEN (SUBSTRING("+rewriteTag1+",1,CHARINDEX(':',"+rewriteTag1+")-1)*60) + SUBSTRING("+rewriteTag1+",CHARINDEX(':',"+rewriteTag1+")+1,2) WHEN 2 THEN (SUBSTRING("+rewriteTag1+",1,CHARINDEX(':',"+rewriteTag1+")-1)*3600.0) + (SUBSTRING("+rewriteTag1+",CHARINDEX(':',"+rewriteTag1+")+1,CHARINDEX(':',"+rewriteTag1+",CHARINDEX(':',"+rewriteTag1+"))-1)*60.0)+ CAST(SUBSTRING("+rewriteTag1+",CHARINDEX(':',"+rewriteTag1+",CHARINDEX(':',"+rewriteTag1+")+1)+1,9) AS NUMERIC(5,3)) ELSE 0  END ELSE 0 END";	
+	static Integer nrWaitForDelayRewrites = 0;
+	
+	static String rewriteEOMonth = "DATEADD(dd,-1,DATEADD(mm,1,DATEFROMPARTS(DATEPART(yy, CAST("+rewriteTag1+" AS DATE)),DATEPART(MM,CAST("+rewriteTag1+" AS DATE)),1)))";
+	static String rewriteNumericAsDate = "DATEADD(minute,("+rewriteTag1+")*1440,DATETIMEFROMPARTS(1900,1,1,0,0,0,0))";
 	static String rewriteNumericAsDateZero = "DATETIMEFROMPARTS(1900,1,1,0,0,0,0)";
 
 	// some 1:1 string rewrites
@@ -272,7 +281,7 @@ public class CompassAnalyze {
 	                                                                 "D", "T", "TS"
 													 );
 	static List<String> rewriteDirectODBCfuncReplace = Arrays.asList("REPLICATE", "UPPER", "LOWER", "SPACE", "LTRIM", "RTRIM", "LEFT", "RIGHT", "REPLACE", "CONCAT", "ASCII", "LEN", "LEN", "LEN",
-	                                                                 "GETDATE", "DATEPART(hour,", "DATEPART(minute,",  "DATEPART(second,", "DATEPART(week,", "DATEPART(month,", "DATEPART(quarter,",  "DATEPART(year,",	                                                                
+	                                                                 "GETDATE", "DATEPART(hour,", "DATEPART(minute,",  "DATEPART(second,", "DATEPART(week,", "DATEPART(month,", "DATEPART(quarter,",  "DATEPART(year,",	 
 	                                                                 "CONVERT(DATE,", "CONVERT(TIME,", "CONVERT(DATETIME,"
 													 );
 
@@ -814,15 +823,35 @@ public class CompassAnalyze {
 		String itemLine = item +separator+ itemDetail.trim() +separator+ itemGroup.trim() +separator+ status +separator+ lineNr +separator+ u.currentAppName +separator+ u.currentSrcFile  +separator+ u.batchNrInFile +separator+ u.lineNrInFile +separator+ currentContext.trim() +separator+ subContext.trim() +separator+ misc + separator + "~" + separator;
 
 		// check for newlines -- these will mess everything up
-		// ToDo: also check for \r, \f, VT, etc.
-		if (itemLine.contains(u.newLine)) {
-			u.appOutput("Newline found in capture line: ["+itemLine+"] ");
+		// ToDo: also check for \f, VT, etc?
+		if (itemLine.contains("\r\n")) {
+			u.appOutput("CRLF found in captured item: ["+itemLine+"] ");
+			itemLine = itemLine.replaceAll("\\r\\n", "");		
 			if (CompassUtilities.devOptions) {
 				u.errorExitStackTrace();
 				// we'll never get here
 			}
-			u.appOutput("Continuing, but ignoring this item.");
-			return;
+			u.appOutput("Continuing with CRLF removed, but errors may occur.");
+		}
+
+		if (itemLine.contains("\n")) {
+			u.appOutput("Newline found in captured item: ["+itemLine+"] ");
+			itemLine = itemLine.replaceAll("\\n", "");		
+			if (CompassUtilities.devOptions) {
+				u.errorExitStackTrace();
+				// we'll never get here
+			}
+			u.appOutput("Continuing with newline removed, but errors may occur.");
+		}
+
+		if (itemLine.contains("\r")) {
+			u.appOutput("Carriage Return found in captured item: ["+itemLine+"] ");
+			itemLine = itemLine.replaceAll("\\r", "");		
+			if (CompassUtilities.devOptions) {
+				u.errorExitStackTrace();
+				// we'll never get here
+			}
+			u.appOutput("Continuing with Carriage Return removed, but errors may occur.");
 		}
 
 		// avoid end-of-input chars (\.) , for later loading into PG through COPY
@@ -1624,8 +1653,9 @@ public class CompassAnalyze {
 			private void captureBIF(String funcName, int lineNr, String options, int nrArgs) {
 				captureBIF(funcName, lineNr, options, nrArgs, null, null, null, null, null, null, null, null);
 			}
-			private void captureBIF(String funcName, int lineNr, String options, int nrArgs, List<TSQLParser.ExpressionContext> argList, List<String> argListText, TSQLParser.Func_proc_name_server_database_schemaContext func) {
-				captureBIF(funcName, lineNr, options, nrArgs, argList, argListText, func.start.getLine(), func.start.getCharPositionInLine(), func.stop.getLine(), func.stop.getCharPositionInLine(), func.start.getStartIndex(), func.stop.getStopIndex());
+			//private void captureBIF(String funcName, int lineNr, String options, int nrArgs, List<TSQLParser.ExpressionContext> argList, List<String> argListText, TSQLParser.Func_proc_name_server_database_schemaContext func) {
+			private void captureBIF(String funcName, int lineNr, String options, int nrArgs, List<TSQLParser.ExpressionContext> argList, List<String> argListText, TSQLParser.Func_proc_name_server_database_schemaContext func,  TSQLParser.Function_callContext funccall) {
+				captureBIF(funcName, lineNr, options, nrArgs, argList, argListText, funccall.start.getLine(), funccall.start.getCharPositionInLine(), funccall.stop.getLine(), funccall.stop.getCharPositionInLine(), funccall.start.getStartIndex(), funccall.stop.getStopIndex());
 			}
 
 			private void captureBIF(String funcName, int lineNr, String options, Integer nrArgs, List<TSQLParser.ExpressionContext> argList, List<String> argListText, Integer startLine, Integer startCharPositionInLine, Integer stopLine, Integer stopCharPositionInLine, Integer startIndex, Integer stopIndex) {
@@ -1681,8 +1711,8 @@ public class CompassAnalyze {
 						// report the unit used
 						String unit = argList.get(0).getText().toLowerCase();
 						funcNameReport = funcName + "()";
-						funcDetail = unit;
-
+						funcDetail = unit;			
+						
 						for (int i = 2; i <= 3; i++) {
 							if (funcName.equals("DATEADD")) {
 								if (i == 2) continue;
@@ -1733,12 +1763,27 @@ public class CompassAnalyze {
 								status = u.Rewritten;
 							}
 							else {
-								String group = BuiltInFunctions;
-								group = u.applyPatternFirst(group, "s$", "");							
+								String group = u.applyPatternFirst(BuiltInFunctions, "s$", "");							
 								addRewrite(group + " " + funcNameReport);
 							}
 						}
-					}
+					}					
+					else if (funcName.equals("EOMONTH")) {
+						if (u.rewrite) {
+							//String eomArg = argList.get(0).getText();
+							//String rewriteText = rewriteEOMonth.replaceAll(rewriteTag1, u.escapeRegexChars(eomArg));
+							//addRewrite(BuiltInFunctions, funcNameReport, u.rewriteTypeReplace, rewriteText, startLine, startCharPositionInLine, stopLine, stopCharPositionInLine, startIndex, stopIndex);
+							
+							String rewriteText = rewriteEOMonth;
+							addRewrite(BuiltInFunctions, funcNameReport, u.rewriteTypeExpr2, rewriteText, startLine, startCharPositionInLine, stopLine, stopCharPositionInLine, startIndex, stopIndex);
+															
+							status = u.Rewritten; 
+						}
+						else {
+							String group = u.applyPatternFirst(BuiltInFunctions, "s$", "");									
+							addRewrite(group + " " + funcNameReport);
+						}
+					}					
 				}
 				captureItem(funcNameReport, funcDetail, BuiltInFunctions, funcName, status, lineNr);
 			}
@@ -3524,11 +3569,13 @@ public class CompassAnalyze {
 
 				// ToDo: get & validate DDL events
 				List<TerminalNode> trigActionList = ctx.ID();
+				Integer nrLines = batchLines;
 				for (TerminalNode n : trigActionList) {
 					String trigAction = n.getText().toUpperCase();
 					status = featureSupportedInVersion(DDLTrigger, trigAction);
 					// capturing each action separately
-					captureItem(kwd + " TRIGGER (DDL, "+trigAction+")", trigName, DDLTrigger, trigAction, status, ctx.start.getLine(),  batchLines.toString());
+					captureItem(kwd + " TRIGGER (DDL, "+trigAction+")", trigName, DDLTrigger, trigAction, status, ctx.start.getLine(),  nrLines.toString());         
+					nrLines = 0;   // do not count lines double
 				}
 
 				// options
@@ -4009,7 +4056,7 @@ public class CompassAnalyze {
 
 							// is this a BIF or SUDF?
 							if (featureExists(BuiltInFunctions, funcName)) {
-								captureBIF(funcName, ctx.start.getLine(), "", nrArgs, argList, argListText, ctx.func_proc_name_server_database_schema());
+								captureBIF(funcName, ctx.start.getLine(), "", nrArgs, argList, argListText, ctx.func_proc_name_server_database_schema(), ctx);
 							}
 							else {
 								// check for XML/HIERARCHYID methods, these can be parsed as UDF calls
@@ -4639,7 +4686,7 @@ public class CompassAnalyze {
 
 				String procName = "";
 				if (ctx.func_proc_name_server_database_schema() != null) {
-					procName = ctx.func_proc_name_server_database_schema().getText();
+					procName = u.normalizeName(ctx.func_proc_name_server_database_schema().getText());
 					if (!lookupSUDF(procName).isEmpty()) {
 						String status = featureSupportedInVersion(ExecuteSQLFunction);
 						captureItem(ExecuteSQLFunction, procName, ExecuteSQLFunction, "", status, ctx.start.getLine());
@@ -4725,6 +4772,8 @@ public class CompassAnalyze {
 				String firstStmt = "";
 				if (rule.equals("execute_body_batch")) firstStmt = " (without EXECUTE keyword)";
 
+				CaptureIdentifier(procName, procName, "EXECUTE procedure", lineNr);	
+				
 				procName = u.getObjectNameFromID(procName).toLowerCase();
 				if (procName.equals("sp_executesql"))  {
 					// todo: also report OUTPUT parameters for sp_executesql?
@@ -4762,9 +4811,7 @@ public class CompassAnalyze {
 					else {
 						captureItem("EXECUTE procedure"+firstStmt+return_status, procName, section, "", u.Supported, lineNr);
 					}
-
-					CaptureIdentifier(procName, procName, "EXECUTE procedure", lineNr);
-				}
+				}							
 			}
 
 			private void captureExecOptions(String procName, List<TSQLParser.Execute_optionContext> execOptions, int lineNr) {
@@ -4981,10 +5028,11 @@ public class CompassAnalyze {
     				}
 				}
 
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"variableAssignDepends.clear(), hasTable=["+hasTable+"] ", u.debugPtree);
 				variableAssignDepends.clear();
 				visitChildren(ctx);
 
-				if (hasTable) captureVariabeAssignDepends("SELECT", ctx.start.getLine());
+				if (hasTable) captureVariableAssignDepends("SELECT", ctx.start.getLine());
 
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -5019,6 +5067,22 @@ public class CompassAnalyze {
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"added VARIABLE_ASSIGN", u.debugPtree);
 
 				}
+				visitChildren(ctx);
+				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
+				return null;
+			}
+
+			@Override public String visitTime_zone_expr(TSQLParser.Time_zone_exprContext ctx) {
+				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
+				String expr = ctx.expression().get(1).getText();
+				if (u.stripStringQuotes(expr).length() == expr.length()) {
+					// it's not a string constant, assume it's a variable
+					expr = "@v";
+				}
+				
+				String status = featureSupportedInVersion(AtTimeZone);
+				captureItem(AtTimeZone + " " + expr, "", "", "", status, ctx.start.getLine());	
+							
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -5713,6 +5777,9 @@ public class CompassAnalyze {
 			}
 			public void CaptureIdentifier(String objNameRaw, String objName, String stmt, int lineNr, String fmt) {
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"objNameRaw=["+objNameRaw+"] objName=["+objName+"] fmt=["+fmt+"] ", u.debugPtree);
+				if (objNameRaw.trim().isEmpty()) return;
+				if (objName.trim().isEmpty()) return;
+				
 				if (objNameRaw.charAt(0) == '.') {
 					String status = featureSupportedInVersion(LeadingDotsId);
 					captureItem(LeadingDotsId, objNameRaw, LeadingDotsId, stmt, status, lineNr);
@@ -5853,7 +5920,7 @@ public class CompassAnalyze {
 					CaptureXMLNameSpaces(ctx.parent, "UPDATE", ctx.start.getLine());
 
 					captureItem("UPDATE"+top+updVarAssign+CTE+outputClause+whereCurrentOf, tableName, UpdateStmt, "UPDATE", status, ctx.start.getLine());
-					captureVariabeAssignDepends("UPDATE", ctx.start.getLine());
+					captureVariableAssignDepends("UPDATE", ctx.start.getLine());
 				}
 
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -5876,6 +5943,7 @@ public class CompassAnalyze {
 
 			private void addVariableAssignDepends(TerminalNode id, TSQLParser.ExpressionContext expr) {
 				// ToDo: need to record the assignment operator, since += indicates a string concat
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"entry: id=["+id.getText()+"] expr=["+expr.getText()+"] ", u.debugPtree);
 				if (expr instanceof TSQLParser.Constant_exprContext) {
 					// this assignment can be ignored for determining variable assignment dependencies
 					return;
@@ -5890,57 +5958,124 @@ public class CompassAnalyze {
 				variableAssignDepends.put(id.getText().toUpperCase(), expr);
 			}
 
-			private void captureVariabeAssignDepends(String stmt, int lineNr) {
-				// ToDo: rewrite logic to walk the tree to find occurrence of variable; due to whitespace being removed a variable name may concat with a keyword
+			// try to determine if a variable assignment (SELECT or UPDATE) does cross-row aggregation or 
+			// depends on other assigned variables
+			private void captureVariableAssignDepends(String stmt, int lineNr) {
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"entry", u.debugPtree);
 				if (variableAssignDepends.size() == 0) return;
-
+				
+				Map<String, String> tmpVarDepends = new HashMap<String, String>();				
+				for (String k : variableAssignDepends.keySet()) {
+					String expr = getTextSpaced(variableAssignDepends.get(k));
+					tmpVarDepends.put(k, expr);
+				}
+			
+				// first find cases like SELECT @v = @v + 1 FROM mytable, where the variable may accumulate across rows
+				for (Map.Entry<String, String> entry : tmpVarDepends.entrySet()) {
+					String k = entry.getKey();
+					String expr = entry.getValue().toUpperCase();
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+stmt+ "("+variableAssignDepends.size()+") :"+ k +" => "+expr, u.debugPtree);
+					if (expr.contains(k)) {		
+						while(true) {
+							int len1 = expr.length();
+							expr = u.applyPatternAll(expr, "( CASE\\b).*?\\bWHEN\\b.*?(\\bTHEN\\b)", "$1 $2");												
+							if (expr.length() == len1) break;			
+						}						
+						expr = u.applyPatternAll(expr, "\\b[\\w\\.]+\\(\\s*((@)?[\\w\\.]+)\\s*\\)", " $1 ");			
+												
+						if (!CompassUtilities.getPatternGroup(expr, " (" + k + ") ", 1).isEmpty()) { 
+							// try to determine if there is some sort of operation in the assigment expression. Note this is not a 100% test, but looks for some common cases
+							if (expr.contains("+") || expr.contains("-") || expr.contains("*")) {							
+								if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"capturing possible variable aggregation: k=["+k+"] ", u.debugPtree);
+								String status = u.ReviewSemantics;
+								status = featureSupportedInVersion(VarAggrAcrossRows);
+								captureItem(VarAggrAcrossRowsFmt + " in "+stmt, k, "DML", "", status, lineNr);
+							}
+						}
+					}
+				}
+				
+				// now find variable assignments depending on other variables; first remove the assigned variable from the expression
 				Map<String, String> tmp = new HashMap<String, String>();
 				String allValues = "";
-				for (Map.Entry<String, TSQLParser.ExpressionContext> entry : variableAssignDepends.entrySet()) {
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+stmt+ "("+variableAssignDepends.size()+") :"+ entry.getKey()+" = "+entry.getValue(), u.debugPtree);
-					String expr = entry.getValue().getText().toUpperCase();
-					if (expr.contains(entry.getKey())) {
-						// some variable names can perhaps be constructed that are not detected here, but that would be rather exotic
-						String varRegex = "([^@\\$\\w])" + entry.getKey() + "([^@\\$\\w])";
-						String v = u.applyPatternAll(" " + expr + " ", varRegex, "$1 $2");
+				for (Map.Entry<String, String> entry : tmpVarDepends.entrySet()) {				
+					String k = entry.getKey();
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+stmt+ "("+variableAssignDepends.size()+") :"+ k +" => "+entry.getValue(), u.debugPtree);
+					String expr = entry.getValue().toUpperCase();
+					if (expr.contains(k)) {
+						String v = u.applyPatternAll(expr, " " + k + " ", " ");
 						if (v.contains("@")) {
-							tmp.put(entry.getKey(), v);
+							tmp.put(k, v);
 							allValues += " " + v;
 						}
 						else {
-							//u.appOutput(CompassUtilities.thisProc()+"no @var left in value");
+							//no @var in value
 						}
 					}
 					else {
-						tmp.put(entry.getKey(), expr);
-						allValues += " " + expr;
+						if (expr.contains("@")) {
+							tmp.put(k, expr);
+							allValues += " " + expr;
+						}
 					}
 				}
-				allValues += " ";
+				allValues = " " + String.join(" ", tmp.values()) + " ";
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+" allValues=["+allValues+"]", u.debugPtree);
 
+				// now see if there is a case of @v = @w, while @w is also an assignment target in the same statement
 				for (Map.Entry<String, String> entry : tmp.entrySet()) {
-					String varRegex = "([^@\\$\\w]" + entry.getKey() + "[^@\\$\\w])";
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+" k=["+entry.getKey()+"]  v=["+entry.getValue()+"]  ", u.debugPtree);
-					if (allValues.contains(entry.getKey())) { // quicker test but less accurate
+					String k = entry.getKey();
+					String varRegex = "([^@\\$\\w]" + k + "[^@\\$\\w])";
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+" k=["+k+"]  v=["+entry.getValue()+"]  ", u.debugPtree);
+					if (allValues.contains(k)) { // quicker test but less accurate
 						if (!CompassUtilities.getPatternGroup(allValues, varRegex, 1).isEmpty()) { // slower test but accurate
 							// find variable on lhs for this case
 							String v = "";
 							for (Map.Entry<String, String> e2 : tmp.entrySet()) {
-								if (e2.getKey().equals(entry.getKey())) continue;
+								if (e2.getKey().equals(k)) {
+									continue;
+								}
 								if (!CompassUtilities.getPatternGroup(" " +e2.getValue()+" ", varRegex, 1).isEmpty()) {
 									v = e2.getKey();
 									break;
 								}
 							}
-							if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"k=["+entry.getKey()+"] =["+entry.getKey()+"] ", u.debugPtree);
-							captureItem("Variable assignment dependency in "+stmt+": order of assignments not guaranteed", v+"->"+entry.getKey(), "DML", "", u.ReviewSemantics, lineNr);
-							break;
+							if (!v.isEmpty()) {
+								if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"capturing: v=["+v+"] => k=["+k+"] ", u.debugPtree);
+								String status = u.ReviewSemantics;
+								status = featureSupportedInVersion(VarAssignDependency);			
+								captureItem(VarAssignDependency+" in "+stmt+": order of assignments not guaranteed", v+"->"+k, "DML", "", status, lineNr);
+								break;
+							}
 						}
 					}
 				}
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"exit", u.debugPtree);
 			}
 
+			// get text representation of subtree, with spaces between tokens and string constants removed
+			private String getTextSpaced(ParseTree ctx) {
+				String t = ctx.getText();
+				if (ctx.getChildCount() == 0) {
+					if (u.stripStringQuotes(t).length() != t.length()) {
+						return "''";
+					}
+					return t;
+				}				
+
+				String s = "";
+				for (int i = 0; i <ctx.getChildCount(); i++) {
+				    s += getTextSpaced(ctx.getChild(i)) + " ";
+				}
+				s = s.replaceAll(" \\. ", ".");
+				s = s.replaceAll("\\( ", "(");
+				s = s.replaceAll(" \\(", "(");
+				s = s.replaceAll("\\) ", ")");
+				s = s.replaceAll(" \\)", ")");
+				s = s.replaceAll("  ", " ");
+				return " " + s.trim() + " ";
+			}
+			
 			@Override public String visitDelete_statement(TSQLParser.Delete_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 				String status = u.Supported;
@@ -6239,29 +6374,47 @@ public class CompassAnalyze {
 				if (type.equals("DELAY")) {
 					if (!status.equals(u.Supported)) {
 						// convert the T-SQL string to a number of seconds for pg_sleep()
-						// Todo: if the argument is a variable or expression, not currently handled
 						String arg = ctx.expression().getText();
+						boolean isString = false;
 						if (isStringConstant(arg)) {
-							if (u.rewrite) {
+							 isString = true;
+						}						
+						if (u.rewrite) {
+							double nrSeconds = 0.0d;
+							String nrSecondsStr = "0";
+							if (isString) {
 								String origTime = u.stripStringQuotes(arg);
+								u.appOutput(u.thisProc()+"origTime=["+origTime+"] ");
 								List<String> tmpTime = new ArrayList<>(Arrays.asList(origTime.split(":")));
-								boolean isOK = true;
-								double nrSeconds = 0.0d;
+								boolean isOK = true;								
 								for (int i=0; i<tmpTime.size(); i++) {
 									if (!isNumeric(tmpTime.get(i))) {
 										isOK = false;
+										u.appOutput(u.thisProc()+"isOK=["+isOK+"] ");
 										break;
 									}
 									double f = Double.parseDouble(tmpTime.get(i));
 									nrSeconds += f * Math.pow(60,2-i) ;
 								}
-								String rewriteText = "EXECUTE pg_sleep "+nrSeconds;
-								addRewrite(WaitForStmt + " DELAY", ctx.getText(), u.rewriteTypeReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.expression().stop.getLine(), ctx.expression().stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.expression().stop.getStopIndex());
-								status = u.Rewritten;
 							}
 							else {
-								addRewrite(WaitForStmt + " DELAY");
+								// variable or expression
+								nrSecondsStr = rewriteWaitforDelay.replaceAll(rewriteTag1, arg);
 							}
+							
+							if (!isString) nrWaitForDelayRewrites++;
+							String waitForDelayVar = "@WAITFORDELAY_VAR" + nrWaitForDelayRewrites;
+							String rewriteText = "";
+							if (!isString) rewriteText += "BEGIN\nDECLARE "+waitForDelayVar+" NUMERIC(8,3) = "+nrSecondsStr+"\n";
+							rewriteText += "EXECUTE pg_sleep ";
+							if (isString) rewriteText += nrSeconds;
+							else rewriteText += waitForDelayVar;
+							if (!isString) rewriteText += "\nEND\n";
+							addRewrite(WaitForStmt + " DELAY", ctx.getText(), u.rewriteTypeReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.expression().stop.getLine(), ctx.expression().stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.expression().stop.getStopIndex());
+							status = u.Rewritten;
+						}
+						else {
+							addRewrite(WaitForStmt + " DELAY");
 						}
 					}
 				}
@@ -6896,77 +7049,101 @@ public class CompassAnalyze {
 				return null;
 			}
 
+			private void capturePermissions(String stmt, String permRaw, String onObject, String grantOption, int lineNo) {
+				String status = featureSupportedInVersion(stmt);
+				permRaw = u.applyPatternAll(permRaw, "\\(.+?\\)", "(col)");
+				List<String> permList = new ArrayList<String>(Arrays.asList(permRaw.split(",")));
+				for (String perm : permList.stream().sorted().collect(Collectors.toList())) {
+					if (perm.isEmpty()) continue;
+					perm = u.applyPatternAll(perm, "(CREATE|DROP|ALTER|SELECT|VIEW|ANY|COLUMN|ENCRYPTION|MASTER|KEY|DEFINITION|CONNECT|DATABASE|SCHEMA|TRIGGER|DDL|MESSAGE|SERVICE|BINDING|EVENT|OWNERSHIP|BACKUP|RESTORE|NOTIFICATION(S)?|FULLTEXT|CATALOG|SUBSCRIBE|QUERY|XML|COLLECTION|SESSION|SERVER|AVAILABILITY|ACCESS|USER|ASSEMBLY|BULK|PRIVILEGES|APPLICATION)", " $1 ");
+					if (!perm.contains("(")) {
+						if (onObject.endsWith(")")) {
+							perm += "(col)";
+						}
+					}
+					perm = perm.replaceAll("\\(col\\)", "(column)");
+					perm = perm.replaceAll(" \\(", "(");
+					String reportGrant = stmt + " " + perm;
+					reportGrant += " " + grantOption;
+					reportGrant = u.applyPatternAll(reportGrant, "[ ]+", " ");
+	 				captureItem(reportGrant.trim(), onObject, stmt, "", status, lineNo);
+	 			}				
+			}
+			
 			@Override public String visitGrant_statement(TSQLParser.Grant_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
- 				String status = featureSupportedInVersion(GrantStmt);
- 				captureItem(GrantStmt, "", GrantStmt, "", status, ctx.start.getLine());
- 				if (status.equals(u.Supported)) {
-					// Todo: check for specific permissions
-					// Todo: multiple permissionss are possible
-					// Todo: the code below needs to be done right, it does not work (but GRANT?REVOKE/DENY ar ento supprote dnayway
-					String perm = "";
-					if (ctx.ALL() != null) perm = "ALL PRIVILEGES";
-					else perm = ctx.permissions().getText().toUpperCase();  // this may be a list?
-					captureOption(GrantStmt, perm, ctx.start.getLine(), ", in GRANT"); // ToDo: yet unclear how to report this
 
-					if (ctx.ON() != null) {
-						String grantObject = ctx.permission_object().getText().toUpperCase(); // can this be a list?
-						captureOption(GrantStmt, "ON "+grantObject, ctx.start.getLine(), ", in GRANT"); // ToDo: yet unclear how to report this
-					}
+				// Todo: validate individual permissions ince GRANT/REVOKE is supported
+				
+				String permRaw = "";
+				if (ctx.ALL() != null) permRaw = "ALL PRIVILEGES";
+				else permRaw = ctx.permissions().getText().toUpperCase();  // this may be a list?
+//				captureOption(GrantStmt, perm, ctx.start.getLine(), ", in GRANT"); // ToDo: yet unclear how to report this
 
-					String grantee = "";
-					if (ctx.principals() != null) grantee = ctx.principals().getText().toUpperCase();  // list?
-
-					if (ctx.WITH() != null) {
-						String grantOption = "WITH GRANT OPTION";
-						captureOption(GrantStmt, grantOption, ctx.start.getLine(), ", in GRANT"); // ToDo: yet unclear how to report this
-					}
-
-					if (ctx.AS() != null) {
-						String grantor = ctx.principal_id().getText().toUpperCase();
-						captureOption(GrantStmt, "AS GRANTOR", ctx.start.getLine(), ", in GRANT"); // ToDo: yet unclear how to report this
-					}
+				String grantOn = "";
+				if (ctx.ON() != null) {
+					grantOn = ctx.permission_object().getText().toUpperCase();  // can this be a list?
+					//captureOption(GrantStmt, "ON "+grantObject, ctx.start.getLine(), ", in GRANT");  ToDo: yet unclear how to report this
 				}
+//
+//				String grantee = "";
+//				if (ctx.principals() != null) grantee = ctx.principals().getText().toUpperCase();   list?
+//
+				String grantOption = "";
+				if (ctx.WITH() != null) {
+					grantOption = "WITH GRANT OPTION";
+					//captureOption(GrantStmt, grantOption, ctx.start.getLine(), ", in GRANT");  ToDo: yet unclear how to report this
+				}
+//
+//				if (ctx.AS() != null) {
+//					String grantor = ctx.principal_id().getText().toUpperCase();
+//					captureOption(GrantStmt, "AS GRANTOR", ctx.start.getLine(), ", in GRANT");  ToDo: yet unclear how to report this
+//				}
+//				
+				capturePermissions(GrantStmt, permRaw, grantOn, grantOption, ctx.start.getLine());
+				 								
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
 			}
-
+			
 			@Override public String visitRevoke_statement(TSQLParser.Revoke_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
- 				String status = featureSupportedInVersion(RevokeStmt);
- 				captureItem(RevokeStmt, "", RevokeStmt, "", status, ctx.start.getLine());
- 				if (status.equals(u.Supported)) {
-					// Todo: check for specific permissions
-					// Todo: the code below needs to be done right
-					String perm = "";
-					if (ctx.ALL() != null) perm = "ALL PRIVILEGES";
-					else perm = ctx.permissions().getText().toUpperCase();  // this may be a list?
-					captureOption(PermissionsReportGroup, perm, ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
 
-					if (ctx.ON() != null) {
-						String revokeObject = ctx.permission_object().getText().toUpperCase(); // can this be a list?
-						captureOption(RevokeStmt, "ON "+revokeObject, ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
-					}
+				// Todo: validate individual permissions ince GRANT/REVOKE is supported
+				
+				String permRaw = "";
+				if (ctx.ALL() != null) permRaw = "ALL PRIVILEGES";
+				else permRaw = ctx.permissions().getText().toUpperCase();  // this may be a list?
+				//captureOption(PermissionsReportGroup, perm, ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
 
-					String grantee = "";
-					if (ctx.principals() != null) grantee = ctx.principals().getText().toUpperCase();  // list?
-
-					if (ctx.GRANT() != null) {
-						String grantOption = "GRANT OPTION FOR";
-						captureOption(RevokeStmt, grantOption, ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
-					}
-
-					if (ctx.AS() != null) {
-						String grantor = ctx.principal_id().getText().toUpperCase();
-						captureOption(RevokeStmt, "AS GRANTOR", ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
-					}
-
-					if (ctx.CASCADE() != null) {
-						String cascade = ctx.principal_id().getText().toUpperCase();
-						captureOption(RevokeStmt, "CASCADE", ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
-					}
+				String revokeOn = "";
+				if (ctx.ON() != null) {
+					revokeOn = ctx.permission_object().getText().toUpperCase(); // can this be a list?
+					//captureOption(RevokeStmt, "ON "+revokeObject, ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
 				}
+
+				String grantee = "";
+				if (ctx.principals() != null) grantee = ctx.principals().getText().toUpperCase();  // list?
+
+				String grantOption = "";
+				if (ctx.GRANT() != null) {
+					grantOption = "GRANT OPTION FOR";
+					//captureOption(RevokeStmt, grantOption, ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
+				}
+
+//				if (ctx.AS() != null) {
+//					String grantor = ctx.principal_id().getText().toUpperCase();
+//					captureOption(RevokeStmt, "AS GRANTOR", ctx.start.getLine(), ", in REVOKE"); // ToDo: yet unclear how to report this
+//				}
+
+//				if (ctx.CASCADE() != null) {
+//					String cascade = ctx.principal_id().getText().toUpperCase();
+//					captureOption(RevokeStmt, "CASCADE", ctx.start.getLine(), ", in REVOKE");  ToDo: yet unclear how to report this
+//				}
+
+				capturePermissions(RevokeStmt, permRaw, revokeOn, grantOption, ctx.start.getLine());
+
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -6974,34 +7151,35 @@ public class CompassAnalyze {
 
 			@Override public String visitDeny_statement(TSQLParser.Deny_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
- 				String status = featureSupportedInVersion(DenyStmt);
- 				captureItem(DenyStmt, "", DenyStmt, "", status, ctx.start.getLine());
- 				if (status.equals(u.Supported)) {
-					// Todo: check for specific permissions
-					// Todo: the code below needs to be done right
-					String perm = "";
-					if (ctx.ALL() != null) perm = "ALL PRIVILEGES";
-					else perm = ctx.permissions().getText().toUpperCase();  // this may be a list?
-					captureOption(PermissionsReportGroup, perm, ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
 
-					if (ctx.ON() != null) {
-						String revokeObject = ctx.permission_object().getText().toUpperCase(); // can this be a list?
-						captureOption(DenyStmt, "ON "+revokeObject, ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
-					}
+				// Todo: validate individual permissions ince GRANT/REVOKE is supported
+				
+				String permRaw = "";
+				if (ctx.ALL() != null) permRaw = "ALL PRIVILEGES";
+				else permRaw = ctx.permissions().getText().toUpperCase();  // this may be a list?
+				//captureOption(PermissionsReportGroup, perm, ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
 
-					String grantee = "";
-					if (ctx.principals() != null) grantee = ctx.principals().getText().toUpperCase();  // list?
-
-					if (ctx.AS() != null) {
-						String grantor = ctx.principal_id().getText().toUpperCase();
-						captureOption(DenyStmt, "AS GRANTOR", ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
-					}
-
-					if (ctx.CASCADE() != null) {
-						String cascade = ctx.principal_id().getText().toUpperCase();
-						captureOption(DenyStmt, "CASCADE", ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
-					}
+				String denyOn = "";
+				if (ctx.ON() != null) {
+					denyOn = ctx.permission_object().getText().toUpperCase(); // can this be a list?
+					//captureOption(DenyStmt, "ON "+revokeObject, ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
 				}
+
+				String grantee = "";
+				if (ctx.principals() != null) grantee = ctx.principals().getText().toUpperCase();  // list?
+
+//				if (ctx.AS() != null) {
+//					String grantor = ctx.principal_id().getText().toUpperCase();
+//					//captureOption(DenyStmt, "AS GRANTOR", ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
+//				}
+
+//				if (ctx.CASCADE() != null) {
+//					String cascade = ctx.principal_id().getText().toUpperCase();
+//					//captureOption(DenyStmt, "CASCADE", ctx.start.getLine(), ", in DENY"); // ToDo: yet unclear how to report this
+//				}
+
+				capturePermissions(DenyStmt, permRaw, denyOn, "", ctx.start.getLine());
+
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -7010,22 +7188,34 @@ public class CompassAnalyze {
 
 			@Override public String visitAlter_authorization(TSQLParser.Alter_authorizationContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
- 				String status = featureSupportedInVersion(AlterAuthStmt);
- 				captureItem(AlterAuthStmt, "", AlterAuthStmt, "", status, ctx.start.getLine());
- 				if (status.equals(u.Supported)) {
-					// Todo: check for specific permissions
-					// Todo: the code below needs to be done right
 
-					if (ctx.object_type() != null) {
-						String objType = ctx.object_type().getText().toUpperCase();
-					}
-
-					String grantee = ctx.authorization_grantee().getText().toUpperCase();
-
-					if (ctx.entity_name() != null) {
-						String objName = ctx.entity_name().getText().toUpperCase();
-					}
+				String grantee = ctx.authorization_grantee().getText().toUpperCase();
+				
+				String objType = "";
+				String objName = "";
+				if (ctx.object_type() != null) {
+					objType = ctx.object_type().getText().toUpperCase();
 				}
+
+				if (ctx.entity_name() != null) {
+					objName = ctx.entity_name().getText().toUpperCase();
+				}
+
+				// ToDo: test for object types when ALTER AUTHORIZATION gets supported
+				String status = featureSupportedInVersion(AlterAuthStmt);
+				String objDetail = objType + ", " + objName;
+				String objReport = objType;
+				if (objType.isEmpty()) {
+					objDetail = objName;
+					objReport = "object";
+				}
+				if (objReport.equals("OBJECT")) objReport = "object";
+				String granteeReport = grantee;
+				if (grantee.equals("SCHEMAOWNER")) granteeReport = "SCHEMA OWNER";
+				else granteeReport = "principal";
+				
+ 				captureItem(AlterAuthStmt+ " ON " + objReport + " TO " + granteeReport, objDetail, AlterAuthStmt, "", status, ctx.start.getLine());
+
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -7106,7 +7296,7 @@ public class CompassAnalyze {
 
 			private void captureSequenceOptions(Token cache_kwd, Token cache_value, Token no_cache, int lineNr, String stmt) {
  				if ((cache_kwd != null) && (cache_value == null)) {
-					captureOption(SequenceOptions, "CACHE", lineNr, ", in "+stmt+" SEQUENCE");
+					captureOption(SequenceOptions, "CACHE (without number)", lineNr, ", in "+stmt+" SEQUENCE");
  				}
  				else if (no_cache != null) {
 					captureOption(SequenceOptions, "NO CACHE", lineNr, ", in "+stmt+" SEQUENCE");

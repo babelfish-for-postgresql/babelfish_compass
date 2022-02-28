@@ -57,6 +57,7 @@ public class Compass {
 	static Integer nrLinesTotalP1 = 0;
 	static Integer nrLinesTotalP2 = 0;	
 	static Integer retrySLL = 0;
+	static Integer retrySLLFile = 0;
 	static boolean hasParseError = false;
 	static StringBuilder parseErrorMsg = new StringBuilder();
 
@@ -1317,6 +1318,7 @@ public class Compass {
 			String inFileCopy = "";
 			FileInputStream fis = null;
 			InputStreamReader isr = null;
+			retrySLLFile = 0;
 			if (u.rewrite) u.resetRewrites();
 			u.currentDatabase  = "";
 			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "u.analysisPass=["+u.analysisPass+"] inFile=["+inFile+"] ", u.debugDir);
@@ -1501,10 +1503,11 @@ public class Compass {
 
 			boolean doEncodingChecks = true;
 			int nrEncodingWarnings = 0;
-			int maxEncodingWarnings = 5;
+			int maxEncodingWarnings = 5;			
 
 			while (true) {
 				boolean somethingFoundOnLine = false;
+				boolean orphanSquareBracket = false;
 				line = inFileReader.readLine();
 				if (line == null) {
 					if (u.debugging) u.dbgOutput("end of file", u.debugBatch);
@@ -1607,8 +1610,10 @@ public class Compass {
 						}
 						if (lineCopyLoopChk > lineCopyLoopCntMax) {
 							// we seem to be in a loop...
-							if (u.debugging) u.dbgOutput("loop chk: exit: lineCopy=[" + lineCopy + "]", u.debugBatch);
-							u.appOutput("Error processing input file. Please verify input file encoding. Continuing, but errors may occur.");
+							if (u.debugging) u.dbgOutput("loop chk: exit: lineNr=["+lineNr+"] orphanSquareBracket=["+orphanSquareBracket+"] lineCopy=[" + lineCopy + "]", u.debugBatch);
+							String bracketMsg = "";
+							if (orphanSquareBracket) bracketMsg = "Possibly delimited identifier containing newline? "; 
+							u.appOutput("Error processing input file at line "+lineNr+". Is input file encoding correct? "+bracketMsg+"Continuing, but errors may occur.");
 							break;
 						}
 						if (u.debugging) u.dbgOutput("top loop: lineCopyLoopCnt=[" + lineCopyLoopCnt + "] inComment=" + inComment + ", inString=" + inString + ", lineCopy top=[" + lineCopy + "]", u.debugBatch);
@@ -1651,6 +1656,7 @@ public class Compass {
 										if (u.debugging) u.dbgOutput("bracketed identifier", u.debugBatch);
 										if (lineCopy.length() == lineCopyLen) {
 											// likely invalid syntax, avoid getting into a loop
+											orphanSquareBracket = true;
 											if (u.debugging) u.dbgOutput("ignoring orphan square bracket", u.debugBatch);
 											break;
 										}
@@ -1987,7 +1993,7 @@ public class Compass {
 					int secs = ((int) timeElapsedFile / 1000);
 					int linesSec = (secs > 0) ? (nrLinesInFile / secs) : nrLinesInFile;
 					int batchesSec = (secs > 0) ? (batchNr / secs) : batchNr;
-					u.appOutput("ELAPSED TIME: " + u.currentSrcFile + " : seconds=" + secs + "   lines/sec=" + linesSec + "   batches/sec=" + batchesSec);
+					u.appOutput("ELAPSED TIME: " + u.currentSrcFile + " : seconds=" + secs + "   lines/sec=" + linesSec + "   batches/sec=" + batchesSec + " retrySLL="+retrySLLFile ); 
 				}
 			}
 
@@ -2103,6 +2109,7 @@ public class Compass {
 			if (u.debugging) u.dbgOutput("syntax error in catch; pass=" + u.analysisPass + " useSLL=[" + useSLL + "] batchNr=[" + batchNr + "] ", u.debugPtree);
 			if (useSLL) {
 				retrySLL++;
+				retrySLLFile++;
 				parseErrorMsg = new StringBuilder();
 				hasParseError = false;
 				// retry with SLL = false
