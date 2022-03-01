@@ -901,7 +901,7 @@ public class Compass {
 						processDirectories = true;
 						depth = 1;
 					}
-					// Use the glob that didn't get expanded by the command shell as the inlcude path
+					// Use the glob that didn't get expanded by the command shell as the inlcude pattern
 					includePattern = endOfPath;
 				} else {
 					// Error - path contains an asterisk character but it's not at the end. User should use the
@@ -967,7 +967,7 @@ public class Compass {
 	protected static boolean inputFilesValid() {
 		// Do we have any input files to process?
 		// Note that addInputFile already filters out input file paths that don't exist or can't
-		// be read or don't match our acceptance criteria defined in CompassInputFileFilter
+		// be read or don't match our include and exclude file patterns
 		if (inputFiles.size() == 0) {
 			if (deleteReport) {
 				u.appOutput("With -delete, must specify input file(s)");
