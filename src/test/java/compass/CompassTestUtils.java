@@ -57,6 +57,8 @@ public class CompassTestUtils {
         Compass.addReport = false;
         Compass.replaceFiles = false;
         Compass.recursiveInputFiles = false;
+        Compass.includePattern = null;
+        Compass.excludePattern = null;
         Compass.generateReport = true;
         Compass.reAnalyze = false;
         Compass.reportOnly = false;

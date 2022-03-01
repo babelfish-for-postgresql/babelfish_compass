@@ -89,6 +89,8 @@ public class Compass {
 	protected static boolean addReport = false;
 	protected static boolean replaceFiles = false;
 	protected static boolean recursiveInputFiles = false;
+	protected static String includePattern = null;
+	protected static String excludePattern = null;
 	protected static boolean generateReport = true;
 	protected static boolean reAnalyze = false;
 	protected static boolean reportOnly = false;
@@ -206,6 +208,8 @@ public class Compass {
 				u.appOutput("                                  (requires psql to be installed)");
 				u.appOutput("   -pgimportappend              : with -pgimport, appends to existing table (instead of drop/recreate)");
 				u.appOutput("   -recursive                   : recursively add files if inputfile is a directory");
+				u.appOutput("   -include                     : pattern of input file names to include");
+				u.appOutput("   -exclude                     : pattern of input file names to exclude");
   				u.appOutput("   -rewrite                     : (beta) rewrites selected unsupported SQL features");
 //				u.appOutput("   -importfmt <fmt>             : process special-format captured query files");
 //				u.appOutput("   -nodedup                     : do not deduplicate captured query files");
@@ -544,6 +548,24 @@ public class Compass {
 				recursiveInputFiles = true;
 				continue;
 			}
+			if (arg.equals("-include")) {
+				if (i >= args.length) {
+					System.err.println("missing include file name pattern on -include");
+					return;
+				}
+				includePattern = args[i];
+				i++;
+				continue;
+			}
+			if (arg.equals("-exclude")) {
+				if (i >= args.length) {
+					System.err.println("missing exclude file name pattern on -exclude");
+					return;
+				}
+				excludePattern = args[i];
+				i++;
+				continue;
+			}
 
 			// arguments must start with [A-Za-z0-9 _-./] : anything else is invalid
 			if (CompassUtilities.getPatternGroup(arg.substring(0,1), "^([\\w\\-\\.\\/])$", 1).isEmpty()) {
@@ -855,22 +877,36 @@ public class Compass {
 	protected void addInputFile(String file) throws InvalidPathException {
 		if (file != null) {
 			Path path = Paths.get(file);
-			// TODO Do we want to implement our own filename glob system or just depend on shell filename expansion?
-			// Should we leverage FileSystems.getDefault().getPathMatcher()?
 			boolean processDirectories = recursiveInputFiles;
 			int depth = Integer.MAX_VALUE;
 
-			// Basic file globbing if the command shell didn't expand the filenames and we got a literal asterisk
-			// character, then process the enclosing parent directory. If they didn't ask for recursion, then only
-			// process the files in the immediate parent directory (depth of 1).
-			if (path.endsWith("*")) {
-				if (!recursiveInputFiles) {
-					processDirectories = true;
-					depth = 1;
+			boolean useGlob = false;
+			// We got a literal asterisk character in the path because the command shell didn't expand the filenames
+			if (path.toString().contains("*")) {
+				if (recursiveInputFiles) {
+					useGlob = true;
+				} else {
+					if (path.endsWith("*")) {
+						// The asterisk character is at the end of the path, but we weren't asked to process
+						// input recursively. Process only the immediately enclosing parent directory (depth of 1).
+						processDirectories = true;
+						depth = 1;
+						path = path.normalize().getParent();
+					} else {
+						// Error - path contains an asterisk character but it's not at the end and we weren't
+						// asked to process input recursively
+					}
 				}
-				path = path.normalize().getParent();
 			}
 
+			final PathMatcher glob = !useGlob ? null :
+					FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern("*", path));
+			final PathMatcher includes = (includePattern != null && !includePattern.isEmpty()) ?
+					FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern(includePattern, path)) :
+					null;
+			final PathMatcher excludes = (excludePattern != null && !excludePattern.isEmpty()) ?
+					FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern(excludePattern, path)) :
+					null;
 			if (Files.isDirectory(path)) {
 				if (processDirectories) {
 					// Recursively add files for each input argument that represents a directory
@@ -879,7 +915,9 @@ public class Compass {
 						inputFilesToAdd = directoryStream
 								.filter(Files::isRegularFile)
 								.filter(Files::isReadable)
-								.filter(CompassInputFileFilter::test)
+								.filter(p -> glob == null || glob.matches(p))
+								.filter(p -> includes == null || includes.matches(p))
+								.filter(p -> excludes == null || !excludes.matches(p))
 								.map(Path::toString)
 								.collect(Collectors.toSet());
 						inputFiles.addAll(inputFilesToAdd);
@@ -888,10 +926,9 @@ public class Compass {
 						u.appOutput("Can't access input file '" + file + "'");
 					}
 				} // otherwise ignore directories
-			} else if (Files.isRegularFile(path)) {
-				if (CompassInputFileFilter.test(path)) {
-					inputFiles.add(file);
-				}
+			} else if (Files.isRegularFile(path) && (includes == null || includes.matches(path))
+					&& (excludes == null || !excludes.matches(path))) {
+				inputFiles.add(file);
 			} else {
 				// TODO log unexpected case here?
 				// File does not exist or can't be read by the current process
@@ -899,6 +936,22 @@ public class Compass {
 				u.appOutput("Input file '" + file + "' is not a directory or a file");
 			}
 		}
+	}
+
+	protected static String globSyntaxAndPattern(String pattern, Path path) {
+		String syntaxAndPattern = null;
+		if (path != null && pattern != null && !pattern.isEmpty()) {
+			String syntax = "glob:";
+			if (path.getNameCount() > 1) {
+				if (!pattern.contains("*")) {
+					syntax += "**";
+				} else if (!pattern.contains("**")) {
+					syntax += "*";
+				}
+			}
+			syntaxAndPattern = syntax + pattern;
+		}
+		return syntaxAndPattern;
 	}
 
 	protected static boolean inputFilesValid() {

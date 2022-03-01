@@ -11,9 +11,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,6 +31,20 @@ public class CompassTest {
 
     @BeforeAll
     static void setup() throws IOException {
+        /*
+            ├── a.sql
+            ├── b.sql
+            ├── dir1
+            │   └── child1
+            │       ├── c.txt
+            │       ├── child2
+            │       │   └── e.xml
+            │       └── d.dat
+            ├── dir2
+            │   ├── f.sql
+            │   └── invalid.docx
+            └── invalid
+        */
         String tmpDir = tmpPath.toString();
         Files.createDirectories(Paths.get(tmpDir, "dir1", "child1", "child2"));
         Files.createDirectories(Paths.get(tmpDir, "dir2"));
@@ -143,10 +155,27 @@ public class CompassTest {
     }
 
     @Test
-    @DisplayName("Add Input File Invalid File")
+    @DisplayName("Add Input File Single Excluded File")
     void testAddInputFile_Recursion_InvalidFile() {
-        Compass compass = new Compass(new String[]{"test", "-recursive"});
+        Compass compass = new Compass(new String[]{"test", "-exclude", "*.docx"});
         compass.addInputFile(invalidInputFilePath.toString());
+
+        //Path p = Paths.get("/var/folders/49/66hy2l8s0d93wsb9kqgv4pthj4rt3r/T/junit1331785800251869899/dir2/", "invalid.docx");
+        //Path p = Paths.get("", "invalid.docx");
+        //String pattern = "invalid.docx";
+        //String pattern = "**.docx";
+        //String syntax = "glob:";
+        //if (p.getNameCount() > 1) {
+        //    if (!pattern.contains("*")) {
+        //        syntax += "**";
+        //    } else if (!pattern.contains("**")) {
+        //        syntax += "*";
+        //    }
+        //}
+        //String syntaxAndPattern = syntax + pattern;
+        //System.out.println(syntaxAndPattern);
+        //PathMatcher glob = FileSystems.getDefault().getPathMatcher(syntaxAndPattern);
+        //assertTrue(glob.matches(p));
         assertTrue(Compass.inputFiles.isEmpty(), "Invalid filename extensions are ignored");
     }
 
@@ -155,7 +184,23 @@ public class CompassTest {
     void testAddInputFile_Recursion_DirectoryWalk() {
         Compass compass = new Compass(new String[]{"test", "-recursive"});
         compass.addInputFile(tmpPath.toString());
-        assertEquals(6, Compass.inputFiles.size(), "Add a top level directory to recursively add");
+        assertEquals(7, Compass.inputFiles.size(), "Add a top level directory to recursively add");
+    }
+
+    @Test
+    @DisplayName("Add Input File Recursive Directory with Excludes")
+    void testAddInputFile_Recursion_DirectoryWalk_Excludes() {
+        Compass compass = new Compass(new String[]{"test", "-recursive", "-exclude", "*.{dat,xml,txt,docx}"});
+        compass.addInputFile(tmpPath.toString());
+        assertEquals(3, Compass.inputFiles.size(), "Add a top level directory to recursively add");
+    }
+
+    @Test
+    @DisplayName("Add Input File Recursive Directory with Includes")
+    void testAddInputFile_Recursion_DirectoryWalk_Includes() {
+        Compass compass = new Compass(new String[]{"test", "-recursive", "-include", "*.sql"});
+        compass.addInputFile(tmpPath.toString());
+        assertEquals(3, Compass.inputFiles.size(), "Add a top level directory to recursively add");
     }
 
     @Test
@@ -171,7 +216,6 @@ public class CompassTest {
     @DisplayName("Input files validation")
     void testInputFilesValid() {
         assertTrue(Compass.inputFilesValid(), "Empty input files list is valid if not -add or -delete");
-
         Compass compass = new Compass(new String[]{"test"});
         compass.addInputFile(validInputFilePath.toString());
         assertTrue(Compass.inputFilesValid());
