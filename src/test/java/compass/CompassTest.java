@@ -141,7 +141,9 @@ public class CompassTest {
     @DisplayName("Add Input File Literal Glob No Recursion")
     void testAddInputFile_NoRecursion_Glob() {
         Compass compass = new Compass(new String[]{"test"});
-        compass.addInputFile(Paths.get(tmpPath.toString(), "*").toString());
+        // Can't use Paths.get...toString on Windows while testing for literal glob characters
+        String file = tmpPath.toString() + FileSystems.getDefault().getSeparator() + "*.sql";
+        compass.addInputFile(file);
         assertEquals(2, Compass.inputFiles.size(), "Without -recursive command line arg, directories are ignored");
     }
 
@@ -149,7 +151,9 @@ public class CompassTest {
     @DisplayName("Add Input File Literal Glob With Recursion")
     void testAddInputFile_Recursion_Glob() {
         Compass compass = new Compass(new String[]{"test", "-recursive"});
-        compass.addInputFile(Paths.get(tmpPath.toString(), "*.*").toString());
+        // Can't use Paths.get...toString on Windows while testing for literal glob characters
+        String file = tmpPath.toString() + FileSystems.getDefault().getSeparator() + "*.*";
+        compass.addInputFile(file);
         System.out.println(java.util.Arrays.deepToString(Compass.inputFiles.toArray(new String[0])));
         assertEquals(7, Compass.inputFiles.size(), "With -recursive command line arg, all files are found");
     }
@@ -158,7 +162,9 @@ public class CompassTest {
     @DisplayName("Add Input File Literal Glob For Extension With Recursion")
     void testAddInputFile_Recursion_Glob_Extension() {
         Compass compass = new Compass(new String[]{"test", "-recursive"});
-        compass.addInputFile(Paths.get(tmpPath.toString(), "*.sql").toString());
+        // Can't use Paths.get...toString on Windows while testing for literal glob characters
+        String file = tmpPath.toString() + FileSystems.getDefault().getSeparator() + "*.sql";
+        compass.addInputFile(file);
         System.out.println(java.util.Arrays.deepToString(Compass.inputFiles.toArray(new String[0])));
         assertEquals(3, Compass.inputFiles.size(), "With -recursive command line arg, all files with extension are found");
     }
