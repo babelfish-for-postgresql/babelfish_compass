@@ -138,7 +138,7 @@ public class CompassTest {
     }
 
     @Test
-    @DisplayName("Add Input File Glob No Recursion")
+    @DisplayName("Add Input File Literal Glob No Recursion")
     void testAddInputFile_NoRecursion_Glob() {
         Compass compass = new Compass(new String[]{"test"});
         compass.addInputFile(Paths.get(tmpPath.toString(), "*").toString());
@@ -146,11 +146,29 @@ public class CompassTest {
     }
 
     @Test
+    @DisplayName("Add Input File Literal Glob With Recursion")
+    void testAddInputFile_Recursion_Glob() {
+        Compass compass = new Compass(new String[]{"test", "-recursive"});
+        compass.addInputFile(Paths.get(tmpPath.toString(), "*.*").toString());
+        System.out.println(java.util.Arrays.deepToString(Compass.inputFiles.toArray(new String[0])));
+        assertEquals(7, Compass.inputFiles.size(), "With -recursive command line arg, all files are found");
+    }
+
+    @Test
+    @DisplayName("Add Input File Literal Glob For Extension With Recursion")
+    void testAddInputFile_Recursion_Glob_Extension() {
+        Compass compass = new Compass(new String[]{"test", "-recursive"});
+        compass.addInputFile(Paths.get(tmpPath.toString(), "*.sql").toString());
+        System.out.println(java.util.Arrays.deepToString(Compass.inputFiles.toArray(new String[0])));
+        assertEquals(3, Compass.inputFiles.size(), "With -recursive command line arg, all files with extension are found");
+    }
+
+    @Test
     @DisplayName("Add Input File Empty Directory")
     void testAddInputFile_Recursion_EmptyDirectory() {
-        Compass compass2 = new Compass(new String[]{"test", "-recursive"});
+        Compass compass = new Compass(new String[]{"test", "-recursive"});
         assertTrue(Compass.recursiveInputFiles);
-        compass2.addInputFile(emptyInputDirPath.toString());
+        compass.addInputFile(emptyInputDirPath.toString());
         assertTrue(Compass.inputFiles.isEmpty(), "Empty directories are ignored");
     }
 
@@ -159,23 +177,6 @@ public class CompassTest {
     void testAddInputFile_Recursion_InvalidFile() {
         Compass compass = new Compass(new String[]{"test", "-exclude", "*.docx"});
         compass.addInputFile(invalidInputFilePath.toString());
-
-        //Path p = Paths.get("/var/folders/49/66hy2l8s0d93wsb9kqgv4pthj4rt3r/T/junit1331785800251869899/dir2/", "invalid.docx");
-        //Path p = Paths.get("", "invalid.docx");
-        //String pattern = "invalid.docx";
-        //String pattern = "**.docx";
-        //String syntax = "glob:";
-        //if (p.getNameCount() > 1) {
-        //    if (!pattern.contains("*")) {
-        //        syntax += "**";
-        //    } else if (!pattern.contains("**")) {
-        //        syntax += "*";
-        //    }
-        //}
-        //String syntaxAndPattern = syntax + pattern;
-        //System.out.println(syntaxAndPattern);
-        //PathMatcher glob = FileSystems.getDefault().getPathMatcher(syntaxAndPattern);
-        //assertTrue(glob.matches(p));
         assertTrue(Compass.inputFiles.isEmpty(), "Invalid filename extensions are ignored");
     }
 

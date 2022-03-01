@@ -876,31 +876,42 @@ public class Compass {
 
 	protected void addInputFile(String file) throws InvalidPathException {
 		if (file != null) {
-			Path path = Paths.get(file);
+			Path path = null;
 			boolean processDirectories = recursiveInputFiles;
 			int depth = Integer.MAX_VALUE;
 
-			boolean useGlob = false;
 			// We got a literal asterisk character in the path because the command shell didn't expand the filenames
-			if (path.toString().contains("*")) {
-				if (recursiveInputFiles) {
-					useGlob = true;
-				} else {
-					if (path.endsWith("*")) {
+			// Note that this shouldn't happen in normal use cases since all shells on both *nix and Windows should
+			// expand the * character unless quoted/escaped. On Windows, Powershell will properly expand glob characters
+			// in the middle of a path like *nix shells do, but Command.com will only expand glob characters at the end
+			// of a path. On Windows, java.nio.Path will throw an exception if the path string includes an asterisk.
+			// We can at least try to deal with *, *.*, *.ext
+			if (file.contains("*")) {
+				String endOfPath = file.substring(file.lastIndexOf(FileSystems.getDefault().getSeparator()) + 1);
+				if (endOfPath.contains("*")) {
+					// Remove the asterisk from the file so we don't get an IllegalCharacterException on Windows
+					file = file.substring(0, file.length() - endOfPath.length());
+					if (file.isEmpty()) {
+						file = ".";
+					}
+					path = Paths.get(file).normalize();
+					if (!recursiveInputFiles) {
 						// The asterisk character is at the end of the path, but we weren't asked to process
 						// input recursively. Process only the immediately enclosing parent directory (depth of 1).
 						processDirectories = true;
 						depth = 1;
-						path = path.normalize().getParent();
-					} else {
-						// Error - path contains an asterisk character but it's not at the end and we weren't
-						// asked to process input recursively
 					}
+					// Use the glob that didn't get expanded by the command shell as the inlcude path
+					includePattern = endOfPath;
+				} else {
+					// Error - path contains an asterisk character but it's not at the end. User should use the
+					// -includes switch to build a glob pattern for the files they want to process.
 				}
+			} else {
+				// Normal use case
+				path = Paths.get(file);
 			}
 
-			final PathMatcher glob = !useGlob ? null :
-					FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern("*", path));
 			final PathMatcher includes = (includePattern != null && !includePattern.isEmpty()) ?
 					FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern(includePattern, path)) :
 					null;
@@ -909,13 +920,12 @@ public class Compass {
 					null;
 			if (Files.isDirectory(path)) {
 				if (processDirectories) {
-					// Recursively add files for each input argument that represents a directory
+					// Recursively walk the directory tree and add files that we can read and match our filter patterns
 					Set<String> inputFilesToAdd;
 					try (Stream<Path> directoryStream = Files.walk(path, depth, FileVisitOption.FOLLOW_LINKS)) {
 						inputFilesToAdd = directoryStream
 								.filter(Files::isRegularFile)
 								.filter(Files::isReadable)
-								.filter(p -> glob == null || glob.matches(p))
 								.filter(p -> includes == null || includes.matches(p))
 								.filter(p -> excludes == null || !excludes.matches(p))
 								.map(Path::toString)
