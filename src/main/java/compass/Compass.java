@@ -138,7 +138,11 @@ public class Compass {
 		for (int i = 0; i < args.length; i++) {
 			cmdFlags.add(args[i]);
 		}
-		
+
+		// Need to queue up the input files so we can process them after knowing whether any of
+		// -recursive, -include [pattern] or -exclude [pattern] have been set.
+		List<String> tmpInputFiles = new ArrayList<>();
+
 		for (int i = 0; i < args.length; ) {
 			String arg = args[i];
 			i++;
@@ -598,7 +602,7 @@ public class Compass {
 							arg = arg.replaceAll("\\\\", "");
 						}						
 					}
-					addInputFile(arg);
+					tmpInputFiles.add(arg);
 				}
 				continue;
 			}
@@ -607,7 +611,13 @@ public class Compass {
 			System.err.println("Invalid option ["+arg+"]. Try -help");
 			u.errorExit();
 		}
-		
+
+		// Now we can processes all of the input files and properly deal with
+		// -recursive, -include and -exclude
+		for (String file : tmpInputFiles) {
+			addInputFile(file);
+		}
+
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "onWindows=["+CompassUtilities.onWindows+"] onMac=["+CompassUtilities.onMac+"] onLinux=["+CompassUtilities.onLinux+"]  ", u.debugOS);
 		
 		inputFilesOrig.addAll(inputFiles);
@@ -938,7 +948,7 @@ public class Compass {
 				} // otherwise ignore directories
 			} else if (Files.isRegularFile(path) && (includes == null || includes.matches(path))
 					&& (excludes == null || !excludes.matches(path))) {
-				inputFiles.add(file);
+				inputFiles.add(path.toString());
 			} else {
 				// TODO log unexpected case here?
 				// File does not exist or can't be read by the current process
