@@ -949,7 +949,7 @@ public class Compass {
 					&& (excludes == null || !excludes.matches(path))) {
 				inputFiles.add(path.toString());
 			} else {
-				if (excludes != null && excludes.matches(path)) {
+				if ((excludes != null && excludes.matches(path)) || (includes != null && !includes.matches(path))) {
 					// TODO print notification that we're skipping excluded file? Maybe only in debug mode?
 					// Note that if we exclude above as part of the directory stream walk we won't have a
 					// way to show this info unless we unwind the stream and just use a recursive loop.
