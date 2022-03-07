@@ -23,6 +23,7 @@ public class CompassTest {
     static Path validInputFilePath;
     static Path emptyInputDirPath;
     static Path invalidInputFilePath;
+    static Path oneLevelInputDirPath;
 
     final PrintStream out = System.out;
     final PrintStream err = System.err;
@@ -42,6 +43,8 @@ public class CompassTest {
             │       └── d.dat
             ├── dir2
             │   ├── f.sql
+            |   ├── g.sql
+            |   ├── h.sql
             │   └── invalid.docx
             └── invalid
         */
@@ -51,12 +54,15 @@ public class CompassTest {
         validInputFilePath = Paths.get(tmpDir, "a.sql");
         emptyInputDirPath = Paths.get(tmpDir, "invalid");
         invalidInputFilePath = Paths.get(tmpDir, "dir2", "invalid.docx");
+        oneLevelInputDirPath = Paths.get(tmpDir, "dir2");
         Files.createFile(validInputFilePath);
         Files.createFile(Paths.get(tmpDir, "b.sql"));
         Files.createFile(Paths.get(tmpDir, "dir1", "child1", "c.txt"));
         Files.createFile(Paths.get(tmpDir, "dir1", "child1", "d.dat"));
         Files.createFile(Paths.get(tmpDir, "dir1", "child1", "child2", "e.xml"));
         Files.createFile(Paths.get(tmpDir, "dir2", "f.sql"));
+        Files.createFile(Paths.get(tmpDir, "dir2", "g.sql"));
+        Files.createFile(Paths.get(tmpDir, "dir2", "h.sql"));
         Files.createDirectory(emptyInputDirPath);
         Files.createFile(invalidInputFilePath);
     }
@@ -154,8 +160,7 @@ public class CompassTest {
         // Can't use Paths.get...toString on Windows while testing for literal glob characters
         String file = tmpPath.toString() + FileSystems.getDefault().getSeparator() + "*.*";
         compass.addInputFile(file);
-        System.out.println(java.util.Arrays.deepToString(Compass.inputFiles.toArray(new String[0])));
-        assertEquals(7, Compass.inputFiles.size(), "With -recursive command line arg, all files are found");
+        assertEquals(9, Compass.inputFiles.size(), "With -recursive command line arg, all files are found");
     }
 
     @Test
@@ -165,8 +170,7 @@ public class CompassTest {
         // Can't use Paths.get...toString on Windows while testing for literal glob characters
         String file = tmpPath.toString() + FileSystems.getDefault().getSeparator() + "*.sql";
         compass.addInputFile(file);
-        System.out.println(java.util.Arrays.deepToString(Compass.inputFiles.toArray(new String[0])));
-        assertEquals(3, Compass.inputFiles.size(), "With -recursive command line arg, all files with extension are found");
+        assertEquals(5, Compass.inputFiles.size(), "With -recursive command line arg, all files with extension are found");
     }
 
     @Test
@@ -191,15 +195,15 @@ public class CompassTest {
     void testAddInputFile_Recursion_DirectoryWalk() {
         Compass compass = new Compass(new String[]{"test", "-recursive"});
         compass.addInputFile(tmpPath.toString());
-        assertEquals(7, Compass.inputFiles.size(), "Add a top level directory to recursively add");
+        assertEquals(9, Compass.inputFiles.size(), "Add a top level directory to recursively add");
     }
 
     @Test
     @DisplayName("Add Input File Recursive Directory with Excludes")
     void testAddInputFile_Recursion_DirectoryWalk_Excludes() {
-        Compass compass = new Compass(new String[]{"test", "-recursive", "-exclude", "*.{dat,xml,txt,docx}"});
+        Compass compass = new Compass(new String[]{"test", "-recursive", "-exclude", ".{dat,xml,txt,docx}"});
         compass.addInputFile(tmpPath.toString());
-        assertEquals(3, Compass.inputFiles.size(), "Add a top level directory to recursively add");
+        assertEquals(5, Compass.inputFiles.size(), "Add a top level directory to recursively add");
     }
 
     @Test
@@ -207,7 +211,7 @@ public class CompassTest {
     void testAddInputFile_Recursion_DirectoryWalk_Includes() {
         Compass compass = new Compass(new String[]{"test", "-recursive", "-include", "*.sql"});
         compass.addInputFile(tmpPath.toString());
-        assertEquals(3, Compass.inputFiles.size(), "Add a top level directory to recursively add");
+        assertEquals(5, Compass.inputFiles.size(), "Add a top level directory to recursively add");
     }
 
     @Test
@@ -217,6 +221,27 @@ public class CompassTest {
         compass.addInputFile(Paths.get(tmpPath.toString(), "dir1").toString());
         compass.addInputFile(validInputFilePath.toString());
         assertEquals(4, Compass.inputFiles.size(), "Add a mix of individual files and directories");
+    }
+
+    @Test
+    @DisplayName("Glob syntax pattern when input path is only 1 level deep")
+    void testGlobSyntaxAndPattern_ExcludeSingleLevelPath() {
+        Compass compass = new Compass(new String[]{"test"});
+        assertEquals("glob:*.docx", Compass.globSyntaxAndPattern(".docx", Paths.get("foo")));
+    }
+
+    @Test
+    @DisplayName("Glob syntax pattern input path is multiple levels deep")
+    void testGlobSyntaxAndPattern_ExcludeMultiLevelPath() {
+        Compass compass = new Compass(new String[]{"test"});
+        assertEquals("glob:**.docx", Compass.globSyntaxAndPattern(".docx", Paths.get("foo/bar")));
+    }
+
+    @Test
+    @DisplayName("Glob syntax pattern when processing input recursively")
+    void testGlobSyntaxAndPattern_ExcludeRecursivePath() {
+        Compass compass = new Compass(new String[]{"test", "-recursive"});
+        assertEquals("glob:**.docx", Compass.globSyntaxAndPattern(".docx", Paths.get("foo")));
     }
 
     @Test

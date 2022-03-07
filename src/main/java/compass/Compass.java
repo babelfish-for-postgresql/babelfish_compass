@@ -887,7 +887,6 @@ public class Compass {
 	protected void addInputFile(String file) throws InvalidPathException {
 		if (file != null) {
 			Path path = null;
-			boolean processDirectories = recursiveInputFiles;
 			int depth = Integer.MAX_VALUE;
 
 			// We got a literal asterisk character in the path because the command shell didn't expand the filenames
@@ -908,7 +907,7 @@ public class Compass {
 					if (!recursiveInputFiles) {
 						// The asterisk character is at the end of the path, but we weren't asked to process
 						// input recursively. Process only the immediately enclosing parent directory (depth of 1).
-						processDirectories = true;
+						recursiveInputFiles = true;
 						depth = 1;
 					}
 					// Use the glob that didn't get expanded by the command shell as the inlcude pattern
@@ -929,7 +928,7 @@ public class Compass {
 					FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern(excludePattern, path)) :
 					null;
 			if (Files.isDirectory(path)) {
-				if (processDirectories) {
+				if (recursiveInputFiles) {
 					// Recursively walk the directory tree and add files that we can read and match our filter patterns
 					Set<String> inputFilesToAdd;
 					try (Stream<Path> directoryStream = Files.walk(path, depth, FileVisitOption.FOLLOW_LINKS)) {
@@ -950,10 +949,17 @@ public class Compass {
 					&& (excludes == null || !excludes.matches(path))) {
 				inputFiles.add(path.toString());
 			} else {
-				// TODO log unexpected case here?
-				// File does not exist or can't be read by the current process
-				nrFileNotFound++;
-				u.appOutput("Input file '" + file + "' is not a directory or a file");
+				if (excludes != null && excludes.matches(path)) {
+					// TODO print notification that we're skipping excluded file? Maybe only in debug mode?
+					// Note that if we exclude above as part of the directory stream walk we won't have a
+					// way to show this info unless we unwind the stream and just use a recursive loop.
+					//System.out.println("Skipping excluded input file " + path.toString());
+				} else {
+					// TODO log unexpected case here?
+					// File does not exist or can't be read by the current process
+					nrFileNotFound++;
+					u.appOutput("Input file '" + path.toString() + "' is not a directory or a file");
+				}
 			}
 		}
 	}
@@ -962,10 +968,14 @@ public class Compass {
 		String syntaxAndPattern = null;
 		if (path != null && pattern != null && !pattern.isEmpty()) {
 			String syntax = "glob:";
-			if (path.getNameCount() > 1) {
+			if (recursiveInputFiles || path.getNameCount() > 1) {
 				if (!pattern.contains("*")) {
 					syntax += "**";
 				} else if (!pattern.contains("**")) {
+					syntax += "*";
+				}
+			} else {
+				if (!pattern.contains("*") && pattern.startsWith(".")) {
 					syntax += "*";
 				}
 			}
