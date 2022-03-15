@@ -557,7 +557,12 @@ public class Compass {
 					System.err.println("missing include file name pattern on -include");
 					return;
 				}
-				includePattern = args[i];
+				if (includePattern != null) {
+					// Can only specify -include once per invocation
+					System.err.println("Only one -include pattern allowed. Separate multiple file name patterns with a comma.");
+					return;
+				}
+				includePattern = parseInputPattern(args[i]);
 				i++;
 				continue;
 			}
@@ -566,7 +571,12 @@ public class Compass {
 					System.err.println("missing exclude file name pattern on -exclude");
 					return;
 				}
-				excludePattern = args[i];
+				if (excludePattern != null) {
+					// Can only specify -exclude once per invocation
+					System.err.println("Only one -exclude pattern allowed. Separate multiple file name patterns with a comma.");
+					return;
+				}
+				excludePattern = parseInputPattern(args[i]);
 				i++;
 				continue;
 			}
@@ -921,12 +931,17 @@ public class Compass {
 				path = Paths.get(file);
 			}
 
+			// Make -include override -exclude if they both contain the same pattern
+			normalizeIncludeExcludePatterns();
+
+			// These matcher instances need to be final to be included in the lambda expression below
 			final PathMatcher includes = (includePattern != null && !includePattern.isEmpty()) ?
 					FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern(includePattern, path)) :
 					null;
 			final PathMatcher excludes = (excludePattern != null && !excludePattern.isEmpty()) ?
 					FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern(excludePattern, path)) :
 					null;
+
 			if (Files.isDirectory(path)) {
 				if (recursiveInputFiles) {
 					// Recursively walk the directory tree and add files that we can read and match our filter patterns
@@ -935,8 +950,18 @@ public class Compass {
 						inputFilesToAdd = directoryStream
 								.filter(Files::isRegularFile)
 								.filter(Files::isReadable)
-								.filter(p -> includes == null || includes.matches(p))
-								.filter(p -> excludes == null || !excludes.matches(p))
+								.filter(p -> {
+									if (includes != null && !includes.matches(p)) {
+										u.appOutput("Ignoring not included path '" + p.toString() + "'");
+									}
+									return includes == null || includes.matches(p);
+								})
+								.filter(p -> {
+									if (excludes != null && excludes.matches(p)) {
+										u.appOutput("Excluding path '" + p.toString() + "'");
+									}
+									return excludes == null || !excludes.matches(p);
+								})
 								.map(Path::toString)
 								.collect(Collectors.toSet());
 						inputFiles.addAll(inputFilesToAdd);
@@ -949,11 +974,10 @@ public class Compass {
 					&& (excludes == null || !excludes.matches(path))) {
 				inputFiles.add(path.toString());
 			} else {
-				if ((excludes != null && excludes.matches(path)) || (includes != null && !includes.matches(path))) {
-					// TODO print notification that we're skipping excluded file? Maybe only in debug mode?
-					// Note that if we exclude above as part of the directory stream walk we won't have a
-					// way to show this info unless we unwind the stream and just use a recursive loop.
-					//System.out.println("Skipping excluded input file " + path.toString());
+				if (excludes != null && excludes.matches(path)) {
+					u.appOutput("Excluding path '" + path.toString() + "'");
+				} else if (includes != null && !includes.matches(path)) {
+					u.appOutput("Ignoring not included path '" + path.toString() + "'");
 				} else {
 					// TODO log unexpected case here?
 					// File does not exist or can't be read by the current process
@@ -975,13 +999,61 @@ public class Compass {
 					syntax += "*";
 				}
 			} else {
-				if (!pattern.contains("*") && pattern.startsWith(".")) {
+				if (!pattern.contains("*") && (pattern.startsWith(".") || pattern.startsWith("{"))) {
 					syntax += "*";
 				}
 			}
 			syntaxAndPattern = syntax + pattern;
 		}
 		return syntaxAndPattern;
+	}
+
+	protected static String parseInputPattern(String input) {
+		String pattern = null;
+		if (input != null) {
+			input = input.trim();
+			if (!input.isEmpty()) {
+				if (input.contains(",") && !input.startsWith("{") && !input.endsWith("}")) {
+					// PathMatcher doesn't like spaces between subpatterns when using {}
+					input = input.replaceAll(", *", ",");
+					pattern = "{" + input + "}";
+				} else {
+					pattern = input;
+				}
+			}
+		}
+		return pattern;
+	}
+
+	protected static void normalizeIncludeExcludePatterns() {
+		if (includePattern != null && excludePattern != null) {
+			String tmpIncludePattern = includePattern;
+			String tmpExcludePattern = excludePattern;
+			if (tmpIncludePattern.startsWith("{")) {
+				tmpIncludePattern = tmpIncludePattern.substring(1);
+			}
+			if (tmpIncludePattern.endsWith("}")) {
+				tmpIncludePattern = tmpIncludePattern.substring(0, (tmpIncludePattern.length() - 1));
+			}
+			if (tmpExcludePattern.startsWith("{")) {
+				tmpExcludePattern = tmpExcludePattern.substring(1);
+			}
+			if (tmpExcludePattern.endsWith("}")) {
+				tmpExcludePattern = tmpExcludePattern.substring(0, (tmpExcludePattern.length() - 1));
+			}
+			String[] includes = tmpIncludePattern.split(",");
+			ArrayList<String> excludes = new ArrayList<>(Arrays.asList(tmpExcludePattern.split(",")));
+			for (String include : includes) {
+				for (ListIterator<String> iter = excludes.listIterator(); iter.hasNext();) {
+					String exclude = iter.next();
+					if (include.equals(exclude) || ("." + include).equals(exclude) || include.equals(("." + exclude))) {
+						u.appOutput("Warning: -include pattern overrides -exclude pattern " + exclude);
+						iter.remove();
+					}
+				}
+			}
+			excludePattern = parseInputPattern(String.join(",", excludes));
+		}
 	}
 
 	protected static boolean inputFilesValid() {
