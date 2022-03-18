@@ -25,7 +25,6 @@ import java.nio.file.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.text.SimpleDateFormat;
@@ -91,6 +90,12 @@ public class Compass {
 	protected static boolean recursiveInputFiles = false;
 	protected static String includePattern = null;
 	protected static String excludePattern = null;
+	protected static Set<String> defaultExcludes = new LinkedHashSet<>(Arrays.asList(
+			".ppt",".pptx", ".xls",".xlsx", ".doc", ".docx", ".pdf", ".rtf", ".htm", ".html", ".zip", ".gzip", ".gz",
+			".rar", ".7z", ".tar", ".tgz", ".sh", ".bash", ".csh", ".tcsh", ".bat", ".csv", ".md", ".jpg", ".gif",
+			".png",	".tmp", ".pl", ".py", ".cs", ".cpp", ".vb", ".c", ".php", ".java", ".classpath", ".project", ".rb",
+			".js", ".exe", ".dll", ".sln", ".scc", ".gitignore", ".json", ".yml", ".yaml", ".xml", ".xsl", ".xsd", ".xslt")
+	);
 	protected static boolean generateReport = true;
 	protected static boolean reAnalyze = false;
 	protected static boolean reportOnly = false;
@@ -560,7 +565,7 @@ public class Compass {
 				if (includePattern != null) {
 					// Can only specify -include once per invocation
 					System.err.println("Only one -include pattern allowed. Separate multiple file name patterns with a comma.");
-					return;
+					u.errorExit();
 				}
 				includePattern = parseInputPattern(args[i]);
 				i++;
@@ -574,7 +579,7 @@ public class Compass {
 				if (excludePattern != null) {
 					// Can only specify -exclude once per invocation
 					System.err.println("Only one -exclude pattern allowed. Separate multiple file name patterns with a comma.");
-					return;
+					u.errorExit();
 				}
 				excludePattern = parseInputPattern(args[i]);
 				i++;
@@ -1042,9 +1047,10 @@ public class Compass {
 				tmpExcludePattern = tmpExcludePattern.substring(0, (tmpExcludePattern.length() - 1));
 			}
 			String[] includes = tmpIncludePattern.split(",");
-			ArrayList<String> excludes = new ArrayList<>(Arrays.asList(tmpExcludePattern.split(",")));
+			LinkedHashSet<String> excludes = new LinkedHashSet<>(defaultExcludes);
+			excludes.addAll(new LinkedHashSet<>(Arrays.asList(tmpExcludePattern.split(","))));
 			for (String include : includes) {
-				for (ListIterator<String> iter = excludes.listIterator(); iter.hasNext();) {
+				for (Iterator<String> iter = excludes.iterator(); iter.hasNext();) {
 					String exclude = iter.next();
 					if (include.equals(exclude) || ("." + include).equals(exclude) || include.equals(("." + exclude))) {
 						u.appOutput("Warning: -include pattern overrides -exclude pattern " + exclude);
