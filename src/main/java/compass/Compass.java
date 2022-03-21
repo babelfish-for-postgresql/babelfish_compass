@@ -1031,35 +1031,50 @@ public class Compass {
 	}
 
 	protected static void normalizeIncludeExcludePatterns() {
-		if (includePattern != null && excludePattern != null) {
+		LinkedHashSet<String> excludes = new LinkedHashSet<>(defaultExcludes);
+
+		if (includePattern != null || excludePattern != null) {
 			String tmpIncludePattern = includePattern;
 			String tmpExcludePattern = excludePattern;
-			if (tmpIncludePattern.startsWith("{")) {
-				tmpIncludePattern = tmpIncludePattern.substring(1);
+
+			if (tmpExcludePattern != null) {
+				if (tmpExcludePattern.startsWith("{")) {
+					tmpExcludePattern = tmpExcludePattern.substring(1);
+				}
+				if (tmpExcludePattern.endsWith("}")) {
+					tmpExcludePattern = tmpExcludePattern.substring(0, (tmpExcludePattern.length() - 1));
+				}
+				// Rare case of a glob character being escaped on the command line
+				if (tmpExcludePattern.startsWith("*")) {
+					tmpExcludePattern = tmpExcludePattern.substring(1);
+				}
+				excludes.addAll(new LinkedHashSet<>(Arrays.asList(tmpExcludePattern.split(","))));
 			}
-			if (tmpIncludePattern.endsWith("}")) {
-				tmpIncludePattern = tmpIncludePattern.substring(0, (tmpIncludePattern.length() - 1));
-			}
-			if (tmpExcludePattern.startsWith("{")) {
-				tmpExcludePattern = tmpExcludePattern.substring(1);
-			}
-			if (tmpExcludePattern.endsWith("}")) {
-				tmpExcludePattern = tmpExcludePattern.substring(0, (tmpExcludePattern.length() - 1));
-			}
-			String[] includes = tmpIncludePattern.split(",");
-			LinkedHashSet<String> excludes = new LinkedHashSet<>(defaultExcludes);
-			excludes.addAll(new LinkedHashSet<>(Arrays.asList(tmpExcludePattern.split(","))));
-			for (String include : includes) {
-				for (Iterator<String> iter = excludes.iterator(); iter.hasNext();) {
-					String exclude = iter.next();
-					if (include.equals(exclude) || ("." + include).equals(exclude) || include.equals(("." + exclude))) {
-						u.appOutput("Warning: -include pattern overrides -exclude pattern " + exclude);
-						iter.remove();
+
+			if (tmpIncludePattern != null && tmpExcludePattern != null) {
+				if (tmpIncludePattern.startsWith("{")) {
+					tmpIncludePattern = tmpIncludePattern.substring(1);
+				}
+				if (tmpIncludePattern.endsWith("}")) {
+					tmpIncludePattern = tmpIncludePattern.substring(0, (tmpIncludePattern.length() - 1));
+				}
+				// Rare case of a glob character being escaped on the command line
+				if (tmpIncludePattern.startsWith("*")) {
+					tmpIncludePattern = tmpIncludePattern.substring(1);
+				}
+				String[] includes = tmpIncludePattern.split(",");
+				for (String include : includes) {
+					for (Iterator<String> iter = excludes.iterator(); iter.hasNext(); ) {
+						String exclude = iter.next();
+						if (include.equals(exclude) || ("." + include).equals(exclude) || include.equals(("." + exclude))) {
+							u.appOutput("Warning: -include pattern overrides -exclude pattern " + exclude);
+							iter.remove();
+						}
 					}
 				}
 			}
-			excludePattern = parseInputPattern(String.join(",", excludes));
 		}
+		excludePattern = parseInputPattern(String.join(",", excludes));
 	}
 
 	protected static boolean inputFilesValid() {

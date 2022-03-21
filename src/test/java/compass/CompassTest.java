@@ -160,7 +160,7 @@ public class CompassTest {
         // Can't use Paths.get...toString on Windows while testing for literal glob characters
         String file = tmpPath.toString() + FileSystems.getDefault().getSeparator() + "*.*";
         compass.addInputFile(file);
-        assertEquals(9, Compass.inputFiles.size(), "With -recursive command line arg, all files are found");
+        assertEquals(7, Compass.inputFiles.size(), "With -recursive command line arg, all files are found with 2 default exclusions");
     }
 
     @Test
@@ -251,26 +251,26 @@ public class CompassTest {
     void testNormalizeIncludeExcludePatterns_Null() {
         Compass compass = new Compass(new String[]{"test"});
         Compass.normalizeIncludeExcludePatterns();
-        assertNull(Compass.excludePattern);
         assertNull(Compass.includePattern);
+        assertEquals(Compass.parseInputPattern(String.join(",", Compass.defaultExcludes)), Compass.excludePattern);
     }
 
     @Test
     @DisplayName("Normalize -include and -exclude patterns no -include pattern")
     void testNormalizeIncludeExcludePatterns_NoIncludeSingleExclude() {
-        Compass compass = new Compass(new String[]{"test", "-exclude", ".xml"});
+        Compass compass = new Compass(new String[]{"test", "-exclude", ".so"});
         Compass.normalizeIncludeExcludePatterns();
         assertNull(Compass.includePattern);
-        assertEquals(".xml", Compass.excludePattern);
+        assertTrue(Compass.excludePattern.contains(".so"));
     }
 
     @Test
     @DisplayName("Normalize -include and -exclude patterns no -include pattern")
     void testNormalizeIncludeExcludePatterns_NoIncludeMultiExclude() {
-        Compass compass = new Compass(new String[]{"test", "-exclude", ".xml,.docx"});
+        Compass compass = new Compass(new String[]{"test", "-exclude", ".so,.bz2"});
         Compass.normalizeIncludeExcludePatterns();
         assertNull(Compass.includePattern);
-        assertEquals("{.xml,.docx}", Compass.excludePattern);
+        assertEquals(Compass.defaultExcludes.size() + 2, Compass.excludePattern.split(",").length);
     }
 
     @Test
@@ -278,7 +278,7 @@ public class CompassTest {
     void testNormalizeIncludeExcludePatterns_NoExcludeSingleInclude() {
         Compass compass = new Compass(new String[]{"test", "-include", ".sql"});
         Compass.normalizeIncludeExcludePatterns();
-        assertNull(Compass.excludePattern);
+        assertEquals(Compass.parseInputPattern(String.join(",", Compass.defaultExcludes)), Compass.excludePattern);
         assertEquals(".sql", Compass.includePattern);
     }
 
@@ -287,7 +287,7 @@ public class CompassTest {
     void testNormalizeIncludeExcludePatterns_NoExcludeMultiInclude() {
         Compass compass = new Compass(new String[]{"test", "-include", ".sql,.txt"});
         Compass.normalizeIncludeExcludePatterns();
-        assertNull(Compass.excludePattern);
+        assertEquals(Compass.parseInputPattern(String.join(",", Compass.defaultExcludes)), Compass.excludePattern);
         assertEquals("{.sql,.txt}", Compass.includePattern);
     }
 
@@ -376,7 +376,7 @@ public class CompassTest {
     void testAddInputFile_Recursion_InvalidFile() {
         Compass compass = new Compass(new String[]{"test", "-exclude", "*.docx"});
         compass.addInputFile(invalidInputFilePath.toString());
-        assertTrue(Compass.inputFiles.isEmpty(), "Invalid filename extensions are ignored");
+        assertTrue(Compass.inputFiles.isEmpty(), "Excluding path ");
     }
 
     @Test
@@ -384,13 +384,13 @@ public class CompassTest {
     void testAddInputFile_Recursion_DirectoryWalk() {
         Compass compass = new Compass(new String[]{"test", "-recursive"});
         compass.addInputFile(tmpPath.toString());
-        assertEquals(9, Compass.inputFiles.size(), "Add a top level directory to recursively add");
+        assertEquals(7, Compass.inputFiles.size(), "Add a top level directory to recursively add with 2 default exclusions");
     }
 
     @Test
     @DisplayName("Add Input File Recursive Directory with Excludes")
     void testAddInputFile_Recursion_DirectoryWalk_Excludes() {
-        Compass compass = new Compass(new String[]{"test", "-recursive", "-exclude", ".{dat,xml,txt,docx}"});
+        Compass compass = new Compass(new String[]{"test", "-recursive", "-exclude", "{dat,xml,txt,docx}"});
         compass.addInputFile(tmpPath.toString());
         assertEquals(5, Compass.inputFiles.size(), "Add a top level directory to recursively add");
     }
@@ -409,7 +409,7 @@ public class CompassTest {
         Compass compass = new Compass(new String[]{"test", "-recursive"});
         compass.addInputFile(Paths.get(tmpPath.toString(), "dir1").toString());
         compass.addInputFile(validInputFilePath.toString());
-        assertEquals(4, Compass.inputFiles.size(), "Add a mix of individual files and directories");
+        assertEquals(3, Compass.inputFiles.size(), "Add a mix of individual files and directories with one default exclusion");
     }
 
     @Test
