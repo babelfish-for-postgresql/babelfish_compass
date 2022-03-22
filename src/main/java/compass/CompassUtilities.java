@@ -19,6 +19,8 @@ import java.nio.file.Paths;
 import static java.nio.file.StandardCopyOption.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.security.*;
+import java.math.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.*;
@@ -37,8 +39,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2022-02-a";
-	public static final String thisProgVersionDate  = "February 2022";
+	public static final String thisProgVersion      = "2022-03";
+	public static final String thisProgVersionDate  = "March 2023";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -409,6 +411,7 @@ tooltipsHTMLPlaceholder +
 		"UNICODE("+tttSeparator+"UNICODE() returns the Unicode code point for the first character in a string; this is not currently supported",
 		"HASHBYTES("+tttSeparator+"HASHBYTES() currently supports only MD5, SHA1, SHA2_256, SHA2_512",  /// this needs to be adjusted if additional agorithms are implemented
 		"IDENTITY("+tttSeparator+"The IDENTITY() function in SELECT-INTO is not currently supported. Use ALTER TABLE to add an identity column",
+		"Precision of IDENTITY column "+tttSeparator+"The maximum supported precision of a NUMERIC/DECIMAL type for an IDENTITY column is exceeded; change the precision to stay within the supported limit",
 		"CHOOSE("+tttSeparator+"CHOOSE(): Rewrite as a CASE expression",
 		"OBJECT_SCHEMA_NAME()"+tttSeparator+"OBJECT_SCHEMA_NAME(): Rewrite as catalog query",
 		"ORIGINAL_LOGIN("+tttSeparator+"ORIGINAL_LOGIN() is not currently supported; Rewrite as SUSER_NAME()",
@@ -432,6 +435,7 @@ tooltipsHTMLPlaceholder +
 		"CONTAINSTABLE("+tttSeparator+"Fulltext search is not currently supported",
 		"FREETEXTTABLE("+tttSeparator+"Fulltext search is not currently supported",
 		"\\w+ FULLTEXT "+tttSeparator+"Fulltext search is not currently supported",
+		"expression AT TIME ZONE"+tttSeparator+"A date/time expression with the AT TIME ZONE syntax is not currently supported; rewrite the expression with time zone offset syntax '+/-hh:mm', e.g. '01-Jan-2022 11:12:13 +02:00' ",
 		"Sequence option CACHE" +tttSeparator+"For a sequence, the CACHE option without a number is not currently supported; add a number",
 		"Sequence option NO CACHE" +tttSeparator+"For a sequence, the NO CACHE option without a number is not currently supported",
 		CompassAnalyze.NextValueFor+tttSeparator+"The NEXT VALUE FOR function for sequence objects is not currently supported. Consider using identity columns instead",
@@ -457,8 +461,8 @@ tooltipsHTMLPlaceholder +
 		"CREATE SYNONYM"+tttSeparator+"Synonyms are not currently supported; try to rewrite with views (for tables) or procedures/functions (for procedures/functions)",
 		"BACKUP"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
 		"RESTORE"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
-		"GRANT"+tttSeparator+"GRANT is not currently supported",
-		"REVOKE"+tttSeparator+"REVOKE is not currently supported",
+		"GRANT"+tttSeparator+"This variation of GRANT is not currently supported",
+		"REVOKE"+tttSeparator+"This variation of REVOKE is not currently supported",
 		"DENY"+tttSeparator+"DENY is not currently supported",
 		"ALTER AUTHORIZATION"+tttSeparator+"ALTER AUTHORIZATION (change object ownership) is not currently supported",
 		"CREATE ROLE"+tttSeparator+"DB-level roles are not currently supported, except the predefined 'db_owner' role",
@@ -476,9 +480,9 @@ tooltipsHTMLPlaceholder +
 		"ALTER TRIGGER"+tttSeparator+"ALTER TRIGGER is not currently supported; use DROP+CREATE",
 		"CREATE OR ALTER TRIGGER"+tttSeparator+"CREATE OR ALTER TRIGGER is not currently supported; use DROP+CREATE",
 		"ALTER DATABASE"+tttSeparator+"ALTER DATABASE is not currently supported",
-		"Column attribute FILESTREAM"+tttSeparator+"The FILESTREAM attribute is not currently supported and will be ignored",
-		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported and will be ignored",
-		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported and will be ignored",
+		"Column attribute FILESTREAM"+tttSeparator+"The FILESTREAM attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
+		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
+		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
 		"ALTER TABLE..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements (the -rewrite option handles this for you)",
 		"ALTER TABLE..CHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
 		"ALTER TABLE..NOCHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
@@ -498,6 +502,7 @@ tooltipsHTMLPlaceholder +
 		"ROWVERSION "+tttSeparator+"The ROWVERSION (=TIMESTAMP) datatype is not currently supported",
 		"GEOGRAPHY "+tttSeparator+"The GEOGRAPHY datatype is not supported; consider using the PG PostGIS extension",
 		"GEOMETRY "+tttSeparator+"The GEOMETRY datatype is not supported; consider using the PG PostGIS extension",
+		"Spatial method "+tttSeparator+"GEOGRAPHY/GEOMETRY datatypes are not supported; consider using the PG PostGIS extension",
 		CompassAnalyze.AtAtErrorValueRef+tttSeparator+"The application explicitly references the @@ERROR value shown here, but this particular SQL Server error code is not currently supported by Babelfish. Rewrite manually to check for the PostgreSQL error code",
 		CompassAnalyze.VarDeclareAtAt+tttSeparator+"Local variables or parameters starting with '@@' can be declared, but cannot currently be referenced",
 		"Cursor option "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
@@ -538,7 +543,11 @@ tooltipsHTMLPlaceholder +
 		"OPENQUERY("+tttSeparator+"OPENQUERY() is not currently supported",
 		"OPENDATASOURCE("+tttSeparator+"OPENDATASOURCE() is not currently supported",
 		"OPENROWSET("+tttSeparator+"OPENROWSET() is not currently supported",
-		"CHANGETABLE("+tttSeparator+"CHANGETABLE() is not currently supported",
+		"CHANGETABLE("+tttSeparator+"Change tracking is not currently supported",
+		"CHANGE_TRACKING_MIN_VALID_VERSION"+tttSeparator+"Change tracking is not currently supported",
+		"CHANGE_TRACKING_CURRENT_VERSION"+tttSeparator+"Change tracking is not currently supported",
+		"CHANGE_TRACKING_IS_COLUMN_IN_MASK"+tttSeparator+"Change tracking is not currently supported",
+		"CHANGE_TRACKING_CONTEXT"+tttSeparator+"Change tracking is not currently supported",
 		"PREDICT("+tttSeparator+"PREDICT() is not currently supported",
 		"OPENJSON("+tttSeparator+"JSON-related functionality is not currently supported",
 		"ISJSON("+tttSeparator+"JSON-related functionality is not currently supported",
@@ -562,6 +571,8 @@ tooltipsHTMLPlaceholder +
 		"SELECT TOP <number> PERCENT"+tttSeparator+"Only TOP 100 PERCENT is currently supported. Rewrite as TOP without PERCENT. Rewrite manually",
 		"CROSS APPLY"+tttSeparator+"CROSS APPLY: lateral joins are not currently supported. Rewrite manually",
 		"OUTER APPLY"+tttSeparator+"OUTER APPLY: lateral joins are not currently supported. Rewrite manually",
+		"T-SQL Left Outer Join"+tttSeparator+"The (long-deprecated) T-SQL Outer Join syntax is not supported; rewrite with ANSI Outer Join syntax",
+		"T-SQL Right Outer Join"+tttSeparator+"The (long-deprecated) T-SQL Outer Join syntax is not supported; rewrite with ANSI Outer Join syntax",
 		"WAITFOR DELAY"+tttSeparator+"WAITFOR DELAY: Rewrite this as a call to pg_sleep, e.g. EXECUTE pg_sleep 60 (the -rewrite option handles this for you)",
 		CompassAnalyze.SelectTopWoOrderBy+tttSeparator+"SELECT TOP without ORDER BY: without ORDER BY, the order of rows in the result is not guaranteed, and therefore the TOP n rows aren't either. Even though the order may still have been deterministic in SQL Server (for example, due to a clustered index), this cannot be relied on when migrating to Babelfish/PostgreSQL. Recommendation is to review these queries and in case it is possible that the result set has >1 row, add an ORDER BY before migrating to Babelfish",
 		"Constraint PRIMARY KEY/UNIQUE, CLUSTERED,"+tttSeparator+"CLUSTERED constraints are not currently supported. The constraint will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
@@ -571,6 +582,10 @@ tooltipsHTMLPlaceholder +
 		"Indexed view "+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
 		"CREATE TABLE ##"+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, and is dropped automatically when the last session accessing the table disconnects",
 		"CREATE TABLE (temporal)"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
+		"ALTER TABLE..SET SYSTEM_VERSIONING"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
+		CompassAnalyze.TableHint+tttSeparator+"Table hints are not currently supported by Babelfish; escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_table_hints', 'ignore' [, 'server']\\\\\" will silently ignore table hints ('strict' will raise an error). Review the expected impact on concurrency or query plans in the original query and rewrite the query as needed",
+		CompassAnalyze.JoinHint+tttSeparator+"Join hints are not currently supported by Babelfish; escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_join_hints', 'ignore' [, 'server']\\\\\" will silently ignore join hints ('strict' will raise an error). Review the expected impact on query plans in the original query and rewrite the query as needed",
+		CompassAnalyze.QueryHint+tttSeparator+"Query hints are not currently supported by Babelfish; escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_query_hints', 'ignore' [, 'server']\\\\\" will silently ignore query hints ('strict' will raise an error). Review the expected impact on query plans in the original query and rewrite the query as needed",
 		CompassAnalyze.NumericColNonNumDft+tttSeparator+"NUMERIC/DECIMAL table columns with a non-numeric column default still allow the table to be created in SQL Server but will raise an error only when the default is used; in Babelfish, the error is raised when the table is created. Remove the non-numeric default",
 		CompassAnalyze.TableValueConstructor+tttSeparator+"Rewrite the VALUES() clause as SELECT statements and/or UNIONs",
 		CompassAnalyze.MergeStmt+tttSeparator+"Rewrite MERGE as a series of INSERT/UPDATE/DELETE statements (the -rewrite option handles this for you)",
@@ -584,7 +599,8 @@ tooltipsHTMLPlaceholder +
 		"Number of procedure parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the procedure to use less parameters",
 		"Number of function parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the function to use less parameters",
 		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action, in case the trigger body references the transition tables INSERTED or DELETED",
-		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\" to suppress the error message",
+		"SET FMTONLY"+tttSeparator+"SET FMTONLY is ignored and has not effect, both for ON and OFF",
+		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\" to suppress the resulting error message",
 		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported",
 		"SET QUOTED_IDENTIFIER \\w+, before end of batch"+tttSeparator+"SET QUOTED_IDENTIFIER takes effect only at the start of the next batch in Babelfish; the SQL Server semantics where it applies to the next statement, is not currently supported",
 		"SET DEADLOCK_PRIORITY"+tttSeparator+"Setting the deadlock victimization priority is not currently supported",
@@ -637,7 +653,9 @@ tooltipsHTMLPlaceholder +
 		"\\w+ TRANSACTION not supported with PostgreSQL SECURITY DEFINER"+tttSeparator+"T-SQL objects created with EXECUTE AS OWNER are mapped to PostgreSQL SECURITY DEFINER; PostgreSQL does not support transaction mgmt statementds for objects created with SECURITY DEFINER",
 		"\\w+ ASSEMBLY"+tttSeparator+"This object type is not currently supported",
 		"\\w+ AGGREGATE"+tttSeparator+"This object type is not currently supported",
-"\\w+.*?, in computed column"+tttSeparator+"This feature may be supported by itself, but is not currently supported when used in a computed column"		
+		"\\w+ EVENT SESSION"+tttSeparator+"This object type is not currently supported",
+		"\\w+ EVENT NOTIFICATION"+tttSeparator+"This object type is not currently supported",
+        "\\w+.*?, in computed column"+tttSeparator+"This feature may be supported by itself, but is not currently supported when used in a computed column"		
 	);
 
 	// emoji to indicate popup info is available
@@ -898,11 +916,6 @@ tooltipsHTMLPlaceholder +
 	// user-defined weight factors
 	public Map<String, Integer> userWeightFactor = new HashMap<>();
 
-	// used in both CompassAnalyze and for reporting, need to be same string
-	static final String Datatypes           = "Datatypes";
-	static final String UDDatatypes         = "User-Defined Datatypes";
-	static final String DatatypeConversion  = "Datatype conversion";
-
 	// overall compatibility %age
 	public String compatPctStr = uninitialized;
 	public String compatPctStrRaw = uninitialized;
@@ -1012,19 +1025,21 @@ tooltipsHTMLPlaceholder +
 	 */
 	public void setPlatformAndOptions(String osName) {
 		osName = osName.toLowerCase();
-
+		
 		if (osName.startsWith("windows")) {
 			onWindows = true;
 			onPlatform  = "Windows";
 			thisProgExec = thisProgExecWindows;
 			BabelfishCompassFolderName = BabelfishCompassFolderNameWindows;
-		} else if (osName.startsWith("mac os x")) {
+		}
+		else if (osName.startsWith("mac os x")) {			
 			onMac = true;
 			onPlatform  = "MacOS";
 			thisProgExec = thisProgExecMac;
 			BabelfishCompassFolderName = BabelfishCompassFolderNameMac;
 			hintIcon = hintIconMac;
-		} else {
+		}
+		else {
 			// assume Linux
 			onLinux = true;
 			onPlatform  = "Linux";
@@ -1232,7 +1247,8 @@ tooltipsHTMLPlaceholder +
 	}
 	
 	// remove enclosing brackets from an expression - assuming cases like ((a)+(b)) do not occur 
-	public static String stripEnclosingBrackets(String s) {
+	public String stripEnclosingBrackets(String s) {
+		if (s.trim().isEmpty()) return s;
 		while (true) {
 			if ((s.charAt(0) == '(') && (s.charAt(s.length()-1) == ')')) {
 				s = s.substring(1,s.length()-1);
@@ -1266,6 +1282,15 @@ tooltipsHTMLPlaceholder +
 	    return removeLastChar(sNew.toString());
 	}
 
+	public void listTrim(List<String> thisList) {
+		if (thisList != null) {
+			for (int i = 0; i < thisList.size(); i++) {
+				String str = thisList.get(i);
+				thisList.set(i, str != null ? collapseWhitespace(str) : null);
+			}
+		}
+	}
+
 	public static void listToUpperCase(List<String> thisList) {
 		if (thisList != null) {
 			for (int i = 0; i < thisList.size(); i++) {
@@ -1295,6 +1320,22 @@ tooltipsHTMLPlaceholder +
 		return s;
 	}
 	
+	public String calcMD5(String s) {
+		MessageDigest md5 = null;
+		try {
+		md5 = MessageDigest.getInstance("MD5");
+		} catch (Exception e) {  }
+		md5.reset();
+		md5.update(s.getBytes());
+		byte[] hash = md5.digest();
+		BigInteger bigInt = new BigInteger(1,hash);
+		String hashText = bigInt.toString(16);
+		while(hashText.length() < 32) {
+		  hashText = "0"+hashText;
+		}		
+		return hashText;
+	}
+		
 	// align lines on the specified delimiter
 	public String alignColumn(StringBuilder s, String alignStr, String alignBA, String alignLR) {
 		return alignColumn(s.toString(), alignStr, alignBA, alignLR);
@@ -1662,11 +1703,12 @@ tooltipsHTMLPlaceholder +
 	}
 
 	// capture file pathname
-    public String getCaptureFilePathname(String reportName, String fileName, String appName) {
-		String f = Paths.get(fileName).getFileName().toString();
-		f =  captureFileName + "." + f + "." + captureFileTag + "." + appName + "." + captureFileSuffix;
-		String filePath = getFilePathname(getReportDirPathname(reportName, capDirName), f);
-		return filePath;
+    public String getCaptureFilePathname(String reportName, String inputFileName, String appName) {
+		String f = Paths.get(inputFileName).getFileName().toString();
+		String capFileName = captureFileName + "." + adjustFileName(f, appName, captureFileTag, captureFileSuffix);	
+		String dirPath = getReportDirPathname(reportName, capDirName);
+		capFileName = getFilePathname(dirPath, capFileName);
+		return capFileName;		
 	}
 
 	// PG import file pathname
@@ -1814,6 +1856,9 @@ tooltipsHTMLPlaceholder +
 	}
 
 	public String openErrBatchFile(String reportName, String inputFileName, String runStartTime) throws IOException {
+		if (inputFileName.contains(importFileTag)) {
+			inputFileName = inputFileName.substring(0,inputFileName.indexOf(importFileTag)-1);
+		}
 		Path fullPath = Paths.get(inputFileName).toAbsolutePath();
 		errBatchFilePathName = getErrBatchFilePathName(reportName, inputFileName, fixNameChars("report", runStartTime));
 
@@ -1875,10 +1920,10 @@ tooltipsHTMLPlaceholder +
 
 	public String getSymTabFilePathName(String reportName, String inputFileName, String appName) throws IOException {
 		String f = Paths.get(inputFileName).getFileName().toString();
-		f += "." + symTabFileTag + "." + appName + "." + symTabFileSuffix;
+		String symtabFileName = adjustFileName(f, appName, symTabFileTag, symTabFileSuffix);	
 		String dirPath = getReportDirPathname(reportName, importDirName, symTabDirName);
-		f = getFilePathname(dirPath, f);
-		return f;
+		symtabFileName = getFilePathname(dirPath, symtabFileName);
+		return symtabFileName;
 	}
 
 	public void writeSymTabFile(String line) throws IOException {
@@ -1894,14 +1939,46 @@ tooltipsHTMLPlaceholder +
 	    symTabFileWriter = null;
 	}
 
-	public String getImportFilePathName(String reportName, String inputFileName, String appName) throws IOException {
-		String f = Paths.get(inputFileName).getFileName().toString();
-		f += "." + importFileTag + "." + appName + "." + importFileSuffix;
-		String dirPath = getReportDirPathname(reportName, importDirName);
-		f = getFilePathname(dirPath, f);
-		return f;
+	public String adjustFileName(String fileName, String appName, String fileTag, String fileSuffix) {
+		Integer maxFilenameLength = 260;
+		if (!onWindows) maxFilenameLength = 255;
+		
+		// compose filename
+		String fullFileName = fileName + "." + fileTag + "." + appName + "." + fileSuffix;	
+
+		if (debugging) dbgOutput(thisProc()+ "fullFileName=["+fullFileName+"], ["+fullFileName.length()+"] ", debugDir);
+		if (debugging) dbgOutput(thisProc()+ "fileName=["+fileName+"], ["+fileName.length()+"] ", debugDir);
+		if (debugging) dbgOutput(thisProc()+ "appName=["+appName+"] , ["+appName.length()+"] ", debugDir);
+		
+		int fileTooLong = fullFileName.length() - (maxFilenameLength -20); // 20 to keep a bit of margin since not all generated filenames are equally long
+		if (fileTooLong > 0) {			
+			// only shortening filename at this time; will error out when path part is too long
+			if (debugging) dbgOutput(thisProc()+"importFilename is too long, tooLong=["+fileTooLong+"] ", debugDir);
+			
+			// take the first 50 chars, and append the MD5 hash of the full name
+			String md5Text = calcMD5(fileName);
+			String f2 = fileName.substring(0,50);
+			f2 += "_" + md5Text;
+			if (debugging) dbgOutput(thisProc()+"MD5=["+md5Text+"] f2=["+f2+"] ", debugDir);
+			
+			fullFileName = f2 + "." + fileTag + "." ;
+			if (fileName.toUpperCase().startsWith(appName.toUpperCase())) fullFileName += f2;
+			else fullFileName += appName;
+			fullFileName += "." + fileSuffix;
+			
+			if (debugging) dbgOutput("fileName=["+fullFileName+"], ["+fullFileName.length()+"] ", debugDir);			
+		}			
+		return fullFileName;	
 	}
-	
+
+	public String getImportFilePathName(String reportName, String inputFileName, String appName) throws IOException {
+		String f = Paths.get(inputFileName).getFileName().toString();		
+		String importFileName = adjustFileName(f, appName, importFileTag, importFileSuffix);			
+		String dirPath = getReportDirPathname(reportName, importDirName);
+		importFileName = getFilePathname(dirPath, importFileName);
+		return importFileName;
+	}	
+			
 	// relevant only in case of a single file, and when doing only reporting
 	public String getImportFilePathNameFromCaptured(String capFileName) throws IOException {
 		String f = capFileName;
@@ -1916,7 +1993,7 @@ tooltipsHTMLPlaceholder +
 		return f;
 	}
 
-	public void openImportFile(String reportName, String inputFileName, String appName, String encoding) throws IOException {
+	public void openImportFile(String reportName, String inputFileName, String appName, String encoding) throws IOException {	
 		Path fullPath = Paths.get(inputFileName).toAbsolutePath();
 		importFilePathName = getImportFilePathName(reportName, inputFileName, appName);
 		importFileHTMLPathName = getImportFileHTMLPathName(reportName, inputFileName, appName);
@@ -1937,7 +2014,7 @@ tooltipsHTMLPlaceholder +
 
 		return;
 	}
-
+	
 	public String formatToolTips(String hdr) {
 		// generate tooltip CSS entries for tooltips
 		String css = "";
@@ -2520,7 +2597,7 @@ tooltipsHTMLPlaceholder +
 	// In particular, check for UTF8/UTF16/UTF32 by looking at the BOM bytes: SQL Server Mgmt Studio generates UTF16LE by default.
 	// In case the detected encoding is different from the system default (as in Charset.defaultCharset()), return the name of the encoding.
 	public String detectEncoding(String fileName) throws IOException {
-		// using this charset because it gives identical resutls across platforms
+		// using this charset because it gives identical results across platforms
 		String cs = "ISO-8859-1";
 		if (debugging) dbgOutput(thisProc() + "reading fileName=["+fileName+"] as cs=["+cs+"] default on this system=["+Charset.defaultCharset()+"] ", debugOS);		
 		BufferedReader inFileReader = new BufferedReader(new InputStreamReader(new FileInputStream(fileName), Charset.forName(cs)));
@@ -2535,19 +2612,10 @@ tooltipsHTMLPlaceholder +
 		inFileReader.close();
 		String bom = bomSB.toString();
 		
-		// dump the bytes
+		// dump the BOM bytes
 		if (debugging) {
 			if (debugOS) {	
-				String x = "";
-				for (char c : bom.toCharArray()) {
-					x += "0x";
-					String hexString = Integer.toHexString(c);
-					int leadingZerosNr = 4 - hexString.length();
-					for (int i = 0; i < leadingZerosNr; i++) {
-						x += "0";
-					}
-					x += hexString + " ";
-				}	
+				String x = stringAsHex(bom);
 				dbgOutput(thisProc() + "bom=["+bom+"] hex=["+ x+"]", debugOS);		
 			}
 		}
@@ -3201,7 +3269,7 @@ tooltipsHTMLPlaceholder +
 	public void writeSymTab(String reportName, String inputFileName, String appName) throws IOException {
 		checkDir(getReportDirPathname(reportName, importDirName, symTabDirName), true);
 		symTabFilePathName = getSymTabFilePathName(reportName, inputFileName, appName);
-		if (debugging) dbgOutput("symTabFilePathName=[" + symTabFilePathName + "] ", debugSymtab);
+		if (debugging) dbgOutput("symTabFilePathName=[" + symTabFilePathName + "] ", debugSymtab||debugDir);
 		symTabFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(symTabFilePathName), StandardCharsets.UTF_8)));
 		symTabFileLineCount = 0;
 		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
@@ -4213,14 +4281,14 @@ tooltipsHTMLPlaceholder +
 //		tmp.put(CompassAnalyze.TriggersReportGroup, 540);
 
 		tmp.put(CompassAnalyze.MiscReportGroup, 900);
-		tmp.put(CompassAnalyze.DatatypeConversion, 920);
 		tmp.put(CompassAnalyze.XMLReportGroup, 920);
 		tmp.put(CompassAnalyze.JSONReportGroup, 920);
+		tmp.put(CompassAnalyze.SpatialReportGroup, 920);
 		tmp.put(CompassAnalyze.HIERARCHYIDReportGroup, 920);
-		tmp.put(CompassAnalyze.DatatypeConversion, 920);
 		tmp.put(CompassAnalyze.TableVariablesType, 930);
 		tmp.put(CompassAnalyze.UDDatatypes, 940);
-		tmp.put(CompassAnalyze.Datatypes, 950);
+		tmp.put(CompassAnalyze.DatatypeConversion, 950);
+		tmp.put(CompassAnalyze.Datatypes, 960);
 
 		// map keys to uppercase
 		for(String k: tmp.keySet()) {
@@ -4332,7 +4400,7 @@ tooltipsHTMLPlaceholder +
 				appOutput("No imported files found. Specify input file(s) to add to this report.");
 			}
 			else {
-				String msg = "No analysis files found. Use -analyze to perform analysis and generate a report.";
+				String msg = "No analysis results found. Use -analyze to perform analysis and generate a report.";
 				appOutput(msg);
 				writeReportFile("\n"+msg);
 			}
@@ -4529,10 +4597,20 @@ tooltipsHTMLPlaceholder +
 				statusCount.put(status, statusCount.getOrDefault(status, 0L) + 1);
 
 				// count issues per object
-				if (status.equals(Supported) || status.equals(Ignored) || status.equals(ObjCountOnly)) {
-					// nothing
+				boolean skipItemIssue = false;
+				if (status.equals(Supported) || status.equals(Ignored) || status.equals(ReviewSemantics) || status.equals(ReviewPerformance)  || status.equals(Rewritten) || status.equals(ObjCountOnly)) {
+					// do not count as issue
+					skipItemIssue = true;
 				}
-				else {
+				if (context.equalsIgnoreCase(BatchContext)) { 
+					// skip batches			
+					skipItemIssue = true;				
+				}	
+				if (!getPatternGroup(item, "^(ALTER TABLE..(NO)?CHECK CONSTRAINT)", 1).isEmpty()) {
+					// skip ALTER TABLE..[NO]CHECK CONSTRAINT, it does not affect the CREATE TABLE
+					skipItemIssue = true;
+				}
+				if (!skipItemIssue) {
 					String k = context.toUpperCase();
 					if (k.contains(" ")) {
 						k = k.substring(k.lastIndexOf(" ")+1);
@@ -4624,7 +4702,7 @@ tooltipsHTMLPlaceholder +
 				objTypeIssueCount.put(type, objTypeIssueCount.getOrDefault(type, 0) + 1);
 		}
 		
-		// for debugging:
+//		// for debugging:
 //		for (String t : objTypeIssueMap.keySet()) {
 //			Integer iX = objTypeIssueCount.getOrDefault(t,0);
 //			Integer i0 = objTypeNoIssueCount.getOrDefault(t,0);
@@ -4970,7 +5048,7 @@ tooltipsHTMLPlaceholder +
 		boolean withIssues = true;		
 		while (true) {			 
 			String withStr = "without detected issues, expected to be created without errors:";
-			if (withIssues) withStr = "with issues, may raise errors when created (for details, see above):";			
+			if (withIssues) withStr = "with issues, may raise errors when created (for details, see report above):";			
 			StringBuilder line = new StringBuilder();
 			Integer cnt = 0;
 			
@@ -5701,12 +5779,12 @@ tooltipsHTMLPlaceholder +
 						nextRewrite = false;
 					}
 
-					//appOutput(thisProc()+"lineNo=["+lineNo+"]=["+line+"]  lineCut=["+lineCut+"]");
 					if (debugging) dbgOutput(thisProc()+"lineNo=["+lineNo+"]=["+line+"]  lineCut=["+lineCut+"]", debugRewrite);
 					if (debugging) dbgOutput(thisProc()+"startLine=["+startLine+"] remainingLength=["+remainingLength+"]", debugRewrite);					
 					if (lineNo == startLine) {
 						// reached startline for sub; apply it
 						if (debugging) dbgOutput(thisProc()+"*** applying rewrite=["+rewriteCount+"] origLen=["+origLen+"]", debugRewrite);
+						keepLine = false; // new rewrite to be done
 																
 						if (debugging) dbgOutput(thisProc()+"startCol orig=["+startColOrig+"] lineCut=["+lineCut+"] ", debugRewrite);
 						if (startColOrig == -1) startColOrig = startCol;
@@ -5730,7 +5808,7 @@ tooltipsHTMLPlaceholder +
 						writeRewrittenFile(pre);
 						if (debugging) dbgOutput(thisProc()+"pre=["+pre+"] ", debugRewrite);
 								
-						if (debugging) dbgOutput(thisProc()+"remainingLength=["+remainingLength+"] line.length()=["+line.length()+"] pre.length()=["+pre.length()+"] ", debugRewrite);
+						if (debugging) dbgOutput(thisProc()+"remainingLength=["+remainingLength+"] line.length()=["+line.length()+"] pre.length()=["+pre.length()+"] keepLine=["+keepLine+"] ", debugRewrite);
 						if (line.length() - pre.length() >= remainingLength) {
 							if (debugging) dbgOutput(thisProc()+"ends on this line(A), remainingLength=["+remainingLength+"]", debugRewrite);
 							// it's all on this line
@@ -5818,7 +5896,10 @@ tooltipsHTMLPlaceholder +
 						}
 					}			
 					
-					if (!keepLine) break;
+					if (!keepLine) {
+						if (debugging) dbgOutput(thisProc()+"keepLine=["+keepLine+"], breaking", debugRewrite);
+						break;
+					}
 				}
 				if (abortNow) break;
 			}
@@ -6452,7 +6533,21 @@ tooltipsHTMLPlaceholder +
 		appOutput("Items for anonymized reporting: "+itemCount);
 		appOutput("All identifiers and customer-specific details have been removed from the captured items\nin "+anonItemPathName);
 	}	
-										
+	
+	public String stringAsHex (String s) {		
+		StringBuilder sb =  new StringBuilder();
+		for (char c : s.toCharArray()) {
+			sb.append("0x");
+			String hexString = Integer.toHexString(c);
+			int leadingZerosNr = 4 - hexString.length();
+			for (int i = 0; i < leadingZerosNr; i++) {
+				sb.append("0");
+			}
+			sb.append(hexString);
+		}
+		return sb.toString();	
+	}	
+											
  	// ---- error handling in Lexer ----------------------------------------
 	private String errorMsg;
 
@@ -6499,25 +6594,16 @@ tooltipsHTMLPlaceholder +
 		return msg;
 	}
 
-	public void addLexicalErrorHex(StringBuilder sb, String text) {
-		text = limitTextSize(text);
-		sb.append("lexical error: ").append(text).append(" with hex=");
-
-		for (char c : text.toCharArray()) {
-			sb.append("0x");
-			String hexString = Integer.toHexString(c);
-			int leadingZerosNr = 4 - hexString.length();
-			for (int i = 0; i < leadingZerosNr; i++) {
-				sb.append("0");
-			}
-			sb.append(hexString);
-		}
+	public void addLexicalErrorHex(StringBuilder sb, String s) {
+		s = limitTextSize(s);
+		sb.append("lexical error: ").append(s).append(" with hex=");
+		sb.append(stringAsHex(s));
 	}
-
-	public void setErrorMsg(int line, int col, String text) {
+	
+	public void setErrorMsg(int line, int col, String s) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("Line ").append(line).append(":").append(col + 1).append(", ");
-		addLexicalErrorHex(sb, text);
+		addLexicalErrorHex(sb, s);
 		errorMsg = sb.toString();
 	}
 }

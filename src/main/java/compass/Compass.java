@@ -83,6 +83,7 @@ public class Compass {
 	protected static boolean dumpBatchFile = false;
 	protected static boolean forceAppName = false; 
 	protected static boolean forceReportName = false; 
+	protected static int reportNameMaxLength = 70; 
 	protected static String  reportFileName = ""; 
 	protected static String  quotedIdentifier = "ON"; 
 	protected static boolean addReport = false;
@@ -91,11 +92,12 @@ public class Compass {
 	protected static String includePattern = null;
 	protected static String excludePattern = null;
 	protected static Set<String> defaultExcludes = new LinkedHashSet<>(Arrays.asList(
-			".ppt",".pptx", ".xls",".xlsx", ".doc", ".docx", ".pdf", ".rtf", ".htm", ".html", ".zip", ".gzip", ".gz",
-			".rar", ".7z", ".tar", ".tgz", ".sh", ".bash", ".csh", ".tcsh", ".bat", ".csv", ".md", ".jpg", ".gif",
-			".png",	".tmp", ".pl", ".py", ".cs", ".cpp", ".vb", ".c", ".php", ".java", ".classpath", ".project", ".rb",
-			".js", ".exe", ".dll", ".sln", ".scc", ".gitignore", ".json", ".yml", ".yaml", ".xml", ".xsl", ".xsd", ".xslt")
-	);
+			".ppt",".pptx", ".xls",".xlsx", ".doc", ".docx", ".pdf", ".rtf", ".htm", ".html", ".css", ".zip", 
+			".gzip", ".gz", ".rar", ".7z", ".tar", ".tgz", ".sh", ".bash", ".csh", ".tcsh", ".bat", ".csv", ".md", 
+			".mp4", ".mov", ".jpg", ".gif", ".png",	".tmp", ".pl", ".py", ".cs", ".cpp", ".vb", ".c", ".php", 
+			".java", ".classpath", ".project", ".rb", ".js", ".exe", ".dll", ".sln", ".scc", ".gitignore", ".json", 
+			".yml", ".yaml", ".xml", ".xsl", ".xsd", ".xslt")
+	);	
 	protected static boolean generateReport = true;
 	protected static boolean reAnalyze = false;
 	protected static boolean reportOnly = false;
@@ -161,10 +163,12 @@ public class Compass {
 			if (arg.equals("-help")) {
 				String helpOption  = "";
 				if (args.length > i) {
-					if (args[i].equals("-reportoption")) helpOption = "reportoption";
-					if (args[i].equals("-reportoptions")) helpOption = "reportoption";
+					if (args[i].equals("-reportoption")  || args[i].equals("reportoption")) helpOption = "reportoption";
+					if (args[i].equals("-reportoptions") || args[i].equals("reportoptions")) helpOption = "reportoption";
+					if (args[i].equals("-exclude") || args[i].equals("exclude")) helpOption = "exclude";
+					if (args[i].equals("-encoding") || args[i].equals("encoding")) helpOption = "encoding";
 				}
-				if (!helpOption.isEmpty()) {
+				if (helpOption.equals("reportoption")) {
 					u.appOutput("-reportoption  [options] : additional reporting detail. ");
 					u.appOutput(" [options] are comma-separated as follows:");
 					u.appOutput(" One of the following:");				
@@ -192,6 +196,16 @@ public class Compass {
 					quitNow = true;
 					return;					
 				}
+				if (helpOption.equals("exclude")) {
+					u.appOutput("The following file type suffixes are excluded by default:\n"+defaultExcludes);							
+					quitNow = true;
+					return;					
+				}
+				if (helpOption.equals("encoding")) {
+					encodingHelp();		
+					quitNow = true;
+					return;					
+				}
 				
 				u.appOutput("Usage: " + CompassUtilities.thisProgExec + "  <reportName>  [options] ");
 				u.appOutput("[options] can be:");
@@ -209,7 +223,7 @@ public class Compass {
 				u.appOutput("   -analyze                     : (re-)run analysis on imported files, and generate report");		
 				u.appOutput("   -nooverride                  : do not use overrides from " + CompassUtilities.defaultUserCfgFileName);						
 				u.appOutput("   -babelfish-version <version> : specify target Babelfish version (default=latest)");
-				u.appOutput("   -encoding <encoding>         : input file encoding, e.g. '-encoding utf8'. Default="+Charset.defaultCharset());
+				u.appOutput("   -encoding <encoding>         : input file encoding, e.g. '-encoding UTF16'. Default="+Charset.defaultCharset());
 				u.appOutput("                                  use '-encoding help' to list available encodings");
 				u.appOutput("   -quotedid {on|off}           : set QUOTED_IDENTIFIER at start of script (default=ON)");
 				u.appOutput("   -pgimport \"<comma-list>\"     : imports captured items into a PostgreSQL table for SQL querying");
@@ -219,7 +233,7 @@ public class Compass {
 				u.appOutput("   -recursive                   : recursively add files if inputfile is a directory");
 				u.appOutput("   -include                     : pattern of input file names to include");
 				u.appOutput("   -exclude                     : pattern of input file names to exclude");
-  				u.appOutput("   -rewrite                     : (beta) rewrites selected unsupported SQL features");
+  				u.appOutput("   -rewrite                     : rewrites selected unsupported SQL features");
 //				u.appOutput("   -importfmt <fmt>             : process special-format captured query files");
 //				u.appOutput("   -nodedup                     : do not deduplicate captured query files");
 				u.appOutput("   -version                     : show version of this tool");
@@ -365,20 +379,7 @@ public class Compass {
 				}
 				userEncoding = args[i];
 				if (userEncoding.equalsIgnoreCase("help")) {
-					u.appOutput("Default encoding on this system: " + Charset.defaultCharset());
-					u.appOutput("\nAvailable encodings:");
-					String s="";
-					for (String c : Charset.availableCharsets().keySet()) {
-						s += c + "  ";
-						if (s.length() > 80) {
-							u.appOutput(s);
-							s = "";
-						}
-					}
-					if (s.length() > 0) {
-						u.appOutput(s);
-					}
-					u.errorExit();
+					encodingHelp();
 				}
 				i++; 
 				continue;
@@ -560,7 +561,7 @@ public class Compass {
 			if (arg.equals("-include")) {
 				if (i >= args.length) {
 					System.err.println("missing include file name pattern on -include");
-					return;
+					u.errorExit();
 				}
 				if (includePattern != null) {
 					// Can only specify -include once per invocation
@@ -574,7 +575,7 @@ public class Compass {
 			if (arg.equals("-exclude")) {
 				if (i >= args.length) {
 					System.err.println("missing exclude file name pattern on -exclude");
-					return;
+					u.errorExit();
 				}
 				if (excludePattern != null) {
 					// Can only specify -exclude once per invocation
@@ -604,6 +605,10 @@ public class Compass {
 					if (reportName.isEmpty()) {
 						u.appOutput("Report name cannot be blank");
 						u.errorExit();
+					}
+					if (reportName.length() > reportNameMaxLength) {
+						u.appOutput("Report name '"+reportName+"' exceeds "+reportNameMaxLength+" characters");
+						u.errorExit();						
 					}
 					String invalidMsg = CompassUtilities.nameFormatValid("report", reportName);
 					if (!invalidMsg.isEmpty()) {
@@ -635,7 +640,7 @@ public class Compass {
 
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "onWindows=["+CompassUtilities.onWindows+"] onMac=["+CompassUtilities.onMac+"] onLinux=["+CompassUtilities.onLinux+"]  ", u.debugOS);
 		
-		inputFilesOrig.addAll(inputFiles);
+		inputFilesOrig.addAll(tmpInputFiles);
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -897,6 +902,23 @@ public class Compass {
 				}
 			}
 		}
+	}
+	
+	protected void encodingHelp() {			
+		u.appOutput("Default encoding on this system: " + Charset.defaultCharset());
+		u.appOutput("\nAvailable encodings:");
+		String s="";
+		for (String c : Charset.availableCharsets().keySet()) {
+			s += c + "  ";
+			if (s.length() > 80) {
+				u.appOutput(s);
+				s = "";
+			}
+		}
+		if (s.length() > 0) {
+			u.appOutput(s);
+		}
+		u.errorExit();
 	}
 
 	protected void addInputFile(String file) throws InvalidPathException {
@@ -1719,7 +1741,15 @@ public class Compass {
 							}
 						}
 					}
-									
+
+					// remove UTF-8 BOM if present: Java doesn't handle this. The BOM bytes for UTF8 are 0xEF 0xBB 0xBF, but the show up here as 0xFEFF
+					if (lineNr == 0) {
+						if (line.startsWith("\uFEFF")) {
+							if (u.debugging) u.dbgOutput("UTF-8 BOM found, removed", u.debugBatch);
+							line = line.substring(1);
+						}		
+					}						
+																			
 					if (u.analysisPass == 1) {
 						if (!reAnalyze) {
 							u.writeImportFile(line);

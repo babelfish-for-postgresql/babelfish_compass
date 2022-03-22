@@ -1104,6 +1104,7 @@ EXCLAMATION:         '!';
 PLUS_ASSIGN:         '+=';
 MINUS_ASSIGN:        '-=';
 MULT_ASSIGN:         '*=';
+EQUAL_STAR_OJ:       '=*';
 DIV_ASSIGN:          '/=';
 MOD_ASSIGN:          '%=';
 AND_ASSIGN:          '&=';

@@ -1236,6 +1236,7 @@ public class CompassConfig {
 				List<String> theseItems = new ArrayList<>(Arrays.asList(optionVal.split(",")));
 				if (!optionKey.equals(reportGroupTag)) {
 					u.listToUpperCase(theseItems);
+					u.listTrim(theseItems);
 				}
 
 				Map<String, List<String>> featureList;
