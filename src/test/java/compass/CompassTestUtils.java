@@ -59,6 +59,12 @@ public class CompassTestUtils {
         Compass.recursiveInputFiles = false;
         Compass.includePattern = null;
         Compass.excludePattern = null;
+        Compass.defaultExcludes = new LinkedHashSet<>(Arrays.asList(
+                ".ppt",".pptx", ".xls",".xlsx", ".doc", ".docx", ".pdf", ".rtf", ".htm", ".html", ".zip", ".gzip", ".gz",
+                ".rar", ".7z", ".tar", ".tgz", ".sh", ".bash", ".csh", ".tcsh", ".bat", ".csv", ".md", ".jpg", ".gif",
+                ".png",	".tmp", ".pl", ".py", ".cs", ".cpp", ".vb", ".c", ".php", ".java", ".classpath", ".project", ".rb",
+                ".js", ".exe", ".dll", ".sln", ".scc", ".gitignore", ".json", ".yml", ".yaml", ".xml", ".xsl", ".xsd", ".xslt")
+        );
         Compass.generateReport = true;
         Compass.reAnalyze = false;
         Compass.reportOnly = false;
