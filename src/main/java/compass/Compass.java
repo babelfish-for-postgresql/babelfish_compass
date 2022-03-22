@@ -1051,7 +1051,7 @@ public class Compass {
 				excludes.addAll(new LinkedHashSet<>(Arrays.asList(tmpExcludePattern.split(","))));
 			}
 
-			if (tmpIncludePattern != null && tmpExcludePattern != null) {
+			if (tmpIncludePattern != null) {
 				if (tmpIncludePattern.startsWith("{")) {
 					tmpIncludePattern = tmpIncludePattern.substring(1);
 				}

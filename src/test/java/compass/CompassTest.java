@@ -303,6 +303,17 @@ public class CompassTest {
     }
 
     @Test
+    @DisplayName("Normalize -include and -exclude patterns include overrides default -exclude")
+    void testNormalizeIncludeExcludePatterns_IncludeDefaultExcludes() {
+        Compass compass = new Compass(new String[]{"test", "-include", ".dll"});
+        assertEquals(".dll", Compass.includePattern);
+        assertNull(Compass.excludePattern);
+        Compass.normalizeIncludeExcludePatterns();
+        assertEquals(".dll", Compass.includePattern);
+        assertFalse(Compass.excludePattern.contains("dll"));
+    }
+
+    @Test
     @DisplayName("Normalize -include and -exclude patterns include overrides -exclude")
     void testNormalizeIncludeExcludePatterns_IncludeSomeExcludes() {
         Compass compass = new Compass(new String[]{"test", "-include", ".sql", "-exclude", ".sql,.txt"});
