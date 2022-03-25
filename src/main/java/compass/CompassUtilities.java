@@ -441,6 +441,8 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.NextValueFor+tttSeparator+"The NEXT VALUE FOR function for sequence objects is not currently supported. Consider using identity columns instead",
 		CompassAnalyze.ParamValueDEFAULT+tttSeparator+"Specifying DEFAULT as a parameter value in a procedure or function call is not currently supported; specify the actual default value instead",
 		CompassAnalyze.UnQuotedString+tttSeparator+"Unquoted strings are not currently supported; enclose the string with quotes",
+		CompassAnalyze.LineContinuationChar+" in hex string"+tttSeparator+"The line continuation character is not currently supported for hex strings; rewrite by putting the string on a single line",
+		CompassAnalyze.LineContinuationChar+" in character string"+tttSeparator+"The line continuation character is not currently supported for character strings, and is interpreted as an actual backslash + newline inside the string; rewrite by putting the string on a single line",
 		CompassAnalyze.DoubleQuotedString+", embedded single"+tttSeparator+"An embedded single quote in a double-quotes string is not currently supported. Change the double-quote string delimiters to single quotes and escape the embedded single quote",
 		CompassAnalyze.DoubleQuotedString+", embedded double"+tttSeparator+"An embedded double quote in a double-quotes string is not currently supported, and will result in two double quotes in the string. Change the double-quote string delimiters to single quotes and un-escape the embedded double quote",
 		CompassAnalyze.ExecuteSQLFunction+tttSeparator+"Calling a SQL function with EXECUTE is not currently supported. Call the function in an expression instead",

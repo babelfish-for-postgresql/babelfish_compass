@@ -1073,6 +1073,8 @@ CHAR_IDGSP:         '\u3000'      -> skip;   // ideographic space
 COMMENT:            '/*' (COMMENT | .)*? '*/' -> skip;
 LINE_COMMENT:       '--' ~[\r\n]* -> skip;
 
+//LINE_CONTINUATION:  '\\' \r? \n;
+
 // The next two rules are mutually exclusive - which rule we choose depends on the
 // value of QUOTED_IDENTIFIER_FLAG, which reflects the SET QUOTED_IDENTFIER statements encountered.
 // The first rule chooses to return a DOUBLE_QUOTE_ID if QUOTED_IDENTIFIER_FLAG is true.
@@ -1087,7 +1089,7 @@ LOCAL_ID:           '@' ([_$@#0-9] | LETTER )*;
 
 DECIMAL:             DEC_DIGIT+;
 ID:                  ( [_#] | LETTER) ( [_#$@0-9] | LETTER)*;
-BINARY:              '0' [Xx] HEX_DIGIT*;
+BINARY:              '0' [Xx] ( HEX_DIGIT | '\\' [\r]? [\n] )*;
 FLOAT:               DEC_DOT_DEC;
 REAL:                (DECIMAL | DEC_DOT_DEC) ([Ee] ([+-]? DEC_DIGIT+)?);
 
