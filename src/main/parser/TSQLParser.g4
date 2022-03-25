@@ -445,7 +445,7 @@ local_drive
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/create-assembly-transact-sql
 create_assembly
     : CREATE ASSEMBLY assembly_name=id (AUTHORIZATION owner_name=id)?
-       FROM (COMMA? (char_string|BINARY) )+
+       FROM (COMMA? (char_string|hex_string) (AS id)? )+
        (WITH PERMISSION_SET EQUAL (SAFE|EXTERNAL_ACCESS|UNSAFE) )?
     ;
 
@@ -581,7 +581,7 @@ alter_certificate
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-column-encryption-key-transact-sql
 alter_column_encryption_key
-    : ALTER COLUMN ENCRYPTION KEY column_encryption_key=id (ADD | DROP) VALUE LR_BRACKET COLUMN_MASTER_KEY EQUAL column_master_key_name=id ( COMMA ALGORITHM EQUAL algorithm_name=char_string  COMMA ENCRYPTED_VALUE EQUAL BINARY)? RR_BRACKET
+    : ALTER COLUMN ENCRYPTION KEY column_encryption_key=id (ADD | DROP) VALUE LR_BRACKET COLUMN_MASTER_KEY EQUAL column_master_key_name=id ( COMMA ALGORITHM EQUAL algorithm_name=char_string  COMMA ENCRYPTED_VALUE EQUAL hex_string)? RR_BRACKET
     ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/create-column-encryption-key-transact-sql
@@ -590,7 +590,7 @@ create_column_encryption_key
          WITH VALUES
            (LR_BRACKET COMMA? COLUMN_MASTER_KEY EQUAL column_master_key_name=id COMMA
            ALGORITHM EQUAL algorithm_name=char_string  COMMA
-           ENCRYPTED_VALUE EQUAL encrypted_value=BINARY RR_BRACKET COMMA?)+
+           ENCRYPTED_VALUE EQUAL encrypted_value=hex_string RR_BRACKET COMMA?)+
     ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/drop-certificate-transact-sql
@@ -820,7 +820,7 @@ add_signature_statement
     ;
 
 signature_item
-    : (CERTIFICATE|ASYMMETRIC KEY) name=id (WITH PASSWORD EQUAL char_string | WITH SIGNATURE EQUAL BINARY)?
+    : (CERTIFICATE|ASYMMETRIC KEY) name=id (WITH PASSWORD EQUAL char_string | WITH SIGNATURE EQUAL hex_string)?
     ;                          
     
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/drop-signature-transact-sql
@@ -1005,13 +1005,13 @@ external_file_format_option
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-external-library-transact-sql
 alter_external_library
     : ALTER EXTERNAL LIBRARY library_name=id (AUTHORIZATION owner_name=id)?
-       (SET|ADD) ( LR_BRACKET CONTENT EQUAL (client_library=char_string | BINARY | NONE) (COMMA PLATFORM EQUAL (WINDOWS|LINUX)? RR_BRACKET) WITH (COMMA? LANGUAGE EQUAL (R|PYTHON) | DATA_SOURCE EQUAL external_data_source_name=id )+ RR_BRACKET )
+       (SET|ADD) ( LR_BRACKET CONTENT EQUAL (client_library=char_string | hex_string | NONE) (COMMA PLATFORM EQUAL (WINDOWS|LINUX)? RR_BRACKET) WITH (COMMA? LANGUAGE EQUAL (R|PYTHON) | DATA_SOURCE EQUAL external_data_source_name=id )+ RR_BRACKET )
     ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/create-external-library-transact-sql
 create_external_library
     : CREATE EXTERNAL LIBRARY library_name=id (AUTHORIZATION owner_name=id)?
-       FROM (COMMA? LR_BRACKET?  (CONTENT EQUAL)? (client_library=char_string | BINARY | NONE) (COMMA PLATFORM EQUAL (WINDOWS|LINUX)? RR_BRACKET)? ) ( WITH (COMMA? LANGUAGE EQUAL (R|PYTHON) | DATA_SOURCE EQUAL external_data_source_name=id )+ RR_BRACKET )?
+       FROM (COMMA? LR_BRACKET?  (CONTENT EQUAL)? (client_library=char_string | hex_string | NONE) (COMMA PLATFORM EQUAL (WINDOWS|LINUX)? RR_BRACKET)? ) ( WITH (COMMA? LANGUAGE EQUAL (R|PYTHON) | DATA_SOURCE EQUAL external_data_source_name=id )+ RR_BRACKET )?
     ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-external-resource-pool-transact-sql
@@ -1044,11 +1044,12 @@ create_fulltext_index
     ;
 
 fulltext_index_column
-    : full_column_name (TYPE COLUMN full_column_name)? (LANGUAGE (char_string|DECIMAL|BINARY))? STATISTICAL_SEMANTICS?
+    : full_column_name (TYPE COLUMN full_column_name)? (LANGUAGE (char_string|DECIMAL|hex_string))? STATISTICAL_SEMANTICS?
     ;
 
 catalog_filegroup_option
-    : catalog_name=id (COMMA FILEGROUP filegroup_name=id)?
+    : LR_BRACKET catalog_filegroup_option RR_BRACKET
+    | catalog_name=id (COMMA FILEGROUP filegroup_name=id)?
     | FILEGROUP filegroup_name=id (COMMA catalog_name=id)?
     ;
 
@@ -1080,7 +1081,7 @@ alter_fulltext_index_no_population
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-fulltext-stoplist-transact-sql
 alter_fulltext_stoplist
-    : ALTER FULLTEXT STOPLIST stoplist_name=id (ADD stopword=char_string LANGUAGE (char_string|DECIMAL|BINARY) | DROP ( stopword=char_string LANGUAGE (char_string|DECIMAL|BINARY) |ALL (char_string|DECIMAL|BINARY) | ALL ) )
+    : ALTER FULLTEXT STOPLIST stoplist_name=id (ADD stopword=char_string LANGUAGE (char_string|DECIMAL|hex_string) | DROP ( stopword=char_string LANGUAGE (char_string|DECIMAL|hex_string) |ALL (char_string|DECIMAL|hex_string) | ALL ) )
     ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/create-fulltext-stoplist-transact-sql
@@ -1098,7 +1099,7 @@ alter_login
     ;
 
 alter_login_set_option
-    : PASSWORD EQUAL ( password=char_string | password_hash=BINARY HASHED ) 
+    : PASSWORD EQUAL ( password=char_string | password_hash=hex_string HASHED ) 
         ( (MUST_CHANGE|UNLOCK)+ 
           | OLD_PASSWORD EQUAL old_password=char_string )?
     | DEFAULT_DATABASE EQUAL default_database=id
@@ -1112,7 +1113,7 @@ alter_login_set_option
 
 create_login
     : CREATE LOGIN login_name=id 
-        ( WITH PASSWORD EQUAL ( password=char_string | password_hash=BINARY HASHED ) MUST_CHANGE? (COMMA create_login_option_list)* 
+        ( WITH PASSWORD EQUAL ( password=char_string | password_hash=hex_string HASHED ) MUST_CHANGE? (COMMA create_login_option_list)* 
           | FROM 
             ( WINDOWS (WITH create_login_windows_options (COMMA create_login_windows_options)* )?
               | CERTIFICATE certname=id
@@ -1120,7 +1121,7 @@ create_login
     ;
 
 create_login_option_list
-    : SID EQUAL sid=BINARY
+    : SID EQUAL sid=hex_string
     | DEFAULT_DATABASE EQUAL default_database=id
     | DEFAULT_LANGUAGE EQUAL (id | char_string | DECIMAL)
     | CHECK_EXPIRATION EQUAL (ON|OFF)
@@ -1489,7 +1490,7 @@ create_user
                         |COMMA? DEFAULT_LANGUAGE EQUAL (NONE
                                                 |DECIMAL
                                                 |language_name_or_alias=id                                                      )
-                        |COMMA? SID EQUAL BINARY
+                        |COMMA? SID EQUAL hex_string
                         |COMMA? ALLOW_ENCRYPTED_VALUE_MODIFICATIONS EQUAL (ON|OFF)
                         )*
                       )?
@@ -1498,7 +1499,7 @@ create_user
                             |COMMA? DEFAULT_LANGUAGE EQUAL (NONE
                                                 |DECIMAL
                                                 |language_name_or_alias=id                                                      )
-                            |COMMA? SID EQUAL BINARY
+                            |COMMA? SID EQUAL hex_string
                            |COMMA? ALLOW_ENCRYPTED_VALUE_MODIFICATIONS EQUAL (ON|OFF)
                           )*
                    | Azure_Active_Directory_principal=id FROM EXTERNAL PROVIDER
@@ -1778,15 +1779,15 @@ output_column_name
     ;
 
 readtext_statement
-    : READTEXT col=full_column_name text_ptr=(LOCAL_ID|BINARY) offset=(LOCAL_ID|DECIMAL) size=(LOCAL_ID|DECIMAL) HOLDLOCK?
+    : READTEXT col=full_column_name (text_ptr=LOCAL_ID|text_ptr_hex=hex_string) offset=(LOCAL_ID|DECIMAL) size=(LOCAL_ID|DECIMAL) HOLDLOCK?
     ;
 
 writetext_statement
-    : WRITETEXT BULK? col=full_column_name text_ptr=(LOCAL_ID|BINARY) (WITH LOG)? (LOCAL_ID|char_string)
+    : WRITETEXT BULK? col=full_column_name (text_ptr=LOCAL_ID|text_ptr_hex=hex_string) (WITH LOG)? (LOCAL_ID|char_string)
     ;
 
 updatetext_statement
-    : UPDATETEXT BULK? col=full_column_name text_ptr=(LOCAL_ID|BINARY) (NULL|DECIMAL|LOCAL_ID) (NULL|DECIMAL|LOCAL_ID) (WITH LOG)? ((LOCAL_ID|char_string) | full_column_name text_ptr=(LOCAL_ID|BINARY) )?
+    : UPDATETEXT BULK? col=full_column_name (text_ptr=LOCAL_ID|text_ptr_hex=hex_string) (NULL|DECIMAL|LOCAL_ID) (NULL|DECIMAL|LOCAL_ID) (WITH LOG)? ((LOCAL_ID|char_string) | full_column_name (text_ptr=LOCAL_ID|text_ptr_hex=hex_string) )?
     ;
 
 // https://msdn.microsoft.com/en-ie/library/ms176061.aspx
@@ -2042,7 +2043,7 @@ update_statistics_option_persist_pct
     ;
 
 update_statistics_option_stats_stream
-    : STATS_STREAM EQUAL BINARY
+    : STATS_STREAM EQUAL hex_string
     | ROWCOUNT EQUAL DECIMAL
 	| PAGECOUNT EQUAL DECIMAL
     ;
@@ -2207,7 +2208,7 @@ database_optionspec
 
 alter_database_scoped_configuration
     : ALTER DATABASE SCOPED CONFIGURATION ( FOR SECONDARY )? SET id EQUAL ( on_off | PRIMARY | AUTO | WHEN_SUPPORTED | FAIL_UNSUPPORTED | DECIMAL )
-    | ALTER DATABASE SCOPED CONFIGURATION CLEAR PROCEDURE_CACHE BINARY
+    | ALTER DATABASE SCOPED CONFIGURATION CLEAR PROCEDURE_CACHE hex_string
     ;
 
 auto_option
@@ -2965,7 +2966,7 @@ existing_keys
     ;
 
 private_key_options
-    : (FILE | BINARY)  EQUAL  path=char_string (COMMA (DECRYPTION | ENCRYPTION) BY PASSWORD  EQUAL  password=char_string)?
+    : (FILE | hex_string)  EQUAL  path=char_string (COMMA (DECRYPTION | ENCRYPTION) BY PASSWORD  EQUAL  password=char_string)?
     ;
 
 generate_new_keys
@@ -3529,7 +3530,7 @@ grouping_sets_spec
     ;
 
 grouping_set_expression_list
-    : LR_BRACKET grouping_set_expression_list RR_BRACKET (COMMA grouping_set_expression)*
+    : LR_BRACKET grouping_set_expression_list RR_BRACKET (COMMA grouping_set_expression_list)*
     | grouping_set_expression (COMMA grouping_set_expression)*
     ;
     
@@ -3689,7 +3690,7 @@ function_call
     : ranking_windowed_function                         
     | aggregate_windowed_function                      
     | analytic_windowed_function                       
-    | func_proc_name_server_database_schema LR_BRACKET function_arg_list? RR_BRACKET 
+    | func_proc_name_server_database_schema LR_BRACKET allOrDistinct=(DISTINCT|ALL)? function_arg_list? RR_BRACKET 
     | built_in_functions                               
     | freetext_function                                
     | NEXT VALUE FOR full_object_name		         
@@ -4102,10 +4103,14 @@ data_type
 // https://msdn.microsoft.com/en-us/library/ms179899.aspx
 constant
     : char_string // string, datetime or uniqueidentifier
-    | BINARY
+    | hex_string
     | NULL
     | sign? (REAL | MONEY | DECIMAL | FLOAT) 
     ;  
+
+hex_string
+    : BINARY
+    ;
 
 char_string
     : STRING // single-quoted string; may also be a double-quoted string in case of SET QUOTED_IDENTIFIER OFF

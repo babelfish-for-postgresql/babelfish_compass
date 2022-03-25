@@ -128,6 +128,7 @@ public class CompassAnalyze {
 	static final String JoinHint              = "Join hint";
 	static final String DoubleQuotedString    = "Double-quoted string";
 	static final String UnQuotedString        = "Unquoted string";
+	static final String LineContinuationChar  = "Line continuation character";
 	static final String SetQuotedIdInBatch    = "SET QUOTED_IDENTIFIER in batch";
     static final String SetXactIsolationLevel = "SET TRANSACTION ISOLATION LEVEL";
 	static final String GroupByAll            = "GROUP BY ALL";
@@ -1332,7 +1333,7 @@ public class CompassAnalyze {
 					TSQLParser.Constant_exprContext x = (TSQLParser.Constant_exprContext) expr;
 					String result = "";
 					if (x.constant().char_string() != null) result = CompassUtilities.BBFStringType;
-					else if (x.constant().BINARY() != null) result = CompassUtilities.BBFBinaryType;
+					else if (x.constant().hex_string() != null) result = CompassUtilities.BBFBinaryType;
 					else if (x.constant().NULL() != null) result = CompassUtilities.BBFNullType;
 					else result = CompassUtilities.BBFNumericType;
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"Constant_exprContext: result=["+result+"] ", u.debugPtree);
@@ -4738,7 +4739,11 @@ public class CompassAnalyze {
 				if (ctx.getText().charAt(0) == '"') {
 					captureDoubleQuotedString(ctx.getText(), ctx.start.getLine());
 				}
-				visitChildren(ctx);
+				if (ctx.getText().contains("\\\n")) {  // note that CRLF has been changed to LF by now
+					String status = featureSupportedInVersion(LineContinuationChar,"CHAR");
+					captureItem(LineContinuationChar + " in character string", "", LineContinuationChar, "", status, ctx.start.getLine());					
+				}				
+				//visitChildren(ctx); // has no children
 				return null;
 			}
 
@@ -5612,7 +5617,7 @@ public class CompassAnalyze {
 						captureItem(section+": '"+u.decodeIdentifier(SpecialChar)+"'", id, SpecialCharsIdentifier, u.decodeIdentifier(SpecialChar), status, lineNr);
 					}
 				}
-			}
+			}				
 
 			@Override public String visitTransaction_statement(TSQLParser.Transaction_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
@@ -5693,6 +5698,18 @@ public class CompassAnalyze {
 				return null;
 			}
 
+			@Override public String visitHex_string(TSQLParser.Hex_stringContext ctx) {
+				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());		
+				if (ctx.getText().contains("\\\n")) {  // note that CRLF has been changed to LF by now
+					String status = featureSupportedInVersion(LineContinuationChar,"HEX");
+					captureItem(LineContinuationChar + " in hex string", "", LineContinuationChar, "", status, ctx.start.getLine());
+
+					//visitChildren(ctx); // has no children
+				}
+				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
+				return null;
+			}			
+			
 			@Override public String visitExecute_as_statement(TSQLParser.Execute_as_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 
