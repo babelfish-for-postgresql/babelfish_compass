@@ -1,3 +1,14 @@
+# 2022-03
+Support for Babelfish v.1.2.0
+
+New -recursive option to process directory trees
+
+New -include and -exclude options to filter on file type
+
+Fix for processing UTF8-with-BOM input files
+
+Various improvements to grammar and reporting
+
 # 2022-02
 New version numbering for Babelfish Compass
 
