@@ -39,7 +39,7 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2022-03";
+	public static final String thisProgVersion      = "2022-03-a";
 	public static final String thisProgVersionDate  = "March 2022";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
@@ -517,7 +517,7 @@ tooltipsHTMLPlaceholder +
 		"DISABLE TRIGGER"+tttSeparator+"Disabling triggers is not currently supported; triggers are always enabled",		
 		"ALTER TABLE..ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",		
 		"ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",		
-		"CREATE TRIGGER, INSTEAD OF"+tttSeparator+"INSTEAD-OF triggers are not currently supported. Rewrite as FOR trigger",		
+		"CREATE TRIGGER, INSTEAD OF"+tttSeparator+"This type of INSTEAD-OF trigger is not currently supported. Rewrite as FOR trigger",		
 		"CREATE TRIGGER (DDL"+tttSeparator+"DDL triggers are not currently supported",
 		CompassAnalyze.TriggerSchemaName+tttSeparator+"CREATE TRIGGER schemaname.triggername is not currently supported; Remove 'schemaname'",
 		"\\w+, WHERE CURRENT OF"+tttSeparator+"Updatable cursors are not currently supported. Rewrite the application to use direct UPDATE/DELETE",
