@@ -11,9 +11,8 @@ With Babelfish Compass, users can quickly analyze T-SQL DDL/SQL scripts for comp
 
 Download an executable version here: https://github.com/babelfish-for-postgresql/babelfish_compass/releases/latest.
 
-Babelfish Compass v.1.2 (released 26-Jan-2022) is required to perform analysis for the upcoming Babelfish v.1.1.0 release.
-To run analysis for Babelfish v.1.0.0, specify '-babelfish-version 1.0.0' on the command line.
-Babelfish Compass v.1.2 also contains many fixes and enhancements, notably the -rewrite option (see the User Guide for details).
+For release notes, see the download location above.
+For the compatibility matrix between Babelfish Compass and Babelfish, see the User Guide below.
 
 
 ## Documentation
