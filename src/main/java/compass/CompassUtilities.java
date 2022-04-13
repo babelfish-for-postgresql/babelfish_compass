@@ -28,6 +28,7 @@ import java.util.stream.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.text.SimpleDateFormat;
+import java.net.*;
 
 public class CompassUtilities {
 
@@ -39,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2022-03-a";
-	public static final String thisProgVersionDate  = "March 2022";
+	public static final String thisProgVersion      = "2022-04";
+	public static final String thisProgVersionDate  = "April 2022";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -55,6 +56,12 @@ public class CompassUtilities {
 	// user docs
 	public static final String userDocText          = thisProgName + " User Guide";
 	public static final String userDocURL           = "https://github.com/babelfish-for-postgresql/babelfish_compass/blob/main/BabelfishCompass_UserGuide.pdf";
+	public static final String compassLatestURL     = "https://github.com/babelfish-for-postgresql/babelfish_compass/releases/latest";
+	public static String newVersionAvailable        = "";
+	
+	// for update checks:
+	public static final String compassRESTReleaseGet = "https://api.github.com/repos/babelfish-for-postgresql/babelfish_compass/releases/latest";
+
 
 	public static final String disclaimerMsg  =
             "Notice:\n"
@@ -481,7 +488,7 @@ tooltipsHTMLPlaceholder +
 		"CREATE OR ALTER FUNCTION"+tttSeparator+"CREATE OR ALTER FUNCTION is not currently supported; use DROP+CREATE",
 		"ALTER TRIGGER"+tttSeparator+"ALTER TRIGGER is not currently supported; use DROP+CREATE",
 		"CREATE OR ALTER TRIGGER"+tttSeparator+"CREATE OR ALTER TRIGGER is not currently supported; use DROP+CREATE",
-		"ALTER DATABASE"+tttSeparator+"ALTER DATABASE is not currently supported",
+		"ALTER DATABASE"+tttSeparator+"ALTER DATABASE is not currently supported; many ALTER DATABASE options may be irrelevant when migrating to " + thisProgName+" and could probably be ignored",
 		"Column attribute FILESTREAM"+tttSeparator+"The FILESTREAM attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
 		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
 		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
@@ -491,6 +498,7 @@ tooltipsHTMLPlaceholder +
 		"DBCC "+tttSeparator+"DBCC statements are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
 		CompassAnalyze.ODBCScalarFunction+tttSeparator+"ODBC scalar functions are not currently supported; rewrite with an equivalent built-in function (some cases can be handled automatically with the -rewrite option)",
 		CompassAnalyze.ODBCLiterals+tttSeparator+"ODBC literal expressions are not currently supported; rewrite with CAST() to the desired datatype (some cases can be handled automatically with the -rewrite option)",
+		CompassAnalyze.ODBCOJ+tttSeparator+"ODBC Outer Join syntax is not currently supported; rewrite with regular join syntax",
 		CompassAnalyze.Traceflags+tttSeparator+"Traceflags are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
 		CompassAnalyze.RollupCubeOldSyntax+tttSeparator+"Deprecated WITH CUBE/ROLLUP syntax is not currently supported; rewrite as GROUP BY CUBE/ROLLUP",
 		CompassAnalyze.GroupByAll+tttSeparator+"Deprecated GROUP BY ALL syntax is not currently supported; rewrite query",
@@ -505,7 +513,7 @@ tooltipsHTMLPlaceholder +
 		"GEOGRAPHY "+tttSeparator+"The GEOGRAPHY datatype is not supported; consider using the PG PostGIS extension",
 		"GEOMETRY "+tttSeparator+"The GEOMETRY datatype is not supported; consider using the PG PostGIS extension",
 		"Spatial method "+tttSeparator+"GEOGRAPHY/GEOMETRY datatypes are not supported; consider using the PG PostGIS extension",
-		CompassAnalyze.AtAtErrorValueRef+tttSeparator+"The application explicitly references the @@ERROR value shown here, but this particular SQL Server error code is not currently supported by Babelfish. Rewrite manually to check for the PostgreSQL error code",
+		CompassAnalyze.AtAtErrorValueRef+tttSeparator+"The application explicitly references the @@ERROR value shown here, but this particular SQL Server error code is not currently supported by "+thisProgName+". Rewrite manually to check for the PostgreSQL error code",
 		CompassAnalyze.VarDeclareAtAt+tttSeparator+"Local variables or parameters starting with '@@' can be declared, but cannot currently be referenced",
 		"Cursor option "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
 		"FETCH  "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
@@ -661,9 +669,11 @@ tooltipsHTMLPlaceholder +
 	);
 
 	// emoji to indicate popup info is available
-  	static String hintIcon      = "&#x1F6C8;";  // information symbol: (i)
+  	//static String hintIcon      = "&#x1F6C8;";  // information symbol: (i)  -- preferred emoji but it doe snto render correctly on Mac
+  	static String hintIcon      = "&#x2139;";  // information symbol: i  -- use this always: since Windows users are emailing the report to Mac users, the latter user 
+  	                                           //                           won't be able to display the emoji which was OK on Windows
   	static String hintIconMac   = "&#x2139;";  // information symbol: i  -- x1F6C8 is not rendered correctly on some Macs
-  	static String hintIconLinux = "&#x2139;";  // information symbol: i  -- x1F6C8 is not rendered correctly on some Macs
+  	static String hintIconLinux = "&#x2139;";  // information symbol: i  
 	
 	// alternate emojis; use COMPASS_HINT_ICON how to specify your own favorite,i.e. SET COMPASS_HINT_ICON=1F4A1
   	//String hintIcon = "&#x2754;";   // white question mark
@@ -672,7 +682,7 @@ tooltipsHTMLPlaceholder +
   	//String hintIcon = "&#x2606;";   // white star
   	//String hintIcon = "&#8505;";    // blue information symbol [i]
   	//String hintIcon = "&#10145;";   // right arrow
-  	//String hintIcon =   "&#9651;";  // white triangle
+  	//String hintIcon = "&#9651;";    // white triangle
 
 
 	public String psqlImportFileName = "pg_import";
@@ -964,6 +974,7 @@ tooltipsHTMLPlaceholder +
 
 	// flags
 	public static boolean devOptions = false;
+	public static boolean updateCheck = true;
 	public static boolean caching = false;
 
 	// formatting
@@ -1510,6 +1521,12 @@ tooltipsHTMLPlaceholder +
 		}
 		if (inReport) {
 			try { writeReportFile(s); } catch (Exception e) { System.out.println("Error writing to "+ reportFileTextPathName); }
+		}
+	}
+
+	public void reportOutputOnly(String s) {
+		if (sessionLogWriter != null) {
+			try { writeSessionLogFile(s + "\n"); } catch (Exception e) { System.out.println("Error writing to "+ sessionLogPathName); }
 		}
 	}
 
@@ -4349,6 +4366,11 @@ tooltipsHTMLPlaceholder +
 		writeReportFile("This report                : "+reportFilePathName);
 		writeReportFile("Session log                : "+hLink("", sessionLogPathName));
 		writeReportFile(composeOutputLine("", "=") + "\n");
+		
+		if (!newVersionAvailable.isEmpty()) {
+			writeReportFile("Note: "+newVersionAvailable+"\n");
+			writeReportFile(composeOutputLine("", "=") + "\n");
+		}
 
 
 		Map<String, Integer> appCount = new HashMap<>();
@@ -6535,6 +6557,56 @@ tooltipsHTMLPlaceholder +
 		appOutput("Items for anonymized reporting: "+itemCount);
 		appOutput("All identifiers and customer-specific details have been removed from the captured items\nin "+anonItemPathName);
 	}	
+	
+	public void checkForUpdate () {
+		if (!updateCheck) return;
+		
+		try {
+			URL GHurl = new URL(compassRESTReleaseGet);
+			HttpURLConnection GHconn = (HttpURLConnection) GHurl.openConnection();
+			GHconn.setRequestMethod("GET");
+			GHconn.setRequestProperty("Accept", "application/json");
+
+			if (GHconn.getResponseCode() != 200) {
+				appOutput("HTTP error accessing "+ compassRESTReleaseGet+ " while checking for update: error code="+GHconn.getResponseCode()+"\n");
+				return;
+			}
+
+			BufferedReader br = new BufferedReader(new InputStreamReader((GHconn.getInputStream())));
+
+			String lineRead;
+			while ((lineRead = br.readLine()) != null) {			
+				if (lineRead.contains("\"tag_name\"")) {					
+					//format: "tag_name":"v2022-03-a"
+					// just looking for a particular string, so don't bother about true JSON parsing
+					String latestVersion = getPatternGroup(lineRead, "\"tag_name\":\"(.*?)\"", 1);								
+				    latestVersion = applyPatternFirst(latestVersion, "^v", "");
+				   	String latestVersionNormalized = normalizeCheckForUpdate(latestVersion);
+				    String thisProgVersionNormalized = normalizeCheckForUpdate(thisProgVersion);
+				    if (!latestVersionNormalized.isEmpty()) {
+				    	if (!thisProgVersionNormalized.equals(latestVersionNormalized)) {
+				    		newVersionAvailable = "A newer version of "+thisProgName+" has been released!\nYou are currently running version '"+thisProgVersion+"', but version '"+latestVersion+"' is available.";
+				    		newVersionAvailable += "\nDownload the latest from <a href=\""+compassLatestURL+"\" target=\"_blank\">"+compassLatestURL+"</a>";
+				    		appOutput(removeHTMLTags(newVersionAvailable)+"\n");
+				    	}
+				    }		    					
+					break;
+				}
+			}		
+			GHconn.disconnect();
+		} catch (Exception e) {
+			// we get here when there is no network connection. Only report it when in dev mode to avoid error messages that might confuse the user
+			if (devOptions) {
+				appOutput("Error accessing "+ compassRESTReleaseGet+ " while checking for update\n"); 
+			}
+			return;
+		}		
+	}
+	
+	private String normalizeCheckForUpdate (String version) {
+		version = applyPatternAll(version, "[\\W\\_]", "");
+		return version;
+	}
 	
 	public String stringAsHex (String s) {		
 		StringBuilder sb =  new StringBuilder();

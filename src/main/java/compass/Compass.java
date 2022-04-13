@@ -132,8 +132,8 @@ public class Compass {
 	public static CompassConfig cfg = CompassConfig.getInstance();
 	public static CompassAnalyze a = CompassAnalyze.getInstance();
 
-	public Compass(String[] args) {
-		u.setPlatformAndOptions(System.getProperty("os.name"));
+	public Compass(String[] args) {		
+		u.setPlatformAndOptions(System.getProperty("os.name"));		
 
 		if (args.length < 1) {
 			System.err.println("Must specify arguments. Try -help");
@@ -234,6 +234,7 @@ public class Compass {
 				u.appOutput("   -include                     : pattern of input file names to include");
 				u.appOutput("   -exclude                     : pattern of input file names to exclude");
   				u.appOutput("   -rewrite                     : rewrites selected unsupported SQL features");
+  				u.appOutput("   -noupdatechk                 : do not check for " + CompassUtilities.thisProgName + " updates");
 //				u.appOutput("   -importfmt <fmt>             : process special-format captured query files");
 //				u.appOutput("   -nodedup                     : do not deduplicate captured query files");
 				u.appOutput("   -version                     : show version of this tool");
@@ -254,6 +255,7 @@ public class Compass {
 				}
 				u.appOutput("");
 				u.appOutput(CompassUtilities.userDocText+": "+CompassUtilities.userDocURL);
+				if (!u.newVersionAvailable.isEmpty()) u.appOutput("\n"+u.newVersionAvailable);
 				quitNow = true;
 				return;
 			}
@@ -367,9 +369,13 @@ public class Compass {
 			if (arg.equals("-importonly")) {
 				importOnly = true;
 				continue;
-			}				
+			}			
 			if (arg.equals("-rewrite")) {
 				u.rewrite = true;
+				continue;
+			}					
+			if (arg.equals("-noupdatechk")) {
+				u.updateCheck = false;
 				continue;
 			}				
 			if (arg.equals("-encoding")) {
@@ -641,13 +647,16 @@ public class Compass {
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "onWindows=["+CompassUtilities.onWindows+"] onMac=["+CompassUtilities.onMac+"] onLinux=["+CompassUtilities.onLinux+"]  ", u.debugOS);
 		
 		inputFilesOrig.addAll(tmpInputFiles);
+		
+		// check for updates of Compass and print reminder
+		u.checkForUpdate();				
 	}
 
 	public static void main(String[] args) throws Exception {
 		u.appOutput(CompassUtilities.thisProgName + " v." + CompassUtilities.thisProgVersion + ", " + CompassUtilities.thisProgVersionDate);
 		u.appOutput(CompassUtilities.thisProgNameLong);
 		u.appOutput(CompassUtilities.copyrightLine);
-		u.appOutput("");	
+		u.appOutput("");			
 		
  		if (args.length < 1) {
 			u.appOutput("No arguments specified. Try -help");
@@ -771,8 +780,14 @@ public class Compass {
 			}
 			
 			cmdFlags.removeAll(inputFilesOrig);			
-								
+
+			// write Compass version to log file now that we have it opened
+			u.reportOutputOnly(CompassUtilities.thisProgName + " v." + CompassUtilities.thisProgVersion + ", " + CompassUtilities.thisProgVersionDate);
+			u.reportOutputOnly(CompassUtilities.thisProgNameLong);
+			u.reportOutputOnly(CompassUtilities.copyrightLine);
+			
 			u.appOutput("");
+							
 			u.appOutput("Run starting               : " + startRunFmt + " (" + u.onPlatform + ")");
 			String tmp = "";
 			tmp = u.cfgFileName + " file : v." + cfg.latestBabelfishVersion() + ", " + u.cfgFileTimestamp;
@@ -1011,6 +1026,14 @@ public class Compass {
 					nrFileNotFound++;
 					u.appOutput("Input file '" + path.toString() + "' is not a directory or a file");
 				}
+			}
+		}
+		
+		List<String> inputFilesTmp = new ArrayList<>(inputFiles);
+		for (String inFile : inputFilesTmp) {
+			if (!CompassUtilities.getPatternGroup(inFile, u.escapeRegexChars(File.separator) + "(\\.\\w)", 1).isEmpty()) {
+				u.appOutput("Excluding file '"+inFile+"'");
+				inputFiles.remove(inFile);
 			}
 		}
 	}
@@ -1446,6 +1469,9 @@ public class Compass {
 			u.appOutput(CompassUtilities.thisProc()+"normalizeNameCall  =["+u.normalizeNameCall+"] ");
 			u.appOutput(CompassUtilities.thisProc()+"normalizeNameCached=["+u.normalizeNameCached+"] ");
 		}
+		
+		if (!u.newVersionAvailable.isEmpty()) u.appOutput("\nNote: "+u.removeHTMLTags(u.newVersionAvailable));
+
 	}
 
 	private void processInput(String runStartTime) throws Exception {	
@@ -1529,7 +1555,7 @@ public class Compass {
 				appName = forceAppName ? applicationName : u.getFileNameFromPathName(inFile);
 				appName = u.fixNameChars("appname", appName);
 				if (appName.isEmpty()) {
-					u.appOutput("Application name '" + appName + "' is blank. Use -appname");
+					u.appOutput("Application name '" + appName + "' is blank for '"+inFile+"' . Use -appname");
 					u.errorExit();
 				}
 				String invalidMsg = CompassUtilities.nameFormatValid("appname", appName);

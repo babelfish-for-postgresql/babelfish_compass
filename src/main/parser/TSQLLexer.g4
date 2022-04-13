@@ -628,6 +628,7 @@ OFF:                                             O F F;
 OFFLINE:                                         O F F L I N E;
 OFFSET:                                          O F F S E T;
 OFFSETS:                                         O F F S E T S;
+OJ:                                              O J;
 OLD_ACCOUNT:                                     O L D  UNDERLINE  A C C O U N T;
 OLD_PASSWORD:                                    O L D  UNDERLINE  P A S S W O R D;
 ON:                                              O N;

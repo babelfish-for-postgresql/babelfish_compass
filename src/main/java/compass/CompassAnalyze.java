@@ -135,6 +135,7 @@ public class CompassAnalyze {
 	static final String RollupCubeOldSyntax   = "GROUP BY ROLLUP/CUBE (old syntax)";
 	static final String ODBCScalarFunction    = "ODBC scalar function";
 	static final String ODBCLiterals          = "ODBC literal";
+	static final String ODBCOJ                = "ODBC Outer Join";
 	static final String SelectTopWoOrderBy    = "SELECT TOP without ORDER BY";
 	static final String SelectToClientWoOrderBy = "SELECT to client without ORDER BY";
 	static final String ReadText              = "READTEXT";
@@ -1457,7 +1458,7 @@ public class CompassAnalyze {
 					}
 
 					// look up datatype of this function
-					String funcCall = x.function_call().getText();
+					String funcCall = x.function_call().getText().toUpperCase();
 					boolean isODBC = false;
 					if (funcCall.toUpperCase().startsWith("{FN")) {
 						isODBC = true;
@@ -1465,17 +1466,37 @@ public class CompassAnalyze {
 					}
 					String funcName = funcCall;
 					if (funcCall.indexOf("(") != -1) funcName = funcCall.substring(0,funcCall.indexOf("("));
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"funcCall=["+funcCall+"] funcName=["+funcName+"] ", u.debugPtree);
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"funcCall=["+funcCall+"] funcName=["+funcName+"] isODBC=["+isODBC+"] ", u.debugPtree);
 					if (funcName.isEmpty()) {
 						result = CompassUtilities.BBFUnknownType;
 						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"empty: result=["+result+"] ", u.debugPtree);
 						return result;
 					}
-
+					
+					if (isODBC) {
+						String odbcDataType = "";
+						if (funcName.equals("CONVERT")) {
+							// data type is at the end
+							String tgtTypeRaw = x.function_call().getText().toUpperCase();
+							String tgtType = u.applyPatternAll(tgtTypeRaw, "^.*\\b(\\w+)\\W*$", "$1");
+							tgtType = u.applyPatternAll(tgtType, "^SQL_", "");
+							odbcDataType = expressionDataType(tgtType);			
+						}
+						else if (stringODBCs.contains(funcName)) odbcDataType = CompassUtilities.BBFStringType;
+						else if (numericODBCs.contains(funcName)) odbcDataType = CompassUtilities.BBFNumericType;
+						else if (datetimeODBCs.contains(funcName)) odbcDataType = CompassUtilities.BBFDateTimeType;
+						else if (binaryODBCs.contains(funcName)) odbcDataType = CompassUtilities.BBFBinaryType;
+						else odbcDataType = CompassUtilities.BBFUnknownType;
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"ODBC: funcCall=["+funcCall+"] funcName=["+funcName+"] odbcDataType=["+odbcDataType+"] ", u.debugPtree);
+						result = odbcDataType;
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"ODBC function: result=["+result+"] ", u.debugPtree);
+						return result;
+					}
+					
 					if (funcName.equalsIgnoreCase("MIN") || funcName.equalsIgnoreCase("MAX")) {
 						TSQLParser.ExpressionContext aggrExpr = x.function_call().aggregate_windowed_function().all_distinct_expression().expression();
-						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"MIN/MAX: result=["+result+"] ", u.debugPtree);
-						return expressionDataType(aggrExpr);
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"MIN/MAX: expr=["+aggrExpr.getText()+"] ", u.debugPtree);
+						return expressionDataType(aggrExpr);							
 					}
 					else if (funcName.equalsIgnoreCase("ISNULL")) {
 						// only looking at first arg; if unclear also look at the second arg (beware of implicit type conversions)
@@ -1539,19 +1560,6 @@ public class CompassAnalyze {
 					else if (funcName.equalsIgnoreCase("CONVERT")) {
 						String convertType = x.function_call().built_in_functions().bif_convert().data_type().getText();
 						return expressionDataType(convertType);
-					}
-
-					if (isODBC) {
-						String odbcDataType = "";
-						if (stringODBCs.contains(funcName)) odbcDataType = CompassUtilities.BBFStringType;
-						else if (numericODBCs.contains(funcName)) odbcDataType = CompassUtilities.BBFNumericType;
-						else if (datetimeODBCs.contains(funcName)) odbcDataType = CompassUtilities.BBFDateTimeType;
-						else if (binaryODBCs.contains(funcName)) odbcDataType = CompassUtilities.BBFBinaryType;
-						else odbcDataType = CompassUtilities.BBFUnknownType;
-						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"ODBC: funcCall=["+funcCall+"] funcName=["+funcName+"] odbcDataType=["+odbcDataType+"] ", u.debugPtree);
-						result = odbcDataType;
-						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"ODBC function: result=["+result+"] ", u.debugPtree);
-						return result;
 					}
 
 					funcName = u.normalizeName(funcName).toUpperCase();
@@ -5324,6 +5332,15 @@ public class CompassAnalyze {
 					}
 				}
 				captureItem(ODBCLiterals+" { "+funcName+u.escapeHTMLChars(" <string> }"), ctx.getText(), ODBCLiterals, funcName, status, ctx.start.getLine());
+				visitChildren(ctx);
+				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
+				return null;
+			}
+
+			@Override public String visitOdbc_outer_join(TSQLParser.Odbc_outer_joinContext ctx) {
+				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
+				String status = featureSupportedInVersion(ODBCOJ);
+				captureItem(ODBCOJ, "", ODBCOJ, "", status, ctx.start.getLine());
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;

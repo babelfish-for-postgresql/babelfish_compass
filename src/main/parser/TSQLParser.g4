@@ -1048,13 +1048,14 @@ fulltext_index_column
     ;
 
 catalog_filegroup_option
-    : LR_BRACKET catalog_filegroup_option RR_BRACKET
+    : LR_BRACKET catalog_filegroup_option RR_BRACKET 
     | catalog_name=id (COMMA FILEGROUP filegroup_name=id)?
     | FILEGROUP filegroup_name=id (COMMA catalog_name=id)?
     ;
 
 fulltext_with_option
-    : CHANGE_TRACKING EQUAL? ( MANUAL | AUTO | OFF (COMMA NO POPULATION)? )
+    : LR_BRACKET fulltext_with_option (COMMA fulltext_with_option)* RR_BRACKET
+    | CHANGE_TRACKING EQUAL? ( MANUAL | AUTO | OFF (COMMA NO POPULATION)? )
     | STOPLIST EQUAL? ( OFF | SYSTEM | stoplist_name=id )
     | SEARCH PROPERTY LIST EQUAL? property_list_name=id
     ;
@@ -3642,6 +3643,7 @@ table_source_item
 	| (LOCAL_ID DOT)? function_call               (as_table_alias column_alias_list?)?
 	| LR_BRACKET table_source_item RR_BRACKET
     | colon_colon function_call                    as_table_alias? // Built-in function (old syntax)
+	| odbc_outer_join
     ;
 
 join_hint
@@ -3765,6 +3767,10 @@ odbc_literal
     : L_CURLY op=(D | T | TS | GUID) char_string R_CURLY
     | L_CURLY INTERVAL sign? char_string id (LR_BRACKET expression RR_BRACKET)? (TO id (LR_BRACKET expression RR_BRACKET)?)? R_CURLY   // {INTERVAL '163' HOUR(3)},  {INTERVAL '163 12' DAY(3) TO HOUR}
     ;
+
+odbc_outer_join
+    : L_CURLY OJ table_source_item oj=(LEFT|RIGHT|FULL) OUTER? join_hint? JOIN table_source_item ON search_condition R_CURLY
+    ;    
 
 trigger_column_updated
     : UPDATE LR_BRACKET full_column_name RR_BRACKET
@@ -4590,6 +4596,7 @@ keyword
     | OBJECT
     | OFFLINE
     | OFFSET
+    | OJ
     | OLD_ACCOUNT
     | OLD_PASSWORD
     | ONLINE
@@ -4795,6 +4802,7 @@ keyword
     | SQLDUMPERPATH
     | SQLDUMPERTIMEOUT
     | STALE_CAPTURE_POLICY_THRESHOLD
+    | STALE_QUERY_THRESHOLD_DAYS
     | STANDBY
     | START
     | STARTED
