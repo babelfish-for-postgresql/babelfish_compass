@@ -1,5 +1,9 @@
 # Babelfish Compass: User Guide
 
+Note: This .md version of the user guide is not kept updated.  The latest, updated version is here: https://github.com/babelfish-for-postgresql/babelfish_compass/blob/main/BabelfishCompass_UserGuide.pdf
+
+#
+
 Document history:
 | Version | Date     | Comments      |
 | ---     | ---      | ---           |
