@@ -1,3 +1,10 @@
+# 2022-04
+- Support for Babelfish v.1.2.1
+- Automatic check for newer versions of Compass
+- Record Compass version in session log file
+- Various small grammar fixes
+- Skip input files/folders starting with a dot
+
 # 2022-03-a
 - Support for `INSTEAD OF` triggers on tables in v.1.2.0.
 
