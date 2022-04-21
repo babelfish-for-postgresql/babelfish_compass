@@ -684,28 +684,37 @@ tooltipsHTMLPlaceholder +
   	//String hintIcon = "&#10145;";   // right arrow
   	//String hintIcon = "&#9651;";    // white triangle
 
+	public int pgImportBBFVersionLength = 20;
+	public int pgImportItemLength = 200;
+	public int pgImportItemDetailLength = 200;
+	public int pgImportReportGroupLength = 50;
+	public int pgImportStatusLength = 20;
+	public int pgImportAppNameLength = 50;
+	public int pgImportSrcFileLength = 200;
+	public int pgImportContextLength = 200;
+	public int pgImportSubContextLength = 200;
 
 	public String psqlImportFileName = "pg_import";
 	public String psqlFileSuffix = "psql";
-	public String psqlImportTableName = "BBFCompass";
+	public String psqlImportTableName = "public.BBFCompass";
 	public String psqlImportFilePlaceholder    = "BBF_PSQLIMPORTFILEPLACEHOLDER";
 	public String psqlImportTablePlaceholder   = "BBF_PSQLIMPORTTABLEPLACEHOLDER";
 	public String psqlImportSQLCrTb   =
 "DROP TABLE IF EXISTS "+psqlImportTablePlaceholder+";\n"+
 "CREATE TABLE "+psqlImportTablePlaceholder+"(\n"+
-"	babelfish_version VARCHAR(20) NOT NULL, -- Babelfish version for which analysis was performed\n"+
+"	babelfish_version VARCHAR("+pgImportBBFVersionLength+") NOT NULL, -- Babelfish version for which analysis was performed\n"+
 "	date_imported TIMESTAMP NOT NULL,       -- date/time of running -pgimport\n"+
-"	item VARCHAR(200) NOT NULL,             -- line item as shown in the report\n"+
-"	itemDetail VARCHAR(200) NOT NULL,       -- additional info for a line item\n"+
-"	reportGroup VARCHAR(50) NOT NULL,       -- report group as show in the report\n"+
-"	status VARCHAR(20) NOT NULL,            -- classification of the item, e.g. SUPPORTED, NOTSUPPORTED, etc.\n"+
+"	item VARCHAR("+pgImportItemLength+") NOT NULL,             -- line item as shown in the report\n"+
+"	itemDetail VARCHAR("+pgImportItemDetailLength+") NOT NULL,       -- additional info for a line item\n"+
+"	reportGroup VARCHAR("+pgImportReportGroupLength+") NOT NULL,       -- report group as show in the report\n"+
+"	status VARCHAR("+pgImportStatusLength+") NOT NULL,            -- classification of the item, e.g. SUPPORTED, NOTSUPPORTED, etc.\n"+
 "	lineNr INT NOT NULL,                    -- line number of the item in the T-SQL batch\n"+
-"	appName VARCHAR(100) NOT NULL,          -- application name \n"+
-"	srcFile VARCHAR(200) NOT NULL,          -- SQL source file name\n"+
+"	appName VARCHAR("+pgImportAppNameLength+") NOT NULL,           -- application name \n"+
+"	srcFile VARCHAR("+pgImportSrcFileLength+") NOT NULL,          -- SQL source file name\n"+
 "	batchNrinFile INT NOT NULL,             -- batch no. of T-SQL batch in SQL source file\n"+
 "	batchLineInFile INT NOT NULL,           -- line number in file of start of batch\n"+
-"	context VARCHAR(200) NOT NULL,          -- name of object, or 'T-SQL batch'\n"+
-"	subcontext VARCHAR(200) NOT NULL,       -- (optional) name of table in object \n"+
+"	context VARCHAR("+pgImportContextLength+") NOT NULL,          -- name of object, or 'T-SQL batch'\n"+
+"	subcontext VARCHAR("+pgImportSubContextLength+") NOT NULL,       -- (optional) name of table in object \n"+
 "	misc VARCHAR(20) NOT NULL               -- not for customer use; please ignore\n"+
 ");\n";
 
@@ -5195,6 +5204,24 @@ tooltipsHTMLPlaceholder +
 				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
 				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
 				
+				// max length check
+				List<String> capFields = new ArrayList<>(Arrays.asList(capLine.split(captureFileSeparator)));
+
+				// assuming 'captureFileFormatVersion = 1' but this is not verified
+				// field positions in capLine, and total #fields, are hard-coded here
+				boolean fieldModified = false;
+				int numFields = 12;
+				if (capFields.get(1).length() > pgImportItemDetailLength) {
+					capFields.set(1, capFields.get(1).substring(0,pgImportItemDetailLength));
+					fieldModified = true;
+				}
+				if (fieldModified) {
+					capLine = String.join(captureFileSeparator, capFields);
+					if (capFields.size() < numFields) {
+						capLine += stringRepeat(captureFileSeparator, (numFields-capFields.size()));
+					}
+				}
+
 				capLine = unEscapeHTMLChars(capLine);
 
 				// add date & babelfish version

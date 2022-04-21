@@ -13,7 +13,7 @@ rem ----------------------------------------------------
 set THISPROG=%~n0%~x0
 rem ----------------------------------------------------
 
-SET COMPASS=%cd%
+SET COMPASS="%cd%"
 
 rem Check:
 if exist %COMPASS% ( 

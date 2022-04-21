@@ -846,7 +846,7 @@ public class CompassAnalyze {
 
 		// create the record
 		// NB: this format corresponds to 'captureFileFormatVersion = 1'
-		// if this format is ever changed, we need to provide backward compatibility to avoid breaking apps relying on the format
+		// if this format is ever changed, we need to provide backward compatibility to avoid breaking apps relying on the format; also potentially affects -pgimport upload file preparation
 		String itemLine = item +separator+ itemDetail.trim() +separator+ itemGroup.trim() +separator+ status +separator+ lineNr +separator+ u.currentAppName +separator+ u.currentSrcFile  +separator+ u.batchNrInFile +separator+ u.lineNrInFile +separator+ currentContext.trim() +separator+ subContext.trim() +separator+ misc + separator + "~" + separator;
 
 		// check for newlines -- these will mess everything up
@@ -5303,6 +5303,7 @@ public class CompassAnalyze {
 						}
 					}
 				}				
+				 // ctx.getText() could be very long due to embedded expressions
 				captureItem(ODBCScalarFunction+" { fn "+funcName+"() }", ctx.getText(), ODBCScalarFunction, funcName, status, ctx.start.getLine());
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -5487,7 +5488,7 @@ public class CompassAnalyze {
 						status = featureSupportedInVersion(CreateDatabaseOptions,option);
 					}
 					if (!captured) {
-						captureItem("Option "+option+", in CREATE DATABASE", ctx.getText(), CreateDatabaseOptions, option, status, options.get(i).start.getLine());
+						captureItem("Option "+option+", in CREATE DATABASE", option, CreateDatabaseOptions, option, status, options.get(i).start.getLine());
 					}
 				}
 
