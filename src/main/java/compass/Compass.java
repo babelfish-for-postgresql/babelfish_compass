@@ -107,6 +107,7 @@ public class Compass {
 	protected static boolean listContents = false;
 	protected static boolean pgImport = false;
 	protected static boolean pgImportAppend = false;
+	protected static boolean pgImportTable = false;
 	protected static boolean anonymizedReport = false;
 
 	protected static boolean antlrSLL = true;
@@ -230,6 +231,7 @@ public class Compass {
 				u.appOutput("                                  <comma-list> is: host,port,username,password,dbname");
 				u.appOutput("                                  (requires psql to be installed)");
 				u.appOutput("   -pgimportappend              : with -pgimport, appends to existing table (instead of drop/recreate)");
+				u.appOutput("   -pgimporttable <table-name>  : table name for -pgimport; default="+u.psqlImportTableNameDefault);
 				u.appOutput("   -recursive                   : recursively add files if inputfile is a directory");
 				u.appOutput("   -include                     : pattern of input file names to include");
 				u.appOutput("   -exclude                     : pattern of input file names to exclude");
@@ -244,6 +246,7 @@ public class Compass {
 				u.appOutput("");
 				u.appOutput("For development only:");
 				u.appOutput("   -dbgreport                   : use fixed report name (no timestamp)");
+				u.appOutput("   -dbgnotimestamp              : suppress timestamp in DEBUG output lines");
 				u.appOutput("   -echocapture                 : echo captured items to stdout");
 				u.appOutput("   -parsetree                   : print parse tree & copy parsed batches to file");
 				u.appOutput("   -parseonly                   : parse & print parse tree, no analysis");
@@ -473,6 +476,20 @@ public class Compass {
 				pgImportAppend = true;	
 				continue;
 			}
+			if (arg.equals("-pgimporttable")) {	
+				pgImportTable = true;					
+				if (i >= args.length) {
+					System.err.println("Must specify table name with -pgimporttable");
+					u.errorExit();
+				}
+				u.psqlImportTableName = args[i];
+				if (CompassUtilities.getPatternGroup(u.psqlImportTableName, "^(\\w+(\\.\\w+)?)$", 1).isEmpty()) {
+					u.appOutput("Invalid table name specified with -pgimporttable");
+					u.errorExit();
+				}
+				i++; 
+				continue;
+			}
 			if (arg.equals("-pgimport")) {					
 				if (i == args.length) {
 					u.appOutput("Must specify arguments for -pgimport: host,port,username,password,dbname ");
@@ -517,6 +534,10 @@ public class Compass {
 				}
 				if (arg.equals("-dbgreport") || (arg.equals("-devreport"))) { // development only
 					u.stdReport = true;
+					continue;
+				}
+				if (arg.equals("-dbgnotimestamp")) { // development only
+					u.dbgTimestamp = false;
 					continue;
 				}
 				if (arg.equals("-parseonly")) { // development only
@@ -937,6 +958,7 @@ public class Compass {
 	}
 
 	protected void addInputFile(String file) throws InvalidPathException {
+		String fileOrig = file;
 		if (file != null) {
 			Path path = null;
 			int depth = Integer.MAX_VALUE;
@@ -956,14 +978,16 @@ public class Compass {
 						file = ".";
 					}
 					path = Paths.get(file).normalize();
-					if (!recursiveInputFiles) {
-						// The asterisk character is at the end of the path, but we weren't asked to process
-						// input recursively. Process only the immediately enclosing parent directory (depth of 1).
-						recursiveInputFiles = true;
-						depth = 1;
+					if (!path.toString().isEmpty()) {
+						if (!recursiveInputFiles) {
+							// The asterisk character is at the end of the path, but we weren't asked to process
+							// input recursively. Process only the immediately enclosing parent directory (depth of 1).
+							recursiveInputFiles = true;
+							depth = 1;
+						}
+						// Use the glob that didn't get expanded by the command shell as the inlcude pattern
+						includePattern = endOfPath;
 					}
-					// Use the glob that didn't get expanded by the command shell as the inlcude pattern
-					includePattern = endOfPath;
 				} else {
 					// Error - path contains an asterisk character but it's not at the end. User should use the
 					// -includes switch to build a glob pattern for the files they want to process.
@@ -984,7 +1008,7 @@ public class Compass {
 					FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern(excludePattern, path)) :
 					null;
 
-			if (Files.isDirectory(path)) {
+			if ((Files.isDirectory(path)) && (!path.toString().isEmpty())) {
 				if (recursiveInputFiles) {
 					// Recursively walk the directory tree and add files that we can read and match our filter patterns
 					Set<String> inputFilesToAdd;
@@ -1024,7 +1048,9 @@ public class Compass {
 					// TODO log unexpected case here?
 					// File does not exist or can't be read by the current process
 					nrFileNotFound++;
-					u.appOutput("Input file '" + path.toString() + "' is not a directory or a file");
+					String notFile = path.toString();
+					if (notFile.isEmpty()) notFile = fileOrig;
+					u.appOutput("Input file '" + notFile + "' is not a directory or a file");
 				}
 			}
 		}
@@ -1184,7 +1210,15 @@ public class Compass {
 				return false; 				
  			}
 			return true;
-		}
+		}	
+		
+ 		if (pgImportTable) {
+ 			if (!pgImport) {
+				u.appOutput("-pgimporttable requires -pgimport");
+				return false; 				
+ 			}
+			return true;
+		}	
 		
 		if (forceReportName) {
 			if (parseOnly ||  (!generateReport) || importOnly) {
@@ -1398,7 +1432,7 @@ public class Compass {
 
 		String errFiles = "";
 		if (nrFileNotFound > 0) {
-			errFiles = " ("+nrFileNotFound+" specified, but not found)";
+			errFiles = " (+"+nrFileNotFound+" specified, but not found)";
 		}
 
 		String parseErrorMsg = "";
@@ -1531,6 +1565,23 @@ public class Compass {
 			}
 		}
 
+		// remove duplicate input files
+		List<String> tmpInputFiles = new ArrayList<>();
+		tmpInputFiles.addAll(inputFiles);
+		inputFiles.clear();
+		for (int i = 0; i < tmpInputFiles.size(); i++) {
+			String f = tmpInputFiles.get(i);
+			if (f.isEmpty()) continue;
+			inputFiles.add(f);
+			for (int j = i+1; j < tmpInputFiles.size(); j++) {
+				if (f.equalsIgnoreCase(tmpInputFiles.get(j))) {
+					u.appOutput("Removing duplicate input file '"+f+"'");
+					tmpInputFiles.set(j,"");
+				}
+			}
+		}
+
+		// process the input files
 		int nrFiles = inputFiles.size();
 		int fileCount = 0;
 	

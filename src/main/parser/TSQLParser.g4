@@ -2023,7 +2023,7 @@ create_statistics
     ;
 
 update_statistics
-    : UPDATE STATISTICS table_name (table_name | LR_BRACKET column_name_list RR_BRACKET )?
+    : UPDATE STATISTICS table_name (LR_BRACKET column_name_list RR_BRACKET)?
       (WITH update_statistics_option (COMMA? update_statistics_option)*)?
  SEMI?
     ;
@@ -2055,11 +2055,10 @@ maxdop_option
 
 // https://msdn.microsoft.com/en-us/library/ms174979.aspx
 create_table
-    : CREATE TABLE tabname=table_name LR_BRACKET column_def_table_constraints  (COMMA? table_indices)*  COMMA? RR_BRACKET create_table_options* SEMI?
+    : CREATE TABLE tabname=table_name LR_BRACKET column_def_table_constraints  (COMMA? (table_constraint|inline_index))*  COMMA? RR_BRACKET create_table_options* SEMI?
     | CREATE TABLE tabname=table_name (LR_BRACKET (column_definition (COMMA column_definition)*)? column_constraint* COMMA? RR_BRACKET)?  graph_clause create_table_options* SEMI?
     | CREATE TABLE tabname=table_name AS FILETABLE (WITH LR_BRACKET file_table_option (COMMA file_table_option)* RR_BRACKET)? SEMI?
     ;
-    
     
 create_table_options
     : LOCK ID
@@ -2072,7 +2071,9 @@ create_table_options
 graph_clause
     : AS (NODE | EDGE)
     ;
-   
+
+
+//TBDeleted;   
 table_indices
     : INDEX id UNIQUE? clustered? COLUMNSTORE? (LR_BRACKET column_name_list_with_order RR_BRACKET)?
       (WHERE where=search_condition)?
@@ -3139,18 +3140,17 @@ column_def_table_constraint
 column_definition
     : id (data_type system_versioning_column? | AS expression PERSISTED? ) ( special_column_option | collation | null_notnull )*
       ( column_constraint? IDENTITY (LR_BRACKET sign? seed=DECIMAL COMMA sign? increment=DECIMAL RR_BRACKET)? )? for_replication? ROWGUIDCOL?
-      column_constraint* column_inline_index?
+      column_constraint* inline_index?
     | TIMESTAMP null_notnull? column_constraint?
     ;
 	    
-column_inline_index
+inline_index
     : INDEX id UNIQUE? clustered? COLUMNSTORE? (LR_BRACKET column_name_list_with_order RR_BRACKET)?
       (WHERE where=search_condition)?
       with_index_options?
       (ON storage_partition_clause)?
       (FILESTREAM_ON storage_partition_clause)?
     ;
-    
     
 special_column_option
     : FILESTREAM
@@ -4028,7 +4028,7 @@ on_off
 
 clustered
     : CLUSTERED
-    | NONCLUSTERED
+    | NONCLUSTERED HASH?
     ;
 
 null_notnull
