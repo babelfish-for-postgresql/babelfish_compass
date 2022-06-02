@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2022-04";
-	public static final String thisProgVersionDate  = "April 2022";
+	public static final String thisProgVersion      = "2022-06";
+	public static final String thisProgVersionDate  = "June 2022";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -417,7 +417,7 @@ tooltipsHTMLPlaceholder +
 		"SQUARE("+tttSeparator+"SQUARE() is not currently supported; rewrite with POWER()",
 		"UNICODE("+tttSeparator+"UNICODE() returns the Unicode code point for the first character in a string; this is not currently supported",
 		"HASHBYTES("+tttSeparator+"HASHBYTES() currently supports only MD5, SHA1, SHA2_256, SHA2_512",  /// this needs to be adjusted if additional agorithms are implemented
-		"IDENTITY("+tttSeparator+"The IDENTITY() function in SELECT-INTO is not currently supported. Use ALTER TABLE to add an identity column",
+		"IDENTITY("+tttSeparator+"The IDENTITY() function in SELECT-INTO is not currently supported; rewrite with ALTER TABLE to add an identity column following the SELECT-INTO",
 		"Precision of IDENTITY column "+tttSeparator+"The maximum supported precision of a NUMERIC/DECIMAL type for an IDENTITY column is exceeded; change the precision to stay within the supported limit",
 		"CHOOSE("+tttSeparator+"CHOOSE(): Rewrite as a CASE expression",
 		"OBJECT_SCHEMA_NAME()"+tttSeparator+"OBJECT_SCHEMA_NAME(): Rewrite as catalog query",
@@ -425,7 +425,7 @@ tooltipsHTMLPlaceholder +
 		"SESSION_USER"+tttSeparator+"SESSION_USER is not currently supported; Rewrite as USER_NAME()",
 		"SYSTEM_USER"+tttSeparator+"SYSTEM_USER is not currently supported; Rewrite as SUSER_NAME() (the -rewrite option handles this for you)",
 		"EOMONTH("+tttSeparator+"EOMONTH() is not currently supported; rewrite with DATEADD()/DATEPART() (the -rewrite option handles this for you)",
-		"DATABASE_PRINCIPAL_ID("+tttSeparator+"DATABASE_PRINCIPAL_ID() is not currently supported; Rewrite as USER_NAME()",
+		"DATABASE_PRINCIPAL_ID("+tttSeparator+"DATABASE_PRINCIPAL_ID() is not currently supported; Rewrite as USER_NAME() (the -rewrite option handles this for you)",
 		"FORMAT("+tttSeparator+"FORMAT() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
 		"FORMATMESSAGE("+tttSeparator+"FORMATMESSAGE() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
 		"FILEGROUP_NAME("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
@@ -434,6 +434,8 @@ tooltipsHTMLPlaceholder +
 		"DIFFERENCE()"+tttSeparator+"DIFFERENCE() is not currently supported; this is a soundex-related function",
 		"SUSER_SNAME()"+tttSeparator+"SUSER_SNAME() is not currently supported; rewrite as SUSER_NAME()",
 		"SUSER_SID()"+tttSeparator+"SUSER_SID() is not currently supported; rewrite as SUSER_ID()",
+		"STDEV()"+tttSeparator+"STDEV() is not currently supported; rewrite as SQRT(SUM(SQUARE(c-AVG(c))))/COUNT(c)-1)",
+		"STDEVP()"+tttSeparator+"STDEV() is not currently supported; rewrite as SQRT(SUM(SQUARE(c-AVG(c))))/COUNT(c))",
 		"\\w+PROPERTY\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+PROPERTYEX\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+\\(\\),"+CompassAnalyze.withoutArgumentValidateStr+tttSeparator+"This built-in function is not currently supported when called without arguments",
@@ -475,7 +477,7 @@ tooltipsHTMLPlaceholder +
 		"DENY"+tttSeparator+"DENY is not currently supported",
 		"ALTER AUTHORIZATION"+tttSeparator+"ALTER AUTHORIZATION (change object ownership) is not currently supported",
 		"CREATE ROLE"+tttSeparator+"DB-level roles are not currently supported, except the predefined 'db_owner' role",
-		"ALTER ROLE"+tttSeparator+"ALTER ROLE for DB-level roles is not currently supported",
+		"ALTER ROLE"+tttSeparator+"ALTER ROLE for this DB-level role is not currently supported",
 		"CREATE SERVER ROLE"+tttSeparator+"Server-level roles are not currently supported, except the predefined 'sysadmin' role",
 		"ALTER SERVER ROLE"+tttSeparator+"ALTER SERVER ROLE for server-level roles is not currently supported, except the predefined 'sysadmin' role",
 		"CREATE USER"+tttSeparator+"DB users are not currently supported, except 'dbo' and 'guest'",
@@ -492,9 +494,11 @@ tooltipsHTMLPlaceholder +
 		"Column attribute FILESTREAM"+tttSeparator+"The FILESTREAM attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
 		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
 		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
-		"ALTER TABLE..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements (the -rewrite option handles this for you)",
-		"ALTER TABLE..CHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
-		"ALTER TABLE..NOCHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
+		CompassAnalyze.AlterTable+"..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements (the -rewrite option handles this for you)",
+		CompassAnalyze.AlterTable+"..CHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
+		CompassAnalyze.AlterTable+"..NOCHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
+		CompassAnalyze.AlterTable+"..ALTER COLUMN NULL"+tttSeparator+"NULL/NOT NULL is not currently supported with ALTER COLUMN. To change column nullability, use ALTER TABLE { SET | DROP } NOT NULL in PG",
+		CompassAnalyze.AlterTable+"..ALTER COLUMN NOT NULL"+tttSeparator+"NULL/NOT NULL is not currently supported with ALTER COLUMN. To change column nullability, use ALTER TABLE { SET | DROP } NOT NULL in PG",
 		"DBCC "+tttSeparator+"DBCC statements are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
 		CompassAnalyze.ODBCScalarFunction+tttSeparator+"ODBC scalar functions are not currently supported; rewrite with an equivalent built-in function (some cases can be handled automatically with the -rewrite option)",
 		CompassAnalyze.ODBCLiterals+tttSeparator+"ODBC literal expressions are not currently supported; rewrite with CAST() to the desired datatype (some cases can be handled automatically with the -rewrite option)",
@@ -566,8 +570,8 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.ReadText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
 		CompassAnalyze.WriteText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
 		CompassAnalyze.UpdateText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
-		"INSERT..EXECUTE(string)"+tttSeparator+"INSERT..EXECUTE with EXECUTE-immediate is not currently supported",
-		"INSERT..EXECUTE sp_executesql"+tttSeparator+"INSERT..EXECUTE with sp_executesql is not currently supported",
+		"INSERT..EXECUTE(string)"+tttSeparator+"INSERT..EXECUTE with EXECUTE-immediate is not currently supported; rewrite by moving the INSERT into the dynamic SQL Statement",
+		"INSERT..EXECUTE sp_executesql"+tttSeparator+"INSERT..EXECUTE with sp_executesql is not currently supported; rewrite by moving the INSERT into the dynamic SQL Statement",
 		"INSERT..DEFAULT VALUES"+tttSeparator+"INSERT..DEFAULT VALUES: this syntax is not currently supported. Rewrite manually as an INSERT with actual values",
 		"INSERT TOP..SELECT"+tttSeparator+"Rewrite as INSERT.. SELECT TOP",
 		CompassAnalyze.InsertBulkStmt+tttSeparator+"INSERT BULK is not a T-SQL statement, but only available through specific client-server APIs",
@@ -588,7 +592,9 @@ tooltipsHTMLPlaceholder +
 		"Constraint PRIMARY KEY/UNIQUE, CLUSTERED,"+tttSeparator+"CLUSTERED constraints are not currently supported. The constraint will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
 		"Index, CLUSTERED,"+tttSeparator+"CLUSTERED indexes are not currently supported. The index will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
 		"Index, UNIQUE, CLUSTERED,"+tttSeparator+"CLUSTERED indexes are not currently supported. The index will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
-		"Inline index"+tttSeparator+"Inline indexes are not currently supported; create indexes separately with CREATE INDEX",
+		"Inline index in CREATE TABLE"+tttSeparator+"Inline indexes are not currently supported; create separately with CREATE INDEX (in CREATE TABLE, the -rewrite option handles this for you)",
+		"Inline index"+tttSeparator+"Inline indexes are not currently supported; create separately with CREATE INDEX",
+		"NONCLUSTERED HASH"+tttSeparator+"NONCLUSTERED HASH indexes or -constraints are not currently supported; remove HASH (the -rewrite option handles this for you)",
 		"Indexed view "+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
 		"CREATE TABLE ##"+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, and is dropped automatically when the last session accessing the table disconnects",
 		"CREATE TABLE (temporal)"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
@@ -606,10 +612,10 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.RemoteObjectReference+tttSeparator+"Remote object references with 4-part object names (e.g. SELECT * FROM REMOTESRVR.somedb.dbo.sometable) are not currently supported",
 		"EXECUTE proc;version"+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
 		"CREATE PROCEDURE proc;version"+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
-		"Number of procedure parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the procedure to use less parameters",
-		"Number of function parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the function to use less parameters",
+		"Number of procedure parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the procedure to use less parameters (for example, by using a table variable as parameter)",
+		"Number of function parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the function to use less parameters (for example, by using a table variable as parameter)",
 		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action, in case the trigger body references the transition tables INSERTED or DELETED",
-		"SET FMTONLY"+tttSeparator+"SET FMTONLY is ignored and has not effect, both for ON and OFF",
+		"SET FMTONLY"+tttSeparator+"SET FMTONLY applies only to SELECT * in v.1.2.0 or later; otherwise it is ignored",
 		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\" to suppress the resulting error message",
 		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported",
 		"SET QUOTED_IDENTIFIER \\w+, before end of batch"+tttSeparator+"SET QUOTED_IDENTIFIER takes effect only at the start of the next batch in Babelfish; the SQL Server semantics where it applies to the next statement, is not currently supported",
@@ -641,6 +647,7 @@ tooltipsHTMLPlaceholder +
 		"EXECUTE AS"+tttSeparator+"The EXECUTE AS statement (not to be confused with the EXECUTE AS clause in CREATE PROCEDURE/FUNCTION/etc.) is not currently supported",		
 		"EXECUTE procedure sp_addextendedproperty"+tttSeparator+"System stored procedure sp_addextendedproperty is not currently supported; this is most often used to create metadata comments (e.g. COMMENT ON in PostgreSQL) and does not otherwise affect SQL functionality",		
 		"REVERT"+tttSeparator+"The REVERT statement is not currently supported",		
+		"LIKE '[...]'"+tttSeparator+"Square brackets [...] for pattern matching are not currently supported with LIKE",		
 		
 		"\\w+, option WITH EXECUTE AS CALLER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY INVOKER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
 		"\\w+, option WITH EXECUTE AS OWNER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY DEFINER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
@@ -696,7 +703,8 @@ tooltipsHTMLPlaceholder +
 
 	public String psqlImportFileName = "pg_import";
 	public String psqlFileSuffix = "psql";
-	public String psqlImportTableName = "public.BBFCompass";
+	public String psqlImportTableNameDefault = "public.BBFCompass";
+	public String psqlImportTableName = psqlImportTableNameDefault;
 	public String psqlImportFilePlaceholder    = "BBF_PSQLIMPORTFILEPLACEHOLDER";
 	public String psqlImportTablePlaceholder   = "BBF_PSQLIMPORTTABLEPLACEHOLDER";
 	public String psqlImportSQLCrTb   =
@@ -874,7 +882,7 @@ tooltipsHTMLPlaceholder +
 	static final List<String> OnOffOption = Arrays.asList("ON", "OFF");
 
 	// debug flags
-	public boolean dbgTimestamp = true;
+	public boolean dbgTimestamp = true;  // can be swirched off from cmdline
 	public final HashSet<String> dbgOptions = new HashSet<>(Arrays.asList("all", "batch", "ptree", "cfg", "dir", "symtab", "report", "calc", "os", "fmt", "rewrite"));
 	public final HashSet<String> specifiedDbgOptions = new HashSet<>(dbgOptions.size());
 	public boolean debugBatch;
@@ -972,6 +980,7 @@ tooltipsHTMLPlaceholder +
 	public static String rewriteTypeODBCfunc1 = "ODBCfunc1";	
 	public static String rewriteTypeODBClit1 = "ODBClit1";	
 	public static String rewriteTypeBlockReplace = "BlockReplace";	
+	public static String rewriteTypeCommentAndAppend = "CommentAndAppend";	
 
 	// added lines/columns: list index=iteration#; map key = line#; subkey = col# on line; value = #chars added at (line,col)	
 	public static List<Map<Integer, Map<Integer, Integer>>> offsetCols = new ArrayList<>();
@@ -1268,6 +1277,91 @@ tooltipsHTMLPlaceholder +
 		return s;
 	}
 	
+//	// extract string literals from expression
+//	// could be of form '[' + f('abc') + ']'
+//	public static String extractStringLiterals(String s) {
+//		if (s.isEmpty()) return s;
+//		if ((s.charAt(0) == '\'') && (s.charAt(s.length()-1) == '\'')) {
+//			s = s.substring(1,s.length()-1);
+//		}
+//		else if ((s.charAt(0) == '"') && (s.charAt(s.length()-1) == '"')) {
+//			s = s.substring(1,s.length()-1);
+//		}
+//		else if ((s.toUpperCase().startsWith("N'")) && (s.charAt(s.length()-1) == '\'')) {
+//			s = s.substring(2,s.length()-1);
+//		}
+//		return s;
+//	}
+	
+	public String extractStringLiteral(String s) 
+	{
+		if (s.isEmpty()) return "";
+		s = applyPatternAll(s, "\\s", "");
+		String qs = "";
+		boolean inString = false;
+		for (int i  = 0; i < s.length() ; i++) {
+			char c = s.charAt(i);
+			if (!inString) {
+				if (c == '(') {
+					String b = findClosingBracket(s,i);
+					//appOutput(thisProc()+"b=["+b+"] ");
+					i += b.length();
+					//appOutput(thisProc()+"i=["+i+"] ");
+					continue;
+				} 
+				if (c == '\'') {
+					inString = true;
+				} 
+			}
+			else { // inString
+				if (c == '\'') {
+					inString = false;
+				} 			
+				else {
+					qs += c;
+				}					
+			}
+		}
+	    return qs; // didn't find closing bracket
+	}
+
+
+	// find the closing bracket that matches the opening bracket on the start position
+	public String findClosingBracket(String s)  {
+		return findClosingBracket(s,0);
+	}
+	public String findClosingBracket(String s, int startPos) 
+	{
+		if (s.isEmpty()) return "";
+		if (s.charAt(startPos) != '(') {
+			// should throw an exception, but don't worry for now
+		}
+		int brktCnt = 0;
+		boolean inString = false;
+		for (int i  = startPos; i < s.length() ; i++) {
+			char c = s.charAt(i);
+			if (c == '\'') {
+				if (!inString) {
+					inString = true;
+					continue;
+				}
+				else {
+					inString = false;
+					continue;					
+				}
+			}
+			if (inString) continue;
+			
+			if (c == '(') brktCnt++;
+			else if (c == ')') brktCnt--;
+			if (brktCnt == 0) {
+				String item = s.substring(startPos,i+1);
+				return item;
+			}
+		}
+	    return ""; // didn't find closing bracket
+	}
+		
 	// remove enclosing brackets from an expression - assuming cases like ((a)+(b)) do not occur 
 	public String stripEnclosingBrackets(String s) {
 		if (s.trim().isEmpty()) return s;
@@ -2070,7 +2164,7 @@ tooltipsHTMLPlaceholder +
 		//String title = "Report " + reportName + ", file " + inputFileName + ", application " + appName;
 		hdr = applyPatternFirst(hdr, titleHTMLPlaceholder, inputFileName);
 		hdr = applyPatternFirst(hdr, reportHTMLPlaceholder, reportName);
-		hdr = applyPatternFirst(hdr, inputfileHTMLPlaceholder, inputFileName);
+		hdr = applyPatternFirst(hdr, inputfileHTMLPlaceholder, escapeRegexChars(inputFileName));
 		hdr = applyPatternFirst(hdr, appnameHTMLPlaceholder, appName);
 		hdr = applyPatternFirst(hdr, inputfileTxtPlaceholder, inputfileTxt);
 		
@@ -2962,29 +3056,6 @@ tooltipsHTMLPlaceholder +
 	    extractedFileWriter = null;
 	}
 
-	// find the closing bracket that matches the opening bracket on the start position
-	public String findClosingBracket(String s)  {
-		return findClosingBracket(s,0);
-	}
-	public String findClosingBracket(String s, int startPos) 
-	{
-		if (s.isEmpty()) return "";
-		if (s.charAt(startPos) != '(') {
-			// should throw an exception, but don't worry for now
-		}
-		int brktCnt = 0;
-		for (int i  = startPos; i < s.length() ; i++) {
-			char c = s.charAt(i);
-			if (c == '(') brktCnt++;
-			else if (c == ')') brktCnt--;
-			if (brktCnt == 0) {
-				String item = s.substring(startPos,i+1);
-				return item;
-			}
-		}
-	    return ""; // didn't find closing bracket
-	}
-	
 	// capture file
     public void openCaptureFile(String reportName, String fileName, String appName) throws IOException {
     	captureFilePathName = getCaptureFilePathname(reportName, fileName, appName);
@@ -4124,13 +4195,13 @@ tooltipsHTMLPlaceholder +
 		String itemHintKey = "";
 		String itemOrig = item;
 		item = makeItemHintKey(item);
+		//appOutput(thisProc()+"item=["+item+"]");
 
 		if (toolTipsKeys.containsKey(item)) {
 			itemHintKey = item;
 		}
 		else {
 			for (int i=0; i<toolTipsKeysList.size(); i++) {			
-			//for (Map.Entry<String,String> e : toolTipsKeys.entrySet()) {
 				String k = toolTipsKeysList.get(i);
 				String v = toolTipsKeys.get(k);
 
@@ -5387,37 +5458,43 @@ tooltipsHTMLPlaceholder +
 		}
 	}
 	
-	public void addOffsets(Integer iteration, Integer lineNo, Integer lineNoOrig, Integer startColOrig, String origStr, String newStr, String newStrNoComment, String report, String fName) {						
+	public void addOffsets(Integer iteration, Integer lineNo, Integer lineNoOrig, Integer startColOrig, String origStr, String reportOrigStr, String newStr, String newStrNoComment, String report, String fName, String rewriteType) {						
 		addOffsets(iteration);
 		assert (offsetCols.get(iteration-1) != null) : thisProc()+"iteration=["+iteration+"] not found in offsetCols";
 		
 		List<String> linesOrig = new ArrayList<>(Arrays.asList(origStr.split("\n")));
-		List<String> linesNew  = new ArrayList<>(Arrays.asList(newStr.split("\n")));
+		List<String> linesNew  = new ArrayList<>(Arrays.asList((newStr).split("\n"))); 
 		
 		int numChars = newStr.length() - origStr.length();
-		if (debugging) dbgOutput(thisProc()+"adding: iteration=["+iteration+"] lineNo=["+lineNo+"] lineNoOrig=["+lineNoOrig+"] startColOrig=["+startColOrig+"]  numChars=["+numChars+"] linesOrig=["+linesOrig.size()+"]  linesNew=["+linesNew.size()+"] fName=["+fName+"] ", debugRewrite);
+		if (debugging) dbgOutput(thisProc()+"adding: iteration=["+iteration+"] lineNo=["+lineNo+"] lineNoOrig=["+lineNoOrig+"] startColOrig=["+startColOrig+"]  numChars=["+numChars+"] linesOrig=["+linesOrig.size()+"]  //linesNew=["+linesNew.size()+"] fName=["+fName+"] rewriteType=["+rewriteType+"] ", debugRewrite);
+		if (debugging) dbgOutput(thisProc()+"origStr=["+origStr+"] ", debugRewrite);
+		if (debugging) dbgOutput(thisProc()+"reportOrigStr=["+reportOrigStr+"]  ", debugRewrite);
+		if (debugging) dbgOutput(thisProc()+"newStr=["+newStr+"] ", debugRewrite);
+		
 		
 		Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
 		offsetIteration = offsetCols.get(iteration-1);
 		
-		if (linesOrig.size() == linesNew.size()) {
-			// #lines remains the same
-			for (int i = lineNo; i<=(lineNo+linesNew.size()-1); i++) {
-				
-				int diffLength = linesNew.get(i-lineNo).length() - linesOrig.get(i-lineNo).length();
-				if (debugging) dbgOutput(thisProc()+"lineNo=i=["+i+"] diffLength=["+diffLength+"]", debugRewrite);
-				if (diffLength == 0) continue;
-								
-				Map<Integer, Integer> offsetLineNo = new LinkedHashMap<>();
-				if (!offsetIteration.containsKey(i)) offsetIteration.put(i, offsetLineNo);
-				offsetLineNo = offsetIteration.get(i);
-				
-				int col = 0;
-				if (i == lineNo) col = startColOrig;
-				offsetLineNo.put(col, diffLength);	
-			}					
-		}
-		else if (linesOrig.size() < linesNew.size()) {
+		// check for line length changes on each line 
+		for (int i = lineNo; i<=(lineNo+linesOrig.size()-1); i++) {
+			
+			int diffLength = linesNew.get(i-lineNo).length() - linesOrig.get(i-lineNo).length();
+			if (debugging) dbgOutput(thisProc()+"linesNew("+(i-lineNo)+")= ["+linesNew.get(i-lineNo)+"] = ["+linesNew.get(i-lineNo).length()+"]", debugRewrite);
+			if (debugging) dbgOutput(thisProc()+"linesOrig("+(i-lineNo)+")=["+linesOrig.get(i-lineNo)+"] = ["+linesOrig.get(i-lineNo).length()+"]", debugRewrite);
+			if (debugging) dbgOutput(thisProc()+"lineNo=i=["+i+"] diffLength=["+diffLength+"] ", debugRewrite);
+			if (diffLength == 0) continue;
+							
+			Map<Integer, Integer> offsetLineNo = new LinkedHashMap<>();
+			if (!offsetIteration.containsKey(i)) offsetIteration.put(i, offsetLineNo);
+			offsetLineNo = offsetIteration.get(i);
+			
+			int col = 0;
+			if (i == lineNo) col = startColOrig;
+			offsetLineNo.put(col, diffLength);	
+			if (debugging) dbgOutput(thisProc()+"(col) lineNo=i=["+i+"] col=["+col+"] diffLength=["+diffLength+"]", debugRewrite);
+		}					
+	
+		if (linesOrig.size() < linesNew.size()) {
 			// for lines that have been added: indicate by col = -1, and the #lines added as diffLength
 			for (int i = lineNo; i<=(lineNo+linesNew.size()-1); i++) {
 				Map<Integer, Integer> offsetLineNo = new LinkedHashMap<>();
@@ -5433,7 +5510,7 @@ tooltipsHTMLPlaceholder +
 					lineNrOffset = offsetLines.get(fName);
 					lineNrOffset.put(i,extraLines);
 					
-					//if (debugging) dbgOutput(thisProc()+"lineNo=i=["+i+"] adding "+extraLines+" extra lines at col= -1", debugRewrite);
+					if (debugging) dbgOutput(thisProc()+"lineNo=i=["+i+"] adding "+extraLines+" extra lines at col= -1", debugRewrite);
 					break;	
 				}
 
@@ -5445,20 +5522,24 @@ tooltipsHTMLPlaceholder +
 				int col = 0;
 				if (i == lineNo) col = startColOrig;
 				offsetLineNo.put(col, diffLength);	
+				if (debugging) dbgOutput(thisProc()+"(line) lineNo=i=["+i+"] col=["+col+"] diffLength=["+diffLength+"]", debugRewrite);
+				
 			}					
 		}
-		else {
+		
+		if (linesOrig.size() > linesNew.size()) {
 			// never reduce the number of lines
 			assert false : thisProc()+"bad branch, linesOrig=["+linesOrig.size()+"]  linesNew=["+linesNew.size()+"]";
 		}
 		
-		// log the rewrite				
-		origStr = applyPatternAll(origStr, rwrTabRegex, "");	
-		if (origStr.length() > 100) origStr = origStr.substring(0,100) + "(...)";
+		// log the rewrite		
+		if (reportOrigStr.isEmpty()) reportOrigStr = origStr;		
+		reportOrigStr = applyPatternAll(reportOrigStr, rwrTabRegex, "");	
+		if (reportOrigStr.length() > 100) reportOrigStr = reportOrigStr.substring(0,100) + "(...)";
 		if (newStrNoComment.length() > 100) newStrNoComment = newStrNoComment.substring(0,100) + "(...)";
 		newStrNoComment = newStrNoComment.replace("/*", "/ *"); // avoid generating a nested bracketed comment causing 'reset' to be seen as a proc call
 		newStrNoComment = newStrNoComment.replace("*/", "* /");
-		String msg = String.format("%08d", lineNoOrig) + captureFileSeparator +  String.format("%08d", rewritesDone.size()) + captureFileSeparator +  Integer.toString(lineNoOrig + linesOrig.size() - 1) + captureFileSeparator+ report+": changed ["+origStr+"] to ["+newStrNoComment+"]";
+		String msg = String.format("%08d", lineNoOrig) + captureFileSeparator +  String.format("%08d", rewritesDone.size()) + captureFileSeparator +  Integer.toString(lineNoOrig + linesOrig.size() - 1) + captureFileSeparator+ report+": changed ["+reportOrigStr+"] to ["+newStrNoComment+"]" + captureFileSeparator + rewriteType;
 		rewritesDone.add(msg);
 	}
 
@@ -5474,15 +5555,22 @@ tooltipsHTMLPlaceholder +
 	}
 		
 	// calculate adjusted line number, taking earlier added lines into account
-	public Integer calcOffsetLine (Integer iteration, Integer lineOrig) {		
+	public Integer calcOffsetLine (Integer iteration, Integer lineOrig, String rewriteType) {		
 		Integer lineNew = lineOrig;
-		if (debugging) dbgOutput(thisProc()+"entry: iteration=["+iteration+"] lineOrig=["+lineOrig+"] offsetCols.size()=["+offsetCols.size()+"] ", debugRewrite);
+		Integer iterationLineNoAdded = 0;
+		if (debugging) dbgOutput(thisProc()+"entry: iteration=["+iteration+"] lineOrig=["+lineOrig+"] offsetCols.size()=["+offsetCols.size()+"] rewriteType=["+rewriteType+"] ", debugRewrite);
 		if (iteration > 0) {
-			for (int i = 0; i < iteration; i++) {		
+			for (int i = 0; i < iteration; i++) {	
+				if (debugging) dbgOutput(thisProc()+"iteration=["+(i+1)+"] at i=["+i+"]", debugRewrite);	
 				if (i >= offsetCols.size()) {
 					if (debugging) dbgOutput(thisProc()+"i=["+i+"], exiting", debugRewrite);
 					break;		
 				}
+				
+				lineOrig += iterationLineNoAdded;
+				if (debugging) dbgOutput(thisProc()+"adding "+iterationLineNoAdded+" lines for previous iteration level: lineOrig=["+lineOrig+"] ", debugRewrite);
+
+				iterationLineNoAdded = 0;				
 				Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
 				offsetIteration = offsetCols.get(i);
 				for (Integer lineNo : offsetIteration.keySet().stream().sorted().collect(Collectors.toList())) {
@@ -5492,7 +5580,10 @@ tooltipsHTMLPlaceholder +
 						if (colx != -1) continue; // this is not an added-line count
 						if (lineOrig >= lineNo) {
 							lineNew += offset;
-							if (debugging) dbgOutput(thisProc()+"Adding line offset=["+offset+"], lineNew=["+lineNew+"]", debugRewrite);
+							if (debugging) dbgOutput(thisProc()+"Adding line offset=["+offset+"] , lineNew=["+lineNew+"]", debugRewrite);
+							
+							iterationLineNoAdded += offset;
+							if (debugging) dbgOutput(thisProc()+"added, iterationLineNoAdded=["+iterationLineNoAdded+"] ", debugRewrite);							
 						}							
 					}
 				}						
@@ -5534,8 +5625,10 @@ tooltipsHTMLPlaceholder +
 		if (iteration > 0) {
 			if (offsetCols.size() >= iteration) {		
 				for (int i = 0; i < iteration; i++) {
+					if (debugging) dbgOutput(thisProc()+"iteration=["+(i+1)+"] at i=["+i+"]", debugRewrite);
 					Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
 					offsetIteration = offsetCols.get(i);
+					if (debugging) dbgOutput(thisProc()+"offsetIteration.size()=["+offsetIteration.size()+"] keys=["+offsetIteration.keySet()+"] ", debugRewrite);
 					if (offsetIteration.containsKey(lineNo)) {
 						if (debugging) dbgOutput(thisProc()+"found "+offsetIteration.get(lineNo).keySet().size()+" entries for iteration=["+(i+1)+"] lineNo=["+lineNo+"]", debugRewrite);
 						for (Integer colx : offsetIteration.get(lineNo).keySet().stream().sorted().collect(Collectors.toList())) {
@@ -5556,50 +5649,76 @@ tooltipsHTMLPlaceholder +
 	}
 	
 	// calculate adjusted length, taking earlier added chars into account
-	public Integer calcOffsetLength (Integer iteration, Integer startLineNo, Integer startCol, Integer endLineNo, Integer endCol) {			
+	public Integer calcOffsetLength (Integer iteration, Integer startLineNo, Integer startCol, Integer endLineNo, Integer endCol, String rewriteType) {			
 		Integer lengthNew = 0;
-		if (debugging) dbgOutput(thisProc()+"entry: iteration=["+iteration+"] startLineNo=["+startLineNo+"] startCol=["+startCol+"] endLineNo=["+endLineNo+"] endCol=["+endCol+"] offsetCols.size()=["+offsetCols.size()+"] ", debugRewrite);
+		Integer iterationStartLineNoAdded = 0;
+		Integer iterationEndLineNoAdded = 0;
+		if (debugging) dbgOutput(thisProc()+"entry: iteration=["+iteration+"] startLineNo=["+startLineNo+"] startCol=["+startCol+"] endLineNo=["+endLineNo+"] endCol=["+endCol+"] offsetCols.size()=["+offsetCols.size()+"] rewriteType=["+rewriteType+"] ", debugRewrite);
 		if (iteration > 0) {
 			if (offsetCols.size() >= iteration) {		
 				for (int i = 0; i < iteration; i++) {
-					if (debugging) dbgOutput(thisProc()+"i=["+i+"]", debugRewrite);
+					if (debugging) dbgOutput(thisProc()+"iteration=["+(i+1)+"] at i=["+i+"]", debugRewrite);
 					Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();	
 					offsetIteration = offsetCols.get(i);
-					if (debugging) dbgOutput(thisProc()+"offsetIteration.size()=["+offsetIteration.size()+"] ", debugRewrite);
-					for (Integer lineNo=startLineNo; lineNo<=endLineNo; lineNo++) {
+					
+					if (debugging) dbgOutput(thisProc()+"offsetIteration.size()=["+offsetIteration.size()+"] keys=["+offsetIteration.keySet()+"] ", debugRewrite);
+					startLineNo += iterationStartLineNoAdded;
+					endLineNo   += iterationEndLineNoAdded;
+
+					if (debugging) dbgOutput(thisProc()+"adding "+iterationEndLineNoAdded+" end lines for previous iteration level: endLineNo=["+endLineNo+"] ", debugRewrite);
+					if (debugging) dbgOutput(thisProc()+"adding "+iterationStartLineNoAdded+" lines for previous iteration level: startLineNo=["+startLineNo+"] ", debugRewrite);
+					iterationStartLineNoAdded = 0;
+					iterationEndLineNoAdded = 0;
+					
+					//for (Integer lineNo=startLineNo; lineNo<=endLineNo; lineNo++) {
+					for (Integer lineNo=1; lineNo<=endLineNo; lineNo++) {
+						if (!offsetIteration.containsKey(lineNo)) continue;
 						if (debugging) dbgOutput(thisProc()+"lineNo=["+lineNo+"]", debugRewrite);
-						if (offsetIteration.containsKey(lineNo)) {
-							if (debugging) dbgOutput(thisProc()+"found entries for iteration=["+(i+1)+"] lineNo=["+lineNo+"]", debugRewrite);
-							for (Integer colx : offsetIteration.get(lineNo).keySet().stream().sorted().collect(Collectors.toList())) {
-								Integer offset = offsetIteration.get(lineNo).get(colx);
-								if (debugging) dbgOutput(thisProc()+"   lineNo=["+lineNo+"] colx=["+colx+"] offset=["+offset+"]", debugRewrite);
-								if (colx == -1) continue; // this is an added-line count
-								
-								if ((lineNo.equals(startLineNo)) && (startCol > colx)) {
-									if (debugging) dbgOutput(thisProc()+"   == startLineNo: before startCol, skip, lengthNew=["+lengthNew+"]", debugRewrite);
-									continue;
+						
+						if (debugging) dbgOutput(thisProc()+"found entries for iteration=["+(i+1)+"] lineNo=["+lineNo+"]", debugRewrite);
+						for (Integer colx : offsetIteration.get(lineNo).keySet().stream().sorted().collect(Collectors.toList())) {
+							Integer offset = offsetIteration.get(lineNo).get(colx);
+							if (debugging) dbgOutput(thisProc()+"   lineNo=["+lineNo+"] colx=["+colx+"] offset=["+offset+"]", debugRewrite);
+							if (colx == -1) {
+								// this is an added-line count
+								// add line offset for startLineNo for next iteration level
+								if (lineNo <= startLineNo) {
+									iterationStartLineNoAdded += offset;
+									if (debugging) dbgOutput(thisProc()+"added offset=["+offset+"] for lineNo=["+lineNo+"] startLineNo=["+startLineNo+"]  iterationStartLineNoAdded=["+iterationStartLineNoAdded+"] ", debugRewrite);
 								}
-								if ((lineNo.equals(startLineNo)) && (colx > endCol)) {
-									if (debugging) dbgOutput(thisProc()+"   == startLineNo: after endCol, skip, lengthNew=["+lengthNew+"]", debugRewrite);
-									continue;
+								if (lineNo < endLineNo) {
+									iterationEndLineNoAdded += offset;								
+									if (debugging) dbgOutput(thisProc()+"added offset=["+offset+"] for lineNo=["+lineNo+"] endLineNo=[$endLineNo]  iterationEndLineNoAdded=["+iterationEndLineNoAdded+"] ", debugRewrite);
 								}
-																
-								if ((lineNo.equals(startLineNo)) && (colx >= startCol)) {
-									lengthNew += offset;
-									if (debugging) dbgOutput(thisProc()+"   == startLineNo: Adding offset=["+offset+"], lengthNew=["+lengthNew+"]", debugRewrite);
-								}
-								else if ((lineNo.equals(endLineNo)) && (endCol > colx)) {
-									lengthNew += offset;
-									if (debugging) dbgOutput(thisProc()+"   == endLineNo: Adding offset=["+offset+"], lengthNew=["+lengthNew+"]", debugRewrite);
-								}
-								else if ((lineNo > startLineNo) && (lineNo < endLineNo)) {
-									lengthNew += offset;
-									if (debugging) dbgOutput(thisProc()+"   >startlineNo, < endlineNo: Adding offset=["+offset+"], lengthNew=["+lengthNew+"]", debugRewrite);
-								}
-								else {
-									if (debugging) dbgOutput(thisProc()+"   no match, lengthNew=["+lengthNew+"] ", debugRewrite);
-								}
-							}	
+								continue; 								
+							}
+							
+							if (lineNo < startLineNo) continue;
+							
+							if ((lineNo.equals(startLineNo)) && (startCol > colx)) {
+								if (debugging) dbgOutput(thisProc()+"   == startLineNo: before startCol, skip, lengthNew=["+lengthNew+"]", debugRewrite);
+								continue;
+							}
+							if ((lineNo.equals(startLineNo)) && (colx > endCol)) {
+								if (debugging) dbgOutput(thisProc()+"   == startLineNo: after endCol, skip, lengthNew=["+lengthNew+"]", debugRewrite);
+								continue;
+							}
+															
+							if ((lineNo.equals(startLineNo)) && (colx >= startCol)) {
+								lengthNew += offset;
+								if (debugging) dbgOutput(thisProc()+"   == startLineNo: Adding offset=["+offset+"], lengthNew=["+lengthNew+"]", debugRewrite);
+							}
+							else if ((lineNo.equals(endLineNo)) && (endCol > colx)) {
+								lengthNew += offset;
+								if (debugging) dbgOutput(thisProc()+"   == endLineNo: Adding offset=["+offset+"], lengthNew=["+lengthNew+"]", debugRewrite);
+							}
+							else if ((lineNo > startLineNo) && (lineNo < endLineNo)) {
+								lengthNew += offset;
+								if (debugging) dbgOutput(thisProc()+"   >startlineNo, < endlineNo: Adding offset=["+offset+"], lengthNew=["+lengthNew+"]", debugRewrite);
+							}
+							else {
+								if (debugging) dbgOutput(thisProc()+"   no match, lengthNew=["+lengthNew+"] ", debugRewrite);
+							}
 						}		
 					}
 				}
@@ -5615,6 +5734,7 @@ tooltipsHTMLPlaceholder +
 			if (debugging) dbgOutput(thisProc()+"iteration=["+(i+1)+"] at i=["+i+"]", debugRewrite);
 			Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
 			offsetIteration = offsetCols.get(i);
+			//if (debugging) dbgOutput(thisProc()+"offsetIteration.size()=["+offsetIteration.size()+"] keys=["+offsetIteration.keySet()+"] ", debugRewrite);
 			for (Integer lineNo : offsetIteration.keySet().stream().sorted().collect(Collectors.toList())) {
 				//if (debugging) dbgOutput(thisProc()+"   offsets: lineNo=["+lineNo+"]", debugRewrite);
 				for (Integer col : offsetIteration.get(lineNo).keySet().stream().sorted().collect(Collectors.toList())) {
@@ -5622,6 +5742,7 @@ tooltipsHTMLPlaceholder +
 				}
 			}		
 		}
+		if (debugging) dbgOutput(thisProc(), debugRewrite);		
 	}
 
 	public void dumpOffsetLines(String s) {
@@ -5634,6 +5755,7 @@ tooltipsHTMLPlaceholder +
 				if (debugging) dbgOutput(thisProc()+"f=["+f+"] line=["+l+"] extraLines=["+extraLines+"]", debugRewrite);
 			}	
 		}
+		if (debugging) dbgOutput(thisProc(), debugRewrite);				
 	}
 
 	// apply text substitutions 
@@ -5731,12 +5853,13 @@ tooltipsHTMLPlaceholder +
 					if (startPos >= startPrev && endPos <= endPrev) {
 						// this one falls inside the range of the previous one
 						// delete the previous one from the sorted list
-						if (debugging) dbgOutput(thisProc()+"this rewrite is within range of previous. deleting previous sPrev=["+sPrev+"]", debugRewrite);
+						if (debugging) dbgOutput(thisProc()+"this rewrite is within range of previous. keeping this one and deleting previous sPrev=["+sPrev+"]", debugRewrite);
 						tmpRemovedItems.add(sPrev);
 						tmpSorted.remove(sPrev);
 					}
 					else if (startPos >= startPrev && endPos > endPrev) {
 						// not expecting this, should not be possible
+						if (debugging) dbgOutput(thisProc()+"unexpected branch: startPos=["+startPos+"] startPrev=["+startPrev+"] endPos=["+endPos+"] endPrev=["+endPrev+"] ", debugRewrite);   
 					}
 				}
 				
@@ -5750,11 +5873,11 @@ tooltipsHTMLPlaceholder +
 			
 			if (debugging && debugRewrite) {
 				for (String s : tmpSorted) {
-					appOutput(thisProc()+"tmpSorted: after range check: s=["+s+"] ");
+					dbgOutput(thisProc()+"tmpSorted   : after range check: s=["+s+"] ", debugRewrite);
 				}		
 								
 				for (String s : tmpToDoItems) {
-					appOutput(thisProc()+"tmpToDoItems: after range check: s=["+s+"] ");
+					dbgOutput(thisProc()+"tmpToDoItems: after range check: s=["+s+"] ", debugRewrite);
 				}		
 				dumpOffsetCols("after range chk");				
 			}		
@@ -5809,16 +5932,16 @@ tooltipsHTMLPlaceholder +
 						if (debugging && debugRewrite) dumpOffsetCols("before calc");
 										
 						startLineOrig = startLine;
-						startLine = calcOffsetLine(iteration, startLine);
-						if (debugging) dbgOutput(thisProc()+"startLine after adjust=["+startLine+"]", debugRewrite);
+						startLine = calcOffsetLine(iteration, startLine, rewriteType);
+						if (debugging) dbgOutput(thisProc()+"startLine after adjust=["+startLine+"] delta=["+(startLine-startLineOrig)+"] ", debugRewrite);
 						
 						Integer startColNew = calcOffsetCol(iteration, startLineOrig, startCol);
 						if (debugging) dbgOutput(thisProc()+"startCol=["+startCol+"] startColNew=["+startColNew+"]", debugRewrite);
 
 						Integer endColNew = calcOffsetCol(iteration, endLine, endCol);
-						if (debugging) dbgOutput(thisProc()+"endCol=["+startCol+"] endColNew=["+endColNew+"]", debugRewrite);
+						if (debugging) dbgOutput(thisProc()+"endCol=["+startCol+"] endColNew=["+endColNew+"]", debugRewrite);						
 						
-						Integer offsetLength = calcOffsetLength(iteration, startLineOrig, startCol, endLine, endCol);
+						Integer offsetLength = calcOffsetLength(iteration, startLineOrig, startCol, endLine, endCol, rewriteType);
 						Integer origLenNew = origLen + offsetLength;
 						if (debugging) dbgOutput(thisProc()+"offsetLength=["+offsetLength+"]", debugRewrite);
 						if (debugging) dbgOutput(thisProc()+"origLen=["+origLen+"] origLenNew=["+origLenNew+"]", debugRewrite);
@@ -5875,7 +5998,7 @@ tooltipsHTMLPlaceholder +
 							keepLine = true;				
 							
 							List<String> newStr = applyRewrite(rewriteType, report, rewriteText, origStrFull); 													
-							addOffsets(iteration+1, startLine, startLineOrig, startColOrig, origStrFull, newStr.get(0), newStr.get(1), report, fName);
+							addOffsets(iteration+1, startLine, startLineOrig, startColOrig, origStrFull, newStr.get(2), newStr.get(0), newStr.get(1), report, fName, rewriteType);
 							
 							writeRewrittenFile(newStr.get(0));
 							origStrFull = "";
@@ -5920,7 +6043,7 @@ tooltipsHTMLPlaceholder +
 							
 							if (debugging) dbgOutput(thisProc()+"origStrFull=["+origStrFull+"]=["+origStrFull.length()+"]", debugRewrite);
 							List<String> newStr = applyRewrite(rewriteType, report, rewriteText, origStrFull); 														
-							addOffsets(iteration+1, startLine, startLineOrig, startColOrig, origStrFull,  newStr.get(0),  newStr.get(1), report, fName);			
+							addOffsets(iteration+1, startLine, startLineOrig, startColOrig, origStrFull, newStr.get(2), newStr.get(0), newStr.get(1), report, fName, rewriteType);			
 											
 							writeRewrittenFile(newStr.get(0));							
 							origStrFull = "";
@@ -5934,7 +6057,7 @@ tooltipsHTMLPlaceholder +
 					}
 					
 					if (remainingLength == 0) {
-						// when sub is done, move to next sub
+						// when rewrite is done, move to next rewrite
 						rewriteCount++;
 						if (debugging) dbgOutput(thisProc()+"next rewrite: rewriteCount=["+rewriteCount+"]", debugRewrite);
 						nextRewrite = true;
@@ -5968,9 +6091,10 @@ tooltipsHTMLPlaceholder +
 						Integer firstLine = Integer.parseInt(tmp.get(0));
 						Integer lastLine = Integer.parseInt(tmp.get(2));
 						String origMsg = tmp.get(3);
+						String rewriteTypeMsg = tmp.get(4);
 						
-						firstLine = calcOffsetLine(calcOffsetIterationMax, firstLine);
-						lastLine = calcOffsetLine(calcOffsetIterationMax, lastLine);						
+						firstLine = calcOffsetLine(calcOffsetIterationMax, firstLine, rewriteTypeMsg);
+						lastLine = calcOffsetLine(calcOffsetIterationMax, lastLine, rewriteTypeMsg);						
 						
 						String lastLineStr = "";
 						if (!firstLine.equals(lastLine)) {
@@ -6015,6 +6139,8 @@ tooltipsHTMLPlaceholder +
 	private List<String> applyRewrite(String rewriteType, String report, String rewriteText, String origStrFull) {
 		if (debugging) dbgOutput(thisProc()+"rewriteType=["+rewriteType+"] report=["+report+"] rewriteText=["+rewriteText+"] origStrFull=["+origStrFull+"]", debugRewrite);
 	
+		String origStrReport = origStrFull;
+		
 		List<String> result = new ArrayList<>();		
 		String newStr = "";
 		String newStrNoComment = "";		
@@ -6077,6 +6203,78 @@ tooltipsHTMLPlaceholder +
 			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\{)", "");
 			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\})$", ")");
 		}
+		else if (rewriteType.equals(rewriteTypeCommentAndAppend)) {
+			// used for inline index only: partially replace (to comment out), and append new statement after end of stmt						
+			Integer rwrID = Integer.valueOf(rewriteText);
+			
+			assert (rewriteIDDetails.containsKey(rwrID)) : thisProc()+"rwrID not found: "+rwrID;			
+			Map<String, List<Integer>> positions = new HashMap<>();
+			positions = rewriteIDDetails.get(rwrID);			
+			
+			Map<String, String> tmpRwr = new HashMap<>();	
+			int indent = positions.get("indent").get(0);
+						
+			int startClause = positions.get("inlineindexclause").get(0);	
+			int endClause   = positions.get("inlineindexclause").get(1);	
+			int lengthClause = endClause - startClause + 1;
+			
+			origStrReport = origStrFull.substring(0,lengthClause);
+
+			// pick up rewritten CREATE INDEX statement	
+			rewriteText = rewriteTextListOrigText.get(rwrID.toString()); 
+			if (debugging) dbgOutput(thisProc()+"rewriteText=["+rewriteText+"]", debugRewrite);
+			
+			// handle case where it's a table-level index rather than column-level		
+			if (positions.containsKey("collist")) {
+				int startCollist = positions.get("collist").get(0);	
+				int endCollist = positions.get("collist").get(1);	
+				String collist = origStrFull.substring(startCollist, endCollist);
+				rewriteText += collist;
+
+				// see if  we need to remove an extra comma
+				// ToDo: we're not catching the case where there is a comment before the comma, but that would hopefully be rare
+				String tmp = origStrFull.substring(lengthClause);
+				String comma = getPatternGroup(tmp, "^(\\s*,)", 1);
+				if (tmp.trim().startsWith(",")) {
+					lengthClause += comma.length();
+				}				
+			}
+		
+			// handle WHERE-clause or index options
+			int startRestOfClause = 0;
+			int startWhere = 0;
+			int startIXOptions = 0;
+			if (positions.containsKey("where_clause")) {
+				startWhere = positions.get("where_clause").get(0);	
+			}
+			if (positions.containsKey("index_options")) {
+				startIXOptions = positions.get("index_options").get(0);	
+			}
+			if ((startWhere > 0) || (startIXOptions > 0)) {
+				if ((startWhere > 0) && (startIXOptions == 0)) startRestOfClause = startWhere;
+				else if ((startIXOptions > 0) && (startWhere == 0)) startRestOfClause = startIXOptions;
+				else {
+					if (startWhere < startIXOptions) startRestOfClause = startWhere;
+					else startRestOfClause = startIXOptions;
+				}
+				
+				String restOfClause = origStrReport.substring(startRestOfClause);
+				rewriteText += " " + restOfClause;
+			}
+								
+			rewriteText = rewriteStmtPatchup("\n"+rewriteText, "", indent);
+						
+			// comment out original clause
+			newStr = rwrTag + "/*"+origStrFull.substring(0,lengthClause)+"*/" + origStrFull.substring(lengthClause);
+			newStr = newStr.trim();		
+									
+			newStr = newStr + rewriteText + "\n";
+			newStr = newStr.trim();		
+			
+			newStrNoComment = rewriteText;
+			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");								
+			
+		}		
 		else if (rewriteType.equals(rewriteTypeBlockReplace) && report.equals(CompassAnalyze.AlterTableAddMultiple)) {
 			// ToDo: combine with MERGE below as parts are identical
 			
@@ -6397,10 +6595,13 @@ tooltipsHTMLPlaceholder +
 			assert false : thisProc()+"invalid rewriteType=["+rewriteType+"] ";
 		}
 		
+		// these are picked up for reporting
 		result.add(newStr);
 		if (newStrNoComment.isEmpty()) newStrNoComment = newStr;
 		result.add(newStrNoComment.trim());
-		return result;				
+		//result.add(origStrFull);
+		result.add(origStrReport.trim());
+		return result;			
 	}
 	
 	public String rewriteMergeStmtOutput(String s, String action) {
@@ -6413,7 +6614,7 @@ tooltipsHTMLPlaceholder +
 			s = applyPatternAll(s, "\\bDELETED\\.\\w+\\b", "NULL");
 			s = applyPatternAll(s, "\\bDELETED\\.[\\[].*?[\\]]", "NULL");
 			
-			// for an INSERT..OUTPUT, we don;t seem to be able to reference anything other than INSERTED
+			// for an INSERT..OUTPUT, we don't seem to be able to reference anything other than INSERTED
 			String tmp = applyPatternAll(s, "\\b(OUTPUT)\\b", "");
 			tmp = applyPatternAll(tmp, "[\\(\\)]", ",");
 			tmp = "," + tmp + ",";
@@ -6438,7 +6639,7 @@ tooltipsHTMLPlaceholder +
 	}
 	public String rewriteStmtPatchup(String s, String origStmt, String kwd, int indent) {
 		String leading = "";
-		if (indent == 0) {
+		if ((indent == 0) && !origStmt.isEmpty()) {
 			leading = getPatternGroup("\n"+origStmt, "\n([^\n]*?)"+kwd+"\\b", 1, "multiline");
 			leading = applyPatternAll(leading, "\\S", " ");
 		}
