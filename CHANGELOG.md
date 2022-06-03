@@ -1,3 +1,12 @@
+# 2022-06
+- Support for Babelfish v.2.1.0 and 1.3.0
+- added -pgimporttable flag
+- do not process duplicate input files
+- enhancements to -rewrite
+- rationalize -delete/-add/-replace options
+- exclude additional file types by default
+- user guide, cleanup, example added
+
 # 2022-04
 - Support for Babelfish v.1.2.1.
 - Automatic check for newer versions of Compass.
