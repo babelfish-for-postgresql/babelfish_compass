@@ -96,7 +96,7 @@ public class Compass {
 			".gzip", ".gz", ".rar", ".7z", ".tar", ".tgz", ".sh", ".bash", ".csh", ".tcsh", ".bat", ".csv", ".md", 
 			".mp4", ".mov", ".jpg", ".gif", ".png",	".tmp", ".pl", ".py", ".cs", ".cpp", ".vb", ".c", ".php", 
 			".java", ".classpath", ".project", ".rb", ".js", ".exe", ".dll", ".sln", ".scc", ".gitignore", ".json", 
-			".yml", ".yaml", ".xml", ".xsl", ".xsd", ".xslt")
+			".yml", ".yaml", ".xml", ".xsl", ".xsd", ".xslt", ".rdl", ".properties", ".config", ".cfg", ".sdcs")
 	);	
 	protected static boolean generateReport = true;
 	protected static boolean reAnalyze = false;
@@ -1332,9 +1332,14 @@ public class Compass {
 			return false;
 		}
 		
-		if (deleteReport && (addReport||replaceFiles)) {
-			u.appOutput("Cannot combine -delete and -add/-replace");
-			return false;
+		if (deleteReport && (addReport)) {
+			u.appOutput("Ignoring -add since -delete is specified");
+			addReport = false;
+		}
+		
+		if (deleteReport && (replaceFiles)) {
+			u.appOutput("Ignoring -replace since -delete is specified");
+			replaceFiles = false;
 		}
 		
 		if (reportOnly && (addReport||replaceFiles)) {
