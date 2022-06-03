@@ -2072,15 +2072,6 @@ graph_clause
     : AS (NODE | EDGE)
     ;
 
-
-//TBDeleted;   
-table_indices
-    : INDEX id UNIQUE? clustered? COLUMNSTORE? (LR_BRACKET column_name_list_with_order RR_BRACKET)?
-      (WHERE where=search_condition)?
-      with_index_options?
-      (ON storage_partition_clause)?
-    ;
-
 table_options
     : WITH (LR_BRACKET index_option_list? system_versioning_options? RR_BRACKET | index_option_list )
     ;
@@ -2529,7 +2520,7 @@ drop_view
 create_type
     : CREATE TYPE name=simple_name
       (FROM data_type null_notnull? default_value=expression?)?
-      (AS TABLE LR_BRACKET column_def_table_constraints (COMMA? table_indices)* RR_BRACKET)?
+      (AS TABLE LR_BRACKET column_def_table_constraints (COMMA? inline_index)* RR_BRACKET)?
     ;
 
 drop_type:
@@ -3112,7 +3103,7 @@ table_type_definition
 
 table_type_indices
     :  ((PRIMARY KEY | UNIQUE) clustered?) LR_BRACKET column_name_list_with_order RR_BRACKET
-    | table_indices
+    | inline_index
     | CHECK LR_BRACKET search_condition RR_BRACKET
     ;
 

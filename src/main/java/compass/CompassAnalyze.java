@@ -2890,29 +2890,6 @@ public class CompassAnalyze {
 				return null;
 			}
 
-			@Override public String visitTable_indices(TSQLParser.Table_indicesContext ctx) {
-				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
-
-				String ixName = noName;
-
-				String ixContext = u.uninitialized;
-				String ixType = "index"; // lowercase i
-				if (ctx.UNIQUE() != null) ixType = "index, UNIQUE";
-
-				if (hasParent(ctx.parent,"create_index"))           ixContext = "CREATE INDEX";
-				else if (hasParent(ctx.parent,"create_table"))      ixContext = "CREATE TABLE";
-				else if (hasParent(ctx.parent,"alter_table"))       ixContext = "ALTER TABLE";
-				else if (hasParent(ctx.parent,"declare_statement")) ixContext = "DECLARE @tableVariable";
-				else if (hasParent(ctx.parent,"create_type"))       ixContext = "CREATE TYPE(table)";
-
-				captureIndexOptions(ixName, ixType, ixContext, ctx.with_index_options());
-
-				captureIndexConstraint(ixName, ixType, ixContext, ctx.clustered(), false, ctx.start.getLine());
-				visitChildren(ctx);
-				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
-				return null;
-			}
-
 			@Override public String visitTable_type_indices(TSQLParser.Table_type_indicesContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 
@@ -7293,7 +7270,6 @@ public class CompassAnalyze {
 			@Override public String visitAlter_server_role(TSQLParser.Alter_server_roleContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 				String name = u.normalizeName(ctx.server_role_name.getText().toLowerCase());
-				u.appOutput(u.thisProc()+"name=["+name+"] ");
 
  				// find out if ALTER SERVER ROLE is supported for this role
  				String status = featureSupportedInVersion(AlterSrvRole,name);
@@ -7302,10 +7278,8 @@ public class CompassAnalyze {
  				// predefined role ?
 				if (featureExists(AlterSrvRole, name)) {
 					fmtRole = name;				
-					u.appOutput(u.thisProc()+"srvrole exists name=["+name+"] ");
 										
 					String roleStatus = featureSupportedInVersion(AlterSrvRole, name);
-					u.appOutput(u.thisProc()+"status=["+status+"]  roleStatus=["+roleStatus+"] ");
 					if (status.equals(u.Supported)) {
 						if (!roleStatus.equals(u.Supported)) status = roleStatus;
 					}
