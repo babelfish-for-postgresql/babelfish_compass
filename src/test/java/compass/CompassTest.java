@@ -196,7 +196,7 @@ public class CompassTest {
     void testParseInputPattern_SingleInput() {
         assertEquals(".sql", Compass.parseInputPattern(".sql"));
         assertEquals("test.sql", Compass.parseInputPattern("test.sql"));
-        assertEquals("{test input file.sql}", Compass.parseInputPattern("test input file.sql"));
+        assertEquals("{test,input,file.sql}", Compass.parseInputPattern("test input file.sql"));
     }
 
     @Test
