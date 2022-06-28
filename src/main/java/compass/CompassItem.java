@@ -47,6 +47,6 @@ public class CompassItem {
     }
     
     public String getAttributes() {
-    	return attributes;
+    	return " " + attributes + " ";
     }
 }

@@ -40,7 +40,7 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2022-06";
+	public static final String thisProgVersion      = "2022-06-a";
 	public static final String thisProgVersionDate  = "June 2022";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
@@ -136,6 +136,9 @@ public class CompassUtilities {
 	public final String HTMLSuffix = "html";
 	public final String logDirName = "log";
 	public final String PGImportFileName = "pg_import";
+	public final String extractedDirName = "extractedSQL";
+	public final String extractedFileSuffix = "extracted.sql";
+		
 	
 	public final String getAnonymizedItemsFilename = "anonymizedBabelfishItems.dat";
 
@@ -165,20 +168,27 @@ public class CompassUtilities {
 	public BufferedWriter rewrittenFileWriter;	
 
 	// importformat options
-	public static final String autoFmt = "auto";
+	public static final String autoFmt = "auto"; // not currently supported
 	public static final String sqlcmdFmt = "sqlcmd";
-	public static final String jsonQueryFmt = "jsonQuery";
-	public static final String extendedEventsXMLFmt = "extendedEventsXML";
-	public static final String genericSQLXMLFmt = "sqlXML";
-	public static List<String> importFormatOption        = Arrays.asList(autoFmt, sqlcmdFmt, jsonQueryFmt,  extendedEventsXMLFmt, genericSQLXMLFmt);
-	public static List<String> importFormatOptionDisplay = Arrays.asList(autoFmt, sqlcmdFmt, "JSON query", "extended events/XML", "generic SQL XML");
+	public static final String jsonQueryFmt = "jsonQuery";  // seen this once, but so far never found out how this was generated
+	public static final String extendedEventsXMLFmt = "extendedEventsXML"; // not implemented
+	public static final String genericSQLXMLFmt = "sqlXML"; // not implemented
+	public static final String SQLServerProfilerXMLFmt = "MSSQLProfilerXML";
+	public static final String unknownFormat = "unknown";
+	public static List<String> importFormatSupported        = Arrays.asList(SQLServerProfilerXMLFmt);  // don't let the cust specify 'sqlcmd' format
+	public static List<String> importFormatSupportedDisplay = null;
+	public static List<String> importFormatOption           = Arrays.asList(unknownFormat, autoFmt, sqlcmdFmt, jsonQueryFmt,  extendedEventsXMLFmt, genericSQLXMLFmt, SQLServerProfilerXMLFmt);
+	public static List<String> importFormatOptionDisplay    = Arrays.asList(unknownFormat, autoFmt, sqlcmdFmt, "JSON query", "extended events/XML", "generic SQL XML", "SQL Server Profiler XML");
 	
-	// user-definable, default = auto
-	public static String importFormat = autoFmt.toLowerCase();
+	// user-definable import format, default = sqlcmd 
+	public static String importFormat = sqlcmdFmt.toLowerCase();
 	
-	// unduplication
-	public static boolean deDupExtracted = true;
+	// deduplication
+	public static boolean deDupExtracted = true; // perform  deduplication (or not)
 	public static int deDupSkipped = 0;
+	public static String dedupScope = ""; 
+	public static final List<String> dedupScopeOption = Arrays.asList("S", "N", "H");
+	public static final List<String> dedupScopeOptionDisplay = Arrays.asList("string", "number", "hex");
 	private Map<String, String> deDupQueries = new HashMap<>();
 	private Map<String, Integer> dupQueryCount = new HashMap<>();
 	
@@ -206,6 +216,8 @@ public class CompassUtilities {
 	public String tagSummary               = "summary_";
 	public String tagByFeature             = "byfeature_";
 	public String tagByObject              = "byobject_";
+	public String tagIssueListTop          = "issuelisttop";
+	public String tagHints                 = "hints_";
 	public String anchorListOfRewrites     = "anchorlistofrewrites";
 
 	public String cssText =
@@ -404,6 +416,9 @@ tooltipsHTMLPlaceholder +
 "</div>\n"+
 "</body></html>\n"
 ;
+	private List<String> hintsList = new ArrayList<>();
+	private Map<String, String> hintsListMap = new HashMap<>();
+	private Map<String, String> hintsTextMap = new HashMap<>();
 	private Map<String, String> toolTipsKeys = new HashMap<>();
 	static final List<String> toolTipsKeysList = new ArrayList<>();
 	static final String tttSeparator = "~~~";
@@ -428,6 +443,7 @@ tooltipsHTMLPlaceholder +
 		"DATABASE_PRINCIPAL_ID("+tttSeparator+"DATABASE_PRINCIPAL_ID() is not currently supported; Rewrite as USER_NAME() (the -rewrite option handles this for you)",
 		"FORMAT("+tttSeparator+"FORMAT() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
 		"FORMATMESSAGE("+tttSeparator+"FORMATMESSAGE() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
+		"STRING_AGG() WITHIN GROUP"+tttSeparator+"STRING_AGG() is not supported with the WITHIN GROUP clause. Rewrite the query",
 		"FILEGROUP_NAME("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"FILEPROPERTY("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"NEWSEQUENTIALID()"+tttSeparator+"NEWSEQUENTIALID() is implemented as NEWID(); the sequential nature of the generated values is however not guaranteed, as is the case in SQL Server",
@@ -446,19 +462,21 @@ tooltipsHTMLPlaceholder +
 		"\\w+ FULLTEXT "+tttSeparator+"Fulltext search is not currently supported",
 		"expression AT TIME ZONE"+tttSeparator+"A date/time expression with the AT TIME ZONE syntax is not currently supported; rewrite the expression with time zone offset syntax '+/-hh:mm', e.g. '01-Jan-2022 11:12:13 +02:00' ",
 		"Sequence option CACHE" +tttSeparator+"For a sequence, the CACHE option without a number is not currently supported; add a number",
-		"Sequence option NO CACHE" +tttSeparator+"For a sequence, the NO CACHE option without a number is not currently supported",
+		"Sequence option NO CACHE" +tttSeparator+"For a sequence, the NO CACHE option without a number is not currently supported; remove NO CACHE (the -rewrite option handles this for you)",
 		CompassAnalyze.NextValueFor+tttSeparator+"The NEXT VALUE FOR function for sequence objects is not currently supported. Consider using identity columns instead",
 		CompassAnalyze.ParamValueDEFAULT+tttSeparator+"Specifying DEFAULT as a parameter value in a procedure or function call is not currently supported; specify the actual default value instead",
-		CompassAnalyze.UnQuotedString+tttSeparator+"Unquoted strings are not currently supported; enclose the string with quotes",
+		CompassAnalyze.UnQuotedString+tttSeparator+"Unquoted strings are not currently supported; enclose the string in quotes (the -rewrite option handles this for you)",
 		CompassAnalyze.LineContinuationChar+" in hex string"+tttSeparator+"The line continuation character is not currently supported for hex strings; rewrite by putting the string on a single line",
 		CompassAnalyze.LineContinuationChar+" in character string"+tttSeparator+"The line continuation character is not currently supported for character strings, and is interpreted as an actual backslash + newline inside the string; rewrite by putting the string on a single line",
-		CompassAnalyze.DoubleQuotedString+", embedded single"+tttSeparator+"An embedded single quote in a double-quotes string is not currently supported. Change the double-quote string delimiters to single quotes and escape the embedded single quote",
-		CompassAnalyze.DoubleQuotedString+", embedded double"+tttSeparator+"An embedded double quote in a double-quotes string is not currently supported, and will result in two double quotes in the string. Change the double-quote string delimiters to single quotes and un-escape the embedded double quote",
+		CompassAnalyze.DoubleQuotedString+", embedded single"+tttSeparator+"An embedded single quote in a double-quoted string is not currently supported. Change the double-quote string delimiters to single quotes and escape the embedded single quote by doubling it (the -rewrite option handles this for you)",
+		CompassAnalyze.DoubleQuotedString+", embedded double"+tttSeparator+"An embedded double quote in a double-quoted string is not currently supported, and will result in two double quotes in the string. Change the double-quote string delimiters to single quotes and un-escape the embedded double quote (the -rewrite option handles this for you)",
 		CompassAnalyze.ExecuteSQLFunction+tttSeparator+"Calling a SQL function with EXECUTE is not currently supported. Call the function in an expression instead",
 		CompassAnalyze.ColonColonFunctionCall+tttSeparator+"Old-style function call with :: syntax is not supported; rewrite without ::",
 		CompassAnalyze.TemporaryProcedures+tttSeparator+"Temporary stored procedures (with a name starting with #) are created, but not dropped automatically at the end of a session",
 		CompassAnalyze.NumericAsDateTime+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 (the -rewrite option handles this for you)",
 		CompassAnalyze.NumericDateTimeVarAssign+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 (the -rewrite option handles this for you)",
+		"EXECUTE procedure sp_db_vardecimal_storage_format"+tttSeparator+"This system stored procedure is not currently supported, but it may not have any function in Babelfish as it is usually part of a standard SSMS-generated DDL script",
+		"EXECUTE procedure sp_fulltext_database"+tttSeparator+"This system stored procedure is not currently supported, but it may not have any function in Babelfish as it is usually part of a standard SSMS-generated DDL script",
 		"EXECUTE procedure sp_oacreate"+tttSeparator+"This OLE system stored procedure is not currently supported",
 		"EXECUTE procedure sp_oadestroy"+tttSeparator+"This OLE system stored procedure is not currently supported",
 		"EXECUTE procedure sp_oamethod"+tttSeparator+"This OLE system stored procedure is not currently supported",
@@ -495,8 +513,8 @@ tooltipsHTMLPlaceholder +
 		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
 		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
 		CompassAnalyze.AlterTable+"..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements (the -rewrite option handles this for you)",
-		CompassAnalyze.AlterTable+"..CHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
-		CompassAnalyze.AlterTable+"..NOCHECK CONSTRAINT"+tttSeparator+"Enabling/disabling FK or CHECK constraints is not currently supported; constraints are always enabled",
+		CompassAnalyze.AlterTable+"..CHECK CONSTRAINT"+tttSeparator+"Enabling FK or CHECK constraints is not currently supported; constraints are always enabled; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_nocheck%', 'ignore' [, 'server']\\\\\" to ignore and proceed",
+		CompassAnalyze.AlterTable+"..NOCHECK CONSTRAINT"+tttSeparator+"Disabling FK or CHECK constraints is not currently supported; constraints are always enabled; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_nocheck%', 'ignore' [, 'server']\\\\\" to ignore the error message and proceed",
 		CompassAnalyze.AlterTable+"..ALTER COLUMN NULL"+tttSeparator+"NULL/NOT NULL is not currently supported with ALTER COLUMN. To change column nullability, use ALTER TABLE { SET | DROP } NOT NULL in PG",
 		CompassAnalyze.AlterTable+"..ALTER COLUMN NOT NULL"+tttSeparator+"NULL/NOT NULL is not currently supported with ALTER COLUMN. To change column nullability, use ALTER TABLE { SET | DROP } NOT NULL in PG",
 		"DBCC "+tttSeparator+"DBCC statements are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
@@ -521,8 +539,8 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.VarDeclareAtAt+tttSeparator+"Local variables or parameters starting with '@@' can be declared, but cannot currently be referenced",
 		"Cursor option "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
 		"FETCH  "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
-		"CURSOR variable"+tttSeparator+"CURSOR-types variables/parameters are not currently supported; rewrite with table variables or #tmp tables",
-		"CURSOR procedure parameter"+tttSeparator+"CURSOR-types variables/parameters are not currently supported; rewrite with table variables or #tmp tables",
+		"CURSOR variable"+tttSeparator+"CURSOR-typed variables/ are not currently supported; rewrite with table variables or #tmp tables",
+		"CURSOR procedure parameter"+tttSeparator+"CURSOR-typed parameters are supported when used as input parameter, but the procedure call fails when used as output parameter. Note that a CURSOR parameter must nevertheless always be declared as VARYING OUTPUT",
 		"GLOBAL cursor"+tttSeparator+"Currently only LOCAL cursors are supported",
 		"GLOBAL option for FETCH"+tttSeparator+"Currently only LOCAL cursors are supported",
 		"ALTER TABLE..DISABLE TRIGGER"+tttSeparator+"Disabling triggers is not currently supported; triggers are always enabled",		
@@ -570,7 +588,8 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.ReadText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
 		CompassAnalyze.WriteText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
 		CompassAnalyze.UpdateText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
-		"INSERT..EXECUTE(string)"+tttSeparator+"INSERT..EXECUTE with EXECUTE-immediate is not currently supported; rewrite by moving the INSERT into the dynamic SQL Statement",
+		"INSERT..EXECUTE(expression)"+tttSeparator+"INSERT..EXECUTE with EXECUTE-immediate is currently supported only when the argument is a single string constant; when the argument is an expression it is currently not supported; rewrite by moving the INSERT into the dynamic SQL Statement",
+		"INSERT..EXECUTE(string)"+tttSeparator+"INSERT..EXECUTE with EXECUTE-immediate is currently supported only when the argument is a single string constant; when the argument is an expression it is currently not supported; rewrite by moving the INSERT into the dynamic SQL Statement",
 		"INSERT..EXECUTE sp_executesql"+tttSeparator+"INSERT..EXECUTE with sp_executesql is not currently supported; rewrite by moving the INSERT into the dynamic SQL Statement",
 		"INSERT..DEFAULT VALUES"+tttSeparator+"INSERT..DEFAULT VALUES: this syntax is not currently supported. Rewrite manually as an INSERT with actual values",
 		"INSERT TOP..SELECT"+tttSeparator+"Rewrite as INSERT.. SELECT TOP",
@@ -578,11 +597,12 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.BulkInsertStmt+tttSeparator+"BULK INSERT is not currently supported. Use a different method to load data from a file, for example PostgreSQL's COPY statement",
 		CompassAnalyze.DMLTableSrcFmt+tttSeparator+"A DML statement with OUTPUT clause, as source of an INSERT-SELECT, is not currently supported. Rewrite with OUTPUT into a temp table or table variable, and INSERT-SELECT from that",
 		CompassAnalyze.VarAggrAcrossRowsFmt+tttSeparator+"In SQL Server, an assignment of a variable where the same variable also occurs in the assigned expression, may carry over its value for every qualifying row, thus creating a kind of aggregation. This is not currently supported in Babelfish. Verify if more than 1 row may qualify and if so, rewrite the query manually",
-		CompassAnalyze.VarAssignDependency+tttSeparator+"Assignment of a variable depending on another variable which is itself assigned in the same statement, may produce unexpected results since the order of assignment is not guaranteed. Rewrite the query manually",
+		CompassAnalyze.VarAssignDependency+tttSeparator+"Assignment of a variable depending on another variable which is itself assigned in the same statement, may produce unexpected results since the order of assignment is not guaranteed. Rewrite the query manually, for example by splitting it up into separate statements",
 		CompassAnalyze.SelectPivot+tttSeparator+"SELECT..PIVOT is not currently supported. Rewrite manually",
 		CompassAnalyze.SelectUnpivot+tttSeparator+"SELECT..UNPIVOT is not currently supported. Rewrite manually",
-		"SELECT TOP WITH TIES"+tttSeparator+"SELECT TOP WITH TIES is not currently supported. Rewrite manually",
+		CompassAnalyze.SelectTopWithTies+tttSeparator+"SELECT TOP WITH TIES is not currently supported. Rewrite manually",
 		"SELECT TOP <number> PERCENT"+tttSeparator+"Only TOP 100 PERCENT is currently supported. Rewrite as TOP without PERCENT. Rewrite manually",
+		CompassAnalyze.SelectTopInTUDF+tttSeparator+"A Table-Valued Function containing a SELECT TOP statement can be created, but cannot be called. Rewrite without TOP",
 		"CROSS APPLY"+tttSeparator+"CROSS APPLY: lateral joins are not currently supported. Rewrite manually",
 		"OUTER APPLY"+tttSeparator+"OUTER APPLY: lateral joins are not currently supported. Rewrite manually",
 		"T-SQL Left Outer Join"+tttSeparator+"The (long-deprecated) T-SQL Outer Join syntax is not supported; rewrite with ANSI Outer Join syntax",
@@ -595,6 +615,8 @@ tooltipsHTMLPlaceholder +
 		"Inline index in CREATE TABLE"+tttSeparator+"Inline indexes are not currently supported; create separately with CREATE INDEX (in CREATE TABLE, the -rewrite option handles this for you)",
 		"Inline index"+tttSeparator+"Inline indexes are not currently supported; create separately with CREATE INDEX",
 		"NONCLUSTERED HASH"+tttSeparator+"NONCLUSTERED HASH indexes or -constraints are not currently supported; remove HASH (the -rewrite option handles this for you)",
+		"CLUSTERED COLUMNSTORE"+tttSeparator+"CLUSTERED COLUMNSTORE indexes (without a column list) are not currently supported; review performance expectations related to such indexes",
+		"COLUMNSTORE index"+tttSeparator+"COLUMNSTORE indexes are not currently supported; review performance expectations related to such indexes",
 		"Indexed view "+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
 		"CREATE TABLE ##"+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, and is dropped automatically when the last session accessing the table disconnects",
 		"CREATE TABLE (temporal)"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
@@ -617,10 +639,12 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action, in case the trigger body references the transition tables INSERTED or DELETED",
 		"SET FMTONLY"+tttSeparator+"SET FMTONLY applies only to SELECT * in v.1.2.0 or later; otherwise it is ignored",
 		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\" to suppress the resulting error message",
-		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported",
+		"SET ARITHABORT OFF"+tttSeparator+"Currently, only the semantics of ARITHABORT=ON are supported. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\" to suppress the resulting error message",
+		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported; for other numbers, use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\" to suppress the resulting error message and treat the number as 0. When using a variable, an error is raised regardless",
 		"SET QUOTED_IDENTIFIER \\w+, before end of batch"+tttSeparator+"SET QUOTED_IDENTIFIER takes effect only at the start of the next batch in Babelfish; the SQL Server semantics where it applies to the next statement, is not currently supported",
 		"SET DEADLOCK_PRIORITY"+tttSeparator+"Setting the deadlock victimization priority is not currently supported",
 		"SET LOCK_TIMEOUT"+tttSeparator+"Setting the lock timeout is not currently supported",
+		"SET DATEFORMAT"+tttSeparator+"Currently, SET DATEFORMAT is not supported. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\" to suppress the resulting error message",
 		CompassAnalyze.SetXactIsolationLevel+tttSeparator+"This transaction isolation level is not currently supported, due to PostgreSQL\'s MVCC mechanism",
 		
 		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index "+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_unique_constraint', 'ignore' [, 'server']\\\\\" to override and create the table anyway",
@@ -650,7 +674,7 @@ tooltipsHTMLPlaceholder +
 		"LIKE '[...]'"+tttSeparator+"Square brackets [...] for pattern matching are not currently supported with LIKE",		
 		
 		"\\w+, option WITH EXECUTE AS CALLER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY INVOKER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
-		"\\w+, option WITH EXECUTE AS OWNER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY DEFINER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
+		"\\w+, option WITH EXECUTE AS OWNER"+tttSeparator+"The clause WITH EXECUTE AS OWNER for procedures, functions and triggers maps to SECURITY DEFINER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
 		"\\w+, option WITH EXECUTE AS SELF"+tttSeparator+"The clause WITH EXECUTE AS SELF for procedures, functions and triggers is not currently supported",
 		"\\w+, option WITH EXECUTE AS USER"+tttSeparator+"The clause WITH EXECUTE AS <user> for procedures, functions and triggers is not currently supported",
 		"Index exceeds \\d+ columns"+tttSeparator+"For the maximum number of columns per index, 'included' columns do not count in SQL Server, but they do count in PostgreSQL",
@@ -672,7 +696,10 @@ tooltipsHTMLPlaceholder +
 		"\\w+ AGGREGATE"+tttSeparator+"This object type is not currently supported",
 		"\\w+ EVENT SESSION"+tttSeparator+"This object type is not currently supported",
 		"\\w+ EVENT NOTIFICATION"+tttSeparator+"This object type is not currently supported",
-        "\\w+.*?, in computed column"+tttSeparator+"This feature may be supported by itself, but is not currently supported when used in a computed column"		
+        "\\w+.*?, in computed column"+tttSeparator+"This feature may be supported by itself, but is not currently supported when used in a computed column",	
+        "\\w+"+CompassAnalyze.DMLTabVarCorrNameUDFErrorText+tttSeparator+"Rewrite statement such that the DML operates directly on the table variable instead of on the correlation name",		
+        CompassAnalyze.UpdateCorrColumnUnqualifiedErrorText+tttSeparator+"Rewrite statement by prefixing the column name in the SET expression with the correlation name",
+        CompassAnalyze.UpdateQualifiedSetColumnErrorText+tttSeparator+"Rewrite statement by removing the table name prefix from the SET column name being updated, i.e. change 'SET t.col =' to 'SET col ='"		
 	);
 
 	// emoji to indicate popup info is available
@@ -803,6 +830,10 @@ tooltipsHTMLPlaceholder +
 	private Map<String, String> srcFileMap = new HashMap<>();
 	private Map<String, String> srcFileMapIx = new HashMap<>();
 
+	// for 'with issues' section
+	private Map<String, String> contextLinkMap = new HashMap<>();
+	private Map<String, String> objectAnchorsMap = new HashMap<>();
+	
 	// caching
 	Map<String, String> stripDelimiterCache = new HashMap<>();
 	int stripDelimitedIdentifierCall = 0;
@@ -841,6 +872,7 @@ tooltipsHTMLPlaceholder +
 
 	// rudimentary symbol table, only for some very basic things needed
 	// there's a lot of room for improvement here
+	static String symTabAppRead = "";
 	static Map<String, String> objTypeSymTab = new HashMap<>();
 	static Map<String, String> UDDSymTab = new HashMap<>();
 	static Map<String, String> SUDFSymTab = new HashMap<>();
@@ -993,7 +1025,14 @@ tooltipsHTMLPlaceholder +
 	// flags
 	public static boolean devOptions = false;
 	public static boolean updateCheck = true;
+	public static boolean symTabAll = false; 
 	public static boolean caching = false;
+	public static boolean QuotedIdentifierFlag = false;
+	public static boolean listHints = false;
+	public static boolean reportSyntaxIssues = false;
+	
+	// misc
+	public static final String miscDelimiter = "~!~@~!~";
 
 	// formatting
 	final String identifierChars = "\\w\\@\\#\\$";
@@ -1040,7 +1079,14 @@ tooltipsHTMLPlaceholder +
 	   	overrideClassificationsKeys = new ArrayList<>(overrideClassificationsKeysOrig);
     	listToUpperCase(overrideClassificationsKeys);   
     	
-    	listToLowerCase(importFormatOption);    
+    	listToLowerCase(importFormatOption);
+    	
+    	if (importFormatSupportedDisplay == null) {
+	    	// copy must come before listToLowerCase()
+	    	importFormatSupportedDisplay = new ArrayList<>(importFormatSupported);     	
+	    	importFormatSupportedDisplay.remove(sqlcmdFmt);
+		}
+	    listToLowerCase(importFormatSupported);  		
     	
     	if (rewrite) {	
     		supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Rewritten, Supported);
@@ -1325,7 +1371,44 @@ tooltipsHTMLPlaceholder +
 	    return qs; // didn't find closing bracket
 	}
 
-
+	// mask char literals
+	// this is not 100% fool-proof, think of bracketed identifiers containing quotes, but this should not be a showstopper 
+	public String maskStringConstants(String s, String tag) {
+		if (!s.contains("'") && !s.contains("\"")) return s;
+		
+		s = applyPatternAll(s, "''", "");
+		if (!QuotedIdentifierFlag) s = applyPatternAll(s, "\"\"", "");
+		
+		String quotePatt = "'";
+		if (!QuotedIdentifierFlag) quotePatt = "'\\\"";	 
+		
+		String marker = miscDelimiter+tag+miscDelimiter;
+		String sNew = "";
+		String tmp = "";
+		while (true) {
+			tmp = getPatternGroup(s, "^(.*?)["+quotePatt+"]", 1, "multiline");
+			sNew += tmp;
+			s = s.substring(tmp.length());
+			char c = s.charAt(0);
+			String qs = getPatternGroup(s, "^("+c+".+?"+c+")", 1, "multiline");
+			if (qs.isEmpty()) {
+				// should not happen
+				appOutput(thisProc()+"Internal error s=["+s+"]. Continuing, but errors may occur");
+				if (devOptions) errorExit(); 
+				break;
+			}
+			sNew += marker;
+			s = s.substring(qs.length());
+			if (!s.contains("'") && !s.contains("\"")) break;
+		}
+		sNew += s;
+		sNew = sNew.replaceAll("N"+marker, marker);
+		sNew = sNew.replaceAll(marker, "'"+tag+"'");
+		
+		return sNew;
+	}
+		
+			
 	// find the closing bracket that matches the opening bracket on the start position
 	public String findClosingBracket(String s)  {
 		return findClosingBracket(s,0);
@@ -1623,7 +1706,9 @@ tooltipsHTMLPlaceholder +
 			try { writeSessionLogFile(s + "\n"); } catch (Exception e) { System.out.println("Error writing to "+ sessionLogPathName); }
 		}
 		if (inReport) {
-			try { writeReportFile(s); } catch (Exception e) { System.out.println("Error writing to "+ reportFileTextPathName); }
+			if (reportFileWriter != null) {
+				try { writeReportFile(s); } catch (Exception e) { System.out.println("Error writing to "+ reportFileTextPathName); }
+			}
 		}
 	}
 
@@ -2049,7 +2134,14 @@ tooltipsHTMLPlaceholder +
 	}
 
 	public void writeSymTabFile(String line) throws IOException {
-		if (debugging) dbgOutput("writing symtab: line=[" + line + "] ", debugSymtab);
+		//if (debugging) dbgOutput("writing symtab: line=[" + line + "] ", debugSymtab);
+		if (line.contains("\n") || line.contains("\r")) {
+			// can result from delimited identifiers containing newlines (very rare, but possible)
+			// treat these \r, \n chars the same as in captureItem()
+			if (debugging) dbgOutput("Newline or CR found in symtab item (removed): ["+line+"] ", debugSymtab||debugPtree);
+			line = line.replaceAll("\\n", " ");	
+			line = line.replaceAll("\\r", " ");	
+		}		
 		symTabFileLineCount++;
 		symTabFileWriter.write(line + "\n");
 		symTabFileWriter.flush();
@@ -2108,6 +2200,13 @@ tooltipsHTMLPlaceholder +
 		return f;
 	}
 
+	// extract appname from importfilename
+	public String getAppNameFromImported(String importFileName) throws IOException {
+		String app = "";
+		app = getPatternGroup(importFileName, "^(.*?)" + importFileTag + "\\.(.*?)\\."+importFileSuffix+"$", 2);
+		return app;
+	}
+
 	public String getImportFileHTMLPathName(String reportName, String inputFileName, String appName) throws IOException {
 		String f = getImportFilePathName(reportName, inputFileName, appName);
 		f = applyPatternFirst(f, "(" + escapeRegexChars(File.separator) + importDirName + escapeRegexChars(File.separator)+")", "$1" + importHTMLDirName + escapeRegexChars(File.separator));
@@ -2150,6 +2249,7 @@ tooltipsHTMLPlaceholder +
 			if (!tooltipText.endsWith(".")) tooltipText += ".";
 			toolTipsKeys.put(key, item.toLowerCase());
 			toolTipsKeysList.add(key);
+			hintsTextMap.put(key, tooltipText);
 			css += ".tooltip .tooltip-content[data-tooltip='"+key+"']::before { content: \""+tooltipText+"\"; }\n";
 		}
 		// put tooltips CSS lines in the HTML header
@@ -2511,12 +2611,14 @@ tooltipsHTMLPlaceholder +
 
 	// get list of all files/apps imported for this report
     public List<Path> getImportFiles(String reportName) throws IOException {
+    	if (debugging) dbgOutput(thisProc() + "entry: reportName=[" + reportName + "]", debugDir);
 		String dirPath = getReportDirPathname(reportName, importDirName);
 		File importDir = new File(dirPath);
 		List<Path> importFiles = new ArrayList<>();
 		if (importDir.exists()) {
 			importFiles = getFilesPattern(dirPath, ".+\\."+importFileTag+"\\..+" + importFileSuffix);
 		}
+    	if (debugging) dbgOutput(thisProc() + "exit: reportName=[" + reportName + "]", debugDir);
 		return importFiles;
  	}
 
@@ -2790,6 +2892,7 @@ tooltipsHTMLPlaceholder +
 		int jsonQueryFmtFound = 0;
 		int extendedEventsXMLFound = 0;
 		int genericSQLXMLFound = 0;
+		int SQLServerProfilerXMLFound = 0;
 		
 		int nrLinesPreRead = 500;
 		int lineNr = 0;
@@ -2800,13 +2903,13 @@ tooltipsHTMLPlaceholder +
 			if (line == null) {
 				break;
 			}
-			line = line.trim();
+			line = line.trim().toUpperCase();
 			//lines.append(line).append("\n");
 			
 			// look for fingerprints
 			if (line.equalsIgnoreCase("go")) goFound++;
 			else {
-				if (line.toUpperCase().startsWith("CREATE ")) createFound++;
+				if (line.startsWith("CREATE ")) createFound++;
 				else if (line.toUpperCase().startsWith("ALTER ")) alterFound++;
 				else if (line.startsWith("\"query")) {      
 					if (!getPatternGroup(line,"(\"query_\\d+\":\\s+)", 1).isEmpty()) {				
@@ -2819,9 +2922,29 @@ tooltipsHTMLPlaceholder +
 				else if (line.startsWith("<data name=\"statement\"")) { 
 					extendedEventsXMLFound++;			
 				}		
-//				else if (line.startsWith("<sql>")) { 
-//					genericSQLXMLFound++;			
-//				}		
+				else if (line.startsWith("<?XML VERSION=")) { 
+					if (!getPatternGroup(line,"^.(\\w+) ", 1).isEmpty()) {
+						genericSQLXMLFound++;	
+						SQLServerProfilerXMLFound++;	
+					}							
+				}		
+				else if (line.startsWith("<")) { 
+					if (!getPatternGroup(line,"^.(\\w+) ", 1).isEmpty()) {
+						genericSQLXMLFound++;	
+					}		
+					if (line.startsWith("<TRACEPROVIDER NAME=\"MICROSOFT SQL SERVER\"")) { 
+						SQLServerProfilerXMLFound++;	
+					}					
+					else if (line.startsWith("<SERVERINFORMATION NAME=")) { 
+						SQLServerProfilerXMLFound++;	
+					}
+					else if (line.startsWith("<PROFILERUI>")) { 
+						SQLServerProfilerXMLFound++;	
+					}
+					else if (line.startsWith("<TRACEDEVENTS>")) { 
+						SQLServerProfilerXMLFound++;	
+					}																	
+				}			
 			}
 		}
 		inFileReader.close();
@@ -2836,10 +2959,14 @@ tooltipsHTMLPlaceholder +
 		if (debugging) dbgOutput(thisProc()+"jsonQueryFmtFound   =["+jsonQueryFmtFound+"]", debugFmt);
 		if (debugging) dbgOutput(thisProc()+"extendedEventsXMLFound=["+extendedEventsXMLFound+"]", debugFmt);
 		if (debugging) dbgOutput(thisProc()+"genericSQLXMLFound    =["+genericSQLXMLFound+"]", debugFmt);
+		if (debugging) dbgOutput(thisProc()+"SQLServerProfilerXML  =["+SQLServerProfilerXMLFound+"]", debugFmt);
 		
 		String seemsFormat = "";
 		String seemsFormatDisplay = "";
-		if (jsonQueryFmtFound > 0) {
+		if ((SQLServerProfilerXMLFound >= 4) && (genericSQLXMLFound >= 10)) {
+			seemsFormat = SQLServerProfilerXMLFmt;
+		}
+		else if (jsonQueryFmtFound > 0) {
 			seemsFormat = jsonQueryFmt;
 		}
 		else if (extendedEventsXMLFound > 0) {
@@ -2852,6 +2979,12 @@ tooltipsHTMLPlaceholder +
 			seemsFormatDisplay = importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()));
 		}
 	
+		if (importFormat.equalsIgnoreCase(SQLServerProfilerXMLFmt)) {
+			//appOutput(thisProc()+"SQLServerProfilerXMLFound=["+SQLServerProfilerXMLFound+"] ");
+			if (SQLServerProfilerXMLFound <= 2) {
+				importFormatSeemsInvalidMsg(inputFileName, SQLServerProfilerXMLFmt, seemsFormat, "<TraceProvider name=\"Microsoft SQL Server\"");			
+			}			
+		}
 		
 		if (importFormat.equalsIgnoreCase(jsonQueryFmt)) {
 			//appOutput(thisProc()+"jsonQueryFmt Found=["+jsonQueryFmtFound+"] ");
@@ -2859,6 +2992,7 @@ tooltipsHTMLPlaceholder +
 				importFormatSeemsInvalidMsg(inputFileName, jsonQueryFmt, seemsFormat, "prefix: \"query_999\"");			
 			}			
 		}
+		
 		if (importFormat.equalsIgnoreCase(extendedEventsXMLFmt)) {
 			//appOutput(thisProc()+"jsonQueryFmt, jsonQueryFmtFound=["+jsonQueryFmtFound+"] ");
 			if (extendedEventsXMLFound == 0) {
@@ -2867,8 +3001,11 @@ tooltipsHTMLPlaceholder +
 		}
 		
 		else if (importFormat.equalsIgnoreCase(sqlcmdFmt)) {
-			if (jsonQueryFmtFound + extendedEventsXMLFound + genericSQLXMLFound > 0) {
+			if (SQLServerProfilerXMLFound> 0) {
 				importFormatSeemsInvalidMsg(inputFileName, sqlcmdFmt, seemsFormat, "batch delimiters: 'go'");			
+			}
+			else if ((jsonQueryFmtFound + extendedEventsXMLFound + genericSQLXMLFound)> 0) {
+				importFormatSeemsInvalidMsg(inputFileName, sqlcmdFmt, unknownFormat, "batch delimiters: 'go'");			
 			}
 			else {
 				// was reverse-engineered by wrong tool? (i.e. batch delimiters missing)
@@ -2885,14 +3022,18 @@ tooltipsHTMLPlaceholder +
 	
 	private void importFormatSeemsInvalidMsg(String inputFileName, String importFmtSpecified, String seemsFormat, String fmtExample) {
 		//appOutput(thisProc()+"inputFileName=["+inputFileName+"] seemsFormat=["+seemsFormat+"] importFmtSpecified=["+importFmtSpecified+"] ");
-		String s = "Input file '"+inputFileName+"' formatting:\n";
-		s = "Input format '"+importFmtSpecified+"' was specified, but input file does not seem to be in this format";
-		if (seemsFormat.isEmpty()) 
-			s += ",\nsince no corresponding formatting was found ("+fmtExample+").\n";
-		else
-			s += ".\nInstead, it seems to be in '"+importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()))+"' format. To process accordingly, specify '-importfmt "+seemsFormat+"'.\n";
-		s += "Proceeding, but errors may occur.\n";
-		//appOutput(s);	
+		String s = "\nInput format '"+importFmtSpecified+"' was specified, but input file does not seem to be in this format";
+		if (seemsFormat.isEmpty()) {
+			s += ",\nsince no corresponding formatting was found ("+fmtExample+").";
+		}
+		else if (seemsFormat.equals(unknownFormat)) {
+			s += ".\nInstead, it seems to be in '"+importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()))+"' format.";
+		}
+		else {
+			s += ".\nInstead, it seems to be in '"+importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()))+"' format.\nTo process accordingly, do not specify the '-importfmt' option.";
+		}
+		s += "\nProceeding, but errors may occur.\n";
+		appOutput(s);	
 	}
 		
 	// convert a special-format file to sqlcmd format
@@ -2902,14 +3043,33 @@ tooltipsHTMLPlaceholder +
 		FileInputStream fis = new FileInputStream(fullPath);
 		InputStreamReader isr = new InputStreamReader(fis, charset);							
 		BufferedReader inFileReader = new BufferedReader(isr);
+
+		String SQLServerProfilerXMLStart = "<Column id=\"1\" name=\"TextData\">";
+		String SQLServerProfilerXMLEnd   = "</Column>";
 		
 		// open file for extracted queries
 		String extractedFilePathName = openExtractedFile(reportName, inputFileName, fullPath, appName, charset.toString());
+		
+		appOutput("Using input file format '"+importFormat+"'");
+		appOutput("Writing extracted SQL queries to '"+extractedFilePathName+"'");		
+		
+		if (!deDupExtracted) {
+			appOutput("Not performing de-duplication of extracted batches.");			
+			writeExtractedFile("-- Batches extracted from input file: see end of this file");
+			writeExtractedFile("-- No de-duplication performed.");
+			writeExtractedFile(composeOutputLine("", "-"));
+			writeExtractedFile("\n");		
+		}
+		else {
+			appOutput("Performing de-duplication of extracted batches...");			
+		}
 				
 		int lineNr = 0;
 		int queriesExtracted = 0;
 		int queriesWritten = 0;
-		StringBuilder linesNew  = new StringBuilder("");
+		String stmt = "";
+		boolean startFound = false;
+		
 		while (true) {
 			lineNr++;
 			String line = inFileReader.readLine();
@@ -2918,9 +3078,30 @@ tooltipsHTMLPlaceholder +
 			}
 			String lineCopy = line;
 			line = line.trim();
-			//linesNew.append(line).append("\n");
 			
-			if (importFormat.equals(jsonQueryFmt)) {
+			// process depending on file format
+			if (importFormat.equalsIgnoreCase(SQLServerProfilerXMLFmt)) {
+				// captured SQL starts at '<Column id="1" name="TextData">'
+				// ToDo: skip all cases of <Event id="..." name="RPC Output Parameter">
+				if (!startFound) {
+					if (!line.startsWith(SQLServerProfilerXMLStart)) continue; 
+					startFound = true;
+					line = line.substring(SQLServerProfilerXMLStart.length());
+				}
+				
+				if (startFound) {
+					if (line.endsWith(SQLServerProfilerXMLEnd))  {
+						line = line.substring(0,line.indexOf(SQLServerProfilerXMLEnd));
+						startFound = false;
+					}
+					else {
+						stmt += "\n" + line;
+						continue;
+					}
+				}
+				stmt += "\n" + line;
+			}						
+			else if (importFormat.equalsIgnoreCase(jsonQueryFmt)) {
 				// each line has one query: "query_1234":  "(@v int[...]) query ",
 				if (!line.startsWith("\"query")) continue;   
 				line = applyPatternFirst(line,"^\"query_\\d+\":\\s*", "");
@@ -2950,65 +3131,114 @@ tooltipsHTMLPlaceholder +
 				else {
 					// should not happen, not sure what to do. just hope it's all OK
 				}
-				//appOutput(thisProc()+"line Z=["+line+"] ");	
-				
-				line = patchupSpecialCharsExtractedSQL(line);
-				
-				if (deDupExtracted) {
-					deDuplicateExtractedQueries(line);
-				}
-				else {
-					// do not unduplicate, but write directly
-					writeExtractedFile(line);
-					writeExtractedFile("go\n");
-					queriesWritten++;
-				}
-				
-				queriesExtracted++;
+				stmt = line;	
 			}			
+
+			stmt = stmt.trim();
+			
+			if (importFormat.equalsIgnoreCase(SQLServerProfilerXMLFmt)) {		
+				if (!startFound) {	
+					if (!getPatternGroup(stmt, "^(([\\+\\-])?\\d+(\\.\\d*)?(e([\\+\\-])?\\d+)?)$", 1).isEmpty()) {
+						// it's likely just a number as a parameter value
+						stmt = "";
+						continue;
+					}
+				}
+			}
+									
+			stmt = patchupSpecialCharsExtractedSQL(stmt);			
+			
+			if (deDupExtracted) {				
+				deDuplicateExtractedQueries(stmt);
+			}
+			else {
+				// do not unduplicate, but write directly
+				writeExtractedFile(stmt);
+				writeExtractedFile("go\n");
+				queriesWritten++;
+			}
+			
+			queriesExtracted++;
+			stmt = "";
 		}
 		inFileReader.close();	
 		
 		if (deDupExtracted) {
+			appOutput("Duplicate batches removed: "+deDupSkipped);			
+			appOutput("De-duplicated batches remaining: "+deDupQueries.size());			
+
+			String scope = "";
+			for (int i=0; i < dedupScopeOption.size(); i++) {
+				if (dedupScope.contains(dedupScopeOption.get(i))) {
+					scope += " " + dedupScopeOptionDisplay.get(i) + " constants,";
+				}
+			}
+			if (scope.endsWith(",")) scope = removeLastChar(scope);
+			
+			writeExtractedFile("-- Batches extracted from input file: "+queriesExtracted);
+			writeExtractedFile("-- Total duplicates removed: "+deDupSkipped);
+			writeExtractedFile("-- De-duplication with masking of:"+scope);
+			writeExtractedFile("-- De-duplicated batches remaining: "+deDupQueries.size());
+			writeExtractedFile(composeOutputLine("", "-"));
+			writeExtractedFile("\n");
+			
 			for (String qry : deDupQueries.keySet()) {
 				int dupCnt = dupQueryCount.getOrDefault(qry, 0);
 				if (dupCnt > 0) {
-					writeExtractedFile("-- Duplicate queries skipped: "+dupCnt);
+					writeExtractedFile("/* Duplicates removed: "+dupCnt + " */");
 				}
 				writeExtractedFile(deDupQueries.get(qry));
 				writeExtractedFile("go\n");				
 				queriesWritten++;
 			}
 		}
-//		appOutput(thisProc()+"Queries extracted         : "+queriesExtracted);
-//		appOutput(thisProc()+"Queries written           : "+queriesWritten);
-//		appOutput(thisProc()+"Duplicate queries skipped : "+deDupSkipped);
+		else {
+			writeExtractedFile("-- Batches extracted from input file: "+queriesExtracted);
+			writeExtractedFile("-- No de-duplication performed. /*");			
+			writeExtractedFile("reset");			
+		}
 		
 		closeExtractedFile();
-//		appOutput(thisProc()+"queriesExtracted=["+queriesExtracted+"] extractedFilePathName=["+extractedFilePathName+"] ");	
 		return extractedFilePathName;
 	}
 	
 	// deDuplicate extracted/capture queries
 	public void deDuplicateExtractedQueries (String qry) {
-		String qryOrig = qry;
+		if (dedupScope.isEmpty()) {
+			dedupScope = String.join("", dedupScopeOption);
+		}
+		
+		String qryOrig = applyPatternAll(qry, "[ \\t]+", " "); // don't remove newlines since this inteferes with simple comments
+
+		if (dedupScope.contains("S")) {
+			//mask all char strings:
+			qry = maskStringConstants(qry, "string");
+		}
+		
+		// always trim the whitespace
 		qry = applyPatternAll(qry, "\\s+", " ");
-		qry = applyPatternAll(qry, "\\s*;\\s*", "");
-		//appOutput(thisProc()+"qry A=["+qry+"]");
-		qry = qry.toLowerCase() + " ";
-		qry = applyPatternAll(qry, "([^\\w#])#[#\\w]+([^\\w#])", "$1"+"#tmptab"+"$2");
-		//appOutput(thisProc()+"qry B=["+qry+"]");
+		qry = applyPatternAll(qry, "\\s*;\\s*", " ");
+		qry = applyPatternAll(qry, "\\s*,\\s*", ",");
+		qry = collapseWhitespace(qry).toLowerCase() + " ";		
 		
-		//mask all bracketed identifiers:
-		qry = applyPatternAll(qry, "[\\[].*?[\\]]", "[bracketedID]");
+//		if (dedupScope.contains("T")) {
+//			qry = applyPatternAll(qry, "([^\\w#])#[#\\w]+([^\\w#])", "$1"+"#tmptab"+"$2");
+//		}
+				
+		if (dedupScope.contains("N")) {
+			//mask all numbers:
+			final String numberPlaceholder = "9999";
+			qry = applyPatternAll(qry, "\\b\\d+(\\.\\d+)?\\b", numberPlaceholder);
+			// reduce simple expressions to a number placeholder:
+			qry = applyPatternAll(qry, "\\b"+numberPlaceholder+"\\s*([\\+\\-\\*\\/])?\\s*"+numberPlaceholder+"\\b", numberPlaceholder);
+		}
 		
-		//mask all numbers:
-		qry = applyPatternAll(qry, "\\b\\d+\\b", "9999");
-		
-		//mask all stringd:
-		qry = applyPatternAll(qry, "\\'.*?\\'", "'string'");
-		qry = applyPatternAll(qry, "\\'string\\'\\'string\\'", "'string'");
-		
+		if (dedupScope.contains("H")) {
+			//mask all hex constants:
+			qry = applyPatternAll(qry, "\\b0x[0-9a-f]+\\b", "0xhex");		
+		}
+
+		qry = qry.trim();
 	
 		if (deDupQueries.containsKey(qry)) {
 			// duplicate query found, skipped
@@ -3029,16 +3259,17 @@ tooltipsHTMLPlaceholder +
 		if (s.contains("\\u0027")) s = s.replaceAll("\\\\u0027", "'");		
 		if (s.contains("\\u003c")) s = s.replaceAll("\\\\u003c", "<");		
 		if (s.contains("\\u003e")) s = s.replaceAll("\\\\u003e", ">");		
+		s = unEscapeHTMLChars(s);
 		return s;
 	}
 		
 	public String openExtractedFile(String reportName, String inputFileName, String fullPath, String appName, String encoding) throws IOException {
-		String extractedFileName = Paths.get(inputFileName).getFileName().toString() + ".extracted.sql";
-		String dirName = getFilePathname(getFilePathname(getDocDirPathname(), reportName), importDirName);
+		String extractedFileName = Paths.get(inputFileName).getFileName().toString() + "." + extractedFileSuffix;
+		String dirName = getFilePathname(getFilePathname(getDocDirPathname(), reportName), extractedDirName);
 		extractedFilePathName = getFilePathname(dirName, extractedFileName);
 		if (debugging) dbgOutput(thisProc()+"inputFileName=["+inputFileName+"] extractedFileName=["+extractedFileName+"] extractedFilePathName=["+extractedFilePathName+"] ", debugFmt);
 		
-		checkDir(getReportDirPathname(reportName, importDirName), true);
+		checkDir(getReportDirPathname(reportName, extractedDirName), false);
 		extractedFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(extractedFilePathName), StandardCharsets.UTF_8)));		
 		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
 		String initLine = "-- Extracted from "+fullPath+" (format '"+importFormat+"', encoding '"+encoding+"') at " + now;
@@ -3158,7 +3389,7 @@ tooltipsHTMLPlaceholder +
 
 	// extract object name from column name
 	public String getObjectNameFromColumnID(String ID) {
-		// we need the 1-but-last name in the identifier, so use getSchemaNameFromID(0
+		// we need the 1-but-last name in the identifier, so use getSchemaNameFromID()
 		return getSchemaNameFromID(ID);
 	}
 
@@ -3171,47 +3402,69 @@ tooltipsHTMLPlaceholder +
 		if (!ID.contains(".")) {
 			return objName;
 		}
-		List<String> parts = new ArrayList<String>(Arrays.asList(ID.split("\\.")));
-		objName = parts.get(parts.size()-1);
-		return objName;
+		
+		// replacing next 2 lines with the direct substring below, to be more GC-friendly 		
+		//List<String> parts = new ArrayList<String>(Arrays.asList(ID.split("\\.")));
+		//objName = parts.get(parts.size()-1);
+		
+		return objName.substring(objName.lastIndexOf(".")+1);
+		//return objName;
 	}
 
 	// extract schema from object name
-	public String getSchemaNameFromID(String ID) {
-		String schemaName = "";
+	public String getSchemaNameFromID(String ID) {		
 		if (!ID.contains(".")) {
-			return schemaName;
+			return "";
 		}
-		List<String> parts = new ArrayList<String>(Arrays.asList(ID.split("\\.")));
-		schemaName = parts.get(parts.size()-2);
-		return schemaName;
+		
+		// replacing next 2 lines with the direct logic below, to be more GC-friendly 		
+		//List<String> parts = new ArrayList<String>(Arrays.asList(ID.split("\\.")));
+		//String schemaName = parts.get(parts.size()-2);
+		
+		String tmp = ID.substring(0,ID.lastIndexOf("."));
+		if (!tmp.contains(".")) {
+			return tmp;
+		}
+		return tmp.substring(tmp.lastIndexOf(".")+1);
+		//return schemaName;
 	}
 
 	// extract DB from object name
 	public String getDBNameFromID(String ID) {
-		String DBName = "";
 		if (!ID.contains(".")) {
-			return DBName;
+			return "";
 		}
-		List<String> parts = new ArrayList<String>(Arrays.asList(ID.split("\\.")));
-		if (parts.size() < 3) {
-			return DBName;
+		
+		// replacing lines below with more GC-friendly code			
+//		List<String> parts = new ArrayList<String>(Arrays.asList(ID.split("\\.")));
+//		if (parts.size() < 3) {
+//			return "";
+//		}
+//		String DBName = parts.get(parts.size()-3);
+//		return DBName;
+		
+		String tmp = ID.substring(0,ID.lastIndexOf("."));
+		if (!tmp.contains(".")) {
+			return "";
 		}
-		DBName = parts.get(parts.size()-3);
-		return DBName;
+		tmp = tmp.substring(0,tmp.lastIndexOf("."));
+		if (!tmp.contains(".")) {
+			return tmp;
+		}
+		return tmp.substring(tmp.lastIndexOf(".")+1);		
 	}
 
 	// extract remote servername from 4-part object name
+	// this is called only when it is know that it's a 4-part name, so this call does nto happen so often
 	public String getServerNameFromID(String ID) {
-		String serverName = "";
 		if (!ID.contains(".")) {
-			return serverName;
+			return "";
 		}
 		List<String> parts = new ArrayList<String>(Arrays.asList(ID.split("\\.")));
 		if (parts.size() < 4) {
-			return serverName;
+			return "";
 		}
-		serverName = parts.get(parts.size()-4);
+		String serverName = parts.get(parts.size()-4);
 		return serverName;
 	}
 
@@ -3399,8 +3652,19 @@ tooltipsHTMLPlaceholder +
 	}
 
 	// read symbol table
-	public void readSymTab(String reportName) throws IOException
+	public void readSymTab(String reportName, String appName) throws IOException
 	{
+		if (debugging) dbgOutput("reading symtab for reportName=["+reportName+"] appName=["+appName+"] symTabAll=["+symTabAll+"] ", debugSymtab);		
+		
+		if (!symTabAll) {
+			if (!appName.isEmpty()) {
+				if (symTabAppRead.equalsIgnoreCase(appName)) {
+					// we have already read it this part of the symtab, so don't do anything
+					return;
+				}
+			}
+		}
+		
 		clearSymTab();
 
 		String dirPath = getReportDirPathname(reportName, importDirName, symTabDirName);
@@ -3408,7 +3672,25 @@ tooltipsHTMLPlaceholder +
 
 		List<Path> symTabFiles = getFilesPattern(dirPath, ".+\\."+symTabFileTag+"\\..+"+ symTabFileSuffix);
 		for (Path sf: symTabFiles) {
-			if (debugging) dbgOutput("reading symtab file=[" + sf.toString() + "] ", debugSymtab);
+			// extract appname from symtab file
+			String symtabAppName = removeLastChar(getPatternGroup(sf.toString(), "^.+"+symTabFileTag+"\\.(.+)"+ symTabFileSuffix, 1));		
+			if (!symTabAll) {
+				// only read the symtab for the current appname, to avoid slowdown for large number of apps collectively
+				if (!appName.isEmpty()) {
+					if (appName.equalsIgnoreCase(symtabAppName)) {
+						// proceed and read it
+					}
+					else {
+						// different app, skip this symtab file
+						continue;
+					}
+				}
+				else {
+					// should not be possible
+					assert false : thisProc()+"unexpected branch";
+				}
+			}
+			symTabAppRead = appName;
 
 			FileInputStream fis = new FileInputStream(sf.toString());
 			InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
@@ -3421,7 +3703,7 @@ tooltipsHTMLPlaceholder +
 					// EOF
 					break;
 				}
-				if (debugging) dbgOutput("symtab read: [" + line + "] ", debugSymtab);
+				//if (debugging) dbgOutput("symtab read: [" + line + "] ", debugSymtab);
 				line = line.trim();
 				if (line.isEmpty()) {
 					continue;
@@ -3435,8 +3717,10 @@ tooltipsHTMLPlaceholder +
 			}
 			inFileReader.close();
 		}
+		int nrSymtab = (objTypeSymTab.size()+SUDFSymTab.size()+TUDFSymTab.size()+UDDSymTab.size()+colSymTab.size());
+		if (debugging) dbgOutput("symtab entries=["+nrSymtab+"] ", debugSymtab);
 		if (debugSymtab) {
-			dumpSymTab("after reading from disk");
+			//dumpSymTab("after reading from disk");
 		}
 	}
 
@@ -3493,6 +3777,8 @@ tooltipsHTMLPlaceholder +
 		SUDFNamesLikeXML.clear();
 		TUDFNamesLikeXML.clear();
 		SUDFNamesLikeHIERARCHYID.clear();
+		
+		symTabAppRead = "";
 	}
 
 	// dump the symbol table
@@ -3671,12 +3957,10 @@ tooltipsHTMLPlaceholder +
 		
 		//progress indicator
 		printProgress();
-		
 		Integer totalCnt = 0;
 		int grpCount = 0;
 		Map<String, Integer> itemCnt = new HashMap<>();
 		for (String s: sortedList) {
-			//appOutput(thisProc()+"s=["+s+"] ");
 			if ((!s.startsWith(status)) && (!s.startsWith(lastItem))) continue;
 			List<String> sortedFields = new ArrayList<String>(Arrays.asList(s.split(sortKeySeparator)));
 			StringBuilder sortStatus = new StringBuilder(sortedFields.get(0));
@@ -4041,13 +4325,16 @@ tooltipsHTMLPlaceholder +
 
 					if (!init) init = true;
 					else lines.append("\n");
-
-					lines.append(context);
+					
+					String anchor = makeObjectAnchor(context.toString(), appName.toString());
+					
+					lines.append(anchor + context);
 					lines.append(", batch ");
-
+					
 					String inFile = reportInputFileFmt;
 					if (reportShowSrcFile) inFile = srcFile.toString();
-					lines.append(batchNr.toString()+ ", at line " + hLink(status, Integer.parseInt(lineNrInFile.toString()),inFile, appName.toString()));
+					String lnk = hLink(status, Integer.parseInt(lineNrInFile.toString()),inFile, appName.toString());					
+					lines.append(batchNr.toString()+ ", at line " + lnk);
 					lines.append(" in " + hLink(status, inFile, appName.toString()));
 
 					if (reportShowAppName) lines.append(", app "+ appName);
@@ -4228,7 +4515,7 @@ tooltipsHTMLPlaceholder +
 				//appOutput("no tooltip key found for item=["+itemOrig+"] ");
 			}
 		}
-		//appOutput(thisProc()+"final: item=["+itemOrig+"] item=["+item+"]  itemHintKey=["+itemHintKey+"] ");
+		//appOutput(thisProc()+"final: itemOrig=["+itemOrig+"] item=["+item+"]  itemHintKey=["+itemHintKey+"] ");
 		return itemHintKey;
 	}
 
@@ -4243,6 +4530,15 @@ tooltipsHTMLPlaceholder +
 			return indent+item;
 		}
 		String hint = lineIndent.substring(0,lineIndent.length()-2)+"<div class=\"tooltip\"><span class=\"tooltip_icon\">"+hintIcon+"</span>"+" "+item+"<div class=\"tooltip-content\" data-tooltip=\""+itemHintKey+"\"></div></div>";
+		
+		String h = hintsTextMap.get(itemHintKey); 
+		
+		// collect hints
+		if (!hintsList.contains(item)) {
+			hintsList.add(item);
+			hintsListMap.put(item, itemHintKey);
+		}
+
 		return hint;
 	}
 
@@ -4325,6 +4621,35 @@ tooltipsHTMLPlaceholder +
 			line = "<a href=\""+ hLinkFileName(status, file, appName) +"#"+lineNrDisplay.toString()+"\""+tgtBlank+">"+lineNr.toString()+"</a>";
 		}
 		return line;
+	}
+	
+	private String getObjectAnchorKey(String context, String appName) {
+		context = context.replaceAll(" ", ".");
+		String anchorKey = context + "." + appName;		
+		return anchorKey.toUpperCase();
+	}
+
+	private String makeObjectAnchor(String context, String appName) {
+		String anchorKey = getObjectAnchorKey(context, appName);
+		String anchor = objectAnchorsMap.get(anchorKey);
+		if (anchor == null) { // don't overwrite an existing entry
+			anchor = "obj" + (objectAnchorsMap.size()+1);
+			objectAnchorsMap.put(anchorKey, anchor);
+			anchor = "<a name=\"" + "obj" + anchor + "\"></a>";
+		}
+		return anchor;
+	}
+
+	private String getObjectAnchor(String context, String appName) {
+		String anchorKey = getObjectAnchorKey(context, appName);
+		String anchor = objectAnchorsMap.get(anchorKey);
+		if (anchor != null) {
+			anchor = "<a href=\"#" + "obj" + anchor + "\">";
+		}
+		else {
+			anchor = "";
+		}
+		return anchor;
 	}
 
 	// generate sort key
@@ -4504,7 +4829,7 @@ tooltipsHTMLPlaceholder +
 				appOutput("No imported files found. Specify input file(s) to add to this report.");
 			}
 			else {
-				String msg = "No analysis results found. Use -analyze to perform analysis and generate a report.";
+				String msg = "\nNo analysis results found. Use -analyze to perform analysis and generate a report.";
 				appOutput(msg);
 				writeReportFile("\n"+msg);
 			}
@@ -4693,12 +5018,34 @@ tooltipsHTMLPlaceholder +
 						tabTypeReport = tabTypeReport.trim();
 						objTypeLineCount.put(tabTypeReport, objTypeLineCount.getOrDefault(tabTypeReport, 0) + 1);
 					}
-				}
+				}				
 
 				// for items logged only to drive the object count, stop here
-				if (status.equals(ObjCountOnly)) continue;
+				if (status.equals(ObjCountOnly)) {
+					continue;
+				}				
 
 				statusCount.put(status, statusCount.getOrDefault(status, 0L) + 1);
+				
+				if (!reportOptionXref.isEmpty()) {
+					// collect info for links to object definitions					
+					if (!misc.isEmpty() && capLine.startsWith("CREATE ")) {
+						String contextKey = context;
+						if (context.equals(BatchContext)) {	
+							if (capLine.startsWith("CREATE VIEW")) {
+								contextKey = "VIEW " + itemDetail;
+							}	
+							else {
+								contextKey = null;
+							}			
+						}
+						if (contextKey != null) {
+							int ln = Integer.parseInt(lineNrInFile)+Integer.parseInt(lineNr)-1;
+							String s = ln + sortKeySeparator + appName + sortKeySeparator + addSrcFileNameMap(srcFile);
+							contextLinkMap.put(contextKey.toUpperCase(), s);		
+						}
+					}			
+				}
 
 				// count issues per object
 				boolean skipItemIssue = false;
@@ -4874,6 +5221,17 @@ tooltipsHTMLPlaceholder +
 		for (int i=0; i <supportOptionsIterate.size(); i++) {
 			summarySection.append(tocLink(tagByObject, "X-ref: '", "' by object", supportOptionsIterate.get(i)));
 		}
+		
+		if (showObjectIssuesList) {
+			summarySection.append("\n");
+			summarySection.append(tocLink(tagIssueListTop, "List of object names with/without issues", "", ""));
+		}
+
+		if (listHints) {
+			summarySection.append("\n");
+			summarySection.append(tocLink(tagHints, "List of all popup hints", "", ""));
+		}
+
 		summarySection.append("\n\n");
 
 		summarySection.append(composeSeparatorBar("Applications Analyzed (" + appCount.size() + ")", tagApps));
@@ -4894,7 +5252,6 @@ tooltipsHTMLPlaceholder +
 		statusCount.put("inputfiles", Long.valueOf(srcFileCount.size()));
 		statusCount.put("apps", Long.valueOf(appCount.size()));
 		statusCount.put("invalid syntax", Long.valueOf(totalErrorBatches)); // #batches with parse errors
-		statusCount.put("constructs", Long.valueOf(constructsFound));
 		statusCount.put("constructs", Long.valueOf(constructsFound));
 
 		StringBuilder summaryTmp2 = new StringBuilder();
@@ -5044,7 +5401,7 @@ tooltipsHTMLPlaceholder +
 			if (objTypeIssueMap.containsKey(objType)) {
 				String anchorName = reportObjectsIssuesListTag(objType); 
 				String linkStart = "<a href=\"#"+anchorName+"\">";
-				String linkEnd = "</a>";
+				String linkEnd = ": list</a>";
 				if (!showObjectIssuesList) {
 					linkStart = linkEnd = "";
 				}
@@ -5118,6 +5475,10 @@ tooltipsHTMLPlaceholder +
 			reportObjectsIssues(objTypeMapCase, objIssueCount);
 		}
 		
+		if (listHints) {
+			reportHints();
+		}
+		
 		writeReportFile();
 		writeReportFile(composeOutputLine("", "="));
 		writeReportFile();
@@ -5125,6 +5486,25 @@ tooltipsHTMLPlaceholder +
 		appOutput("\n", false, true);		
 
 		return true;
+	}
+
+	private void reportHints() throws IOException {
+		StringBuilder lines = new StringBuilder();
+
+		for (String item : hintsList) {
+			String h = hintsListMap.get(item);
+			String ht = hintsTextMap.get(h);
+			ht = ht.replaceAll("\\\\\\\\\"", "\""); // remove char escapes from hint text
+			lines.append(item + ": " + ht + "\n\n");
+		}
+
+		if (lines.length() == 0) {
+			lines.append("-No popup hints were generated-\n");
+		}
+		
+		String aboveLink = "<a href=\"#"+(tagSummary + NotSupported).toLowerCase() +"\">"+ "see above"+"</a>";
+		writeReportFile(composeSeparatorBar("List of popup hints in assessment summary ("+aboveLink+")", tagHints)+"\n");
+		writeReportFile(lines);
 	}
 
 	private void reportObjectsIssues(Map<String, String> objTypeMap, Map<String,Integer> objIssueCount) throws IOException {
@@ -5136,6 +5516,8 @@ tooltipsHTMLPlaceholder +
 			objTypes.put(type, 0);
 			//appOutput(thisProc()+"c=["+c+"] type=["+type+"] issues=["+issues+"] ");
 		}
+
+		writeReportFile("<a name=\""+tagIssueListTop+"\"></a>\n");
 
 		for (String type : objTypes.keySet().stream().sorted().collect(Collectors.toList())) {
 			reportObjectsIssuesList(type, objTypeMap, objIssueCount);
@@ -5160,12 +5542,34 @@ tooltipsHTMLPlaceholder +
 				String type = objTypeMap.get(objName);
 				if (!type.equals(objType)) continue;
 				Integer issues = objIssueCount.getOrDefault(objName.toUpperCase(),0);
+				
+				String contextObjType = objType;
+				if (contextObjType.startsWith("FUNCTION")) contextObjType = "FUNCTION";
+				String context = contextObjType + " " + objName;
+				context = context.toUpperCase();
+				String contextLink = contextLinkMap.get(context);
+				String anchorLink = "";
+				String anchorLinkEnd = "";
+				if (contextLink != null) { // null = not found => shouldn't happen, but don't break regardless
+					List<String> fields = new ArrayList<String>(Arrays.asList(contextLink.split(sortKeySeparator)));
+					// using Supported status here, since we don't know if there was anything rewritten in the proc
+					String lnk = hLink(Supported, Integer.parseInt(fields.get(0)), getSrcFileNameMap(fields.get(2)), fields.get(1));		
+					
+					// put the object name in the link text rather than the line number		
+					lnk = applyPatternFirst(lnk, "^(.*)\\b\\d+\\b(.*)$", "$1" + escapeHTMLChars(objName).replaceAll("\\$", "&dollar;") + "$2");
+					
+					anchorLink = getObjectAnchor(context, fields.get(1));
+					if (!anchorLink.isEmpty()) anchorLinkEnd = "</a>";
+					
+					objName = lnk;
+				}
+				
 				if (!withIssues && (issues == 0)) {
 					line.append(lineIndent + objName+"\n");
 					cnt++;
 				}	
-				else if (withIssues && (issues > 0)) {
-					line.append(lineIndent + objName+" ("+issues+" issues)\n");
+				else if (withIssues && (issues > 0)) {					
+					line.append(lineIndent + objName+" ("+anchorLink+issues+" issues"+anchorLinkEnd+")\n");
 					cnt++;
 				}
 			}
@@ -6796,7 +7200,10 @@ tooltipsHTMLPlaceholder +
 			GHconn.setRequestProperty("Accept", "application/json");
 
 			if (GHconn.getResponseCode() != 200) {
-				appOutput("HTTP error accessing "+ compassRESTReleaseGet+ " while checking for update: error code="+GHconn.getResponseCode()+"\n");
+				// Only report errors when in dev mode to avoid error messages that might just confuse the regular user
+				if (devOptions) {
+					appOutput("HTTP error accessing "+ compassRESTReleaseGet+ " while checking for update: error code="+GHconn.getResponseCode()+"\n");
+				}
 				return;
 			}
 
@@ -6823,7 +7230,7 @@ tooltipsHTMLPlaceholder +
 			}		
 			GHconn.disconnect();
 		} catch (Exception e) {
-			// we get here when there is no network connection. Only report it when in dev mode to avoid error messages that might confuse the user
+			// we get here when there is no network connection. Only report it when in dev mode to avoid error messages that might just confuse the regular user
 			if (devOptions) {
 				appOutput("Error accessing "+ compassRESTReleaseGet+ " while checking for update\n"); 
 			}
