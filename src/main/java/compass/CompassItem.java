@@ -48,6 +48,6 @@ public class CompassItem {
     
     public String getAttributes() {     
     	if (attributes.isEmpty()) return "";
-    	return " " + attributes + " ";
+    	return " " + attributes + " ";   // these spaces matter -- do not remove them!
     }
 }

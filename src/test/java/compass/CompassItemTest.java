@@ -42,14 +42,14 @@ class CompassItemTest {
 
         attribute = "foo";
         item.attributeAppend(attribute);
-        assertEquals("foo", item.getAttributes(), "First attribute does not have a blank space in front of it");
+        assertEquals(" foo ", item.getAttributes(), "First attribute does not have a blank space in front of it");
 
         attribute = "bar";
         item.attributeAppend(attribute);
-        assertEquals("foo bar", item.getAttributes(), "Additional attributes do not append a blank space at the end");
+        assertEquals(" foo bar ", item.getAttributes(), "Additional attributes do not append a blank space at the end");
 
         attribute = "baz";
         item.attributeAppend(attribute);
-        assertEquals("foo bar baz", item.getAttributes(), "Additional attributes do not append a blank space at the end");
+        assertEquals(" foo bar baz ", item.getAttributes(), "Additional attributes do not append a blank space at the end");
     }
 }
