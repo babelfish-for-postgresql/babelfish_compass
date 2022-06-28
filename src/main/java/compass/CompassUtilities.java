@@ -689,7 +689,7 @@ tooltipsHTMLPlaceholder +
 		"\\w+, option WITH ENCRYPTION"+tttSeparator+"Encryption of the SQL source code of an object is not currently supported",		
 		"\\w+, option WITH NATIVE_COMPILATION"+tttSeparator+"Native compilation is not currently supported; rewrite as a regular SQL object",		
 		"View, without SCHEMABINDING"+tttSeparator+"PostgreSQL only supports views with the equivalent of WITH SCHEMABINDING, i.e. a table cannot be dropped if a view depends on it. A view without the SCHEMABINDING clause will still be created by Babelfish, but as if WITH SCHEMABINDING was specified",		
-		"View, with CHECK OPTION"+tttSeparator+"WITH CHECK OPTION is nto currently supported for views; remove the option",
+		"View, with CHECK OPTION"+tttSeparator+"WITH CHECK OPTION is not currently supported for views; remove the option",
 		"\\w+ MATERIALIZED VIEW"+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
 		"\\w+ TRANSACTION not supported with PostgreSQL SECURITY DEFINER"+tttSeparator+"T-SQL objects created with EXECUTE AS OWNER are mapped to PostgreSQL SECURITY DEFINER; PostgreSQL does not support transaction mgmt statementds for objects created with SECURITY DEFINER",
 		"\\w+ ASSEMBLY"+tttSeparator+"This object type is not currently supported",

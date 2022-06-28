@@ -1325,7 +1325,7 @@ public class Compass {
 		}
 		
 		if (reAnalyze && (!generateReport)) {
-			// actually, no reason to disallow this: runnign report generation separately can be significantly faster for very large cases
+			// actually, no reason to disallow this: running report generation separately can be significantly faster for very large cases
 			//u.appOutput("Cannot combine -analyze and -noreport");
 			//return false;
 		}
@@ -1659,7 +1659,7 @@ public class Compass {
 			}
 
 			if ((u.analysisPass == 1) && (!reAnalyze)) {
-				// remove duplicate input files during finitial import only
+				// remove duplicate input files during initial import only
 				// using tmpInputFilesUpperCase to speed up things in case of large numbers (1000's) of files
 				tmpInputFilesUpperCase.set(i,"");
 				if (tmpInputFilesUpperCase.contains(f.toUpperCase())) {
