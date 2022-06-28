@@ -1,3 +1,15 @@
+# 2022-06-a
+- Consume XML files with queries captured by SQL Server Profiler.
+- Mark cursor variables as supported since v.1.0.0.
+- Better detection of variable dependencies in SELECT.
+- Detect table-valued functions using SELECT TOP.
+- Detect INSERT..EXECUTE() on a single string constant (which is supported).
+- The -rewrite option now handles unquoted strings and double-quoted strings with embedded quotes.
+- Detect syntax issues with UPDATE/DELETE statements when specifying -syntax_issues option (experimental).
+- Performance improvements when analyzing large number of applications together.
+- Reporting improvements with better hyperlinks.
+- Various small fixes.
+
 # 2022-06
 - Support for Babelfish v.2.1.0 and 1.3.0.
 - Added -pgimporttable flag.

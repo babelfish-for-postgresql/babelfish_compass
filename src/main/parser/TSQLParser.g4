@@ -1288,7 +1288,13 @@ create_security_policy
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-sequence-transact-sql
 alter_sequence
-    : ALTER SEQUENCE (schema_name=id DOT)? sequence_name=id ( RESTART (WITH sign? DECIMAL)? )? (INCREMENT BY sign? DECIMAL )? ( MINVALUE sign? DECIMAL| NO MINVALUE)? (MAXVALUE sign? DECIMAL| NO MAXVALUE)? (CYCLE|NO CYCLE)? (cache_kwd=CACHE cache_value=DECIMAL? | no_cache=NO CACHE)?
+    : ALTER SEQUENCE (schema_name=id DOT)? sequence_name=id 
+      (RESTART (WITH sign? DECIMAL)? )? 
+      (INCREMENT BY sign? DECIMAL )? 
+      (MINVALUE sign? DECIMAL| NO MINVALUE)? 
+      (MAXVALUE sign? DECIMAL| NO MAXVALUE)? 
+      (CYCLE|NO CYCLE)? 
+      (cache_kwd=CACHE cache_value=DECIMAL? | no_cache=NO no_cache_kwd=CACHE)?
     ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/create-sequence-transact-sql
@@ -1300,7 +1306,7 @@ create_sequence
         (MINVALUE sign? DECIMAL? | NO MINVALUE)?
         (MAXVALUE sign? DECIMAL? | NO MAXVALUE)?
         (CYCLE|NO CYCLE)?
-        (cache_kwd=CACHE cache_value=DECIMAL? | no_cache=NO CACHE)?
+        (cache_kwd=CACHE cache_value=DECIMAL? | no_cache=NO no_cache_kwd=CACHE)?
     ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-server-audit-transact-sql
@@ -3604,9 +3610,8 @@ select_list_elem
     ;
 
 table_sources
-//    : table_source_item (COMMA table_source_item)*
     : table_source_item (COMMA table_source_item)*
-    | LR_BRACKET table_source_item_dml as_table_alias column_alias_list
+    | LR_BRACKET table_source_item_dml as_table_alias column_alias_list?
     ;
 
 // these DML statements must have an OUTPUT clause to be used in INSERT-SELECT FROM ()

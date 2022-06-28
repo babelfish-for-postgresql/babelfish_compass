@@ -94,9 +94,10 @@ public class Compass {
 	protected static Set<String> defaultExcludes = new LinkedHashSet<>(Arrays.asList(
 			".ppt",".pptx", ".xls",".xlsx", ".doc", ".docx", ".pdf", ".rtf", ".htm", ".html", ".css", ".zip", 
 			".gzip", ".gz", ".rar", ".7z", ".tar", ".tgz", ".sh", ".bash", ".csh", ".tcsh", ".bat", ".csv", ".md", 
-			".mp4", ".mov", ".jpg", ".gif", ".png",	".tmp", ".pl", ".py", ".cs", ".cpp", ".vb", ".c", ".php", 
+			".mp4", ".mov", ".jpg", ".gif", ".png",	".tmp", ".pl", ".py", ".cs", ".cpp", ".vb", ".vbproj", ".c", ".php", 
 			".java", ".classpath", ".project", ".rb", ".js", ".exe", ".dll", ".sln", ".scc", ".gitignore", ".json", 
-			".yml", ".yaml", ".xml", ".xsl", ".xsd", ".xslt", ".rdl", ".properties", ".config", ".cfg", ".sdcs")
+			".yml", ".yaml", ".xml", ".xsl", ".xsd", ".xslt", ".rdl", ".properties", ".config", ".cfg", ".sdcs",
+			".rpt", ".rptproj", ".rss", ".res", ".resx", ".cache", ".settings")
 	);	
 	protected static boolean generateReport = true;
 	protected static boolean reAnalyze = false;
@@ -109,6 +110,7 @@ public class Compass {
 	protected static boolean pgImportAppend = false;
 	protected static boolean pgImportTable = false;
 	protected static boolean anonymizedReport = false;
+	protected static boolean importFormatArg = false;
 
 	protected static boolean antlrSLL = true;
 	protected static boolean antlrShowTokens = false;
@@ -160,7 +162,7 @@ public class Compass {
 				return;
 			}
 			
-			// ToDo: ideally, all command flags are put in a list
+			// ToDo: ideally, all command flags are put in a list rather than using strings everywhere
 			if (arg.equals("-help")) {
 				String helpOption  = "";
 				if (args.length > i) {
@@ -168,6 +170,7 @@ public class Compass {
 					if (args[i].equals("-reportoptions") || args[i].equals("reportoptions")) helpOption = "reportoption";
 					if (args[i].equals("-exclude") || args[i].equals("exclude")) helpOption = "exclude";
 					if (args[i].equals("-encoding") || args[i].equals("encoding")) helpOption = "encoding";
+					if (args[i].equals("-importfmt") || args[i].equals("importfmt") || args[i].equals("-importformat") || args[i].equals("importformat")) helpOption = "importfmt";
 				}
 				if (helpOption.equals("reportoption")) {
 					u.appOutput("-reportoption  [options] : additional reporting detail. ");
@@ -186,6 +189,7 @@ public class Compass {
 					u.appOutput("    linenrs=<number> : max.nr of line numbers shown in list (default="+CompassUtilities.maxLineNrsInListDefault+")");				
 					u.appOutput("    notabs           : do not open a Xref link in a new tab(default=open in new tab)");				
 					u.appOutput("    batchnr          : in xref, show batch number + line nr in batch");				
+					u.appOutput("    hints            : list all popup hints from the SQL Summary section (included with xref)");				
 					u.appOutput("Without -reportoption, only the assessment summary is generated (no X-refs)");				
 					u.appOutput("NB: generating X-refs may produce a very large report.");							
 					u.appOutput("NB: do not put spaces anywhere in the options");							
@@ -203,10 +207,15 @@ public class Compass {
 					return;					
 				}
 				if (helpOption.equals("encoding")) {
-					encodingHelp();		
+					encodingHelp();							
 					quitNow = true;
 					return;					
 				}
+				if (helpOption.equals("importfmt")) {
+					u.appOutput("Valid values for -importfmt: "+u.importFormatSupportedDisplay);
+					quitNow = true;
+					return;					
+				}				
 				
 				u.appOutput("Usage: " + CompassUtilities.thisProgExec + "  <reportName>  [options] ");
 				u.appOutput("[options] can be:");
@@ -233,14 +242,16 @@ public class Compass {
 				u.appOutput("   -pgimportappend              : with -pgimport, appends to existing table (instead of drop/recreate)");
 				u.appOutput("   -pgimporttable <table-name>  : table name for -pgimport; default="+u.psqlImportTableNameDefault);
 				u.appOutput("   -recursive                   : recursively add files if inputfile is a directory");
-				u.appOutput("   -include                     : pattern of input file names to include");
-				u.appOutput("   -exclude                     : pattern of input file names to exclude");
+				u.appOutput("   -include <list>              : pattern of input file types to include (e.g.: .txt,.ddl)");
+				u.appOutput("   -exclude <list>              : pattern of input file types to exclude (e.g.: .xml)");
   				u.appOutput("   -rewrite                     : rewrites selected unsupported SQL features");
   				u.appOutput("   -noupdatechk                 : do not check for " + CompassUtilities.thisProgName + " updates");
-//				u.appOutput("   -importfmt <fmt>             : process special-format captured query files");
-//				u.appOutput("   -nodedup                     : do not deduplicate captured query files");
+				u.appOutput("   -importfmt <fmt>             : process special-format captured query files");
+				u.appOutput("   -nodedup                     : with -importfmt, do not deduplicate captured queries");
+				u.appOutput("   -syntax_issues               : also report selected Babelfish syntax errors (experimental)");
 				u.appOutput("   -version                     : show version of this tool");
-				u.appOutput("   -help                        : show this information");		
+				u.appOutput("   -help [ <helpoption> ]       : show help information. <helpoption> can be one of:");		
+				u.appOutput("                                  reportoption, encoding, importfmt, exclude");		
 				u.appOutput("   -explain                     : some high-level migration guidance");		
 				if (CompassUtilities.devOptions) {		
 				u.appOutput("");
@@ -325,12 +336,13 @@ public class Compass {
 			}			
 			if (arg.equals("-importfmt") || arg.equals("-importformat")) {
 				if (i == args.length) {
-					u.appOutput("Must specify argument for -importfmt");
+					u.appOutput("Must specify argument for -importfmt. Valid values are: "+u.importFormatSupportedDisplay);
 					u.errorExit();
 				}
+				importFormatArg = true;
 				u.importFormat = args[i].toLowerCase();
-				if (!u.importFormatOption.contains(u.importFormat)) {
-					u.appOutput("Invalid value for  -importfmt. Valid values are: "+u.importFormatOption);
+				if (!u.importFormatSupported.contains(u.importFormat)) {
+					u.appOutput("Invalid value for -importfmt. Valid values are: "+u.importFormatSupportedDisplay);
 					u.errorExit();
 				}
 				i++;
@@ -399,7 +411,7 @@ public class Compass {
 					u.errorExit();
 				}
 				reportOption = true;
-				List<String> reportOptions = Arrays.asList("xref", "detail", "status", "filter", "apps", "batchnr", "linenrs", "notabs");
+				List<String> reportOptions = Arrays.asList("xref", "detail", "status", "filter", "apps", "batchnr", "linenrs", "notabs", "hints");
 				List<String> reportOptionsXref = Arrays.asList("", "all", "object", "feature");
 				List<String> reportFlags = new LinkedList<>(Arrays.asList(args[i].split(",")));
 				reportFlags.removeIf(String::isEmpty);
@@ -414,6 +426,7 @@ public class Compass {
 								u.appOutput("Valid options: "+reportOptionsXref);
 								u.errorExit();								
 							}
+							CompassUtilities.listHints = true;
 							if (optionValue.isEmpty()) CompassUtilities.reportOptionXref = "all";
 							else CompassUtilities.reportOptionXref = optionValue.toLowerCase();
 						}
@@ -462,6 +475,9 @@ public class Compass {
 							}
 							CompassUtilities.reportOptionFilter = optionValue; 
 						}
+						else if (option.equals("hints")) {
+							CompassUtilities.listHints = true;
+						}
 					}
 					else {
 						u.appOutput("Invalid option '"+option+"' for -reportoption");
@@ -505,10 +521,14 @@ public class Compass {
 				i++;
 				continue;		
 			}			
+			if (arg.equals("-syntax") || arg.equals("-syntax_issues")) {	
+				u.reportSyntaxIssues = true;	
+				continue;
+			}			
 			if (arg.equals("-"+CompassUtilities.reverseString("m"+"u"+"s"+"k"+"c"+"e"+"h"+"c"))) {
 				u.configOnly = true;
 				continue;
-			}							
+			}													
 			if (CompassUtilities.devOptions) {
 				if (arg.equals("-debug")) {   // development only
 					if (i == args.length) {
@@ -576,6 +596,10 @@ public class Compass {
 					CompassUtilities.caching = true;
 					continue;
 				}
+				if (arg.equals("-symtab_all")) { // development only; we shouldn't need this
+					u.symTabAll = true;
+					continue;
+				}					
 				if (arg.equals("-anon")) { // development only
 					anonymizedReport = true;
 					continue;
@@ -592,7 +616,7 @@ public class Compass {
 				}
 				if (includePattern != null) {
 					// Can only specify -include once per invocation
-					System.err.println("Only one -include pattern allowed. Separate multiple file name patterns with a comma.");
+					System.err.println("Only one -include flag allowed. Separate multiple file name patterns with a comma.");
 					u.errorExit();
 				}
 				includePattern = parseInputPattern(args[i]);
@@ -606,7 +630,7 @@ public class Compass {
 				}
 				if (excludePattern != null) {
 					// Can only specify -exclude once per invocation
-					System.err.println("Only one -exclude pattern allowed. Separate multiple file name patterns with a comma.");
+					System.err.println("Only one -exclude flag allowed. Separate multiple file name patterns with a comma.");
 					u.errorExit();
 				}
 				excludePattern = parseInputPattern(args[i]);
@@ -848,7 +872,7 @@ public class Compass {
 									
 		if (reAnalyze) {
 			// create fresh symbol table and capture file
-			u.deleteReAnalyze(reportName);
+			u.deleteReAnalyze(reportName);					
 		}
 	
 		if (reportOnly) {
@@ -884,13 +908,15 @@ public class Compass {
 					// do we have any input files in this report?
 					List<Path> importFiles = u.getImportFiles(reportName);
 					int nrImportFiles = importFiles.size();
-								
+					
 					if (nrImportFiles > 0) {
-						// read symbol table from disk, it must exist
-						try { u.readSymTab(reportName); }
-						catch (Exception e) {
-							u.appOutput("Error reading symbol table " + u.symTabFilePathName);
-							throw e;
+						// read symbol table from disk, for all apps -- should not be required but keeping just because
+						if (u.symTabAll) {
+							try { u.readSymTab(reportName, ""); }
+							catch (Exception e) {
+								u.appOutput("Error reading symbol table " + u.symTabFilePathName);
+								throw e;
+							}
 						}
 						comp.processInput(startRunFmt);
 					} else {
@@ -899,7 +925,7 @@ public class Compass {
 
 					if (!generateReport) {
 						// -noreport
-						u.appOutput("Not generating assessment report.\nUse -reportonly later to generate a report.");
+						u.appOutput("Not generating assessment report.\nUse -reportonly or -reportoption to generate a report based on current analysis.");
 					} else {
 						startTime = System.currentTimeMillis();
 						u.createReport(reportName);
@@ -916,25 +942,31 @@ public class Compass {
 		elapsedRun = (endRun - startRun)/ 1000;
 
 		comp.reportFinalStats();
-		if (!(parseOnly || importOnly)) u.closeReportFile();
+		if (generateReport) {
+			if (!(parseOnly || importOnly)) {
+				u.closeReportFile();
+			}
+		}
 		
 		// open generated report in browser
 		if (!CompassUtilities.devOptions) {
-			if (!(parseOnly || importOnly)) {
-				// TODO consider replacing this with java.awt.Desktop::open
-				if (CompassUtilities.onWindows) {
-					u.runOScmd("cmd /c \"explorer.exe /n,/select,\"\"" + u.reportFilePathName + "\"\" \"");
-					u.runOScmd("cmd /c \"explorer.exe \"\"" + u.reportFilePathName + "\"\" \"");
-				} else if (CompassUtilities.onMac) {
-					String cmd = " open . " + u.reportFilePathName;
-					// temporary:
-					//u.appOutput("*** Mac (dev msg): opening report in browser: cmd=["+cmd+"] ");			
-					u.runOScmd(cmd);
-				} else if (CompassUtilities.onLinux) {
-					// TBD - assuming no GUI is present
-					// TODO We could check for an X session or we could open in lynx if it's available
-					//String cmd = " open . " + u.reportFilePathName;
-					//u.runOScmd(cmd);				
+			if (generateReport) {
+				if (!(parseOnly || importOnly)) {
+					// TODO consider replacing this with java.awt.Desktop::open
+					if (CompassUtilities.onWindows) {
+						u.runOScmd("cmd /c \"explorer.exe /n,/select,\"\"" + u.reportFilePathName + "\"\" \"");
+						u.runOScmd("cmd /c \"explorer.exe \"\"" + u.reportFilePathName + "\"\" \"");
+					} else if (CompassUtilities.onMac) {
+						String cmd = " open . " + u.reportFilePathName;
+						// temporary:
+						//u.appOutput("*** Mac (dev msg): opening report in browser: cmd=["+cmd+"] ");			
+						u.runOScmd(cmd);
+					} else if (CompassUtilities.onLinux) {
+						// TBD - assuming no GUI is present
+						// TODO We could check for an X session or we could open in lynx if it's available
+						//String cmd = " open . " + u.reportFilePathName;
+						//u.runOScmd(cmd);				
+					}
 				}
 			}
 		}
@@ -959,109 +991,101 @@ public class Compass {
 
 	protected void addInputFile(String file) throws InvalidPathException {
 		String fileOrig = file;
-		if (file != null) {
-			Path path = null;
-			int depth = Integer.MAX_VALUE;
-
-			// We got a literal asterisk character in the path because the command shell didn't expand the filenames
-			// Note that this shouldn't happen in normal use cases since all shells on both *nix and Windows should
-			// expand the * character unless quoted/escaped. On Windows, Powershell will properly expand glob characters
-			// in the middle of a path like *nix shells do, but Command.com will only expand glob characters at the end
-			// of a path. On Windows, java.nio.Path will throw an exception if the path string includes an asterisk.
-			// We can at least try to deal with *, *.*, *.ext
-			if (file.contains("*")) {
-				String endOfPath = file.substring(file.lastIndexOf(FileSystems.getDefault().getSeparator()) + 1);
-				if (endOfPath.contains("*")) {
-					// Remove the asterisk from the file so we don't get an IllegalCharacterException on Windows
-					file = file.substring(0, file.length() - endOfPath.length());
-					if (file.isEmpty()) {
-						file = ".";
-					}
-					path = Paths.get(file).normalize();
-					if (!path.toString().isEmpty()) {
-						if (!recursiveInputFiles) {
-							// The asterisk character is at the end of the path, but we weren't asked to process
-							// input recursively. Process only the immediately enclosing parent directory (depth of 1).
-							recursiveInputFiles = true;
-							depth = 1;
-						}
-						// Use the glob that didn't get expanded by the command shell as the inlcude pattern
-						includePattern = endOfPath;
-					}
-				} else {
-					// Error - path contains an asterisk character but it's not at the end. User should use the
-					// -includes switch to build a glob pattern for the files they want to process.
-				}
-			} else {
-				// Normal use case
-				path = Paths.get(file);
-			}
-
-			// Make -include override -exclude if they both contain the same pattern
-			normalizeIncludeExcludePatterns();
-
-			// These matcher instances need to be final to be included in the lambda expression below
-			final PathMatcher includes = (includePattern != null && !includePattern.isEmpty()) ?
-					FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern(includePattern, path)) :
-					null;
-			final PathMatcher excludes = (excludePattern != null && !excludePattern.isEmpty()) ?
-					FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern(excludePattern, path)) :
-					null;
-
-			if ((Files.isDirectory(path)) && (!path.toString().isEmpty())) {
-				if (recursiveInputFiles) {
-					// Recursively walk the directory tree and add files that we can read and match our filter patterns
-					Set<String> inputFilesToAdd;
-					try (Stream<Path> directoryStream = Files.walk(path, depth, FileVisitOption.FOLLOW_LINKS)) {
-						inputFilesToAdd = directoryStream
-								.filter(Files::isRegularFile)
-								.filter(Files::isReadable)
-								.filter(p -> {
-									if (includes != null && !includes.matches(p)) {
-										u.appOutput("Ignoring not included path '" + p.toString() + "'");
-									}
-									return includes == null || includes.matches(p);
-								})
-								.filter(p -> {
-									if (excludes != null && excludes.matches(p)) {
-										u.appOutput("Excluding path '" + p.toString() + "'");
-									}
-									return excludes == null || !excludes.matches(p);
-								})
-								.map(Path::toString)
-								.collect(Collectors.toSet());
-						inputFiles.addAll(inputFilesToAdd);
-					} catch (IOException | UncheckedIOException ioe) {
-						nrFileNotFound++;
-						u.appOutput("Can't access input file '" + file + "'");
-					}
-				} // otherwise ignore directories
-			} else if (Files.isRegularFile(path) && (includes == null || includes.matches(path))
-					&& (excludes == null || !excludes.matches(path))) {
-				inputFiles.add(path.toString());
-			} else {
-				if (excludes != null && excludes.matches(path)) {
-					u.appOutput("Excluding path '" + path.toString() + "'");
-				} else if (includes != null && !includes.matches(path)) {
-					u.appOutput("Ignoring not included path '" + path.toString() + "'");
-				} else {
-					// TODO log unexpected case here?
-					// File does not exist or can't be read by the current process
-					nrFileNotFound++;
-					String notFile = path.toString();
-					if (notFile.isEmpty()) notFile = fileOrig;
-					u.appOutput("Input file '" + notFile + "' is not a directory or a file");
-				}
-			}
-		}
+		if (file == null) return;
 		
-		List<String> inputFilesTmp = new ArrayList<>(inputFiles);
-		for (String inFile : inputFilesTmp) {
-			if (!CompassUtilities.getPatternGroup(inFile, u.escapeRegexChars(File.separator) + "(\\.\\w)", 1).isEmpty()) {
-				u.appOutput("Excluding file '"+inFile+"'");
-				inputFiles.remove(inFile);
+		Path path = null;
+		int depth = Integer.MAX_VALUE;
+
+		// We got a literal asterisk character in the path because the command shell didn't expand the filenames
+		// Note that this shouldn't happen in normal use cases since all shells on both *nix and Windows should
+		// expand the * character unless quoted/escaped. On Windows, Powershell will properly expand glob characters
+		// in the middle of a path like *nix shells do, but Command.com will only expand glob characters at the end
+		// of a path. On Windows, java.nio.Path will throw an exception if the path string includes an asterisk.
+		// We can at least try to deal with *, *.*, *.ext
+		if (file.contains("*")) {
+			String endOfPath = file.substring(file.lastIndexOf(FileSystems.getDefault().getSeparator()) + 1);
+			if (endOfPath.contains("*")) {
+				// Remove the asterisk from the file so we don't get an IllegalCharacterException on Windows
+				file = file.substring(0, file.length() - endOfPath.length());
+				if (file.isEmpty()) {
+					file = ".";
+				}
+				path = Paths.get(file).normalize();
+				if (!path.toString().isEmpty()) {
+					if (!recursiveInputFiles) {
+						// The asterisk character is at the end of the path, but we weren't asked to process
+						// input recursively. Process only the immediately enclosing parent directory (depth of 1).
+						recursiveInputFiles = true;
+						depth = 1;
+					}
+					// Use the glob that didn't get expanded by the command shell as the inlcude pattern
+					includePattern = endOfPath;
+				}
+			} else {
+				// Error - path contains an asterisk character but it's not at the end. User should use the
+				// -includes switch to build a glob pattern for the files they want to process.
 			}
+		} else {
+			// Normal use case
+			path = Paths.get(file);
 		}
+
+		// Make -include override -exclude if they both contain the same pattern
+		normalizeIncludeExcludePatterns();		
+
+		// These matcher instances need to be final to be included in the lambda expression below
+		final PathMatcher includes = (includePattern != null && !includePattern.isEmpty()) ?
+				FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern(includePattern, path)) :
+				null;
+		final PathMatcher excludes = (excludePattern != null && !excludePattern.isEmpty()) ?
+				FileSystems.getDefault().getPathMatcher(globSyntaxAndPattern(excludePattern, path)) :
+				null;
+
+		if ((Files.isDirectory(path)) && (!path.toString().isEmpty())) {
+			if (recursiveInputFiles) {
+				// Recursively walk the directory tree and add files that we can read and match our filter patterns
+				Set<String> inputFilesToAdd;
+				try (Stream<Path> directoryStream = Files.walk(path, depth, FileVisitOption.FOLLOW_LINKS)) {
+					inputFilesToAdd = directoryStream
+							.filter(Files::isRegularFile)
+							.filter(Files::isReadable)
+							.filter(p -> {
+								if (includes != null && !includes.matches(p)) {
+									u.appOutput("Ignoring not included path '" + p.toString() + "'");
+								}
+								return includes == null || includes.matches(p);
+							})
+							.filter(p -> {
+								if (excludes != null && excludes.matches(p)) {
+									u.appOutput("Excluding path '" + p.toString() + "'");
+								}
+								return excludes == null || !excludes.matches(p);
+							})
+							.map(Path::toString)
+							.collect(Collectors.toSet());
+					inputFiles.addAll(inputFilesToAdd);
+				} catch (IOException | UncheckedIOException ioe) {
+					nrFileNotFound++;
+					u.appOutput("Can't access input file '" + file + "'");
+				}
+			} // otherwise ignore directories
+		} else if (Files.isRegularFile(path) && (includes == null || includes.matches(path))
+				&& (excludes == null || !excludes.matches(path))) {
+			inputFiles.add(path.toString());
+		} else {
+			if (excludes != null && excludes.matches(path)) {
+				u.appOutput("Excluding path '" + path.toString() + "'");
+			} else if (includes != null && !includes.matches(path)) {				
+				u.appOutput("Ignoring not included path '" + path.toString() + "'");
+			} else {
+				// TODO log unexpected case here?
+				// File does not exist or can't be read by the current process
+				nrFileNotFound++;
+				String notFile = path.toString();
+				if (notFile.isEmpty()) notFile = fileOrig;
+				u.appOutput("Input file '" + notFile + "' is not a directory or a file");
+			}
+		}		
 	}
 
 	protected static String globSyntaxAndPattern(String pattern, Path path) {
@@ -1087,7 +1111,12 @@ public class Compass {
 	protected static String parseInputPattern(String input) {
 		String pattern = null;
 		if (input != null) {
-			input = input.trim();
+			input = input.replaceAll("'", "");
+			input = input.replaceAll("\"", "");
+			input = input.trim();			
+			input = input.replaceAll(" ", ",");
+			input = input.replaceAll(",,", ",");
+			input = input.replaceAll(",,", ",");
 			if (!input.isEmpty()) {
 				if (input.contains(",") && !input.startsWith("{") && !input.endsWith("}")) {
 					// PathMatcher doesn't like spaces between subpatterns when using {}
@@ -1107,7 +1136,7 @@ public class Compass {
 		if (includePattern != null || excludePattern != null) {
 			String tmpIncludePattern = includePattern;
 			String tmpExcludePattern = excludePattern;
-
+			
 			if (tmpExcludePattern != null) {
 				if (tmpExcludePattern.startsWith("{")) {
 					tmpExcludePattern = tmpExcludePattern.substring(1);
@@ -1145,6 +1174,14 @@ public class Compass {
 				}
 			}
 		}
+
+		// if an XML format for a captured-query file is specified, allow .xml file types			
+		if (!u.importFormat.isEmpty()) {
+			if (u.importFormat.toUpperCase().contains("XML")) {
+				excludes.remove(".xml");
+			}
+		}
+
 		excludePattern = parseInputPattern(String.join(",", excludes));
 	}
 
@@ -1168,7 +1205,7 @@ public class Compass {
 	private static boolean optionsValid() throws Exception {
 		// validate combinations of various options specified
 		// return true if options are valid
-		
+				
  		if (reportName == null) {
  			reportName = "";
  		}
@@ -1190,10 +1227,10 @@ public class Compass {
 				return false;
 			}
 			return true;
-		}		
+		}								
 				
  		if (pgImport) {
- 			if (readStdin || listContents || importOnly || reAnalyze || deleteReport || reportOnly) {
+ 			if (readStdin || listContents || importOnly || reAnalyze || deleteReport || reportOnly || importFormatArg) {
 				u.appOutput("-pgimport cannot be combined with other options");
 				return false;
 			}
@@ -1252,6 +1289,26 @@ public class Compass {
 			return false;
 		}
 		
+		if (importOnly && importFormatArg) {
+			u.appOutput("Cannot combine -importonly and -importfmt");
+			return false;
+		}
+		
+		if (!u.deDupExtracted && !importFormatArg) {
+			u.appOutput("Cannot use -nodedup without -importfmt");
+			return false;
+		}
+				
+		if (reAnalyze && importFormatArg) {
+			u.appOutput("Cannot combine -analyze and -importfmt");
+			return false;
+		}
+		
+		if (importFormatArg && readStdin) {
+			u.appOutput("Cannot combine -importfmt and -stdin");
+			return false;
+		}
+		
 		if (reAnalyze && readStdin) {
 			u.appOutput("Cannot combine -analyze and -stdin");
 			return false;
@@ -1268,8 +1325,9 @@ public class Compass {
 		}
 		
 		if (reAnalyze && (!generateReport)) {
-			u.appOutput("Cannot combine -analyze and -noreport");
-			return false;
+			// actually, no reason to disallow this: running report generation separately can be significantly faster for very large cases
+			//u.appOutput("Cannot combine -analyze and -noreport");
+			//return false;
 		}
 		
 		if (reportOnly && forceAppName) {
@@ -1359,11 +1417,13 @@ public class Compass {
 		}	
 
  		if ((inputFiles.size()==0) && (!readStdin) && (!generateReport)) {
- 			u.appOutput("No input files specified. Try -help");
-			if (!reportName.isEmpty()) {
- 				u.appOutput("(NB: first argument is the report name, not the input file)");
- 			}
-			return false;
+ 			if (!reAnalyze) {
+	 			u.appOutput("No input files specified. Try -help");
+				if (!reportName.isEmpty()) {
+	 				u.appOutput("(NB: first argument is the report name, not the input file)");
+	 			}
+				return false;
+			}
 		}
 		
 		// when only specifying the report name, must at least specify -list or -analyze or -reportonly/-reportoption
@@ -1559,39 +1619,83 @@ public class Compass {
 			for (Path imf : importFiles) {
 				addInputFile(imf.toString());
 			}
-
 		} 
-		else {
-			if (u.analysisPass == 1) {
-				if (inputFiles.size() == 0) {
-					u.appOutput("No input files specified");
-					u.errorExit();
-				}
+		
+		// skip file names starting with a '.'
+		List<String> inputFilesTmp = new ArrayList<>(inputFiles);
+		for (String inFile : inputFilesTmp) {
+			if (!CompassUtilities.getPatternGroup(inFile, u.escapeRegexChars(File.separator) + "(\\.\\w)", 1).isEmpty()) {
+				u.appOutput("Excluding file '"+inFile+"'");
+				inputFiles.remove(inFile);
 			}
 		}
+		if (inputFiles.size() == 0) {
+			u.appOutput("No input files specified");
+			u.errorExit();
+		}				
 
 		// remove duplicate input files
+		// sort files in app+ pathname order
 		List<String> tmpInputFiles = new ArrayList<>();
+		List<String> tmpInputFilesUpperCase = new ArrayList<>();
+		List<String> sortInputFiles = new ArrayList<>();
+		String sortKeySeparator = "~!~@~!~";
 		tmpInputFiles.addAll(inputFiles);
+		tmpInputFilesUpperCase.addAll(inputFiles);
+		u.listToUpperCase(tmpInputFilesUpperCase);
+		
 		inputFiles.clear();
 		for (int i = 0; i < tmpInputFiles.size(); i++) {
 			String f = tmpInputFiles.get(i);
 			if (f.isEmpty()) continue;
-			inputFiles.add(f);
-			for (int j = i+1; j < tmpInputFiles.size(); j++) {
-				if (f.equalsIgnoreCase(tmpInputFiles.get(j))) {
-					u.appOutput("Removing duplicate input file '"+f+"'");
-					tmpInputFiles.set(j,"");
+			if ((u.analysisPass == 1) && (!reAnalyze)) {
+				inputFiles.add(f);
+			} 
+			else {
+				// already-imported files: need to sort on app name + original src file path
+				String app = u.getAppNameFromImported(f);						
+				String origSrcFile = u.importFileAttribute(u.importFileFirstLine(f), 1);						
+				sortInputFiles.add(app.toUpperCase() + sortKeySeparator + origSrcFile + sortKeySeparator + f);
+			}
+
+			if ((u.analysisPass == 1) && (!reAnalyze)) {
+				// remove duplicate input files during initial import only
+				// using tmpInputFilesUpperCase to speed up things in case of large numbers (1000's) of files
+				tmpInputFilesUpperCase.set(i,"");
+				if (tmpInputFilesUpperCase.contains(f.toUpperCase())) {
+					//u.appOutput(u.thisProc()+"searching to remove duplicate input file f=["+f+"] ");
+					for (int j = i+1; j < tmpInputFiles.size(); j++) {
+						if (f.equalsIgnoreCase(tmpInputFiles.get(j))) {
+							u.appOutput("Removing duplicate input file '"+f+"'");
+							tmpInputFiles.set(j,"");
+							tmpInputFilesUpperCase.set(j,"");
+						}
+					}
 				}
+			}
+		}			
+		
+		// sort the input files on their original pathnames so as to process files for all apps together 
+		// (performance-relevant when combining apps recursively read from directory trees)
+		if ((u.analysisPass == 1) && (!reAnalyze)) {
+			// first-time import
+			inputFiles = inputFiles.stream().sorted().collect(Collectors.toList());
+		}
+		else {
+			List<String> tmp = sortInputFiles.stream().sorted().collect(Collectors.toList());
+			inputFiles.clear();
+			for (String k : tmp) {
+				String f = k.substring(k.lastIndexOf(sortKeySeparator)+sortKeySeparator.length());
+				inputFiles.add(f);
 			}
 		}
 
 		// process the input files
 		int nrFiles = inputFiles.size();
 		int fileCount = 0;
-	
+		
 		fileCount = 0;
-		for (String inFile : inputFiles) {
+		for (String inFile : inputFiles) {			
 			fileCount++;
 			String appName = "";
 			String origSrcFile = "";
@@ -1690,7 +1794,12 @@ public class Compass {
 
 					String detectedFmt = u.detectImportFileFormat(inFile, u.importFormat, charset);
 					String useImportFormat = u.sqlcmdFmt;
-					if (u.importFormat.equals(u.autoFmt)) useImportFormat = detectedFmt;
+					if (u.importFormat.equalsIgnoreCase(u.autoFmt)) {
+						useImportFormat = detectedFmt;
+					}
+					if (u.importFormat.equalsIgnoreCase(detectedFmt)) {
+						useImportFormat = detectedFmt;
+					}
 					if (useImportFormat.isEmpty()) useImportFormat = u.sqlcmdFmt; // catchall
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "u.importFormat=["+u.importFormat+"] detected fmt=["+detectedFmt+"] useImportFormat=["+useImportFormat+"] ", u.debugFmt || u.debugDir);
 					
@@ -1741,12 +1850,20 @@ public class Compass {
 			
 			if (u.analysisPass== 2) {
 				u.openCaptureFile(reportName, u.currentSrcFile, u.currentAppName);
+				if (!u.symTabAll) {
+					// read only the symtab for this app, it must exist
+					try { u.readSymTab(reportName, appName); }
+					catch (Exception e) {
+						u.appOutput("Error reading symbol table " + u.symTabFilePathName);
+						throw e;
+					}
+				}				
 			}
 			
 			CodePointCharStream charStream;
 
 			// set QUOTED_IDENTIFIER to the default value at the start of the input file
-			a.setQuotedIdentifier(quotedIdentifier);
+			a.setQuotedIdentifier(quotedIdentifier);			
 
 			// process input file line by line, identifying batches to be parsed
 			// this follows the 'sqlcmd' utility which uses 'go' and 'reset' as batch terminators
@@ -2193,7 +2310,6 @@ public class Compass {
 						}
 
 						// analyze the tree
-						// can this be done in PLL ?
 						if (!hasParseError) {
 							if (parseOnly && (u.analysisPass > 1)) {
 								// do nothing
@@ -2255,7 +2371,7 @@ public class Compass {
 					String inFileTmp = inFile;
 					if (reAnalyze) inFileTmp = u.currentSrcFile;
 					//u.appOutput(CompassUtilities.thisProc()+"symtab inFile=["+inFileTmp+"] ");
-					u.writeSymTab(reportName, inFileTmp, appName);
+					if (!importOnly) u.writeSymTab(reportName, inFileTmp, appName);
 				} catch (Exception e) {
 					u.appOutput("Error writing symbol table " + u.symTabFilePathName);
 					throw e;
@@ -2300,7 +2416,7 @@ public class Compass {
 			}
 			if (u.errBatchFileWriter != null) {
 				u.closeErrBatchFile();
-			}
+			}		
 		} //for inputfiles
 	}
 	
