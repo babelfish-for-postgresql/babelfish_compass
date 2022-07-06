@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2022-06-a";
-	public static final String thisProgVersionDate  = "June 2022";
+	public static final String thisProgVersion      = "2022-07";
+	public static final String thisProgVersionDate  = "July 2022";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -52,13 +52,13 @@ public class CompassUtilities {
 	public static final String thisProgExecWindows  = "BabelfishCompass.bat";
 	public static final String thisProgExecLinux    = "BabelfishCompass.sh";
 	public static final String thisProgExecMac      = "BabelfishCompass.sh";
-	
+
 	// user docs
 	public static final String userDocText          = thisProgName + " User Guide";
 	public static final String userDocURL           = "https://github.com/babelfish-for-postgresql/babelfish_compass/blob/main/BabelfishCompass_UserGuide.pdf";
 	public static final String compassLatestURL     = "https://github.com/babelfish-for-postgresql/babelfish_compass/releases/latest";
 	public static String newVersionAvailable        = "";
-	
+
 	// for update checks:
 	public static final String compassRESTReleaseGet = "https://api.github.com/repos/babelfish-for-postgresql/babelfish_compass/releases/latest";
 
@@ -88,7 +88,7 @@ public class CompassUtilities {
 
 	// .cfg file timestamp
 	public String cfgFileTimestamp = uninitialized;
-	
+
 	// capture file format
 	// if this format is ever changed, we need to provide an option to keep generating a previous version so that we don't break apps relying on the format
 	public static String captureFileFormatBaseVersion = "1";  // lowest format version
@@ -108,38 +108,38 @@ public class CompassUtilities {
 	public final String lineIndent = "    ";
 
 	// file handling
-	public String BabelfishCompassFolderName = uninitialized;
-	public final String BabelfishCompassFolderNameWindows = "BabelfishCompass";
-	public final String BabelfishCompassFolderNameMac     = "BabelfishCompassReports";
-	public final String BabelfishCompassFolderNameLinux   = "BabelfishCompassReports";
-	public final String batchDirName = "batches";
-	public final String batchFileSuffix = "batch.txt";
-	public final String errBatchDirName = "errorbatches";
-	public final String errBatchFileSuffix = "errbatch.txt";
-	public final String capDirName = "captured";
-	public final String captureFileName = "captured";
-	public final String captureFileTag = "bbf~captured";
-	public final String captureFileSuffix = "dat";
-	public final String symTabDirName = "sym";
-	public final String symTabFileTag = "bbf~symtab";
-	public final String symTabFileSuffix = "dat";
-	public final String importDirName = "imported";
-	public final String importHTMLDirName = "html";
-	public final String importFileTag = "bbf~imported";
-	public final String importFileSuffix = "dat";
-	public final String rewrittenDirName = "rewritten";
-	public final String rewrittenFileSuffix = "rewritten";
-	public final String rewrittenHTMLDirName = "html";
-	public final String rewrittenFileTag = "bbf~rewritten";
-	public final String rewrittenTmpFile = "bbf~rewritten.tmp";
-	public final String textSuffix = "txt";
-	public final String HTMLSuffix = "html";
-	public final String logDirName = "log";
-	public final String PGImportFileName = "pg_import";
-	public final String extractedDirName = "extractedSQL";
-	public final String extractedFileSuffix = "extracted.sql";
-		
-	
+	public static String BabelfishCompassFolderName = uninitialized;
+	public final static String BabelfishCompassFolderNameWindows = "BabelfishCompass";
+	public final static String BabelfishCompassFolderNameMac     = "BabelfishCompassReports";
+	public final static String BabelfishCompassFolderNameLinux   = "BabelfishCompassReports";
+	public final static String batchDirName = "batches";
+	public final static String batchFileSuffix = "batch.txt";
+	public final static String errBatchDirName = "errorbatches";
+	public final static String errBatchFileSuffix = "errbatch.txt";
+	public final static String capDirName = "captured";
+	public final static String captureFileName = "captured";
+	public final static String captureFileTag = "bbf~captured";
+	public final static String captureFileSuffix = "dat";
+	public final static String symTabDirName = "sym";
+	public final static String symTabFileTag = "bbf~symtab";
+	public final static String symTabFileSuffix = "dat";
+	public final static String importDirName = "imported";
+	public final static String importHTMLDirName = "html";
+	public final static String importFileTag = "bbf~imported";
+	public final static String importFileSuffix = "dat";
+	public final static String rewrittenDirName = "rewritten";
+	public final static String rewrittenFileSuffix = "rewritten";
+	public final static String rewrittenHTMLDirName = "html";
+	public final static String rewrittenFileTag = "bbf~rewritten";
+	public final static String rewrittenTmpFile = "bbf~rewritten.tmp";
+	public final static String textSuffix = "txt";
+	public final static String HTMLSuffix = "html";
+	public final static String logDirName = "log";
+	public final static String PGImportFileName = "pg_import";
+	public final static String extractedDirName = "extractedSQL";
+	public final static String extractedFileSuffix = "extracted.sql";
+
+
 	public final String getAnonymizedItemsFilename = "anonymizedBabelfishItems.dat";
 
 	public String reportFileTextPathName = uninitialized;
@@ -161,11 +161,11 @@ public class CompassUtilities {
 	public int importFileWriteLineNr = 0;
 	public String sessionLogPathName;
 	public BufferedWriter sessionLogWriter;
-	public BufferedWriter userCfgFileWriter;	
+	public BufferedWriter userCfgFileWriter;
 	public String extractedFilePathName;
-	public BufferedWriter extractedFileWriter;	
-	public BufferedReader rewrittenInFileReader;	
-	public BufferedWriter rewrittenFileWriter;	
+	public BufferedWriter extractedFileWriter;
+	public BufferedReader rewrittenInFileReader;
+	public BufferedWriter rewrittenFileWriter;
 
 	// importformat options
 	public static final String autoFmt = "auto"; // not currently supported
@@ -179,26 +179,26 @@ public class CompassUtilities {
 	public static List<String> importFormatSupportedDisplay = null;
 	public static List<String> importFormatOption           = Arrays.asList(unknownFormat, autoFmt, sqlcmdFmt, jsonQueryFmt,  extendedEventsXMLFmt, genericSQLXMLFmt, SQLServerProfilerXMLFmt);
 	public static List<String> importFormatOptionDisplay    = Arrays.asList(unknownFormat, autoFmt, sqlcmdFmt, "JSON query", "extended events/XML", "generic SQL XML", "SQL Server Profiler XML");
-	
-	// user-definable import format, default = sqlcmd 
+
+	// user-definable import format, default = sqlcmd
 	public static String importFormat = sqlcmdFmt.toLowerCase();
-	
+
 	// deduplication
 	public static boolean deDupExtracted = true; // perform  deduplication (or not)
 	public static int deDupSkipped = 0;
-	public static String dedupScope = ""; 
+	public static String dedupScope = "";
 	public static final List<String> dedupScopeOption = Arrays.asList("S", "N", "H");
 	public static final List<String> dedupScopeOptionDisplay = Arrays.asList("string", "number", "hex");
 	private Map<String, String> deDupQueries = new HashMap<>();
 	private Map<String, Integer> dupQueryCount = new HashMap<>();
-	
+
 	// HTML header/footer
 	public String docLinkIcon              = "<div class=\"tooltip\"><span class=\"tooltip_icon\">&#x1F56E;</span> ";
-	public String docLinkURL               = "<a href=\""+userDocURL+"\" target=\"_blank\">"+ userDocText +"</a></div>"; 
-	public String docLinkURLText           = userDocText +" : " + userDocURL; 
+	public String docLinkURL               = "<a href=\""+userDocURL+"\" target=\"_blank\">"+ userDocText +"</a></div>";
+	public String docLinkURLText           = userDocText +" : " + userDocURL;
 	public String tocLinkIcon              = "<div class=\"tooltip\"><span class=\"tooltip_icon\">&#x2B06;</span>";
 	public String backToToCText            = "Back to Table of Contents";
-	public String tocLinkURL               = "<a href=\"#toc\">"+ backToToCText +"</a>";   
+	public String tocLinkURL               = "<a href=\"#toc\">"+ backToToCText +"</a>";
 	public String headerHTMLPlaceholder    = "BBF_HEADERHTMLPLACEHOLDER";
 	public String titleHTMLPlaceholder     = "BBF_TITLEHTMLPLACEHOLDER";
 	public String footerHTMLPlaceholder    = "BBF_FOOTERHTMLPLACEHOLDER";
@@ -416,13 +416,22 @@ tooltipsHTMLPlaceholder +
 "</div>\n"+
 "</body></html>\n"
 ;
+
+	private static final String escapeHatchSessionSettingsText  = "\\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\"";
+	private static final String escapeHatchStorageOptionsText   = "\\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\"";
+	private static final String escapeHatchUniqueConstraintText = "\\\\\"sp_babelfish_configure 'escape_hatch_unique_constraint', 'ignore' [, 'server']\\\\\"";
+	private static final String escapeHatchNoCheckText          = "\\\\\"sp_babelfish_configure 'escape_hatch_nocheck%', 'ignore' [, 'server']\\\\\"";
+	private static final String escapeHatchTableHintsText       = "\\\\\"sp_babelfish_configure 'escape_hatch_table_hints', 'ignore' [, 'server']\\\\\"";
+	private static final String escapeHatchJoinHintsText        = "\\\\\"sp_babelfish_configure 'escape_hatch_join_hints', 'ignore' [, 'server']\\\\\"";
+	private static final String escapeHatchQueryHintsText       = "\\\\\"sp_babelfish_configure 'escape_hatch_query_hints', 'ignore' [, 'server']\\\\\"";
+
 	private List<String> hintsList = new ArrayList<>();
 	private Map<String, String> hintsListMap = new HashMap<>();
 	private Map<String, String> hintsTextMap = new HashMap<>();
 	private Map<String, String> toolTipsKeys = new HashMap<>();
-	static final List<String> toolTipsKeysList = new ArrayList<>();
-	static final String tttSeparator = "~~~";
-	static final List<String> toolTipsText = Arrays.asList(		
+	private static final List<String> toolTipsKeysList = new ArrayList<>();
+	private static final String tttSeparator = "~~~";
+	private static final List<String> toolTipsText = Arrays.asList(
 		"STR("+tttSeparator+"STR() is not currently supported; rewrite with CONVERT(), but note the rounding that may be required",
 		"CHECKSUM(*)"+tttSeparator+"CHECKSUM(*) is not currently supported; CHECKSUM() with a single non-asterisk argment is supported",
 		"CHECKSUM(arg,arg,...)"+tttSeparator+"CHECKSUM() with multiple arguments is not currently supported; CHECKSUM() with a single non-asterisk argment is supported",
@@ -431,7 +440,7 @@ tooltipsHTMLPlaceholder +
 		"TRY_PARSE("+tttSeparator+"PARSE() is not currently supported; rewrite with CAST() or CONVERT()",
 		"SQUARE("+tttSeparator+"SQUARE() is not currently supported; rewrite with POWER()",
 		"UNICODE("+tttSeparator+"UNICODE() returns the Unicode code point for the first character in a string; this is not currently supported",
-		"HASHBYTES("+tttSeparator+"HASHBYTES() currently supports only MD5, SHA1, SHA2_256, SHA2_512",  /// this needs to be adjusted if additional agorithms are implemented
+		"HASHBYTES("+tttSeparator+"HASHBYTES() currently does not support this algorithm (MD5, SHA1, SHA2_256, SHA2_512 are supported)",
 		"IDENTITY("+tttSeparator+"The IDENTITY() function in SELECT-INTO is not currently supported; rewrite with ALTER TABLE to add an identity column following the SELECT-INTO",
 		"Precision of IDENTITY column "+tttSeparator+"The maximum supported precision of a NUMERIC/DECIMAL type for an IDENTITY column is exceeded; change the precision to stay within the supported limit",
 		"CHOOSE("+tttSeparator+"CHOOSE(): Rewrite as a CASE expression",
@@ -440,6 +449,19 @@ tooltipsHTMLPlaceholder +
 		"SESSION_USER"+tttSeparator+"SESSION_USER is not currently supported; Rewrite as USER_NAME()",
 		"SYSTEM_USER"+tttSeparator+"SYSTEM_USER is not currently supported; Rewrite as SUSER_NAME() (the -rewrite option handles this for you)",
 		"EOMONTH("+tttSeparator+"EOMONTH() is not currently supported; rewrite with DATEADD()/DATEPART() (the -rewrite option handles this for you)",
+		"DATEPART(y)"+tttSeparator+"The 'y' unit currently returns an incorrect result; rewrite as 'dy' (the -rewrite option handles this for you)",
+		"DATENAME(y)"+tttSeparator+"The 'y' unit currently returns an incorrect result; rewrite as 'dy' (the -rewrite option handles this for you)",
+		"DATEPART(w)"+tttSeparator+"The 'w' unit currently returns an incorrect result; rewrite as 'dw' (the -rewrite option handles this for you)",
+		"DATEPART(mi)"+tttSeparator+"The 'mi' unit is not currently supported; rewrite as 'minute' (the -rewrite option handles this for you)",
+		"DATENAME(mi)"+tttSeparator+"The 'mi' unit is not currently supported; rewrite as 'minute' (the -rewrite option handles this for you)",
+		"DATEDIFF(mi)"+tttSeparator+"The 'mi' unit is not currently supported; rewrite as 'minute' (the -rewrite option handles this for you)",
+		"DATEADD(mi)"+tttSeparator+"The 'mi' unit is not currently supported; rewrite as 'minute' (the -rewrite option handles this for you)",
+		"DATEDIFF(weekday)"+tttSeparator+"The 'weekday' unit is not currently supported; rewrite as 'day' (the -rewrite option handles this for you)",
+		"DATEDIFF(dw)"+tttSeparator+"The 'dw' unit is not currently supported; rewrite as 'day' (the -rewrite option handles this for you)",
+		"DATEPART("+tttSeparator+"This unit is not currently supported; rewrite using a different unit",
+		"DATENAME("+tttSeparator+"This unit is not currently supported; rewrite using a different unit",
+		"DATEDIFF("+tttSeparator+"This unit is not currently supported; rewrite using a different unit",
+		"DATEADD("+tttSeparator+"This unit is not currently supported; rewrite using a different unit",
 		"DATABASE_PRINCIPAL_ID("+tttSeparator+"DATABASE_PRINCIPAL_ID() is not currently supported; Rewrite as USER_NAME() (the -rewrite option handles this for you)",
 		"FORMAT("+tttSeparator+"FORMAT() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
 		"FORMATMESSAGE("+tttSeparator+"FORMATMESSAGE() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
@@ -471,12 +493,13 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.DoubleQuotedString+", embedded single"+tttSeparator+"An embedded single quote in a double-quoted string is not currently supported. Change the double-quote string delimiters to single quotes and escape the embedded single quote by doubling it (the -rewrite option handles this for you)",
 		CompassAnalyze.DoubleQuotedString+", embedded double"+tttSeparator+"An embedded double quote in a double-quoted string is not currently supported, and will result in two double quotes in the string. Change the double-quote string delimiters to single quotes and un-escape the embedded double quote (the -rewrite option handles this for you)",
 		CompassAnalyze.ExecuteSQLFunction+tttSeparator+"Calling a SQL function with EXECUTE is not currently supported. Call the function in an expression instead",
-		CompassAnalyze.ColonColonFunctionCall+tttSeparator+"Old-style function call with :: syntax is not supported; rewrite without ::",
+		CompassAnalyze.ColonColonFunctionCall+tttSeparator+"Old-style function call with :: syntax is not supported; rewrite without :: (the -rewrite option handles this for you)",
 		CompassAnalyze.TemporaryProcedures+tttSeparator+"Temporary stored procedures (with a name starting with #) are created, but not dropped automatically at the end of a session",
 		CompassAnalyze.NumericAsDateTime+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 (the -rewrite option handles this for you)",
 		CompassAnalyze.NumericDateTimeVarAssign+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 (the -rewrite option handles this for you)",
 		"EXECUTE procedure sp_db_vardecimal_storage_format"+tttSeparator+"This system stored procedure is not currently supported, but it may not have any function in Babelfish as it is usually part of a standard SSMS-generated DDL script",
 		"EXECUTE procedure sp_fulltext_database"+tttSeparator+"This system stored procedure is not currently supported, but it may not have any function in Babelfish as it is usually part of a standard SSMS-generated DDL script",
+		"EXECUTE procedure sp_addrolemember"+tttSeparator+"This  system stored procedure is not currently supported; rewrite as ALTER ROLE..ADD MEMBER",
 		"EXECUTE procedure sp_oacreate"+tttSeparator+"This OLE system stored procedure is not currently supported",
 		"EXECUTE procedure sp_oadestroy"+tttSeparator+"This OLE system stored procedure is not currently supported",
 		"EXECUTE procedure sp_oamethod"+tttSeparator+"This OLE system stored procedure is not currently supported",
@@ -509,12 +532,12 @@ tooltipsHTMLPlaceholder +
 		"ALTER TRIGGER"+tttSeparator+"ALTER TRIGGER is not currently supported; use DROP+CREATE",
 		"CREATE OR ALTER TRIGGER"+tttSeparator+"CREATE OR ALTER TRIGGER is not currently supported; use DROP+CREATE",
 		"ALTER DATABASE"+tttSeparator+"ALTER DATABASE is not currently supported; many ALTER DATABASE options may be irrelevant when migrating to " + thisProgName+" and could probably be ignored",
-		"Column attribute FILESTREAM"+tttSeparator+"The FILESTREAM attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
-		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
-		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_storage_options', 'ignore' [, 'server']\\\\\" to ignore and proceed",
+		"Column attribute FILESTREAM"+tttSeparator+"The FILESTREAM attribute is not currently supported; use escape hatch "+escapeHatchStorageOptionsText+" to ignore and proceed",
+		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported; use escape hatch "+escapeHatchStorageOptionsText+" to ignore and proceed",
+		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported; use escape hatch "+escapeHatchStorageOptionsText+" to ignore and proceed",
 		CompassAnalyze.AlterTable+"..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements (the -rewrite option handles this for you)",
-		CompassAnalyze.AlterTable+"..CHECK CONSTRAINT"+tttSeparator+"Enabling FK or CHECK constraints is not currently supported; constraints are always enabled; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_nocheck%', 'ignore' [, 'server']\\\\\" to ignore and proceed",
-		CompassAnalyze.AlterTable+"..NOCHECK CONSTRAINT"+tttSeparator+"Disabling FK or CHECK constraints is not currently supported; constraints are always enabled; use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_nocheck%', 'ignore' [, 'server']\\\\\" to ignore the error message and proceed",
+		CompassAnalyze.AlterTable+"..CHECK CONSTRAINT"+tttSeparator+"Enabling FK or CHECK constraints is not currently supported; constraints are always enabled; use escape hatch "+escapeHatchNoCheckText+" to ignore and proceed",
+		CompassAnalyze.AlterTable+"..NOCHECK CONSTRAINT"+tttSeparator+"Disabling FK or CHECK constraints is not currently supported; constraints are always enabled; use escape hatch "+escapeHatchNoCheckText+" to ignore the error message and proceed",
 		CompassAnalyze.AlterTable+"..ALTER COLUMN NULL"+tttSeparator+"NULL/NOT NULL is not currently supported with ALTER COLUMN. To change column nullability, use ALTER TABLE { SET | DROP } NOT NULL in PG",
 		CompassAnalyze.AlterTable+"..ALTER COLUMN NOT NULL"+tttSeparator+"NULL/NOT NULL is not currently supported with ALTER COLUMN. To change column nullability, use ALTER TABLE { SET | DROP } NOT NULL in PG",
 		"DBCC "+tttSeparator+"DBCC statements are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
@@ -543,11 +566,11 @@ tooltipsHTMLPlaceholder +
 		"CURSOR procedure parameter"+tttSeparator+"CURSOR-typed parameters are supported when used as input parameter, but the procedure call fails when used as output parameter. Note that a CURSOR parameter must nevertheless always be declared as VARYING OUTPUT",
 		"GLOBAL cursor"+tttSeparator+"Currently only LOCAL cursors are supported",
 		"GLOBAL option for FETCH"+tttSeparator+"Currently only LOCAL cursors are supported",
-		"ALTER TABLE..DISABLE TRIGGER"+tttSeparator+"Disabling triggers is not currently supported; triggers are always enabled",		
-		"DISABLE TRIGGER"+tttSeparator+"Disabling triggers is not currently supported; triggers are always enabled",		
-		"ALTER TABLE..ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",		
-		"ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",		
-		"CREATE TRIGGER, INSTEAD OF"+tttSeparator+"This type of INSTEAD-OF trigger is not currently supported. Rewrite as FOR trigger",		
+		"ALTER TABLE..DISABLE TRIGGER"+tttSeparator+"Disabling triggers is not currently supported; triggers are always enabled",
+		"DISABLE TRIGGER"+tttSeparator+"Disabling triggers is not currently supported; triggers are always enabled",
+		"ALTER TABLE..ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",
+		"ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",
+		"CREATE TRIGGER, INSTEAD OF"+tttSeparator+"This type of INSTEAD-OF trigger is not currently supported. Rewrite as FOR trigger",
 		"CREATE TRIGGER (DDL"+tttSeparator+"DDL triggers are not currently supported",
 		CompassAnalyze.TriggerSchemaName+tttSeparator+"CREATE TRIGGER schemaname.triggername is not currently supported; Remove 'schemaname'",
 		"\\w+, WHERE CURRENT OF"+tttSeparator+"Updatable cursors are not currently supported. Rewrite the application to use direct UPDATE/DELETE",
@@ -602,7 +625,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.SelectUnpivot+tttSeparator+"SELECT..UNPIVOT is not currently supported. Rewrite manually",
 		CompassAnalyze.SelectTopWithTies+tttSeparator+"SELECT TOP WITH TIES is not currently supported. Rewrite manually",
 		"SELECT TOP <number> PERCENT"+tttSeparator+"Only TOP 100 PERCENT is currently supported. Rewrite as TOP without PERCENT. Rewrite manually",
-		CompassAnalyze.SelectTopInTUDF+tttSeparator+"A Table-Valued Function containing a SELECT TOP statement can be created, but cannot be called. Rewrite without TOP",
+		CompassAnalyze.SelectTopInTUDF+tttSeparator+"A Table-Valued Function containing a SELECT TOP statement can be created, but cannot be called. Rewrite without TOP on the highest level, for example by moving TOP into a subquery",
 		"CROSS APPLY"+tttSeparator+"CROSS APPLY: lateral joins are not currently supported. Rewrite manually",
 		"OUTER APPLY"+tttSeparator+"OUTER APPLY: lateral joins are not currently supported. Rewrite manually",
 		"T-SQL Left Outer Join"+tttSeparator+"The (long-deprecated) T-SQL Outer Join syntax is not supported; rewrite with ANSI Outer Join syntax",
@@ -618,12 +641,12 @@ tooltipsHTMLPlaceholder +
 		"CLUSTERED COLUMNSTORE"+tttSeparator+"CLUSTERED COLUMNSTORE indexes (without a column list) are not currently supported; review performance expectations related to such indexes",
 		"COLUMNSTORE index"+tttSeparator+"COLUMNSTORE indexes are not currently supported; review performance expectations related to such indexes",
 		"Indexed view "+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
-		"CREATE TABLE ##"+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, and is dropped automatically when the last session accessing the table disconnects",
+		"CREATE TABLE ##"+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, all committed rows are visible to all sesssions, and the table is dropped automatically when the last session accessing the table disconnects",
 		"CREATE TABLE (temporal)"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
 		"ALTER TABLE..SET SYSTEM_VERSIONING"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
-		CompassAnalyze.TableHint+tttSeparator+"Table hints are not currently supported by Babelfish; escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_table_hints', 'ignore' [, 'server']\\\\\" will silently ignore table hints ('strict' will raise an error). Review the expected impact on concurrency or query plans in the original query and rewrite the query as needed",
-		CompassAnalyze.JoinHint+tttSeparator+"Join hints are not currently supported by Babelfish; escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_join_hints', 'ignore' [, 'server']\\\\\" will silently ignore join hints ('strict' will raise an error). Review the expected impact on query plans in the original query and rewrite the query as needed",
-		CompassAnalyze.QueryHint+tttSeparator+"Query hints are not currently supported by Babelfish; escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_query_hints', 'ignore' [, 'server']\\\\\" will silently ignore query hints ('strict' will raise an error). Review the expected impact on query plans in the original query and rewrite the query as needed",
+		CompassAnalyze.TableHint+tttSeparator+"Table hints are not currently supported by Babelfish; escape hatch "+escapeHatchTableHintsText+" will silently ignore table hints ('strict' will raise an error). Review the expected impact on concurrency or query plans in the original query and rewrite the query as needed",
+		CompassAnalyze.JoinHint+tttSeparator+"Join hints are not currently supported by Babelfish; escape hatch "+escapeHatchJoinHintsText+" will silently ignore join hints ('strict' will raise an error). Review the expected impact on query plans in the original query and rewrite the query as needed",
+		CompassAnalyze.QueryHint+tttSeparator+"Query hints are not currently supported by Babelfish; escape hatch "+escapeHatchQueryHintsText+" will silently ignore query hints ('strict' will raise an error). Review the expected impact on query plans in the original query and rewrite the query as needed",
 		CompassAnalyze.NumericColNonNumDft+tttSeparator+"NUMERIC/DECIMAL table columns with a non-numeric column default still allow the table to be created in SQL Server but will raise an error only when the default is used; in Babelfish, the error is raised when the table is created. Remove the non-numeric default",
 		CompassAnalyze.TableValueConstructor+tttSeparator+"Rewrite the VALUES() clause as SELECT statements and/or UNIONs",
 		CompassAnalyze.MergeStmt+tttSeparator+"Rewrite MERGE as a series of INSERT/UPDATE/DELETE statements (the -rewrite option handles this for you)",
@@ -638,57 +661,61 @@ tooltipsHTMLPlaceholder +
 		"Number of function parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the function to use less parameters (for example, by using a table variable as parameter)",
 		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action, in case the trigger body references the transition tables INSERTED or DELETED",
 		"SET FMTONLY"+tttSeparator+"SET FMTONLY applies only to SELECT * in v.1.2.0 or later; otherwise it is ignored",
-		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\" to suppress the resulting error message",
-		"SET ARITHABORT OFF"+tttSeparator+"Currently, only the semantics of ARITHABORT=ON are supported. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\" to suppress the resulting error message",
-		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported; for other numbers, use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\" to suppress the resulting error message and treat the number as 0. When using a variable, an error is raised regardless",
+		"SET ANSI_WARNINGS OFF"+tttSeparator+"SET ANSI_WARNINGS OFF is currently not supported due to PG limitations (PG cannot silently return NULL for arithmetic overflow or divide-by-zero, or silently truncate too-long strings). Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the error message fromSET ANSI_WARNINGS OFF",
+		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
+		"SET ARITHABORT OFF"+tttSeparator+"Currently, only the semantics of ARITHABORT=ON are supported. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
+		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported; for other numbers, use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message and treat the number as 0. When using a variable, an error is raised regardless",
 		"SET QUOTED_IDENTIFIER \\w+, before end of batch"+tttSeparator+"SET QUOTED_IDENTIFIER takes effect only at the start of the next batch in Babelfish; the SQL Server semantics where it applies to the next statement, is not currently supported",
 		"SET DEADLOCK_PRIORITY"+tttSeparator+"Setting the deadlock victimization priority is not currently supported",
 		"SET LOCK_TIMEOUT"+tttSeparator+"Setting the lock timeout is not currently supported",
-		"SET DATEFORMAT"+tttSeparator+"Currently, SET DATEFORMAT is not supported. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_session_settings', 'ignore' [, 'server']\\\\\" to suppress the resulting error message",
+		"SET DATEFORMAT"+tttSeparator+"Currently, SET DATEFORMAT is not supported. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
+		"SET LANGUAGE"+tttSeparator+"Currently, SET LANGUAGE is not supported for languages other than English. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
+		"SET SHOWPLAN_ALL"+tttSeparator+"SET SHOWPLAN_ALL is not supported; use SET BABELFISH_SHOWPLAN_ALL instead. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the error message resulting from SET SHOWPLAN_ALL",
+		"SET STATISTICS PROFILE"+tttSeparator+"SET STATISTICS PROFILE is not supported; use SET BABELFISH_STATISTICS PROFILE instead. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the error message resulting from SET STATISTICS PROFILE",
 		CompassAnalyze.SetXactIsolationLevel+tttSeparator+"This transaction isolation level is not currently supported, due to PostgreSQL\'s MVCC mechanism",
-		
-		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index "+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_unique_constraint', 'ignore' [, 'server']\\\\\" to override and create the table anyway",
-		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_unique_constraint', 'ignore' [, 'server']\\\\\" to override and create the table anyway",
-		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index, on multiple columns"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with  multiple NULL values in such a column, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_unique_constraint', 'ignore' [, 'server']\\\\\" to override and create the table anyway",
-		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint, on multiple columns"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with  multiple NULL values, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish. Use escape hatch \\\\\"sp_babelfish_configure 'escape_hatch_unique_constraint', 'ignore' [, 'server']\\\\\" to override and create the table anyway",
-		
+
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index "+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish. Use escape hatch "+escapeHatchUniqueConstraintText+" to override and create the table anyway",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish. Use escape hatch "+escapeHatchUniqueConstraintText+" to override and create the table anyway",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index, on multiple columns"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with  multiple NULL values in such a column, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish. Use escape hatch "+escapeHatchUniqueConstraintText+" to override and create the table anyway",
+		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE constraint, on multiple columns"+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with  multiple NULL values, UNIQUE constraints/indexes on multiple columns, including nullable columns, should be reviewed, even though these are currently not blocked in Babelfish. Use escape hatch "+escapeHatchUniqueConstraintText+" to override and create the table anyway",
+
 		CompassAnalyze.DropIndex+" index ON schema.table"+tttSeparator+"Syntax 'DROP INDEX indexname ON schema.table' is not currently supported; remove schema name",
 		CompassAnalyze.DropIndex+" table.index"+tttSeparator+"Syntax 'DROP INDEX table.indexname' is not currently supported; use 'DROP INDEX indexname ON tablename'",
 		CompassAnalyze.DropIndex+" schema.table.index"+tttSeparator+"Syntax 'DROP INDEX schema.table.indexname' is not currently supported; use 'DROP INDEX indexname ON tablename'",
-		
+
 		"Partitioning, CREATE "+tttSeparator+"Table/index partitioning is not currently supported.",
 		"$PARTITION.function"+tttSeparator+"Table/index partitioning is not currently supported.",
 		"ALTER TABLE..SWITCH"+tttSeparator+"Table/index partitioning is not currently supported.",
 		"\\w+ PARTITION"+tttSeparator+"Table/index partitioning is not currently supported.",
-		
+
 		"CREATE DEFAULT"+tttSeparator+"DEFAULT objects are not currently supported; use column defaults instead",
 		"CREATE RULE"+tttSeparator+"RULE objects are not currently supported; use CHECK constraints instead",
-		
-		"Special column name IDENTITYCOL"+tttSeparator+"The special column name IDENTITYCOL is not currently supported. Replace it by the actual name of the idebtity column",		
-		CompassAnalyze.LeadingDotsId+tttSeparator+"Remove leading dots for identifiers, i.e. change 'SELECT * FROM ..mytable' to 'SELECT * FROM mytable'",		
-		CompassAnalyze.SpecialCharsIdentifier+tttSeparator+"Some characters are not currently supported in identifiers; go to the cross-reference section to find the specific case",		
-		CompassAnalyze.SpecialCharsParameter+tttSeparator+"Some characters are not currently supported in parameter declarations; go to the cross-reference section to find the specific case",		
-		"EXECUTE AS"+tttSeparator+"The EXECUTE AS statement (not to be confused with the EXECUTE AS clause in CREATE PROCEDURE/FUNCTION/etc.) is not currently supported",		
-		"EXECUTE procedure sp_addextendedproperty"+tttSeparator+"System stored procedure sp_addextendedproperty is not currently supported; this is most often used to create metadata comments (e.g. COMMENT ON in PostgreSQL) and does not otherwise affect SQL functionality",		
-		"REVERT"+tttSeparator+"The REVERT statement is not currently supported",		
-		"LIKE '[...]'"+tttSeparator+"Square brackets [...] for pattern matching are not currently supported with LIKE",		
-		
+
+		"Special column name IDENTITYCOL"+tttSeparator+"The special column name IDENTITYCOL is not currently supported. Replace it by the actual name of the identity column",
+		CompassAnalyze.LeadingDotsId+tttSeparator+"Remove leading dots for identifiers, i.e. change 'SELECT * FROM ..mytable' to 'SELECT * FROM mytable'",
+		CompassAnalyze.SpecialCharsIdentifier+tttSeparator+"Some characters are not currently supported in identifiers; go to the cross-reference section to find the specific case",
+		CompassAnalyze.SpecialCharsParameter+tttSeparator+"Some characters are not currently supported in parameter declarations; go to the cross-reference section to find the specific case",
+		"EXECUTE AS"+tttSeparator+"The EXECUTE AS statement (not to be confused with the EXECUTE AS clause in CREATE PROCEDURE/FUNCTION/etc.) is not currently supported",
+		"EXECUTE procedure sp_addextendedproperty"+tttSeparator+"System stored procedure sp_addextendedproperty is not currently supported; this is most often used to create metadata comments (e.g. COMMENT ON in PostgreSQL) and does not otherwise affect SQL functionality",
+		"REVERT"+tttSeparator+"The REVERT statement is not currently supported",
+		"LIKE '[...]'"+tttSeparator+"Square brackets [...] for pattern matching are not currently supported with LIKE",
+
 		"\\w+, option WITH EXECUTE AS CALLER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY INVOKER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
 		"\\w+, option WITH EXECUTE AS OWNER"+tttSeparator+"The clause WITH EXECUTE AS OWNER for procedures, functions and triggers maps to SECURITY DEFINER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
 		"\\w+, option WITH EXECUTE AS SELF"+tttSeparator+"The clause WITH EXECUTE AS SELF for procedures, functions and triggers is not currently supported",
 		"\\w+, option WITH EXECUTE AS USER"+tttSeparator+"The clause WITH EXECUTE AS <user> for procedures, functions and triggers is not currently supported",
 		"Index exceeds \\d+ columns"+tttSeparator+"For the maximum number of columns per index, 'included' columns do not count in SQL Server, but they do count in PostgreSQL",
 		"DROP \\w+, >1 object"+tttSeparator+"Use a separate DROP statement for each object to be dropped",
-		"CREATE FUNCTION, \\w+( \\w+)?, atomic"+tttSeparator+"Atomic natively compiled functions are not currently supported; rewrite as a regular SQL functions",		
-		"CREATE FUNCTION, \\w+( \\w+)?, external"+tttSeparator+"External functions are not currently supported; rewrite as a regular SQL functions",		
-		"CREATE FUNCTION, \\w+( \\w+)?, CLR"+tttSeparator+"CLR functions are not currently supported; rewrite as a regular SQL functions",		
-		"CREATE \\w+, atomic"+tttSeparator+"Atomic natively compiled procedures/triggers are not currently supported; rewrite as a regular SQL object",		
-		"CREATE \\w+, external"+tttSeparator+"External procedures/triggers are not currently supported; rewrite as a regular SQL object",		
-		"CREATE \\w+, CLR"+tttSeparator+"CLR functions are not currently supported; rewrite as a regular SQL functions",		
-		"\\w+, WITH SCHEMABINDING: created in PG as without SCHEMABINDING"+tttSeparator+"WITH SCHEMABINDING is not currently supported for procedures/functions/triggers; these will be created in PG as if SCHEMABINDING was not specified",		
-		"\\w+, option WITH ENCRYPTION"+tttSeparator+"Encryption of the SQL source code of an object is not currently supported",		
-		"\\w+, option WITH NATIVE_COMPILATION"+tttSeparator+"Native compilation is not currently supported; rewrite as a regular SQL object",		
-		"View, without SCHEMABINDING"+tttSeparator+"PostgreSQL only supports views with the equivalent of WITH SCHEMABINDING, i.e. a table cannot be dropped if a view depends on it. A view without the SCHEMABINDING clause will still be created by Babelfish, but as if WITH SCHEMABINDING was specified",		
+		"CREATE FUNCTION, \\w+( \\w+)?, atomic"+tttSeparator+"Atomic natively compiled functions are not currently supported; rewrite as a regular SQL functions",
+		"CREATE FUNCTION, \\w+( \\w+)?, external"+tttSeparator+"External functions are not currently supported; rewrite as a regular SQL functions",
+		"CREATE FUNCTION, \\w+( \\w+)?, CLR"+tttSeparator+"CLR functions are not currently supported; rewrite as a regular SQL functions",
+		"CREATE \\w+, atomic"+tttSeparator+"Atomic natively compiled procedures/triggers are not currently supported; rewrite as a regular SQL object",
+		"CREATE \\w+, external"+tttSeparator+"External procedures/triggers are not currently supported; rewrite as a regular SQL object",
+		"CREATE \\w+, CLR"+tttSeparator+"CLR functions are not currently supported; rewrite as a regular SQL functions",
+		"\\w+, WITH SCHEMABINDING: created in PG as without SCHEMABINDING"+tttSeparator+"WITH SCHEMABINDING is not currently supported for procedures/functions/triggers; these will be created in PG as if SCHEMABINDING was not specified",
+		"\\w+, option WITH ENCRYPTION"+tttSeparator+"Encryption of the SQL source code of an object is not currently supported",
+		"\\w+, option WITH NATIVE_COMPILATION"+tttSeparator+"Native compilation is not currently supported; rewrite as a regular SQL object",
+		"View, without SCHEMABINDING"+tttSeparator+"PostgreSQL only supports views with the equivalent of WITH SCHEMABINDING, i.e. a table cannot be dropped if a view depends on it. A view without the SCHEMABINDING clause will still be created by Babelfish, but as if WITH SCHEMABINDING was specified",
 		"View, with CHECK OPTION"+tttSeparator+"WITH CHECK OPTION is not currently supported for views; remove the option",
 		"\\w+ MATERIALIZED VIEW"+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
 		"\\w+ TRANSACTION not supported with PostgreSQL SECURITY DEFINER"+tttSeparator+"T-SQL objects created with EXECUTE AS OWNER are mapped to PostgreSQL SECURITY DEFINER; PostgreSQL does not support transaction mgmt statementds for objects created with SECURITY DEFINER",
@@ -696,19 +723,19 @@ tooltipsHTMLPlaceholder +
 		"\\w+ AGGREGATE"+tttSeparator+"This object type is not currently supported",
 		"\\w+ EVENT SESSION"+tttSeparator+"This object type is not currently supported",
 		"\\w+ EVENT NOTIFICATION"+tttSeparator+"This object type is not currently supported",
-        "\\w+.*?, in computed column"+tttSeparator+"This feature may be supported by itself, but is not currently supported when used in a computed column",	
-        "\\w+"+CompassAnalyze.DMLTabVarCorrNameUDFErrorText+tttSeparator+"Rewrite statement such that the DML operates directly on the table variable instead of on the correlation name",		
+        "\\w+.*?, in computed column"+tttSeparator+"This feature may be supported by itself, but is not currently supported when used in a computed column",
+        "\\w+"+CompassAnalyze.DMLTabVarCorrNameUDFErrorText+tttSeparator+"Rewrite statement such that the DML operates directly on the table variable instead of on the correlation name",
         CompassAnalyze.UpdateCorrColumnUnqualifiedErrorText+tttSeparator+"Rewrite statement by prefixing the column name in the SET expression with the correlation name",
-        CompassAnalyze.UpdateQualifiedSetColumnErrorText+tttSeparator+"Rewrite statement by removing the table name prefix from the SET column name being updated, i.e. change 'SET t.col =' to 'SET col ='"		
+        CompassAnalyze.UpdateQualifiedSetColumnErrorText+tttSeparator+"Rewrite statement by removing the table name prefix from the SET column name being updated, i.e. change 'SET t.col =' to 'SET col ='"
 	);
 
 	// emoji to indicate popup info is available
   	//static String hintIcon      = "&#x1F6C8;";  // information symbol: (i)  -- preferred emoji but it doe snto render correctly on Mac
-  	static String hintIcon      = "&#x2139;";  // information symbol: i  -- use this always: since Windows users are emailing the report to Mac users, the latter user 
+  	static String hintIcon      = "&#x2139;";  // information symbol: i  -- use this always: since Windows users are emailing the report to Mac users, the latter user
   	                                           //                           won't be able to display the emoji which was OK on Windows
   	static String hintIconMac   = "&#x2139;";  // information symbol: i  -- x1F6C8 is not rendered correctly on some Macs
-  	static String hintIconLinux = "&#x2139;";  // information symbol: i  
-	
+  	static String hintIconLinux = "&#x2139;";  // information symbol: i
+
 	// alternate emojis; use COMPASS_HINT_ICON how to specify your own favorite,i.e. SET COMPASS_HINT_ICON=1F4A1
   	//String hintIcon = "&#x2754;";   // white question mark
   	//String hintIcon = "&#x1F4A1;";  // light bulb
@@ -799,7 +826,7 @@ tooltipsHTMLPlaceholder +
 	public final String captureFileLinePart4 = " with capture file format ";
 
 	// report generation
-	public String reportName = uninitialized;
+	public static String reportName = uninitialized;
 	public final String sortKeySeparator = "  ~~~";
 	public final String lastItem = "~ZZZZZZ~LastItem";
 	public static boolean reportShowAppName = true;
@@ -833,7 +860,7 @@ tooltipsHTMLPlaceholder +
 	// for 'with issues' section
 	private Map<String, String> contextLinkMap = new HashMap<>();
 	private Map<String, String> objectAnchorsMap = new HashMap<>();
-	
+
 	// caching
 	Map<String, String> stripDelimiterCache = new HashMap<>();
 	int stripDelimitedIdentifierCall = 0;
@@ -877,7 +904,9 @@ tooltipsHTMLPlaceholder +
 	static Map<String, String> UDDSymTab = new HashMap<>();
 	static Map<String, String> SUDFSymTab = new HashMap<>();
 	static Map<String, String> TUDFSymTab = new HashMap<>();
-	static Map<String, String> colSymTab = new HashMap<>();
+	static Map<String, String> colSymTab = new HashMap<>();  // columns
+	public static boolean buildColSymTab = false;  // false=no columns in symtab
+	static Map<String, String> parSymTab = new HashMap<>();  // parameters with defaults
 
 	//XML methods
 	static final List<String> XMLmethods = Arrays.asList("EXIST", "MODIFY", "QUERY", "VALUE", "NODES");
@@ -925,8 +954,8 @@ tooltipsHTMLPlaceholder +
 	public boolean debugSymtab;
 	public boolean debugReport;
 	public boolean debugCalc;
-	public boolean debugFmt;	
-	public boolean debugRewrite;	
+	public boolean debugFmt;
+	public boolean debugRewrite;
 	public boolean debugging;
 	public int debugSpecial = 0;
 
@@ -939,11 +968,12 @@ tooltipsHTMLPlaceholder +
 	public static final String Ignored           = "IGNORED";
 	public static final String ObjCountOnly      = "OBJECTCOUNTONLY";
 	public static final String Rewritten         = "REWRITTEN";
+	public static final String RewriteOppty      = "REWRITEOPPTY";
 
 	// TODO Convert these lists in sets for efficiency
-	public static List<String> supportOptions        = Arrays.asList(Supported,    NotSupported,    ReviewSemantics,    ReviewPerformance,    ReviewManually,    Ignored, ObjCountOnly, Rewritten);
+	public static List<String> supportOptions        = Arrays.asList(Supported,    NotSupported,    ReviewSemantics,    ReviewPerformance,    ReviewManually,    Ignored, ObjCountOnly, RewriteOppty, Rewritten);
 	// values for default_classification in .cfg file:
-	public static List<String> supportOptionsCfgFile = Arrays.asList("Supported", "NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually",  "Ignored", ObjCountOnly, Rewritten);
+	public static List<String> supportOptionsCfgFile = Arrays.asList("Supported", "NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually",  "Ignored", ObjCountOnly, RewriteOppty, Rewritten);
 	public static List<String> validSupportOptionsCfgFileOrig = Arrays.asList("NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually", "Ignored");
 	public static List<String> validSupportOptionsCfgFile = new ArrayList<>();
 	// keys for default_classification in .cfg file, e.g. '-ReviewSemantics':
@@ -956,7 +986,7 @@ tooltipsHTMLPlaceholder +
 	public static List<String> overrideClassificationsKeys = new ArrayList<>();
 
 	// display values
-	public static List<String> supportOptionsDisplay = Arrays.asList("Supported", "Not Supported", "Review Semantics", "Review Performance", "Review Manually", "Ignored", ObjCountOnly, "Rewritten by Babelfish Compass");
+	public static List<String> supportOptionsDisplay = Arrays.asList("Supported", "Not Supported", "Review Semantics", "Review Performance", "Review Manually", "Ignored", ObjCountOnly, "Rewrite opportunities", "Rewritten by Babelfish Compass");
 
 	// iteration order for report
 	public static List<String> supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Supported);
@@ -970,6 +1000,7 @@ tooltipsHTMLPlaceholder +
 	                                                                 150,    // ReviewManually
 	                                                                 0,     // Ignored
 	                                                                 0,     // ObjCountOnly, not applicable
+	                                                                 0,     // RewriteOppty, not applicable
 	                                                                 100    // Rewritten
 	                                                                );
 	public final String WeightedStr = "Weighted";
@@ -987,19 +1018,20 @@ tooltipsHTMLPlaceholder +
 	public Map<String, Integer> statusOverridesDetail = new HashMap<>();
 	public Map<String, Integer> groupOverrides        = new HashMap<>();
 	public Map<String, Integer> groupOverridesDetail  = new HashMap<>();
-	
+
 	// for SQL rewrites
-	public static boolean rewrite = false;  // main switch
-	public static final String rewriteBlankLine = "BBF_REWRITE_BLANKLINE";	
-			
+	public static boolean rewrite = false;  // main rewrite switch
+	public static boolean rewriteReportOnly = false;  // indicates doing only a report but rewritten cases exist
+	public static final String rewriteBlankLine = "BBF_REWRITE_BLANKLINE";
+
 	// text rewrites that need to be applied
-	public static List<String>        rewriteTextListKeys = new ArrayList<>();	
-	public static Map<String,String>  rewriteTextList     = new HashMap<>();	
-	public static Map<String,String>  rewriteTextListOrigText = new HashMap<>();	
+	public static List<String>        rewriteTextListKeys = new ArrayList<>();
+	public static Map<String,String>  rewriteTextList     = new HashMap<>();
+	public static Map<String,String>  rewriteTextListOrigText = new HashMap<>();
 	public static Map<Integer, Map<String, List<Integer>>> rewriteIDDetails = new HashMap<>();
-	public static Map<String,Integer> rewrittenOppties = new HashMap<>();	
-	public static String rewriteNotes = uninitialized;	
-	public static Map<String,Integer> rewriteOppties = new HashMap<>();	
+	public static Map<String,Integer> rewrittenOppties = new HashMap<>();
+	public static String rewriteNotes = uninitialized;
+	public static Map<String,Integer> rewriteOppties = new HashMap<>();
 	public static final String        rewriteOpptiesTotal = "totalcount";
 	public static final String        SQLcodeRewrittenText = "SQL code sections rewritten by " + thisProgName+": ";
 	public static final String rwrTag = " /*REWRITTEN*/ ";
@@ -1008,29 +1040,29 @@ tooltipsHTMLPlaceholder +
 	public static Integer nrMergeRewrites = 0;
 	public static String rewriteTypeExpr1 = "expr(1)";
 	public static String rewriteTypeExpr2 = "expr(2)";
-	public static String rewriteTypeReplace = "replace";	
-	public static String rewriteTypeODBCfunc1 = "ODBCfunc1";	
-	public static String rewriteTypeODBClit1 = "ODBClit1";	
-	public static String rewriteTypeBlockReplace = "BlockReplace";	
-	public static String rewriteTypeCommentAndAppend = "CommentAndAppend";	
+	public static String rewriteTypeReplace = "replace";
+	public static String rewriteTypeODBCfunc1 = "ODBCfunc1";
+	public static String rewriteTypeODBClit1 = "ODBClit1";
+	public static String rewriteTypeBlockReplace = "BlockReplace";
+	public static String rewriteTypeCommentAndAppend = "CommentAndAppend";
 
-	// added lines/columns: list index=iteration#; map key = line#; subkey = col# on line; value = #chars added at (line,col)	
+	// added lines/columns: list index=iteration#; map key = line#; subkey = col# on line; value = #chars added at (line,col)
 	public static List<Map<Integer, Map<Integer, Integer>>> offsetCols = new ArrayList<>();
 	public static Map<String, Map<Integer, Integer>> offsetLines = new HashMap<>();
 	public static final Integer calcOffsetIterationMax = 999999;
 
-	// SQL rewrites performed	
+	// SQL rewrites performed
 	public static List<String> rewritesDone = new ArrayList<>();
 
 	// flags
 	public static boolean devOptions = false;
 	public static boolean updateCheck = true;
-	public static boolean symTabAll = false; 
+	public static boolean symTabAll = false;
 	public static boolean caching = false;
 	public static boolean QuotedIdentifierFlag = false;
 	public static boolean listHints = false;
 	public static boolean reportSyntaxIssues = false;
-	
+
 	// misc
 	public static final String miscDelimiter = "~!~@~!~";
 
@@ -1069,28 +1101,24 @@ tooltipsHTMLPlaceholder +
     private static void initValues () {
     	HIERARCHYIDmethods = new ArrayList<>(HIERARCHYIDmethodsFmt);
     	listToUpperCase(HIERARCHYIDmethods);
-    	
+
 	   	validSupportOptionsCfgFile = new ArrayList<>(validSupportOptionsCfgFileOrig);
     	listToUpperCase(validSupportOptionsCfgFile);
-    	
+
 	   	defaultClassificationsKeys = new ArrayList<>(defaultClassificationsKeysOrig);
     	listToUpperCase(defaultClassificationsKeys);
-	   	
+
 	   	overrideClassificationsKeys = new ArrayList<>(overrideClassificationsKeysOrig);
-    	listToUpperCase(overrideClassificationsKeys);   
-    	
+    	listToUpperCase(overrideClassificationsKeys);
+
     	listToLowerCase(importFormatOption);
-    	
+
     	if (importFormatSupportedDisplay == null) {
 	    	// copy must come before listToLowerCase()
-	    	importFormatSupportedDisplay = new ArrayList<>(importFormatSupported);     	
+	    	importFormatSupportedDisplay = new ArrayList<>(importFormatSupported);
 	    	importFormatSupportedDisplay.remove(sqlcmdFmt);
 		}
-	    listToLowerCase(importFormatSupported);  		
-    	
-    	if (rewrite) {	
-    		supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Rewritten, Supported);
-    	} 	    	
+	    listToLowerCase(importFormatSupported);
     }
 
 	/**
@@ -1102,14 +1130,14 @@ tooltipsHTMLPlaceholder +
 	 */
 	public void setPlatformAndOptions(String osName) {
 		osName = osName.toLowerCase();
-		
+
 		if (osName.startsWith("windows")) {
 			onWindows = true;
 			onPlatform  = "Windows";
 			thisProgExec = thisProgExecWindows;
 			BabelfishCompassFolderName = BabelfishCompassFolderNameWindows;
 		}
-		else if (osName.startsWith("mac os x")) {			
+		else if (osName.startsWith("mac os x")) {
 			onMac = true;
 			onPlatform  = "MacOS";
 			thisProgExec = thisProgExecMac;
@@ -1128,24 +1156,24 @@ tooltipsHTMLPlaceholder +
 		if (System.getenv().containsKey("COMPASS_DEVELOP") || System.getenv().containsKey("compass_develop")) {
 			devOptions = true;
 		}
-		
+
 		if (System.getenv().containsKey("COMPASS_HINT_ICON") || System.getenv().containsKey("compass_hint_icon")) {
 			// you can get an arbitrary emoji as icon when you specify it in envvar COMPASS_HINT_ICON
 			String iconEnv = System.getenv().get("COMPASS_HINT_ICON");
 			if (getPatternGroup(iconEnv, "^((\\#)?(x)?[0-9A-F]{4,}(;)?)$", 1).isEmpty()) {
-				appOutput("COMPASS_HINT_ICON: invalid value ["+iconEnv+"]. Must be '#x<hex>' or '#<number>', denoting a Unicode Emoji."); 
+				appOutput("COMPASS_HINT_ICON: invalid value ["+iconEnv+"]. Must be '#x<hex>' or '#<number>', denoting a Unicode Emoji.");
 			}
 			else {
 				if (!iconEnv.startsWith("#")) iconEnv = "#" + iconEnv;
 				if (!iconEnv.endsWith(";")) iconEnv += ";";
 				hintIcon = "&" + iconEnv;
 			}
-		}	
-		
+		}
+
 		if (System.getenv().containsKey("COMPASS_COMPAT_PERCENTAGE") || System.getenv().containsKey("compass_compat_percentage")) {
 			showPercentage = true;
 		}
-					
+
     }
 
  	// for debugging, and for launching the window with the final report
@@ -1195,7 +1223,7 @@ tooltipsHTMLPlaceholder +
 			flags = flags | Pattern.MULTILINE | Pattern.DOTALL;
 		}
 		p = Pattern.compile(patt, flags);
-				
+
 		return getPatternGroup(s, p, groupNr, MatchMethod.FIND);
 	}
 
@@ -1243,9 +1271,9 @@ tooltipsHTMLPlaceholder +
 		if (options.contains("multiline")) {
 			flags = flags | Pattern.MULTILINE | Pattern.DOTALL;
 		}
-		
+
 		p = Pattern.compile(patt, flags);
-		
+
     	Matcher m = p.matcher(s);
     	if (options.contains("first"))
     		s = m.replaceFirst(replace);
@@ -1322,7 +1350,7 @@ tooltipsHTMLPlaceholder +
 		}
 		return s;
 	}
-	
+
 //	// extract string literals from expression
 //	// could be of form '[' + f('abc') + ']'
 //	public static String extractStringLiterals(String s) {
@@ -1338,8 +1366,8 @@ tooltipsHTMLPlaceholder +
 //		}
 //		return s;
 //	}
-	
-	public String extractStringLiteral(String s) 
+
+	public String extractStringLiteral(String s)
 	{
 		if (s.isEmpty()) return "";
 		s = applyPatternAll(s, "\\s", "");
@@ -1354,34 +1382,34 @@ tooltipsHTMLPlaceholder +
 					i += b.length();
 					//appOutput(thisProc()+"i=["+i+"] ");
 					continue;
-				} 
+				}
 				if (c == '\'') {
 					inString = true;
-				} 
+				}
 			}
 			else { // inString
 				if (c == '\'') {
 					inString = false;
-				} 			
+				}
 				else {
 					qs += c;
-				}					
+				}
 			}
 		}
 	    return qs; // didn't find closing bracket
 	}
 
 	// mask char literals
-	// this is not 100% fool-proof, think of bracketed identifiers containing quotes, but this should not be a showstopper 
+	// this is not 100% fool-proof, think of bracketed identifiers containing quotes, but this should not be a showstopper
 	public String maskStringConstants(String s, String tag) {
 		if (!s.contains("'") && !s.contains("\"")) return s;
-		
+
 		s = applyPatternAll(s, "''", "");
 		if (!QuotedIdentifierFlag) s = applyPatternAll(s, "\"\"", "");
-		
+
 		String quotePatt = "'";
-		if (!QuotedIdentifierFlag) quotePatt = "'\\\"";	 
-		
+		if (!QuotedIdentifierFlag) quotePatt = "'\\\"";
+
 		String marker = miscDelimiter+tag+miscDelimiter;
 		String sNew = "";
 		String tmp = "";
@@ -1394,7 +1422,7 @@ tooltipsHTMLPlaceholder +
 			if (qs.isEmpty()) {
 				// should not happen
 				appOutput(thisProc()+"Internal error s=["+s+"]. Continuing, but errors may occur");
-				if (devOptions) errorExit(); 
+				if (devOptions) errorExit();
 				break;
 			}
 			sNew += marker;
@@ -1404,16 +1432,16 @@ tooltipsHTMLPlaceholder +
 		sNew += s;
 		sNew = sNew.replaceAll("N"+marker, marker);
 		sNew = sNew.replaceAll(marker, "'"+tag+"'");
-		
+
 		return sNew;
 	}
-		
-			
+
+
 	// find the closing bracket that matches the opening bracket on the start position
 	public String findClosingBracket(String s)  {
 		return findClosingBracket(s,0);
 	}
-	public String findClosingBracket(String s, int startPos) 
+	public String findClosingBracket(String s, int startPos)
 	{
 		if (s.isEmpty()) return "";
 		if (s.charAt(startPos) != '(') {
@@ -1430,11 +1458,11 @@ tooltipsHTMLPlaceholder +
 				}
 				else {
 					inString = false;
-					continue;					
+					continue;
 				}
 			}
 			if (inString) continue;
-			
+
 			if (c == '(') brktCnt++;
 			else if (c == ')') brktCnt--;
 			if (brktCnt == 0) {
@@ -1444,8 +1472,8 @@ tooltipsHTMLPlaceholder +
 		}
 	    return ""; // didn't find closing bracket
 	}
-		
-	// remove enclosing brackets from an expression - assuming cases like ((a)+(b)) do not occur 
+
+	// remove enclosing brackets from an expression - assuming cases like ((a)+(b)) do not occur
 	public String stripEnclosingBrackets(String s) {
 		if (s.trim().isEmpty()) return s;
 		while (true) {
@@ -1458,7 +1486,7 @@ tooltipsHTMLPlaceholder +
 		}
 		return s;
 	}
-	
+
 	public static String capitalizeFirstChar(String s) {
 		String capitalized = null;
 		if (s != null) {
@@ -1470,7 +1498,7 @@ tooltipsHTMLPlaceholder +
 		}
 		return capitalized;
 	}
-	
+
 	public String capitalizeInitChar(String s) {
 		if (s.length() == 0) return s;
 		StringTokenizer sTok = new StringTokenizer(s);
@@ -1518,7 +1546,7 @@ tooltipsHTMLPlaceholder +
 		}
 		return s;
 	}
-	
+
 	public String calcMD5(String s) {
 		MessageDigest md5 = null;
 		try {
@@ -1531,10 +1559,10 @@ tooltipsHTMLPlaceholder +
 		String hashText = bigInt.toString(16);
 		while(hashText.length() < 32) {
 		  hashText = "0"+hashText;
-		}		
+		}
 		return hashText;
 	}
-		
+
 	// align lines on the specified delimiter
 	public String alignColumn(StringBuilder s, String alignStr, String alignBA, String alignLR) {
 		return alignColumn(s.toString(), alignStr, alignBA, alignLR);
@@ -1824,7 +1852,7 @@ tooltipsHTMLPlaceholder +
 		result = applyPatternAll(result, "[\\-]+", "-");
 		return result;
 	}
-	
+
 	/*
 	 * Checks for valid user entered command line arguments for Application Name or Report Name. Returns a error message
 	 * if the entered string contains directory separators (slashes) or any not allowed characters.
@@ -1867,12 +1895,12 @@ tooltipsHTMLPlaceholder +
 	}
 
 	// doc dir root pathname: %USERPROFILE% on Windows, /home/<user> on Linux
-    public String getDocDirPathname() {
+    public static String getDocDirPathname() {
 		String dirPath = "";
 		if (onWindows) {
 			dirPath = System.getProperty("user.home") + File.separator + "Documents" + File.separator + BabelfishCompassFolderName;
 		}
-		else { 
+		else {
 			// Linux, Mac
 			dirPath = System.getProperty("user.home") + File.separator + BabelfishCompassFolderName;
 		}
@@ -1880,18 +1908,18 @@ tooltipsHTMLPlaceholder +
 	}
 
 	// construct file pathname
-    public String getFilePathname(String dirPath, String fileName) {
+    public static String getFilePathname(String dirPath, String fileName) {
 		return dirPath + File.separator + fileName;
 	}
 
 	// report dir pathname
-    public String getReportDirPathname(String reportName) {
+    public static String getReportDirPathname(String reportName) {
     	return getReportDirPathname(reportName, "", "");
     }
-    public String getReportDirPathname(String reportName, String subDir) {
+    public static String getReportDirPathname(String reportName, String subDir) {
     	return getReportDirPathname(reportName, subDir, "");
     }
-    public String getReportDirPathname(String reportName, String subDir, String subSubDir) {
+    public static String getReportDirPathname(String reportName, String subDir, String subSubDir) {
 		String dirPath = getDocDirPathname();
 		dirPath = getFilePathname(dirPath, reportName);
 		if (!subDir.isEmpty()) {
@@ -1912,10 +1940,10 @@ tooltipsHTMLPlaceholder +
 	// capture file pathname
     public String getCaptureFilePathname(String reportName, String inputFileName, String appName) {
 		String f = Paths.get(inputFileName).getFileName().toString();
-		String capFileName = captureFileName + "." + adjustFileName(f, appName, captureFileTag, captureFileSuffix);	
+		String capFileName = captureFileName + "." + adjustFileName(f, appName, captureFileTag, captureFileSuffix);
 		String dirPath = getReportDirPathname(reportName, capDirName);
 		capFileName = getFilePathname(dirPath, capFileName);
-		return capFileName;		
+		return capFileName;
 	}
 
 	// PG import file pathname
@@ -2127,7 +2155,7 @@ tooltipsHTMLPlaceholder +
 
 	public String getSymTabFilePathName(String reportName, String inputFileName, String appName) throws IOException {
 		String f = Paths.get(inputFileName).getFileName().toString();
-		String symtabFileName = adjustFileName(f, appName, symTabFileTag, symTabFileSuffix);	
+		String symtabFileName = adjustFileName(f, appName, symTabFileTag, symTabFileSuffix);
 		String dirPath = getReportDirPathname(reportName, importDirName, symTabDirName);
 		symtabFileName = getFilePathname(dirPath, symtabFileName);
 		return symtabFileName;
@@ -2139,9 +2167,9 @@ tooltipsHTMLPlaceholder +
 			// can result from delimited identifiers containing newlines (very rare, but possible)
 			// treat these \r, \n chars the same as in captureItem()
 			if (debugging) dbgOutput("Newline or CR found in symtab item (removed): ["+line+"] ", debugSymtab||debugPtree);
-			line = line.replaceAll("\\n", " ");	
-			line = line.replaceAll("\\r", " ");	
-		}		
+			line = line.replaceAll("\\n", " ");
+			line = line.replaceAll("\\r", " ");
+		}
 		symTabFileLineCount++;
 		symTabFileWriter.write(line + "\n");
 		symTabFileWriter.flush();
@@ -2156,43 +2184,43 @@ tooltipsHTMLPlaceholder +
 	public String adjustFileName(String fileName, String appName, String fileTag, String fileSuffix) {
 		Integer maxFilenameLength = 260;
 		if (!onWindows) maxFilenameLength = 255;
-		
+
 		// compose filename
-		String fullFileName = fileName + "." + fileTag + "." + appName + "." + fileSuffix;	
+		String fullFileName = fileName + "." + fileTag + "." + appName + "." + fileSuffix;
 
 		if (debugging) dbgOutput(thisProc()+ "fullFileName=["+fullFileName+"], ["+fullFileName.length()+"] ", debugDir);
 		if (debugging) dbgOutput(thisProc()+ "fileName=["+fileName+"], ["+fileName.length()+"] ", debugDir);
 		if (debugging) dbgOutput(thisProc()+ "appName=["+appName+"] , ["+appName.length()+"] ", debugDir);
-		
+
 		int fileTooLong = fullFileName.length() - (maxFilenameLength -20); // 20 to keep a bit of margin since not all generated filenames are equally long
-		if (fileTooLong > 0) {			
+		if (fileTooLong > 0) {
 			// only shortening filename at this time; will error out when path part is too long
 			if (debugging) dbgOutput(thisProc()+"importFilename is too long, tooLong=["+fileTooLong+"] ", debugDir);
-			
+
 			// take the first 50 chars, and append the MD5 hash of the full name
 			String md5Text = calcMD5(fileName);
 			String f2 = fileName.substring(0,50);
 			f2 += "_" + md5Text;
 			if (debugging) dbgOutput(thisProc()+"MD5=["+md5Text+"] f2=["+f2+"] ", debugDir);
-			
+
 			fullFileName = f2 + "." + fileTag + "." ;
 			if (fileName.toUpperCase().startsWith(appName.toUpperCase())) fullFileName += f2;
 			else fullFileName += appName;
 			fullFileName += "." + fileSuffix;
-			
-			if (debugging) dbgOutput("fileName=["+fullFileName+"], ["+fullFileName.length()+"] ", debugDir);			
-		}			
-		return fullFileName;	
+
+			if (debugging) dbgOutput("fileName=["+fullFileName+"], ["+fullFileName.length()+"] ", debugDir);
+		}
+		return fullFileName;
 	}
 
 	public String getImportFilePathName(String reportName, String inputFileName, String appName) throws IOException {
-		String f = Paths.get(inputFileName).getFileName().toString();		
-		String importFileName = adjustFileName(f, appName, importFileTag, importFileSuffix);			
+		String f = Paths.get(inputFileName).getFileName().toString();
+		String importFileName = adjustFileName(f, appName, importFileTag, importFileSuffix);
 		String dirPath = getReportDirPathname(reportName, importDirName);
 		importFileName = getFilePathname(dirPath, importFileName);
 		return importFileName;
-	}	
-			
+	}
+
 	// relevant only in case of a single file, and when doing only reporting
 	public String getImportFilePathNameFromCaptured(String capFileName) throws IOException {
 		String f = capFileName;
@@ -2214,7 +2242,7 @@ tooltipsHTMLPlaceholder +
 		return f;
 	}
 
-	public void openImportFile(String reportName, String inputFileName, String appName, String encoding) throws IOException {	
+	public void openImportFile(String reportName, String inputFileName, String appName, String encoding) throws IOException {
 		Path fullPath = Paths.get(inputFileName).toAbsolutePath();
 		importFilePathName = getImportFilePathName(reportName, inputFileName, appName);
 		importFileHTMLPathName = getImportFileHTMLPathName(reportName, inputFileName, appName);
@@ -2235,7 +2263,7 @@ tooltipsHTMLPlaceholder +
 
 		return;
 	}
-	
+
 	public String formatToolTips(String hdr) {
 		// generate tooltip CSS entries for tooltips
 		String css = "";
@@ -2267,14 +2295,14 @@ tooltipsHTMLPlaceholder +
 		hdr = applyPatternFirst(hdr, inputfileHTMLPlaceholder, escapeRegexChars(inputFileName));
 		hdr = applyPatternFirst(hdr, appnameHTMLPlaceholder, appName);
 		hdr = applyPatternFirst(hdr, inputfileTxtPlaceholder, inputfileTxt);
-		
-		if (inputfileTxt.contains("Rewritten")) {			
+
+		if (inputfileTxt.contains("Rewritten")) {
 			hdr = applyPatternFirst(hdr, tocHTMLPlaceholder, "<br>Note: see end of file (<a href=\"#"+anchorListOfRewrites+"\">here</a>) for list of rewritten sections.");
 		}
 		else {
 			hdr = applyPatternFirst(hdr, tocHTMLPlaceholder, " ");
 		}
-		
+
 		return hdr;
 	}
 
@@ -2299,30 +2327,30 @@ tooltipsHTMLPlaceholder +
 		}
 	}
 
-	public void openRewrittenFile(String reportName, String appName, String tmpFile, String rewrittenFile) throws IOException {		
+	public void openRewrittenFile(String reportName, String appName, String tmpFile, String rewrittenFile) throws IOException {
 		FileInputStream fis = new FileInputStream(tmpFile);
-		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);				
-		rewrittenInFileReader = new BufferedReader(isr);	
+		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+		rewrittenInFileReader = new BufferedReader(isr);
 		rewrittenFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(rewrittenFile), StandardCharsets.UTF_8)));
 		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
 		return;
 	}
-			
+
 	public void writeRewrittenFile(String line) throws IOException {
 		if (rewrittenFileWriter == null) {
 			appOutput(line);
 			return;
 		}
 		rewrittenFileWriter.write(line);
-		rewrittenFileWriter.flush();	
+		rewrittenFileWriter.flush();
 	}
-	
-	
+
+
 	public void writeRewrittenHTMLFile(String reportName, String appName, String rewrittenFile, String rewrittenHTMLFile) throws IOException {
 		FileInputStream fis = new FileInputStream(rewrittenFile);
-		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);				
-		BufferedReader rewrittenInFileReader = new BufferedReader(isr);	
-		
+		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+		BufferedReader rewrittenInFileReader = new BufferedReader(isr);
+
 		BufferedWriter rewrittenHTMLFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(rewrittenHTMLFile), StandardCharsets.UTF_8)));
 		String hdr = headerHTML + headerHTMLSQL;
 		String f = Paths.get(rewrittenFile).getFileName().toString();
@@ -2335,10 +2363,10 @@ tooltipsHTMLPlaceholder +
 
 		int rewrittenFileWriteLineNr = 0;
 		boolean tocFound = false;
-		while (true) {							
+		while (true) {
 			String line = rewrittenInFileReader.readLine();
 			if (line == null) break;
-			
+
 			rewrittenFileWriteLineNr++;
 			line = escapeHTMLChars(line);
 			if (line.contains(SQLcodeRewrittenText)) {
@@ -2346,29 +2374,29 @@ tooltipsHTMLPlaceholder +
 				line = line.replace(SQLcodeRewrittenText, "<a name=\""+anchorListOfRewrites+"\"></a>" + SQLcodeRewrittenText);
 			}
 			if (tocFound) {
-				line = applyPatternFirst(line, "^("+lineIndent+")(line )(\\d+)\\b", "$1<a href=\"#$3\">$2$3</a>");		
+				line = applyPatternFirst(line, "^("+lineIndent+")(line )(\\d+)\\b", "$1<a href=\"#$3\">$2$3</a>");
 			}
 			String lineHTML = "<tr><td class=\"linenr\"><a name=\""+rewrittenFileWriteLineNr+"\"></a>" +rewrittenFileWriteLineNr+ "</td><td class=\"sql\">"+line+"</td></tr>\n";
 
 			rewrittenHTMLFileWriter.write(lineHTML);
-		}		
-		
+		}
+
 		rewrittenHTMLFileWriter.write(footerHTML);
 		rewrittenHTMLFileWriter.flush();
    		rewrittenHTMLFileWriter.close();
    		rewrittenInFileReader.close();
 	}
-	
-	public void closeRewrittenFile() throws IOException {	
-		rewrittenInFileReader.close();							
-		rewrittenFileWriter.close();			
-	}	
+
+	public void closeRewrittenFile() throws IOException {
+		rewrittenInFileReader.close();
+		rewrittenFileWriter.close();
+	}
 
 	public String renameRewrittenFile(String appName, String rewrittenFile) {
 		// internal name => rewritten file
 		String f = Paths.get(rewrittenFile).getFileName().toString();
 		String p = rewrittenFile.substring(0,(rewrittenFile.length() - f.length()));
-		f = f.substring(0,f.indexOf(rewrittenFileTag)-1);  
+		f = f.substring(0,f.indexOf(rewrittenFileTag)-1);
 		String suffix = "";
 		if (f.indexOf(".") == -1) {
 			suffix = "";
@@ -2387,10 +2415,10 @@ tooltipsHTMLPlaceholder +
 		try {
 			inFileCopy = getImportFilePathName(reportName, inputFile, appName);
 		} catch  (Exception e) { /* nothing */ }
-		
+
 		String fName = Paths.get(inFileCopy).getFileName().toString().replaceAll(importFileTag, rewrittenFileTag);
-		String renamedFile = getFilePathname(getReportDirPathname(reportName, rewrittenDirName), fName); 
-				
+		String renamedFile = getFilePathname(getReportDirPathname(reportName, rewrittenDirName), fName);
+
 		renamedFile = renameRewrittenFile(appName, renamedFile);
 		return renamedFile;
 	}
@@ -2512,7 +2540,7 @@ tooltipsHTMLPlaceholder +
 		String dirPath = getReportDirPathname(reportName, importDirName);
 		File importDir = new File(dirPath);
 		if (importDir.exists()) {
-			List<Path> htmlFiles = getFilesPattern(dirPath, "^.+"+importFileTag+".+\\." + HTMLSuffix);			
+			List<Path> htmlFiles = getFilesPattern(dirPath, "^.+"+importFileTag+".+\\." + HTMLSuffix);
 			for (Path p : htmlFiles) {
 				//Path fullPath = Paths.get(p).toAbsolutePath();
 				String pFull = p.toAbsolutePath().toString();
@@ -2521,7 +2549,7 @@ tooltipsHTMLPlaceholder +
 				String pDir = pFull.substring(0,pFull.length()-f.length());
 				String pNew = pDir + importHTMLDirName + File.separator + f;
 				File fDest = new File(pNew);
-				Files.copy(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);			 	
+				Files.copy(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);
 			}
 		}
  	}
@@ -2554,7 +2582,7 @@ tooltipsHTMLPlaceholder +
 				targetVersionTest = tgtVersion;
 			}
 			if (!targetVersionTest.equals(tgtVersion)) {
-				identicalTargetVersion = false;				
+				identicalTargetVersion = false;
 			}
 			if (fmtVersion == null) {
 				// capture files from Babelfish Compass 1.0 and 1.1 do not have the capture file format version yet (no version for 1.0)
@@ -2577,7 +2605,7 @@ tooltipsHTMLPlaceholder +
 			if (tgtVersion.isEmpty()) {
 				otherwiseInvalid = true;
 				errInfoOtherwise += " - missing header line? Targeted "+babelfishProg+" version "+tgtVersion+ " not found in "+cf.toString()+"\n";
-			}			
+			}
 		}
 
 		if (!export && !targetVersionTest.equals(targetBabelfishVersion)) {
@@ -2727,7 +2755,7 @@ tooltipsHTMLPlaceholder +
 
 			// create subdirs
 			checkDir(getReportDirPathname(reportName, importDirName), false);
-			checkDir(getReportDirPathname(reportName, importDirName, importHTMLDirName), false);			
+			checkDir(getReportDirPathname(reportName, importDirName, importHTMLDirName), false);
 			checkDir(getReportDirPathname(reportName, importDirName, symTabDirName), false);
 			checkDir(getReportDirPathname(reportName, capDirName), false);
 			checkDir(getReportDirPathname(reportName, logDirName), false);
@@ -2823,7 +2851,7 @@ tooltipsHTMLPlaceholder +
 	public String detectEncoding(String fileName) throws IOException {
 		// using this charset because it gives identical results across platforms
 		String cs = "ISO-8859-1";
-		if (debugging) dbgOutput(thisProc() + "reading fileName=["+fileName+"] as cs=["+cs+"] default on this system=["+Charset.defaultCharset()+"] ", debugOS);		
+		if (debugging) dbgOutput(thisProc() + "reading fileName=["+fileName+"] as cs=["+cs+"] default on this system=["+Charset.defaultCharset()+"] ", debugOS);
 		BufferedReader inFileReader = new BufferedReader(new InputStreamReader(new FileInputStream(fileName), Charset.forName(cs)));
 		StringBuilder bomSB = new StringBuilder(4);
 		int readValue;
@@ -2835,12 +2863,12 @@ tooltipsHTMLPlaceholder +
 
 		inFileReader.close();
 		String bom = bomSB.toString();
-		
+
 		// dump the BOM bytes
 		if (debugging) {
-			if (debugOS) {	
+			if (debugOS) {
 				String x = stringAsHex(bom);
-				dbgOutput(thisProc() + "bom=["+bom+"] hex=["+ x+"]", debugOS);		
+				dbgOutput(thisProc() + "bom=["+bom+"] hex=["+ x+"]", debugOS);
 			}
 		}
 
@@ -2850,7 +2878,7 @@ tooltipsHTMLPlaceholder +
 			encodingFound = "UTF-8";
 		}
 		else if (bom.startsWith("\u00FE\u00FF")) {
-			if (debugging) dbgOutput(thisProc() + "Detecting BOM UTF-16BE", debugOS);			
+			if (debugging) dbgOutput(thisProc() + "Detecting BOM UTF-16BE", debugOS);
 			encodingFound = "UTF-16"; // UTF-16BE
 		}
 		else if (bom.equals("\u0000\u0000\u00FE\u00FF")) {
@@ -2878,13 +2906,13 @@ tooltipsHTMLPlaceholder +
 
 	// validate an input file: check format, figure out if this was created
 	// by an unsupported reveng tool -- etc.
-	public String detectImportFileFormat(String inputFileName, String importFormat, Charset charset) throws IOException {		
+	public String detectImportFileFormat(String inputFileName, String importFormat, Charset charset) throws IOException {
 		String fullPath = Paths.get(inputFileName).toAbsolutePath().toString();
 		if (debugging) dbgOutput(thisProc()+"inputFileName=["+inputFileName+"] fullPath=["+fullPath+"] importFormat=["+importFormat+"] ", debugFmt);
 		FileInputStream fis = new FileInputStream(fullPath);
-		InputStreamReader isr = new InputStreamReader(fis, charset);							
+		InputStreamReader isr = new InputStreamReader(fis, charset);
 		BufferedReader inFileReader = new BufferedReader(isr);
-		
+
 		// read first N lines to try and determine format
 		int goFound = 0;
 		int createFound = 0;
@@ -2893,7 +2921,7 @@ tooltipsHTMLPlaceholder +
 		int extendedEventsXMLFound = 0;
 		int genericSQLXMLFound = 0;
 		int SQLServerProfilerXMLFound = 0;
-		
+
 		int nrLinesPreRead = 500;
 		int lineNr = 0;
 		StringBuilder lines  = new StringBuilder("");
@@ -2905,54 +2933,54 @@ tooltipsHTMLPlaceholder +
 			}
 			line = line.trim().toUpperCase();
 			//lines.append(line).append("\n");
-			
+
 			// look for fingerprints
 			if (line.equalsIgnoreCase("go")) goFound++;
 			else {
 				if (line.startsWith("CREATE ")) createFound++;
 				else if (line.toUpperCase().startsWith("ALTER ")) alterFound++;
-				else if (line.startsWith("\"query")) {      
-					if (!getPatternGroup(line,"(\"query_\\d+\":\\s+)", 1).isEmpty()) {				
+				else if (line.startsWith("\"query")) {
+					if (!getPatternGroup(line,"(\"query_\\d+\":\\s+)", 1).isEmpty()) {
 						jsonQueryFmtFound++;
 					}
-				}		
-				else if (line.startsWith("<event name=\"sql_statement_completed\"")) { 
+				}
+				else if (line.startsWith("<event name=\"sql_statement_completed\"")) {
 					extendedEventsXMLFound++;
 				}
-				else if (line.startsWith("<data name=\"statement\"")) { 
-					extendedEventsXMLFound++;			
-				}		
-				else if (line.startsWith("<?XML VERSION=")) { 
+				else if (line.startsWith("<data name=\"statement\"")) {
+					extendedEventsXMLFound++;
+				}
+				else if (line.startsWith("<?XML VERSION=")) {
 					if (!getPatternGroup(line,"^.(\\w+) ", 1).isEmpty()) {
-						genericSQLXMLFound++;	
-						SQLServerProfilerXMLFound++;	
-					}							
-				}		
-				else if (line.startsWith("<")) { 
+						genericSQLXMLFound++;
+						SQLServerProfilerXMLFound++;
+					}
+				}
+				else if (line.startsWith("<")) {
 					if (!getPatternGroup(line,"^.(\\w+) ", 1).isEmpty()) {
-						genericSQLXMLFound++;	
-					}		
-					if (line.startsWith("<TRACEPROVIDER NAME=\"MICROSOFT SQL SERVER\"")) { 
-						SQLServerProfilerXMLFound++;	
-					}					
-					else if (line.startsWith("<SERVERINFORMATION NAME=")) { 
-						SQLServerProfilerXMLFound++;	
+						genericSQLXMLFound++;
 					}
-					else if (line.startsWith("<PROFILERUI>")) { 
-						SQLServerProfilerXMLFound++;	
+					if (line.startsWith("<TRACEPROVIDER NAME=\"MICROSOFT SQL SERVER\"")) {
+						SQLServerProfilerXMLFound++;
 					}
-					else if (line.startsWith("<TRACEDEVENTS>")) { 
-						SQLServerProfilerXMLFound++;	
-					}																	
-				}			
+					else if (line.startsWith("<SERVERINFORMATION NAME=")) {
+						SQLServerProfilerXMLFound++;
+					}
+					else if (line.startsWith("<PROFILERUI>")) {
+						SQLServerProfilerXMLFound++;
+					}
+					else if (line.startsWith("<TRACEDEVENTS>")) {
+						SQLServerProfilerXMLFound++;
+					}
+				}
 			}
 		}
 		inFileReader.close();
 		//lines.append("\n");
-		
+
 		//if (debugging) dbgOutput(thisProc()+"First "+lineNr+" lines read: ["+lines.toString()+"]", debugFmt);
 		if (debugging) dbgOutput(thisProc()+"First "+lineNr+" lines read", debugFmt);
-		
+
 		if (debugging) dbgOutput(thisProc()+"goFound               =["+goFound+"]", debugFmt);
 		if (debugging) dbgOutput(thisProc()+"createFound           =["+createFound+"]", debugFmt);
 		if (debugging) dbgOutput(thisProc()+"alterFound            =["+alterFound+"]", debugFmt);
@@ -2960,7 +2988,7 @@ tooltipsHTMLPlaceholder +
 		if (debugging) dbgOutput(thisProc()+"extendedEventsXMLFound=["+extendedEventsXMLFound+"]", debugFmt);
 		if (debugging) dbgOutput(thisProc()+"genericSQLXMLFound    =["+genericSQLXMLFound+"]", debugFmt);
 		if (debugging) dbgOutput(thisProc()+"SQLServerProfilerXML  =["+SQLServerProfilerXMLFound+"]", debugFmt);
-		
+
 		String seemsFormat = "";
 		String seemsFormatDisplay = "";
 		if ((SQLServerProfilerXMLFound >= 4) && (genericSQLXMLFound >= 10)) {
@@ -2971,55 +2999,55 @@ tooltipsHTMLPlaceholder +
 		}
 		else if (extendedEventsXMLFound > 0) {
 			seemsFormat = extendedEventsXMLFmt;
-		}		
-		else if (goFound > 0) { 
+		}
+		else if (goFound > 0) {
 			seemsFormat = sqlcmdFmt;
-		}	
+		}
 		if (!seemsFormatDisplay.isEmpty()) {
 			seemsFormatDisplay = importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()));
 		}
-	
+
 		if (importFormat.equalsIgnoreCase(SQLServerProfilerXMLFmt)) {
 			//appOutput(thisProc()+"SQLServerProfilerXMLFound=["+SQLServerProfilerXMLFound+"] ");
 			if (SQLServerProfilerXMLFound <= 2) {
-				importFormatSeemsInvalidMsg(inputFileName, SQLServerProfilerXMLFmt, seemsFormat, "<TraceProvider name=\"Microsoft SQL Server\"");			
-			}			
+				importFormatSeemsInvalidMsg(inputFileName, SQLServerProfilerXMLFmt, seemsFormat, "<TraceProvider name=\"Microsoft SQL Server\"");
+			}
 		}
-		
+
 		if (importFormat.equalsIgnoreCase(jsonQueryFmt)) {
 			//appOutput(thisProc()+"jsonQueryFmt Found=["+jsonQueryFmtFound+"] ");
 			if (jsonQueryFmtFound == 0) {
-				importFormatSeemsInvalidMsg(inputFileName, jsonQueryFmt, seemsFormat, "prefix: \"query_999\"");			
-			}			
+				importFormatSeemsInvalidMsg(inputFileName, jsonQueryFmt, seemsFormat, "prefix: \"query_999\"");
+			}
 		}
-		
+
 		if (importFormat.equalsIgnoreCase(extendedEventsXMLFmt)) {
 			//appOutput(thisProc()+"jsonQueryFmt, jsonQueryFmtFound=["+jsonQueryFmtFound+"] ");
 			if (extendedEventsXMLFound == 0) {
-				importFormatSeemsInvalidMsg(inputFileName, extendedEventsXMLFmt, seemsFormat, "tag: <event name=\"sql_statement_completed\"");			
-			}			
+				importFormatSeemsInvalidMsg(inputFileName, extendedEventsXMLFmt, seemsFormat, "tag: <event name=\"sql_statement_completed\"");
+			}
 		}
-		
+
 		else if (importFormat.equalsIgnoreCase(sqlcmdFmt)) {
 			if (SQLServerProfilerXMLFound> 0) {
-				importFormatSeemsInvalidMsg(inputFileName, sqlcmdFmt, seemsFormat, "batch delimiters: 'go'");			
+				importFormatSeemsInvalidMsg(inputFileName, sqlcmdFmt, seemsFormat, "batch delimiters: 'go'");
 			}
 			else if ((jsonQueryFmtFound + extendedEventsXMLFound + genericSQLXMLFound)> 0) {
-				importFormatSeemsInvalidMsg(inputFileName, sqlcmdFmt, unknownFormat, "batch delimiters: 'go'");			
+				importFormatSeemsInvalidMsg(inputFileName, sqlcmdFmt, unknownFormat, "batch delimiters: 'go'");
 			}
 			else {
 				// was reverse-engineered by wrong tool? (i.e. batch delimiters missing)
 				if (createFound + alterFound > 5) { // arbitrary number
 					if (goFound == 0) {
-						appOutput("Input file '"+inputFileName+"' formatting:\nNo batch delimiters 'go' were found. Input scripts need to be in 'sqlcmd' format,\nusing 'go' as batch delimiters.\nTo reverse engineer you SQL server database(s), best use SQL Server Management Studio.\nProceeding, but errors may occur.\n");		
+						appOutput("Input file '"+inputFileName+"' formatting:\nNo batch delimiters 'go' were found. Input scripts need to be in 'sqlcmd' format,\nusing 'go' as batch delimiters.\nTo reverse engineer you SQL server database(s), best use SQL Server Management Studio.\nProceeding, but errors may occur.\n");
 					}
 				}
 			}
 		}
-		
+
 		return seemsFormat;
 	}
-	
+
 	private void importFormatSeemsInvalidMsg(String inputFileName, String importFmtSpecified, String seemsFormat, String fmtExample) {
 		//appOutput(thisProc()+"inputFileName=["+inputFileName+"] seemsFormat=["+seemsFormat+"] importFmtSpecified=["+importFmtSpecified+"] ");
 		String s = "\nInput format '"+importFmtSpecified+"' was specified, but input file does not seem to be in this format";
@@ -3033,43 +3061,43 @@ tooltipsHTMLPlaceholder +
 			s += ".\nInstead, it seems to be in '"+importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()))+"' format.\nTo process accordingly, do not specify the '-importfmt' option.";
 		}
 		s += "\nProceeding, but errors may occur.\n";
-		appOutput(s);	
+		appOutput(s);
 	}
-		
+
 	// convert a special-format file to sqlcmd format
 	public String convertInputFileFormat(String reportName, String inputFileName, String appName, String importFormat, Charset charset) throws IOException  {
 		String fullPath = Paths.get(inputFileName).toAbsolutePath().toString();
 		if (debugging) dbgOutput(thisProc()+"inputFileName=["+inputFileName+"] fullPath=["+fullPath+"] importFormat=["+importFormat+"] with charset=["+charset+"] deDupExtracted=["+deDupExtracted+"] ", debugFmt);
 		FileInputStream fis = new FileInputStream(fullPath);
-		InputStreamReader isr = new InputStreamReader(fis, charset);							
+		InputStreamReader isr = new InputStreamReader(fis, charset);
 		BufferedReader inFileReader = new BufferedReader(isr);
 
 		String SQLServerProfilerXMLStart = "<Column id=\"1\" name=\"TextData\">";
 		String SQLServerProfilerXMLEnd   = "</Column>";
-		
+
 		// open file for extracted queries
 		String extractedFilePathName = openExtractedFile(reportName, inputFileName, fullPath, appName, charset.toString());
-		
+
 		appOutput("Using input file format '"+importFormat+"'");
-		appOutput("Writing extracted SQL queries to '"+extractedFilePathName+"'");		
-		
+		appOutput("Writing extracted SQL queries to '"+extractedFilePathName+"'");
+
 		if (!deDupExtracted) {
-			appOutput("Not performing de-duplication of extracted batches.");			
+			appOutput("Not performing de-duplication of extracted batches.");
 			writeExtractedFile("-- Batches extracted from input file: see end of this file");
 			writeExtractedFile("-- No de-duplication performed.");
 			writeExtractedFile(composeOutputLine("", "-"));
-			writeExtractedFile("\n");		
+			writeExtractedFile("\n");
 		}
 		else {
-			appOutput("Performing de-duplication of extracted batches...");			
+			appOutput("Performing de-duplication of extracted batches...");
 		}
-				
+
 		int lineNr = 0;
 		int queriesExtracted = 0;
 		int queriesWritten = 0;
 		String stmt = "";
 		boolean startFound = false;
-		
+
 		while (true) {
 			lineNr++;
 			String line = inFileReader.readLine();
@@ -3078,17 +3106,17 @@ tooltipsHTMLPlaceholder +
 			}
 			String lineCopy = line;
 			line = line.trim();
-			
+
 			// process depending on file format
 			if (importFormat.equalsIgnoreCase(SQLServerProfilerXMLFmt)) {
 				// captured SQL starts at '<Column id="1" name="TextData">'
 				// ToDo: skip all cases of <Event id="..." name="RPC Output Parameter">
 				if (!startFound) {
-					if (!line.startsWith(SQLServerProfilerXMLStart)) continue; 
+					if (!line.startsWith(SQLServerProfilerXMLStart)) continue;
 					startFound = true;
 					line = line.substring(SQLServerProfilerXMLStart.length());
 				}
-				
+
 				if (startFound) {
 					if (line.endsWith(SQLServerProfilerXMLEnd))  {
 						line = line.substring(0,line.indexOf(SQLServerProfilerXMLEnd));
@@ -3100,10 +3128,10 @@ tooltipsHTMLPlaceholder +
 					}
 				}
 				stmt += "\n" + line;
-			}						
+			}
 			else if (importFormat.equalsIgnoreCase(jsonQueryFmt)) {
 				// each line has one query: "query_1234":  "(@v int[...]) query ",
-				if (!line.startsWith("\"query")) continue;   
+				if (!line.startsWith("\"query")) continue;
 				line = applyPatternFirst(line,"^\"query_\\d+\":\\s*", "");
 				if (!line.startsWith("\"")) {
 					if (line.startsWith("null")) continue;
@@ -3114,7 +3142,7 @@ tooltipsHTMLPlaceholder +
 				}
 				line = line.substring(1);
 				if (!line.startsWith("(")) {
-					// no parameters 
+					// no parameters
 				}
 				else {
 					// strip parameters
@@ -3125,19 +3153,19 @@ tooltipsHTMLPlaceholder +
 					//appOutput(thisProc()+"params=["+params+"] ");
 				}
 				//appOutput(thisProc()+"line C=["+line+"]");
-				
+
 				if (line.endsWith("\",")) line = removeLastChars(line,2);
 				else if (line.endsWith("\"")) line = removeLastChar(line);
 				else {
 					// should not happen, not sure what to do. just hope it's all OK
 				}
-				stmt = line;	
-			}			
+				stmt = line;
+			}
 
 			stmt = stmt.trim();
-			
-			if (importFormat.equalsIgnoreCase(SQLServerProfilerXMLFmt)) {		
-				if (!startFound) {	
+
+			if (importFormat.equalsIgnoreCase(SQLServerProfilerXMLFmt)) {
+				if (!startFound) {
 					if (!getPatternGroup(stmt, "^(([\\+\\-])?\\d+(\\.\\d*)?(e([\\+\\-])?\\d+)?)$", 1).isEmpty()) {
 						// it's likely just a number as a parameter value
 						stmt = "";
@@ -3145,10 +3173,10 @@ tooltipsHTMLPlaceholder +
 					}
 				}
 			}
-									
-			stmt = patchupSpecialCharsExtractedSQL(stmt);			
-			
-			if (deDupExtracted) {				
+
+			stmt = patchupSpecialCharsExtractedSQL(stmt);
+
+			if (deDupExtracted) {
 				deDuplicateExtractedQueries(stmt);
 			}
 			else {
@@ -3157,15 +3185,15 @@ tooltipsHTMLPlaceholder +
 				writeExtractedFile("go\n");
 				queriesWritten++;
 			}
-			
+
 			queriesExtracted++;
 			stmt = "";
 		}
-		inFileReader.close();	
-		
+		inFileReader.close();
+
 		if (deDupExtracted) {
-			appOutput("Duplicate batches removed: "+deDupSkipped);			
-			appOutput("De-duplicated batches remaining: "+deDupQueries.size());			
+			appOutput("Duplicate batches removed: "+deDupSkipped);
+			appOutput("De-duplicated batches remaining: "+deDupQueries.size());
 
 			String scope = "";
 			for (int i=0; i < dedupScopeOption.size(); i++) {
@@ -3174,57 +3202,57 @@ tooltipsHTMLPlaceholder +
 				}
 			}
 			if (scope.endsWith(",")) scope = removeLastChar(scope);
-			
+
 			writeExtractedFile("-- Batches extracted from input file: "+queriesExtracted);
 			writeExtractedFile("-- Total duplicates removed: "+deDupSkipped);
 			writeExtractedFile("-- De-duplication with masking of:"+scope);
 			writeExtractedFile("-- De-duplicated batches remaining: "+deDupQueries.size());
 			writeExtractedFile(composeOutputLine("", "-"));
 			writeExtractedFile("\n");
-			
+
 			for (String qry : deDupQueries.keySet()) {
 				int dupCnt = dupQueryCount.getOrDefault(qry, 0);
 				if (dupCnt > 0) {
 					writeExtractedFile("/* Duplicates removed: "+dupCnt + " */");
 				}
 				writeExtractedFile(deDupQueries.get(qry));
-				writeExtractedFile("go\n");				
+				writeExtractedFile("go\n");
 				queriesWritten++;
 			}
 		}
 		else {
 			writeExtractedFile("-- Batches extracted from input file: "+queriesExtracted);
-			writeExtractedFile("-- No de-duplication performed. /*");			
-			writeExtractedFile("reset");			
+			writeExtractedFile("-- No de-duplication performed. /*");
+			writeExtractedFile("reset");
 		}
-		
+
 		closeExtractedFile();
 		return extractedFilePathName;
 	}
-	
+
 	// deDuplicate extracted/capture queries
 	public void deDuplicateExtractedQueries (String qry) {
 		if (dedupScope.isEmpty()) {
 			dedupScope = String.join("", dedupScopeOption);
 		}
-		
+
 		String qryOrig = applyPatternAll(qry, "[ \\t]+", " "); // don't remove newlines since this inteferes with simple comments
 
 		if (dedupScope.contains("S")) {
 			//mask all char strings:
 			qry = maskStringConstants(qry, "string");
 		}
-		
+
 		// always trim the whitespace
 		qry = applyPatternAll(qry, "\\s+", " ");
 		qry = applyPatternAll(qry, "\\s*;\\s*", " ");
 		qry = applyPatternAll(qry, "\\s*,\\s*", ",");
-		qry = collapseWhitespace(qry).toLowerCase() + " ";		
-		
+		qry = collapseWhitespace(qry).toLowerCase() + " ";
+
 //		if (dedupScope.contains("T")) {
 //			qry = applyPatternAll(qry, "([^\\w#])#[#\\w]+([^\\w#])", "$1"+"#tmptab"+"$2");
 //		}
-				
+
 		if (dedupScope.contains("N")) {
 			//mask all numbers:
 			final String numberPlaceholder = "9999";
@@ -3232,14 +3260,14 @@ tooltipsHTMLPlaceholder +
 			// reduce simple expressions to a number placeholder:
 			qry = applyPatternAll(qry, "\\b"+numberPlaceholder+"\\s*([\\+\\-\\*\\/])?\\s*"+numberPlaceholder+"\\b", numberPlaceholder);
 		}
-		
+
 		if (dedupScope.contains("H")) {
 			//mask all hex constants:
-			qry = applyPatternAll(qry, "\\b0x[0-9a-f]+\\b", "0xhex");		
+			qry = applyPatternAll(qry, "\\b0x[0-9a-f]+\\b", "0xhex");
 		}
 
 		qry = qry.trim();
-	
+
 		if (deDupQueries.containsKey(qry)) {
 			// duplicate query found, skipped
 			deDupSkipped++;
@@ -3248,34 +3276,34 @@ tooltipsHTMLPlaceholder +
 		else {
 			// new query found
 			deDupQueries.put(qry, qryOrig);
-		}	
+		}
 	}
-	
+
 	public String patchupSpecialCharsExtractedSQL (String s) {
 		if (s.contains("\\n")) s = s.replaceAll("\\\\n", "\n");
 		if (s.contains("\\r")) s = s.replaceAll("\\\\r", "\r");
 		if (s.contains("\\t")) s = s.replaceAll("\\\\t", "\t");
-		if (s.contains("\\f")) s = s.replaceAll("\\\\f", "\f");		
-		if (s.contains("\\u0027")) s = s.replaceAll("\\\\u0027", "'");		
-		if (s.contains("\\u003c")) s = s.replaceAll("\\\\u003c", "<");		
-		if (s.contains("\\u003e")) s = s.replaceAll("\\\\u003e", ">");		
+		if (s.contains("\\f")) s = s.replaceAll("\\\\f", "\f");
+		if (s.contains("\\u0027")) s = s.replaceAll("\\\\u0027", "'");
+		if (s.contains("\\u003c")) s = s.replaceAll("\\\\u003c", "<");
+		if (s.contains("\\u003e")) s = s.replaceAll("\\\\u003e", ">");
 		s = unEscapeHTMLChars(s);
 		return s;
 	}
-		
+
 	public String openExtractedFile(String reportName, String inputFileName, String fullPath, String appName, String encoding) throws IOException {
 		String extractedFileName = Paths.get(inputFileName).getFileName().toString() + "." + extractedFileSuffix;
 		String dirName = getFilePathname(getFilePathname(getDocDirPathname(), reportName), extractedDirName);
 		extractedFilePathName = getFilePathname(dirName, extractedFileName);
 		if (debugging) dbgOutput(thisProc()+"inputFileName=["+inputFileName+"] extractedFileName=["+extractedFileName+"] extractedFilePathName=["+extractedFilePathName+"] ", debugFmt);
-		
+
 		checkDir(getReportDirPathname(reportName, extractedDirName), false);
-		extractedFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(extractedFilePathName), StandardCharsets.UTF_8)));		
+		extractedFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(extractedFilePathName), StandardCharsets.UTF_8)));
 		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
 		String initLine = "-- Extracted from "+fullPath+" (format '"+importFormat+"', encoding '"+encoding+"') at " + now;
 		writeExtractedFile(initLine);
 		return extractedFilePathName;
-	}	
+	}
 
 	public void writeExtractedFile(String line) throws IOException {
 		extractedFileWriter.write(line + "\n");
@@ -3402,25 +3430,25 @@ tooltipsHTMLPlaceholder +
 		if (!ID.contains(".")) {
 			return objName;
 		}
-		
-		// replacing next 2 lines with the direct substring below, to be more GC-friendly 		
+
+		// replacing next 2 lines with the direct substring below, to be more GC-friendly
 		//List<String> parts = new ArrayList<String>(Arrays.asList(ID.split("\\.")));
 		//objName = parts.get(parts.size()-1);
-		
+
 		return objName.substring(objName.lastIndexOf(".")+1);
 		//return objName;
 	}
 
 	// extract schema from object name
-	public String getSchemaNameFromID(String ID) {		
+	public String getSchemaNameFromID(String ID) {
 		if (!ID.contains(".")) {
 			return "";
 		}
-		
-		// replacing next 2 lines with the direct logic below, to be more GC-friendly 		
+
+		// replacing next 2 lines with the direct logic below, to be more GC-friendly
 		//List<String> parts = new ArrayList<String>(Arrays.asList(ID.split("\\.")));
 		//String schemaName = parts.get(parts.size()-2);
-		
+
 		String tmp = ID.substring(0,ID.lastIndexOf("."));
 		if (!tmp.contains(".")) {
 			return tmp;
@@ -3434,15 +3462,15 @@ tooltipsHTMLPlaceholder +
 		if (!ID.contains(".")) {
 			return "";
 		}
-		
-		// replacing lines below with more GC-friendly code			
+
+		// replacing lines below with more GC-friendly code
 //		List<String> parts = new ArrayList<String>(Arrays.asList(ID.split("\\.")));
 //		if (parts.size() < 3) {
 //			return "";
 //		}
 //		String DBName = parts.get(parts.size()-3);
 //		return DBName;
-		
+
 		String tmp = ID.substring(0,ID.lastIndexOf("."));
 		if (!tmp.contains(".")) {
 			return "";
@@ -3451,7 +3479,7 @@ tooltipsHTMLPlaceholder +
 		if (!tmp.contains(".")) {
 			return tmp;
 		}
-		return tmp.substring(tmp.lastIndexOf(".")+1);		
+		return tmp.substring(tmp.lastIndexOf(".")+1);
 	}
 
 	// extract remote servername from 4-part object name
@@ -3523,7 +3551,6 @@ tooltipsHTMLPlaceholder +
 
 		String tmpSchema = getSchemaNameFromID(objName);
 		String tmpDB     = getDBNameFromID(objName);
-
 		if ((tmpSchema.isEmpty()) && (tmpDB.isEmpty())) {
 			objName = "." + objName;
 			// use the schema name from the current context, if any
@@ -3601,6 +3628,9 @@ tooltipsHTMLPlaceholder +
 	public void addColSymTab(String tableName, String colName, String dataType) {
 		addColSymTab(tableName, colName, dataType, false, false);
 	}
+	public void addColSymTab(String tableName, String colName, String dataType, boolean nullable) {
+		addColSymTab(tableName, colName, dataType, nullable, false);
+	}
 	public void addColSymTab(String tableName, String colName, String dataType, boolean nullable, boolean readingSymTab)
 	{
 		if (!readingSymTab) {
@@ -3608,14 +3638,86 @@ tooltipsHTMLPlaceholder +
 			colName = normalizeName(colName);
 			dataType = normalizeName(dataType);
 		}
-		String tabcol = tableName + "." + colName;
+		String tabcol = maskChar(tableName, symTabSeparator) + symTabSeparator + maskChar(colName, symTabSeparator);
+		tabcol = tabcol.toUpperCase();
 		String nullFmt = "";
 		if (nullable) nullFmt = " NULL";
-		colSymTab.put(tabcol.toUpperCase(), dataType + nullFmt);
+		colSymTab.put(tabcol, dataType + nullFmt);
 		//appOutput(thisProc()+"adding tabcol("+colSymTab.size()+")=["+tabcol+"] dataType=["+dataType+nullFmt+"] ");
 	}
 
-	
+	// add to symbol table
+	public String makeparSymTabKey(String objName, String parName, int parNo) {
+		return maskChar(objName, symTabSeparator) + symTabSeparator + parName + symTabSeparator + parNo;
+	}
+	public String makeparSymTabKey(String objName, String parName) {
+		return maskChar(objName, symTabSeparator) + symTabSeparator + parName;
+	}
+	public String makeparSymTabKey(String objName, int parNo) {
+		return maskChar(objName, symTabSeparator) + symTabSeparator + parNo;
+	}
+	public void addParSymTab(String objName, String parName, int parNo, String parDft) {
+		addParSymTab(objName, parName, parNo, parDft, false);
+	}
+	public void addParSymTab(String objName, String parName, int parNo, String parDft, boolean readingSymTab)
+	{
+		if (!readingSymTab) {
+			objName = resolveName(objName);
+		}
+		
+		if (!readingSymTab) {
+			// pass 1: only for being able to write to the symtab file: keep parName and parNo together
+			String parKey = makeparSymTabKey(objName, parName, parNo);		
+			parKey = parKey.toUpperCase();
+			
+			// handle special string cases
+			if (!getPatternGroup(parDft, "^([a-zA-Z_]\\w*)$", 1).isEmpty()) {
+				// unquoted string
+				String status = CompassAnalyze.featureSupportedInVersion(CompassAnalyze.UnQuotedString, "PARAMETER DEFAULT");
+				if (!status.equals(Supported)) {					
+					parDft = "'" + parDft + "'";
+				}
+			}			
+			else if ((parDft.charAt(0) == '"') && (parDft.charAt(parDft.length()-1) == '"')) {
+				String itemChk = CompassAnalyze.cfgDoubleQuotedString;  // default, in case no embedded quotes
+				String s = parDft.substring(1, parDft.length()-1);
+
+				// a string may have both embedded double and single quotes
+				if (s.contains("'")) {
+					itemChk = CompassAnalyze.cfgDoubleQuoteEmbeddedSingleQuote;
+				}
+				else if (s.contains("\"")) {
+					itemChk = CompassAnalyze.cfgDoubleQuoteEmbeddedDoubleQuote;
+				}
+				else {
+					// no embedded quotes
+					parDft = "'" + s + "'";
+				}
+				String status = CompassAnalyze.featureSupportedInVersion(CompassAnalyze.DoubleQuotedString, itemChk);				
+				if (!status.equals(Supported)) {
+					s = s.replaceAll("\"\"", "\"");   // remove escaped double quotes
+					s = s.replaceAll("'", "''");      // escape single quotes
+					parDft = "'" + s + "'";
+				}
+			}
+				
+			parSymTab.put(parKey, parDft);
+			//appOutput(thisProc()+"adding par("+parSymTab.size()+")=["+parKey+"] parDft=["+parDft+"] ");			
+		}
+		else {			
+			// reading symtab in pass 2: add both with the parameter name and position to enable lookups
+			String parNameKey = makeparSymTabKey(objName, parName);					
+			parNameKey = parNameKey.toUpperCase();
+			parSymTab.put(parNameKey, parDft);
+			//appOutput(thisProc()+"adding par("+parSymTab.size()+")=["+parNameKey+"] parDft=["+parDft+"] ");
+			
+			String parNoKey = makeparSymTabKey(objName, parNo);
+			parNoKey = parNoKey.toUpperCase();
+			parSymTab.put(parNoKey, parDft);
+			//appOutput(thisProc()+"adding par("+parSymTab.size()+")=["+parNoKey+"] parDft=["+parDft+"] ");
+		}
+	}
+			
 
 	// write symbol table
 	public void writeSymTab(String reportName, String inputFileName, String appName) throws IOException {
@@ -3647,6 +3749,14 @@ tooltipsHTMLPlaceholder +
 			line = "udd" + symTabSeparator + maskChar(udd, symTabSeparator) + symTabSeparator + maskChar(UDDSymTab.get(udd), symTabSeparator);
 			writeSymTabFile(decodeIdentifier(line));
 		}
+		for (String col : colSymTab.keySet()) {
+			line = "col" + symTabSeparator + col + symTabSeparator + maskChar(colSymTab.get(col), symTabSeparator);
+			writeSymTabFile(decodeIdentifier(line));
+		}
+		for (String par : parSymTab.keySet()) {
+			line = "par" + symTabSeparator + par + symTabSeparator + maskChar(parSymTab.get(par), symTabSeparator);
+			writeSymTabFile(decodeIdentifier(line));
+		}
 
 		closeSymTabFile();
 	}
@@ -3654,8 +3764,8 @@ tooltipsHTMLPlaceholder +
 	// read symbol table
 	public void readSymTab(String reportName, String appName) throws IOException
 	{
-		if (debugging) dbgOutput("reading symtab for reportName=["+reportName+"] appName=["+appName+"] symTabAll=["+symTabAll+"] ", debugSymtab);		
-		
+		if (debugging) dbgOutput("reading symtab for reportName=["+reportName+"] appName=["+appName+"] symTabAll=["+symTabAll+"] ", debugSymtab);
+
 		if (!symTabAll) {
 			if (!appName.isEmpty()) {
 				if (symTabAppRead.equalsIgnoreCase(appName)) {
@@ -3664,7 +3774,7 @@ tooltipsHTMLPlaceholder +
 				}
 			}
 		}
-		
+
 		clearSymTab();
 
 		String dirPath = getReportDirPathname(reportName, importDirName, symTabDirName);
@@ -3673,7 +3783,7 @@ tooltipsHTMLPlaceholder +
 		List<Path> symTabFiles = getFilesPattern(dirPath, ".+\\."+symTabFileTag+"\\..+"+ symTabFileSuffix);
 		for (Path sf: symTabFiles) {
 			// extract appname from symtab file
-			String symtabAppName = removeLastChar(getPatternGroup(sf.toString(), "^.+"+symTabFileTag+"\\.(.+)"+ symTabFileSuffix, 1));		
+			String symtabAppName = removeLastChar(getPatternGroup(sf.toString(), "^.+"+symTabFileTag+"\\.(.+)"+ symTabFileSuffix, 1));
 			if (!symTabAll) {
 				// only read the symtab for the current appname, to avoid slowdown for large number of apps collectively
 				if (!appName.isEmpty()) {
@@ -3759,9 +3869,24 @@ tooltipsHTMLPlaceholder +
 		}
 		else if (fields.get(0).equals("col")) {
 			String tableName = unmaskChar(fields.get(1),symTabSeparator);
-			String colName = unmaskChar(fields.get(2),symTabSeparator);
-			String dataType = unmaskChar(fields.get(3),symTabSeparator);
-			addColSymTab(tableName, colName, dataType, false, true);
+			String colName   = unmaskChar(fields.get(2),symTabSeparator);
+			String dataType  = unmaskChar(fields.get(3),symTabSeparator);			
+			boolean nullable = false;
+			if (dataType.endsWith(" NULL")) {
+				nullable = true;
+				dataType = dataType.substring(0,dataType.length()-5);
+			}
+			addColSymTab(tableName, colName, dataType, nullable, true);
+		}
+		else if (fields.get(0).equals("par")) {
+			String objName  = unmaskChar(fields.get(1),symTabSeparator);
+			String parName  = unmaskChar(fields.get(2),symTabSeparator); 	 
+			int parNo       = Integer.parseInt(fields.get(3));
+			String parDft   = unmaskChar(fields.get(4),symTabSeparator);
+			addParSymTab(objName, parName, parNo, parDft, true);
+		}
+		else {
+			assert false : thisProc() + "unknown symbol table tag:["+fields.get(0)+"] ";
 		}
 		return s;
 	}
@@ -3774,10 +3899,11 @@ tooltipsHTMLPlaceholder +
 		TUDFSymTab.clear();
 		UDDSymTab.clear();
 		colSymTab.clear();
+		parSymTab.clear();
 		SUDFNamesLikeXML.clear();
 		TUDFNamesLikeXML.clear();
 		SUDFNamesLikeHIERARCHYID.clear();
-		
+
 		symTabAppRead = "";
 	}
 
@@ -3822,10 +3948,10 @@ tooltipsHTMLPlaceholder +
 		}
 		appOutput("");
 		appOutput("colSymTab: "+colSymTab.size());
-		for (String udd: colSymTab.keySet()) {
-			appOutput("udd=["+udd+"] => ["+colSymTab.get(udd)+"]");
+		for (String col: colSymTab.keySet()) {
+			appOutput("col=["+col+"] => ["+colSymTab.get(col)+"]");
 			countSymTab++;
-		}		
+		}
 		appOutput("");
 		appOutput("symtab records: "+countSymTab);
 		appOutput(composeOutputLine("", "-"));
@@ -3886,7 +4012,7 @@ tooltipsHTMLPlaceholder +
 				appOutput("Report file "+reportFileHTMLPathName+" already exists. Overwriting...");
 			}
     	}
-		reportFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(reportFileTextPathName), StandardCharsets.UTF_8)));	
+		reportFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(reportFileTextPathName), StandardCharsets.UTF_8)));
 		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
 		reportFileWriterHTML = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(reportFileHTMLPathName), StandardCharsets.UTF_8)));
 		String hdr = headerHTML + headerHTMLReport;
@@ -3910,8 +4036,8 @@ tooltipsHTMLPlaceholder +
 
 	public String removeHTMLTags (String line) {
 		// for the .txt version, remove HTML tags
-		if (line.contains("<a ")) {			
-			line = applyPatternFirst(line,docLinkURL, docLinkURLText);						
+		if (line.contains("<a ")) {
+			line = applyPatternFirst(line,docLinkURL, docLinkURLText);
 			line = applyPatternAll(line,"<a class=.*?>", "");
 			line = applyPatternAll(line,"<a href=.*?>", "");
 			line = applyPatternAll(line,"<a name=.*?>", "");
@@ -3923,11 +4049,11 @@ tooltipsHTMLPlaceholder +
 			line = applyPatternAll(line,"</div>", "");
 			line = applyPatternAll(line,hintIcon, " ");
 		}
-		
+
 		if (line.contains("<span ")) {
 			line = applyPatternAll(line,"<span class.*?</span>", "");
 		}
-		return line;		
+		return line;
 	}
 
 	public void writeReportFile() throws IOException {
@@ -3954,7 +4080,7 @@ tooltipsHTMLPlaceholder +
 		StringBuilder lines = new StringBuilder();
 		StringBuilder prevGroup = new StringBuilder(uninitialized);
 		final String statsMarker = "~STATSHERE~";
-		
+
 		//progress indicator
 		printProgress();
 		Integer totalCnt = 0;
@@ -4032,9 +4158,9 @@ tooltipsHTMLPlaceholder +
 		StringBuilder lines = new StringBuilder(doXrefMsg(status, "feature"));
 		Integer skippedFilter = 0;
 		Integer countFilter = 0;
-		
+
 		//progress indicator
-		printProgress();		
+		printProgress();
 
 		if (doXref(status, "feature")) {
 			lines = new StringBuilder();
@@ -4201,13 +4327,13 @@ tooltipsHTMLPlaceholder +
 
 		if (lines.toString().trim().length() == 0) {
 			lines = new StringBuilder("-no items to report-\n");
-		}		
+		}
 		writeReportFile();
 		writeReportFile(composeSeparatorBar("X-ref: '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' by SQL feature", tagByFeature+status));
 		writeReportFile(filterMsg);
 		if (status.equals(Rewritten) && !rewriteNotes.isEmpty()) {
 			writeReportFile(rewriteNotes);
-		}		
+		}
 		writeReportFile(lines);
 	}
 
@@ -4325,15 +4451,15 @@ tooltipsHTMLPlaceholder +
 
 					if (!init) init = true;
 					else lines.append("\n");
-					
+
 					String anchor = makeObjectAnchor(context.toString(), appName.toString());
-					
+
 					lines.append(anchor + context);
 					lines.append(", batch ");
-					
+
 					String inFile = reportInputFileFmt;
 					if (reportShowSrcFile) inFile = srcFile.toString();
-					String lnk = hLink(status, Integer.parseInt(lineNrInFile.toString()),inFile, appName.toString());					
+					String lnk = hLink(status, Integer.parseInt(lineNrInFile.toString()),inFile, appName.toString());
 					lines.append(batchNr.toString()+ ", at line " + lnk);
 					lines.append(" in " + hLink(status, inFile, appName.toString()));
 
@@ -4381,7 +4507,7 @@ tooltipsHTMLPlaceholder +
 		else {
 			if (status.equals(Rewritten)) rewriteNotes = "";
 		}
-		
+
 		String filterMsg = "";
 		if (skippedFilter > 0) {
 			filterMsg = "Filter applied: "+skippedFilter.toString()+" of " + countFilter.toString()+" items skipped by filter '"+reportOptionFilter+"'\n\n";
@@ -4395,7 +4521,7 @@ tooltipsHTMLPlaceholder +
 		writeReportFile(filterMsg);
 		if (status.equals(Rewritten) && !rewriteNotes.isEmpty()) {
 			writeReportFile(rewriteNotes);
-		}			
+		}
 		writeReportFile(lines);
 	}
 
@@ -4488,7 +4614,7 @@ tooltipsHTMLPlaceholder +
 			itemHintKey = item;
 		}
 		else {
-			for (int i=0; i<toolTipsKeysList.size(); i++) {			
+			for (int i=0; i<toolTipsKeysList.size(); i++) {
 				String k = toolTipsKeysList.get(i);
 				String v = toolTipsKeys.get(k);
 
@@ -4530,9 +4656,9 @@ tooltipsHTMLPlaceholder +
 			return indent+item;
 		}
 		String hint = lineIndent.substring(0,lineIndent.length()-2)+"<div class=\"tooltip\"><span class=\"tooltip_icon\">"+hintIcon+"</span>"+" "+item+"<div class=\"tooltip-content\" data-tooltip=\""+itemHintKey+"\"></div></div>";
-		
-		String h = hintsTextMap.get(itemHintKey); 
-		
+
+		String h = hintsTextMap.get(itemHintKey);
+
 		// collect hints
 		if (!hintsList.contains(item)) {
 			hintsList.add(item);
@@ -4554,7 +4680,7 @@ tooltipsHTMLPlaceholder +
 		if (status.equals(Rewritten)) {
 			dirname = rewrittenDirName +File.separator+ rewrittenHTMLDirName;
 			file = file.replaceFirst(importFileTag, rewrittenFileTag);
-		}		
+		}
 		file = changeFilenameSuffix(file, importFileSuffix, HTMLSuffix);
 		String result = dirname+File.separator+ file;
 		return result;
@@ -4575,7 +4701,7 @@ tooltipsHTMLPlaceholder +
 				thisFile = "rewritten file";
 			}
 		}
-		
+
 		if (file.equals(reportInputFileFmt)) {
 			line = "<a href=\""+ hLinkFileName(status, importFilePathName, appName) +"\""+tgtBlank+">"+thisFile+"</a>";
 		}
@@ -4612,7 +4738,7 @@ tooltipsHTMLPlaceholder +
 				lineNr = lineNrDisplay = adjustedLineNr;
 			}
 		}
-		
+
 		String line = "";
 		if (file.equals(reportInputFileFmt)) {
 			line = "<a href=\""+ hLinkFileName(status, importFilePathName, appName) +"#"+lineNrDisplay.toString()+"\""+tgtBlank+">"+lineNr.toString()+"</a>";
@@ -4622,10 +4748,10 @@ tooltipsHTMLPlaceholder +
 		}
 		return line;
 	}
-	
+
 	private String getObjectAnchorKey(String context, String appName) {
 		context = context.replaceAll(" ", ".");
-		String anchorKey = context + "." + appName;		
+		String anchorKey = context + "." + appName;
 		return anchorKey.toUpperCase();
 	}
 
@@ -4727,9 +4853,9 @@ tooltipsHTMLPlaceholder +
 		String s = lineIndent + "<a href=\"#"+tag+"\">"+ txt1 + statusFmt + txt2 +"</a>\n";
 		return s;
 	}
-	
+
 	private void printProgress() {
-		appOutput( ".", false, true);		
+		appOutput( ".", false, true);
 	}
 
 	public boolean createReport(String reportName) throws IOException {
@@ -4744,7 +4870,21 @@ tooltipsHTMLPlaceholder +
 			// move any HTML files
 			moveImportedHTMLFiles(reportName);
 		}
-		
+
+		// check for existence of rewritten cases when the report is generated without analysis
+  		if (!rewrite)  {
+			File reportDir = new File(getReportDirPathname(reportName, rewrittenDirName));
+	 		if (reportDir.exists()) {
+				rewriteReportOnly = true;
+				rewrite = true;
+				if (debugging) dbgOutput(thisProc()+"rewriteReportOnly=["+rewriteReportOnly+"] ", debugReport);
+			}
+		}
+   		if (rewrite)  {
+     		supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Rewritten, Supported);
+    	}
+
+		// generic init
 		Date now = new Date();
 		String now_report = new SimpleDateFormat("yyyy-MMM-dd HH:mm:ss").format(now);
 		reportFileTextPathName = getreportFilePathName(reportName, now);
@@ -4771,7 +4911,7 @@ tooltipsHTMLPlaceholder +
 		writeReportFile("This report                : "+reportFilePathName);
 		writeReportFile("Session log                : "+hLink("", sessionLogPathName));
 		writeReportFile(composeOutputLine("", "=") + "\n");
-		
+
 		if (!newVersionAvailable.isEmpty()) {
 			writeReportFile("Note: "+newVersionAvailable+"\n");
 			writeReportFile(composeOutputLine("", "=") + "\n");
@@ -4799,14 +4939,15 @@ tooltipsHTMLPlaceholder +
 
 		// init map
 		addSrcFileNameMap(lastItem, lastItem);
-		
+
 		// check flag
 		if (!reportOptionXref.isEmpty()) showObjectIssuesList = true;
 
 		// sanity check
 		assert supportOptions.size() == supportOptionsCfgFile.size() : "supportOptions.size() [" + supportOptions.size() + "] must be equal to supportOptionsCfgFile.size() " + supportOptionsCfgFile.size() + "]";
 		assert supportOptions.size() == supportOptionsDisplay.size() : "supportOptions.size() [" + supportOptions.size() + "] must be equal to supportOptionsDisplay.size() " + supportOptionsDisplay.size() + "]";
-		
+		assert supportOptions.size() == supportOptionsWeightDefault.size() : "supportOptions.size() [" + supportOptions.size() + "] must be equal to supportOptionsWeightDefault.size() " + supportOptionsWeightDefault.size() + "]";
+
 		// set up arrays for processing groups of statuses
 		String fmtBatches = "batches";
 		String fmtLinesSQL = "linesSQL";
@@ -4861,8 +5002,10 @@ tooltipsHTMLPlaceholder +
 				errorExit();
 			}
 			if (!reportName.equalsIgnoreCase(cfReportName)) {
+				String cfFilename = cf.toString();
+				cfFilename = cfFilename.substring(cfFilename.lastIndexOf(File.separator)+1);
 				String rDir = getFilePathname(getDocDirPathname(), capDirName);
-				appOutput("Found analysis file for report '" + cfReportName + "' in " + rDir + ": adding contents to report "+reportName);
+				appOutput("Found analysis file '"+cfFilename+"' for report '" + cfReportName + "' in " + rDir + ": adding contents to report "+reportName);
 			}
 
 			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
@@ -4916,11 +5059,12 @@ tooltipsHTMLPlaceholder +
 				List<String> itemList = new ArrayList<String>(Arrays.asList(capLine.split(captureFileSeparator)));
 				// sanity checks on #fields on the line read
 				if (itemList.size() < capPosLastField) {
-					appOutput("\nError at line "+capCount+" of "+cf.toString()+":");					
+					appOutput("\nError at line "+capCount+" of "+cf.toString()+":");
 					appOutput("Invalid capture item read: expected "+(capPosLastField)+" fields, found "+itemList.size()+". Skipping this item:");
 					appOutput("["+capLine+"]");
 					continue;
 				}
+
 				String objType = getPatternGroup(itemList.get(capPosItem), "^CREATE (.*)$", 1);
 				if (objType.isEmpty()) {
 					objType = getPatternGroup(itemList.get(capPosItem), "^Constraint (.*?)(\\(.*)?$", 1);
@@ -4960,6 +5104,19 @@ tooltipsHTMLPlaceholder +
 				if (debugging) dbgOutput(thisProc() + "capLine=[" + capLine + "] objType=[" + objType + "] item=[" + item + "] itemDetail=[" + itemDetail + "] itemGroup=[" + itemGroup + "] status=[" + status + "] lineNr=[" + lineNr + "] misc=[" + misc + "] ", debugReport);
 				assert supportOptions.contains(status) : "Invalid status value[" + status + "] in line=[" + capLine + "] ";
 
+				// filter out the rewriteoppty cases before going any further
+				if (status.equals(RewriteOppty)) {
+					if (!rewrite) {
+						// report the oppties
+						rewriteOppties.put(item, rewriteOppties.getOrDefault(item, 0)+1);
+						rewriteOppties.put(rewriteOpptiesTotal, rewriteOppties.getOrDefault(rewriteOpptiesTotal, 0)+1);
+					}
+					else {
+						// report the actual rewritten case, discard the oppties
+					}
+					continue;
+				}
+
 				if (!objType.isEmpty()) {
 					if (!status.equals(Ignored)) {
 						// massage the object type strings to the format we need for the object count output section
@@ -4967,7 +5124,7 @@ tooltipsHTMLPlaceholder +
 							objType = applyPatternFirst(objType, "^(.*?,.*?),.*$", "$1");
 							if (objType.startsWith("TRIGGER,")) objType = "TRIGGER";
 							if (objType.startsWith("TRIGGER (DDL")) {
-								objType = "TRIGGER (DDL)";                 
+								objType = "TRIGGER (DDL)";
 								if (misc.equals("0")) {
 									// this comes from a multi-action DDL trigger, count avoid counting double
 									objTypeCount.put(objType, objTypeCount.getOrDefault(objType, 0) - 1);
@@ -4994,7 +5151,7 @@ tooltipsHTMLPlaceholder +
 									if (!objType.startsWith("TABLE ")) {
 										if (!objTypeMap.containsKey(itemDetail.toUpperCase())) {
 											if (showObjectIssuesList) objTypeMapCase.put(itemDetail, objType);
-										}										
+										}
 										objTypeMap.put(itemDetail.toUpperCase(), objType);
 									}
 								}
@@ -5018,45 +5175,51 @@ tooltipsHTMLPlaceholder +
 						tabTypeReport = tabTypeReport.trim();
 						objTypeLineCount.put(tabTypeReport, objTypeLineCount.getOrDefault(tabTypeReport, 0) + 1);
 					}
-				}				
+				}
 
 				// for items logged only to drive the object count, stop here
 				if (status.equals(ObjCountOnly)) {
 					continue;
-				}				
+				}
 
 				statusCount.put(status, statusCount.getOrDefault(status, 0L) + 1);
-				
+
 				if (!reportOptionXref.isEmpty()) {
-					// collect info for links to object definitions					
+					// collect info for links to object definitions
 					if (!misc.isEmpty() && capLine.startsWith("CREATE ")) {
 						String contextKey = context;
-						if (context.equals(BatchContext)) {	
+						if (context.equals(BatchContext)) {
 							if (capLine.startsWith("CREATE VIEW")) {
 								contextKey = "VIEW " + itemDetail;
-							}	
+							}
 							else {
 								contextKey = null;
-							}			
+							}
 						}
 						if (contextKey != null) {
 							int ln = Integer.parseInt(lineNrInFile)+Integer.parseInt(lineNr)-1;
 							String s = ln + sortKeySeparator + appName + sortKeySeparator + addSrcFileNameMap(srcFile);
-							contextLinkMap.put(contextKey.toUpperCase(), s);		
+							contextLinkMap.put(contextKey.toUpperCase(), s);
 						}
-					}			
+					}
 				}
 
 				// count issues per object
 				boolean skipItemIssue = false;
+				if (status.equals(Rewritten)) {
+					// in case we run only a report, don't miss out any rewritten cases
+					// already tested earlier above, but play it safe
+					rewrite = true;
+					if (rewriteReportOnly) nrRewritesDone++;
+				}
 				if (status.equals(Supported) || status.equals(Ignored) || status.equals(ReviewSemantics) || status.equals(ReviewPerformance)  || status.equals(Rewritten) || status.equals(ObjCountOnly)) {
 					// do not count as issue
 					skipItemIssue = true;
 				}
-				if (context.equalsIgnoreCase(BatchContext)) { 
-					// skip batches			
-					skipItemIssue = true;				
-				}	
+				if (context.equalsIgnoreCase(BatchContext)) {
+					// skip batches
+					skipItemIssue = true;
+				}
 				if (!getPatternGroup(item, "^(ALTER TABLE..(NO)?CHECK CONSTRAINT)", 1).isEmpty()) {
 					// skip ALTER TABLE..[NO]CHECK CONSTRAINT, it does not affect the CREATE TABLE
 					skipItemIssue = true;
@@ -5152,7 +5315,7 @@ tooltipsHTMLPlaceholder +
 			else
 				objTypeIssueCount.put(type, objTypeIssueCount.getOrDefault(type, 0) + 1);
 		}
-		
+
 //		// for debugging:
 //		for (String t : objTypeIssueMap.keySet()) {
 //			Integer iX = objTypeIssueCount.getOrDefault(t,0);
@@ -5199,11 +5362,11 @@ tooltipsHTMLPlaceholder +
 		}
 		summarySection.append(tocLink(tagObjcount, "Object Count", "", ""));
 		summarySection.append("\n");
-				
+
 		for (int i=0; i <supportOptionsIterate.size(); i++) {
 			summarySection.append(tocLink(tagSummary, "Summary of SQL Features '", "'", supportOptionsIterate.get(i)));
 		}
-		
+
 		if (!rewrite) {
 			if (rewriteOppties.containsKey(rewriteOpptiesTotal)) {
 				if (rewriteOppties.get(rewriteOpptiesTotal) > 0) {
@@ -5212,7 +5375,7 @@ tooltipsHTMLPlaceholder +
 				}
 			}
 		}
-		
+
 		summarySection.append("\n");
 		for (int i=0; i <supportOptionsIterate.size(); i++) {
 			summarySection.append(tocLink(tagByFeature, "X-ref: '", "' by SQL feature", supportOptionsIterate.get(i)));
@@ -5221,7 +5384,7 @@ tooltipsHTMLPlaceholder +
 		for (int i=0; i <supportOptionsIterate.size(); i++) {
 			summarySection.append(tocLink(tagByObject, "X-ref: '", "' by object", supportOptionsIterate.get(i)));
 		}
-		
+
 		if (showObjectIssuesList) {
 			summarySection.append("\n");
 			summarySection.append(tocLink(tagIssueListTop, "List of object names with/without issues", "", ""));
@@ -5298,32 +5461,32 @@ tooltipsHTMLPlaceholder +
 		summarySection.append("\n");
 
 		// add override info
-		if (Compass.reportOnly) {			
+		if (Compass.reportOnly) {
 			if (CompassConfig.overrideCount > 0) {
 				// there are overrides in the user .cfg file, but indicate that overrides have not been applied in generating this report
 				summarySection.append("NB: user-defined overrides (via "+CompassConfig.userConfigFilePathName+")\n");
 				summarySection.append("are applied during analysis, not during report generation (this was a report-only run).\n");
 				summarySection.append("To apply overrides for this report's imported files, use -analyze.\n");
-				summarySection.append("\n");			
+				summarySection.append("\n");
 			}
 			else {
 				// there are no overrides in the user .cfg file, so no need to print any warnings
-			}			
+			}
 		}
 		else {
 			if (statusOverrides.size() > 0) {
 				StringBuilder summaryTmp3 = new StringBuilder();
 				for (String k : statusOverrides.keySet().stream().sorted().collect(Collectors.toList())) {
-					List<String> ov = new ArrayList<>(Arrays.asList(k.split(overrideSeparator)));				
+					List<String> ov = new ArrayList<>(Arrays.asList(k.split(overrideSeparator)));
 					Integer n = statusOverrides.get(k);
 					summaryTmp3.append(lineIndent).append(supportOptionsDisplay.get(supportOptions.indexOf(ov.get(0))) + " (was: "+ supportOptionsDisplay.get(supportOptions.indexOf(ov.get(1))) + ") : " + n.toString()+"\n");
-				}		
-				
+				}
+
 				summaryTmp3 = new StringBuilder(alignColumn(summaryTmp3, " : ", "before", "left"));
 				summaryTmp3 = new StringBuilder(alignColumn(summaryTmp3, " : ", "after", "right"));
 				summarySection.append("Overridden by user .cfg file ("+CompassConfig.userConfigFilePathName+"):\n");
 				summarySection.append(summaryTmp3);
-				summarySection.append("\n");				
+				summarySection.append("\n");
 			}
 			else {
 				// no overrides were applied, so no additional information needs to be printed
@@ -5372,7 +5535,7 @@ tooltipsHTMLPlaceholder +
 		}
 
 		if (showPercentage) {
-			// the compatibility percentage is not really a relevant number since the different elements are all equally weighted. 
+			// the compatibility percentage is not really a relevant number since the different elements are all equally weighted.
 			// it brings a risk of misinterpretation, so we don't show this anymore
 			summarySection.append(composeSeparatorBar("Compatibility Estimate", tagEstimate));
 			summarySection.append("\n");
@@ -5399,7 +5562,7 @@ tooltipsHTMLPlaceholder +
 
 			String noIssueCnt = "";
 			if (objTypeIssueMap.containsKey(objType)) {
-				String anchorName = reportObjectsIssuesListTag(objType); 
+				String anchorName = reportObjectsIssuesListTag(objType);
 				String linkStart = "<a href=\"#"+anchorName+"\">";
 				String linkEnd = ": list</a>";
 				if (!showObjectIssuesList) {
@@ -5417,7 +5580,7 @@ tooltipsHTMLPlaceholder +
 			summaryTmp = new StringBuilder("No objects were found.\n");
 		}
 		summarySection.append(summaryTmp);
-		
+
 		writeReportFile(summarySection);
 
 		writeReportFile();
@@ -5441,17 +5604,17 @@ tooltipsHTMLPlaceholder +
 					rStr.append("\n");
 					rStr.append(composeSeparatorBar("Automatic SQL Rewrite Opportunities", tagRewrite));
 					rStr.append("\n" + rewriteOppties.get(rewriteOpptiesTotal) + " unsupported SQL aspects that may be rewritten with the -rewrite option:\n\n");
-									
-					for (String r : rewriteOppties.keySet().stream().sorted().collect(Collectors.toList())) { 
+
+					for (String r : rewriteOppties.keySet().stream().sorted().collect(Collectors.toList())) {
 						if (r.equals(rewriteOpptiesTotal)) continue;
 						Integer cnt = rewriteOppties.get(r);
 						rStr.append(lineIndent + r + " : " + cnt.toString() + "\n");
-					}				
-					
+					}
+
 					writeReportFile(rStr);
 				}
 			}
-		}	
+		}
 
 		// sort for X-ref by feature
 		List<String> sortedListXRefByFeature = xRefByFeature.stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList());
@@ -5471,19 +5634,19 @@ tooltipsHTMLPlaceholder +
 		}
 		sortedListXRefByObject.clear();
 
-		if (showObjectIssuesList) {	
+		if (showObjectIssuesList) {
 			reportObjectsIssues(objTypeMapCase, objIssueCount);
 		}
-		
+
 		if (listHints) {
 			reportHints();
 		}
-		
+
 		writeReportFile();
 		writeReportFile(composeOutputLine("", "="));
 		writeReportFile();
-		
-		appOutput("\n", false, true);		
+
+		appOutput("\n", false, true);
 
 		return true;
 	}
@@ -5501,7 +5664,7 @@ tooltipsHTMLPlaceholder +
 		if (lines.length() == 0) {
 			lines.append("-No popup hints were generated-\n");
 		}
-		
+
 		String aboveLink = "<a href=\"#"+(tagSummary + NotSupported).toLowerCase() +"\">"+ "see above"+"</a>";
 		writeReportFile(composeSeparatorBar("List of popup hints in assessment summary ("+aboveLink+")", tagHints)+"\n");
 		writeReportFile(lines);
@@ -5524,25 +5687,25 @@ tooltipsHTMLPlaceholder +
 		}
 	}
 
-	private void reportObjectsIssuesList(String objType, Map<String, String> objTypeMap, Map<String,Integer> objIssueCount) throws IOException {	
+	private void reportObjectsIssuesList(String objType, Map<String, String> objTypeMap, Map<String,Integer> objIssueCount) throws IOException {
 		String objTypeFmt = objType;
 		if (objTypeFmt.contains(", ")) {
 			Integer i = objTypeFmt.indexOf(", ");
 			objTypeFmt = objTypeFmt.substring(i+2) + " " + objTypeFmt.substring(0,i);
-		}	
+		}
 		StringBuilder lines = new StringBuilder();
-		boolean withIssues = true;		
-		while (true) {			 
+		boolean withIssues = true;
+		while (true) {
 			String withStr = "without detected issues, expected to be created without errors:";
-			if (withIssues) withStr = "with issues, may raise errors when created (for details, see report above):";			
+			if (withIssues) withStr = "with issues, may raise errors when created (for details, see report above):";
 			StringBuilder line = new StringBuilder();
 			Integer cnt = 0;
-			
+
 			for (String objName : objTypeMap.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
 				String type = objTypeMap.get(objName);
 				if (!type.equals(objType)) continue;
 				Integer issues = objIssueCount.getOrDefault(objName.toUpperCase(),0);
-				
+
 				String contextObjType = objType;
 				if (contextObjType.startsWith("FUNCTION")) contextObjType = "FUNCTION";
 				String context = contextObjType + " " + objName;
@@ -5553,36 +5716,36 @@ tooltipsHTMLPlaceholder +
 				if (contextLink != null) { // null = not found => shouldn't happen, but don't break regardless
 					List<String> fields = new ArrayList<String>(Arrays.asList(contextLink.split(sortKeySeparator)));
 					// using Supported status here, since we don't know if there was anything rewritten in the proc
-					String lnk = hLink(Supported, Integer.parseInt(fields.get(0)), getSrcFileNameMap(fields.get(2)), fields.get(1));		
-					
-					// put the object name in the link text rather than the line number		
+					String lnk = hLink(Supported, Integer.parseInt(fields.get(0)), getSrcFileNameMap(fields.get(2)), fields.get(1));
+
+					// put the object name in the link text rather than the line number
 					lnk = applyPatternFirst(lnk, "^(.*)\\b\\d+\\b(.*)$", "$1" + escapeHTMLChars(objName).replaceAll("\\$", "&dollar;") + "$2");
-					
+
 					anchorLink = getObjectAnchor(context, fields.get(1));
 					if (!anchorLink.isEmpty()) anchorLinkEnd = "</a>";
-					
+
 					objName = lnk;
 				}
-				
+
 				if (!withIssues && (issues == 0)) {
 					line.append(lineIndent + objName+"\n");
 					cnt++;
-				}	
-				else if (withIssues && (issues > 0)) {					
+				}
+				else if (withIssues && (issues > 0)) {
 					line.append(lineIndent + objName+" ("+anchorLink+issues+" issues"+anchorLinkEnd+")\n");
 					cnt++;
 				}
 			}
 			if (line.length() > 0) {
-				lines.append(cnt + " " + capitalizeInitChar(objTypeFmt.toLowerCase()) +"s "+withStr+"\n");	
-				lines.append(line);	
-				lines.append("\n");	
+				lines.append(cnt + " " + capitalizeInitChar(objTypeFmt.toLowerCase()) +"s "+withStr+"\n");
+				lines.append(line);
+				lines.append("\n");
 			}
-			
+
 			if (!withIssues) break;
 			withIssues = false;
 		}
-		
+
 		if (lines.length() > 0) {
 			String tag = reportObjectsIssuesListTag(objType);
 			writeReportFile(composeSeparatorBar("List of "+capitalizeInitChar(objTypeFmt.toLowerCase())+"s with/without issues", tag)+"\n");
@@ -5591,9 +5754,9 @@ tooltipsHTMLPlaceholder +
 	}
 
 	public String reportObjectsIssuesListTag(String objType) {
-		String result = applyPatternAll(objType.toLowerCase(), "\\W", "");	
-		result += "_issueslist";		
-		return result;	
+		String result = applyPatternAll(objType.toLowerCase(), "\\W", "");
+		result += "_issueslist";
+		return result;
 	}
 
 	public void importPG(boolean append, List<String> pgImportFlags) throws IOException {
@@ -5603,21 +5766,21 @@ tooltipsHTMLPlaceholder +
 		String envvarPrefix = "%";
 		String envvarSuffix = "%";
 		if (onMac || onLinux) {
-			envvarSet = "export ";		
+			envvarSet = "export ";
 			cmdSeparator = "; ";
 			envvarPrefix = "\\$";
 			envvarSuffix = "";
 		}
-				
-		// Check for code injection risks - though it's difficult to see what could go wrong given that 
+
+		// Check for code injection risks - though it's difficult to see what could go wrong given that
 		// the current session as well as the PG session are owned by this user anyway.
 		// But let's do the right thing.
 		validatePGImportArg(cmdSeparator, pgImportFlags.get(2), "username");
 		validatePGImportArg(cmdSeparator, pgImportFlags.get(3), "password");
 		validatePGImportArg(cmdSeparator, pgImportFlags.get(0), "host");
 		validatePGImportArg(cmdSeparator, pgImportFlags.get(1), "port");
-		validatePGImportArg(cmdSeparator, pgImportFlags.get(4), "database name");	
-		
+		validatePGImportArg(cmdSeparator, pgImportFlags.get(4), "database name");
+
 		// get capture files
 		List<Path> captureFiles = getCaptureFiles(reportName);
 		if (debugging) dbgOutput(thisProc() + "captureFiles(" + captureFiles.size() + ")=[" + captureFiles + "] ", debugReport);
@@ -5650,8 +5813,10 @@ tooltipsHTMLPlaceholder +
 				errorExit();
 			}
 			if (!reportName.equalsIgnoreCase(cfReportName)) {
+				String cfFilename = cf.toString();
+				cfFilename = cfFilename.substring(cfFilename.lastIndexOf(File.separator)+1);
 				String rDir = getFilePathname(getDocDirPathname(), capDirName);
-				appOutput("Found analysis file for report '" + cfReportName + "' in " + rDir + ": adding to import");
+				appOutput("Found analysis file '"+cfFilename+"' for report '" + cfReportName + "' in " + rDir + ": adding to import");
 			}
 
 			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
@@ -5672,13 +5837,14 @@ tooltipsHTMLPlaceholder +
 					continue;
 				}
 				if (capLine.contains(captureFileSeparator+ObjCountOnly+captureFileSeparator)) continue;
+				if (capLine.contains(captureFileSeparator+RewriteOppty+captureFileSeparator)) continue;
 
 				capCount++;
 
 				// strip off the last two semicolons
 				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
 				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
-				
+
 				// max length check
 				List<String> capFields = new ArrayList<>(Arrays.asList(capLine.split(captureFileSeparator)));
 
@@ -5708,14 +5874,14 @@ tooltipsHTMLPlaceholder +
 		}
 		PGImportFileWriter.close();
 		appOutput("Items written for import: "+capCount + " (in "+PGImportFilePathName+")");
-		
+
 		// do not write the password etc. in any file but keep in envvar only:
 		String PGUserEnvvar   = "BBFCOMPASSPSQLUSERNAME";
 		String PGPasswdEnvvar = "BBFCOMPASSPSQLPASSWD";
 		String PGHostEnvvar   = "BBFCOMPASSPSQLHOST";
 		String PGPortEnvvar   = "BBFCOMPASSPSQLPORT";
-		String PGDBnameEnvvar = "BBFCOMPASSPSQLDBNAME";					
-		
+		String PGDBnameEnvvar = "BBFCOMPASSPSQLDBNAME";
+
 		String psqlCmd= "psql --echo-all --file=~file~ \"postgresql://~username~:~password~@~host~:~port~/~dbname~\"";
 		psqlCmd= applyPatternFirst(psqlCmd, "~username~", envvarPrefix+ PGUserEnvvar   +envvarSuffix);
 		psqlCmd= applyPatternFirst(psqlCmd, "~password~", envvarPrefix+ PGPasswdEnvvar +envvarSuffix);
@@ -5729,7 +5895,7 @@ tooltipsHTMLPlaceholder +
 		String cmdFile = writePsqlFile(append, reportName, psqlCmd);
 
 		// compose the command line
-		String runCmd= ""; 
+		String runCmd= "";
 		runCmd += envvarSet+PGUserEnvvar+"="+pgImportFlags.get(2)+cmdSeparator;
 		runCmd += envvarSet+PGPasswdEnvvar+"="+pgImportFlags.get(3)+cmdSeparator;
 		runCmd += envvarSet+PGHostEnvvar+"="+pgImportFlags.get(0)+cmdSeparator;
@@ -5739,7 +5905,7 @@ tooltipsHTMLPlaceholder +
 			runCmd += "chmod +x "+cmdFile+cmdSeparator;
 		}
 		runCmd += cmdFile;
-		
+
 		if (debugging) dbgOutput(thisProc() + "runCmd=["+runCmd+"]  ", debugReport);
 
 		// finally, run the import
@@ -5747,7 +5913,7 @@ tooltipsHTMLPlaceholder +
 
 		//done!
 	}
-	
+
 	private void validatePGImportArg(String cmdSeparator, String envvar, String name) {
 		cmdSeparator = cmdSeparator.trim();
 		if (envvar.contains(cmdSeparator)) {
@@ -5761,7 +5927,7 @@ tooltipsHTMLPlaceholder +
 		String filePath = getFilePathname(dirPath, fileName);
 		return filePath;
 	}
-	
+
 	public String openUserCfgFileAppend(String fileName) throws IOException {
 		return openUserCfgFile(fileName, false);
 	}
@@ -5776,41 +5942,41 @@ tooltipsHTMLPlaceholder +
 		if (newFile) {
 			String initLine = "# This file created at " + now + " by " + thisProgName + " version " + thisProgVersion + ", " + thisProgVersionDate;
 			writeUserCfgFile(initLine);
-			initLine = 
+			initLine =
 "#------------------------------------------------------------------------------\n" +
-"#\n" + 
-"# Babelfish Compass user .cfg file \n" + 
-"#\n" + 
-"# This file allows the user of Babelfish Compass to override the classification\n" + 
-"# of not-supported features and of reporting groups.\n" + 
-"# This file is automatically created by Babelfish Compass; the sections in this\n" + 
-"# file will be identical to those in BabelfishFeatures.cfg. Do not modify the \n" + 
-"# section headers!\n" + 
-"# Users can add the following entries in a section:\n" + 
-"#    default_classification=<value>\n" + 
-"#    default_classification-<value>=commalist\n" + 
-"#    report_group=<value>\n" + 
-"#    report_group-<value>=commalist\n" + 
-"#\n" + 
-"# Examples:\n" + 
-"#    [Built-in functions]\n" + 
-"#    default_classification-Ignored=FULLTEXTSERVICEPROPERTY   # this often occurs in SSMS-generated scripts, assume it can be ignored\n" + 
-"#\n" + 
-"#    [DESC constraint]\n" + 
-"#    default_classification=ReviewManually\n" + 
-"#    report_group=Indexing\n" + 
-"#\n" + 
-"# NB: overriding the classification is possible only for items which are not \n" + 
-"# classified as 'Supported': overrides for supported items will be ignored. \n" + 
+"#\n" +
+"# Babelfish Compass user .cfg file \n" +
+"#\n" +
+"# This file allows the user of Babelfish Compass to override the classification\n" +
+"# of not-supported features and of reporting groups.\n" +
+"# This file is automatically created by Babelfish Compass; the sections in this\n" +
+"# file will be identical to those in BabelfishFeatures.cfg. Do not modify the \n" +
+"# section headers!\n" +
+"# Users can add the following entries in a section:\n" +
+"#    default_classification=<value>\n" +
+"#    default_classification-<value>=commalist\n" +
+"#    report_group=<value>\n" +
+"#    report_group-<value>=commalist\n" +
+"#\n" +
+"# Examples:\n" +
+"#    [Built-in functions]\n" +
+"#    default_classification-Ignored=FULLTEXTSERVICEPROPERTY   # this often occurs in SSMS-generated scripts, assume it can be ignored\n" +
+"#\n" +
+"#    [DESC constraint]\n" +
+"#    default_classification=ReviewManually\n" +
+"#    report_group=Indexing\n" +
+"#\n" +
+"# NB: overriding the classification is possible only for items which are not \n" +
+"# classified as 'Supported': overrides for supported items will be ignored. \n" +
 "# Also, an item cannot be reclassified as 'Supported': only values 'Ignored',\n"+
 "# 'ReviewSemantics', 'ReviewPerformance' and 'ReviewManually' can be used.\n"+
-"#\n" + 
+"#\n" +
 "#------------------------------------------------------------------------------\n" +
 "#\n";
 
 			writeUserCfgFile(initLine);
 		}
-		else {			
+		else {
 			String initLine = "\n# Sections below were added at " + now + " by " + thisProgName + " version " + thisProgVersion + ", " + thisProgVersionDate;
 			writeUserCfgFile(initLine);
 		}
@@ -5826,119 +5992,119 @@ tooltipsHTMLPlaceholder +
     	if (userCfgFileWriter == null) return;
     	String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
 		String endLine = "# end ("+now+")\n";
-		writeUserCfgFile(endLine);    	
+		writeUserCfgFile(endLine);
 	    userCfgFileWriter.close();
 	    userCfgFileWriter = null;
 	}
-	
+
 	public void logGroupOverride(String groupOrig, String group, String section) {
 		logGroupOverride(groupOrig, group, section, "");
 	}
 	public void logGroupOverride(String groupOrig, String group, String section, String name) {
 		String key = group+overrideSeparator+groupOrig;
 		groupOverrides.put(key, groupOverrides.getOrDefault(key,0)+1);
-		
+
 		key = group+overrideSeparator+groupOrig+overrideSeparator+section+overrideSeparator+name;
 		groupOverridesDetail.put(key, groupOverridesDetail.getOrDefault(key,0)+1);
 	}
-	
+
 	public void logStatusOverride(String statusOrig, String status, String section) {
-		logStatusOverride(statusOrig, status, section, "");		
-	}	
+		logStatusOverride(statusOrig, status, section, "");
+	}
 	public void logStatusOverride(String statusOrig, String status, String section, String name) {
 		String key = status+overrideSeparator+statusOrig;
 		statusOverrides.put(key, statusOverrides.getOrDefault(key,0)+1);
-		
+
 		key = status+overrideSeparator+statusOrig+overrideSeparator+section+overrideSeparator+name;
-		statusOverridesDetail.put(key, statusOverridesDetail.getOrDefault(key,0)+1);		
-	}	
-	
+		statusOverridesDetail.put(key, statusOverridesDetail.getOrDefault(key,0)+1);
+	}
+
 	// keep track of added characters
-	public void addOffsets(Integer iteration) {						
+	public void addOffsets(Integer iteration) {
 		Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
 		for (int i = offsetCols.size(); i < iteration; i++) {
 			offsetCols.add(offsetIteration);
 			if (debugging) dbgOutput(thisProc()+"initializing iteration=["+(i+1)+"] at ["+i+"]", debugRewrite);
 		}
 	}
-	
-	public void addOffsets(Integer iteration, Integer lineNo, Integer lineNoOrig, Integer startColOrig, String origStr, String reportOrigStr, String newStr, String newStrNoComment, String report, String fName, String rewriteType) {						
+
+	public void addOffsets(Integer iteration, Integer lineNo, Integer lineNoOrig, Integer startColOrig, String origStr, String reportOrigStr, String newStr, String newStrNoComment, String report, String fName, String rewriteType) {
 		addOffsets(iteration);
 		assert (offsetCols.get(iteration-1) != null) : thisProc()+"iteration=["+iteration+"] not found in offsetCols";
-		
+
 		List<String> linesOrig = new ArrayList<>(Arrays.asList(origStr.split("\n")));
-		List<String> linesNew  = new ArrayList<>(Arrays.asList((newStr).split("\n"))); 
-		
+		List<String> linesNew  = new ArrayList<>(Arrays.asList((newStr).split("\n")));
+
 		int numChars = newStr.length() - origStr.length();
 		if (debugging) dbgOutput(thisProc()+"adding: iteration=["+iteration+"] lineNo=["+lineNo+"] lineNoOrig=["+lineNoOrig+"] startColOrig=["+startColOrig+"]  numChars=["+numChars+"] linesOrig=["+linesOrig.size()+"]  //linesNew=["+linesNew.size()+"] fName=["+fName+"] rewriteType=["+rewriteType+"] ", debugRewrite);
 		if (debugging) dbgOutput(thisProc()+"origStr=["+origStr+"] ", debugRewrite);
 		if (debugging) dbgOutput(thisProc()+"reportOrigStr=["+reportOrigStr+"]  ", debugRewrite);
 		if (debugging) dbgOutput(thisProc()+"newStr=["+newStr+"] ", debugRewrite);
-		
-		
+
+
 		Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
 		offsetIteration = offsetCols.get(iteration-1);
-		
-		// check for line length changes on each line 
+
+		// check for line length changes on each line
 		for (int i = lineNo; i<=(lineNo+linesOrig.size()-1); i++) {
-			
+
 			int diffLength = linesNew.get(i-lineNo).length() - linesOrig.get(i-lineNo).length();
 			if (debugging) dbgOutput(thisProc()+"linesNew("+(i-lineNo)+")= ["+linesNew.get(i-lineNo)+"] = ["+linesNew.get(i-lineNo).length()+"]", debugRewrite);
 			if (debugging) dbgOutput(thisProc()+"linesOrig("+(i-lineNo)+")=["+linesOrig.get(i-lineNo)+"] = ["+linesOrig.get(i-lineNo).length()+"]", debugRewrite);
 			if (debugging) dbgOutput(thisProc()+"lineNo=i=["+i+"] diffLength=["+diffLength+"] ", debugRewrite);
 			if (diffLength == 0) continue;
-							
+
 			Map<Integer, Integer> offsetLineNo = new LinkedHashMap<>();
 			if (!offsetIteration.containsKey(i)) offsetIteration.put(i, offsetLineNo);
 			offsetLineNo = offsetIteration.get(i);
-			
+
 			int col = 0;
 			if (i == lineNo) col = startColOrig;
-			offsetLineNo.put(col, diffLength);	
+			offsetLineNo.put(col, diffLength);
 			if (debugging) dbgOutput(thisProc()+"(col) lineNo=i=["+i+"] col=["+col+"] diffLength=["+diffLength+"]", debugRewrite);
-		}					
-	
+		}
+
 		if (linesOrig.size() < linesNew.size()) {
 			// for lines that have been added: indicate by col = -1, and the #lines added as diffLength
 			for (int i = lineNo; i<=(lineNo+linesNew.size()-1); i++) {
 				Map<Integer, Integer> offsetLineNo = new LinkedHashMap<>();
 				if (!offsetIteration.containsKey(i)) offsetIteration.put(i, offsetLineNo);
-				offsetLineNo = offsetIteration.get(i);	
-								
-				if (i == (lineNo+linesOrig.size()-1)) {					
+				offsetLineNo = offsetIteration.get(i);
+
+				if (i == (lineNo+linesOrig.size()-1)) {
 					int extraLines = linesNew.size() - linesOrig.size();
-					offsetLineNo.put(-1, extraLines);	
-					
+					offsetLineNo.put(-1, extraLines);
+
 					Map<Integer, Integer> lineNrOffset = new LinkedHashMap<>();
 					if (!offsetLines.containsKey(fName)) offsetLines.put(fName, lineNrOffset);
 					lineNrOffset = offsetLines.get(fName);
 					lineNrOffset.put(i,extraLines);
-					
+
 					if (debugging) dbgOutput(thisProc()+"lineNo=i=["+i+"] adding "+extraLines+" extra lines at col= -1", debugRewrite);
-					break;	
+					break;
 				}
 
 				int origLen = linesOrig.get(i-lineNo).length();
 				int diffLength = linesNew.get(i-lineNo).length() - origLen;
 				//if (debugging) dbgOutput(thisProc()+"lineNo=i=["+i+"] origLen=["+origLen+"] newlen=["+linesNew.get(i-lineNo).length()+"]  diffLength=["+diffLength+"]", debugRewrite);
 				if (diffLength == 0) continue;
-				
+
 				int col = 0;
 				if (i == lineNo) col = startColOrig;
-				offsetLineNo.put(col, diffLength);	
+				offsetLineNo.put(col, diffLength);
 				if (debugging) dbgOutput(thisProc()+"(line) lineNo=i=["+i+"] col=["+col+"] diffLength=["+diffLength+"]", debugRewrite);
-				
-			}					
+
+			}
 		}
-		
+
 		if (linesOrig.size() > linesNew.size()) {
 			// never reduce the number of lines
 			assert false : thisProc()+"bad branch, linesOrig=["+linesOrig.size()+"]  linesNew=["+linesNew.size()+"]";
 		}
-		
-		// log the rewrite		
-		if (reportOrigStr.isEmpty()) reportOrigStr = origStr;		
-		reportOrigStr = applyPatternAll(reportOrigStr, rwrTabRegex, "");	
+
+		// log the rewrite
+		if (reportOrigStr.isEmpty()) reportOrigStr = origStr;
+		reportOrigStr = applyPatternAll(reportOrigStr, rwrTabRegex, "");
 		if (reportOrigStr.length() > 100) reportOrigStr = reportOrigStr.substring(0,100) + "(...)";
 		if (newStrNoComment.length() > 100) newStrNoComment = newStrNoComment.substring(0,100) + "(...)";
 		newStrNoComment = newStrNoComment.replace("/*", "/ *"); // avoid generating a nested bracketed comment causing 'reset' to be seen as a proc call
@@ -5948,7 +6114,7 @@ tooltipsHTMLPlaceholder +
 	}
 
 
-	public void resetRewrites() {						
+	public void resetRewrites() {
 		rewriteTextListKeys.clear();
 		rewriteTextList.clear();
 		rewriteTextListOrigText.clear();
@@ -5957,24 +6123,24 @@ tooltipsHTMLPlaceholder +
 		offsetLines.clear();
 		rewritesDone.clear();
 	}
-		
+
 	// calculate adjusted line number, taking earlier added lines into account
-	public Integer calcOffsetLine (Integer iteration, Integer lineOrig, String rewriteType) {		
+	public Integer calcOffsetLine (Integer iteration, Integer lineOrig, String rewriteType) {
 		Integer lineNew = lineOrig;
 		Integer iterationLineNoAdded = 0;
 		if (debugging) dbgOutput(thisProc()+"entry: iteration=["+iteration+"] lineOrig=["+lineOrig+"] offsetCols.size()=["+offsetCols.size()+"] rewriteType=["+rewriteType+"] ", debugRewrite);
 		if (iteration > 0) {
-			for (int i = 0; i < iteration; i++) {	
-				if (debugging) dbgOutput(thisProc()+"iteration=["+(i+1)+"] at i=["+i+"]", debugRewrite);	
+			for (int i = 0; i < iteration; i++) {
+				if (debugging) dbgOutput(thisProc()+"iteration=["+(i+1)+"] at i=["+i+"]", debugRewrite);
 				if (i >= offsetCols.size()) {
 					if (debugging) dbgOutput(thisProc()+"i=["+i+"], exiting", debugRewrite);
-					break;		
+					break;
 				}
-				
+
 				lineOrig += iterationLineNoAdded;
 				if (debugging) dbgOutput(thisProc()+"adding "+iterationLineNoAdded+" lines for previous iteration level: lineOrig=["+lineOrig+"] ", debugRewrite);
 
-				iterationLineNoAdded = 0;				
+				iterationLineNoAdded = 0;
 				Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
 				offsetIteration = offsetCols.get(i);
 				for (Integer lineNo : offsetIteration.keySet().stream().sorted().collect(Collectors.toList())) {
@@ -5985,49 +6151,49 @@ tooltipsHTMLPlaceholder +
 						if (lineOrig >= lineNo) {
 							lineNew += offset;
 							if (debugging) dbgOutput(thisProc()+"Adding line offset=["+offset+"] , lineNew=["+lineNew+"]", debugRewrite);
-							
+
 							iterationLineNoAdded += offset;
-							if (debugging) dbgOutput(thisProc()+"added, iterationLineNoAdded=["+iterationLineNoAdded+"] ", debugRewrite);							
-						}							
+							if (debugging) dbgOutput(thisProc()+"added, iterationLineNoAdded=["+iterationLineNoAdded+"] ", debugRewrite);
+						}
 					}
-				}						
+				}
 			}
 		}
 		if (debugging) dbgOutput(thisProc()+"result: lineNew=["+lineNew+"]", debugRewrite);
 		return lineNew;
 	}
-	
-			
+
+
 	// calculate adjusted line number for the hyperlinks
-	public Integer calcOffsetLineHLink (String fName, Integer lineOrig) {	
+	public Integer calcOffsetLineHLink (String fName, Integer lineOrig) {
 		Integer lineNew = lineOrig;
 		if (debugging) dbgOutput(thisProc()+"entry: fName=["+fName+"] lineOrig=["+lineOrig+"]", debugRewrite);
-		Map<Integer, Integer> lineNrOffset = new LinkedHashMap<>();		
+		Map<Integer, Integer> lineNrOffset = new LinkedHashMap<>();
 		if (fName.isEmpty()) {
 			fName = offsetLines.keySet().iterator().next();
 		}
-		if (offsetLines.containsKey(fName)) {			
-			lineNrOffset = offsetLines.get(fName);	
-			
+		if (offsetLines.containsKey(fName)) {
+			lineNrOffset = offsetLines.get(fName);
+
 			for (Integer l : lineNrOffset.keySet().stream().sorted().collect(Collectors.toList())) {
 				Integer extraLines = lineNrOffset.get(l);
-				if (debugging) dbgOutput(thisProc()+"fName=["+fName+"] line=["+l+"] extraLines=["+extraLines+"]", debugRewrite);				
+				if (debugging) dbgOutput(thisProc()+"fName=["+fName+"] line=["+l+"] extraLines=["+extraLines+"]", debugRewrite);
 				if (lineOrig >= l) {
 					lineNew += extraLines;
 					if (debugging) dbgOutput(thisProc()+"Adding extraLines=["+extraLines+"], lineNew=["+lineNew+"]", debugRewrite);
-				}					
-			}	
-		}						
+				}
+			}
+		}
 		if (debugging) dbgOutput(thisProc()+"result: lineNew=["+lineNew+"]", debugRewrite);
 		return lineNew;
-	}			
-	
+	}
+
 	// calculate adjusted column position, taking earlier added chars into account
-	public Integer calcOffsetCol (Integer iteration, Integer lineNo, Integer col) {		
+	public Integer calcOffsetCol (Integer iteration, Integer lineNo, Integer col) {
 		Integer colNew = col;
 		if (debugging) dbgOutput(thisProc()+"entry: iteration=["+iteration+"] lineNo=["+lineNo+"] col=["+col+"]", debugRewrite);
 		if (iteration > 0) {
-			if (offsetCols.size() >= iteration) {		
+			if (offsetCols.size() >= iteration) {
 				for (int i = 0; i < iteration; i++) {
 					if (debugging) dbgOutput(thisProc()+"iteration=["+(i+1)+"] at i=["+i+"]", debugRewrite);
 					Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
@@ -6043,7 +6209,7 @@ tooltipsHTMLPlaceholder +
 								colNew += offset;
 								if (debugging) dbgOutput(thisProc()+"Adding offset=["+offset+"], colNew=["+colNew+"]", debugRewrite);
 							}
-						}			
+						}
 					}
 				}
 			}
@@ -6051,20 +6217,20 @@ tooltipsHTMLPlaceholder +
 		if (debugging) dbgOutput(thisProc()+"result: colNew=["+colNew+"]", debugRewrite);
 		return colNew;
 	}
-	
+
 	// calculate adjusted length, taking earlier added chars into account
-	public Integer calcOffsetLength (Integer iteration, Integer startLineNo, Integer startCol, Integer endLineNo, Integer endCol, String rewriteType) {			
+	public Integer calcOffsetLength (Integer iteration, Integer startLineNo, Integer startCol, Integer endLineNo, Integer endCol, String rewriteType) {
 		Integer lengthNew = 0;
 		Integer iterationStartLineNoAdded = 0;
 		Integer iterationEndLineNoAdded = 0;
 		if (debugging) dbgOutput(thisProc()+"entry: iteration=["+iteration+"] startLineNo=["+startLineNo+"] startCol=["+startCol+"] endLineNo=["+endLineNo+"] endCol=["+endCol+"] offsetCols.size()=["+offsetCols.size()+"] rewriteType=["+rewriteType+"] ", debugRewrite);
 		if (iteration > 0) {
-			if (offsetCols.size() >= iteration) {		
+			if (offsetCols.size() >= iteration) {
 				for (int i = 0; i < iteration; i++) {
 					if (debugging) dbgOutput(thisProc()+"iteration=["+(i+1)+"] at i=["+i+"]", debugRewrite);
-					Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();	
+					Map<Integer, Map<Integer, Integer>> offsetIteration = new LinkedHashMap<>();
 					offsetIteration = offsetCols.get(i);
-					
+
 					if (debugging) dbgOutput(thisProc()+"offsetIteration.size()=["+offsetIteration.size()+"] keys=["+offsetIteration.keySet()+"] ", debugRewrite);
 					startLineNo += iterationStartLineNoAdded;
 					endLineNo   += iterationEndLineNoAdded;
@@ -6073,12 +6239,12 @@ tooltipsHTMLPlaceholder +
 					if (debugging) dbgOutput(thisProc()+"adding "+iterationStartLineNoAdded+" lines for previous iteration level: startLineNo=["+startLineNo+"] ", debugRewrite);
 					iterationStartLineNoAdded = 0;
 					iterationEndLineNoAdded = 0;
-					
+
 					//for (Integer lineNo=startLineNo; lineNo<=endLineNo; lineNo++) {
 					for (Integer lineNo=1; lineNo<=endLineNo; lineNo++) {
 						if (!offsetIteration.containsKey(lineNo)) continue;
 						if (debugging) dbgOutput(thisProc()+"lineNo=["+lineNo+"]", debugRewrite);
-						
+
 						if (debugging) dbgOutput(thisProc()+"found entries for iteration=["+(i+1)+"] lineNo=["+lineNo+"]", debugRewrite);
 						for (Integer colx : offsetIteration.get(lineNo).keySet().stream().sorted().collect(Collectors.toList())) {
 							Integer offset = offsetIteration.get(lineNo).get(colx);
@@ -6091,14 +6257,14 @@ tooltipsHTMLPlaceholder +
 									if (debugging) dbgOutput(thisProc()+"added offset=["+offset+"] for lineNo=["+lineNo+"] startLineNo=["+startLineNo+"]  iterationStartLineNoAdded=["+iterationStartLineNoAdded+"] ", debugRewrite);
 								}
 								if (lineNo < endLineNo) {
-									iterationEndLineNoAdded += offset;								
+									iterationEndLineNoAdded += offset;
 									if (debugging) dbgOutput(thisProc()+"added offset=["+offset+"] for lineNo=["+lineNo+"] endLineNo=[$endLineNo]  iterationEndLineNoAdded=["+iterationEndLineNoAdded+"] ", debugRewrite);
 								}
-								continue; 								
+								continue;
 							}
-							
+
 							if (lineNo < startLineNo) continue;
-							
+
 							if ((lineNo.equals(startLineNo)) && (startCol > colx)) {
 								if (debugging) dbgOutput(thisProc()+"   == startLineNo: before startCol, skip, lengthNew=["+lengthNew+"]", debugRewrite);
 								continue;
@@ -6107,7 +6273,7 @@ tooltipsHTMLPlaceholder +
 								if (debugging) dbgOutput(thisProc()+"   == startLineNo: after endCol, skip, lengthNew=["+lengthNew+"]", debugRewrite);
 								continue;
 							}
-															
+
 							if ((lineNo.equals(startLineNo)) && (colx >= startCol)) {
 								lengthNew += offset;
 								if (debugging) dbgOutput(thisProc()+"   == startLineNo: Adding offset=["+offset+"], lengthNew=["+lengthNew+"]", debugRewrite);
@@ -6123,7 +6289,7 @@ tooltipsHTMLPlaceholder +
 							else {
 								if (debugging) dbgOutput(thisProc()+"   no match, lengthNew=["+lengthNew+"] ", debugRewrite);
 							}
-						}		
+						}
 					}
 				}
 			}
@@ -6144,37 +6310,37 @@ tooltipsHTMLPlaceholder +
 				for (Integer col : offsetIteration.get(lineNo).keySet().stream().sorted().collect(Collectors.toList())) {
 					if (debugging) dbgOutput(thisProc()+"     offsets: lineNo=["+lineNo+"] col=["+col+"] offset=["+offsetIteration.get(lineNo).get(col)+"]", debugRewrite);
 				}
-			}		
+			}
 		}
-		if (debugging) dbgOutput(thisProc(), debugRewrite);		
+		if (debugging) dbgOutput(thisProc(), debugRewrite);
 	}
 
 	public void dumpOffsetLines(String s) {
 		if (debugging) dbgOutput(thisProc()+s+": offsetLines: #files=["+offsetLines.size()+"]", debugRewrite);
 		for (String f : offsetLines.keySet().stream().sorted().collect(Collectors.toList())) {
 			Map<Integer, Integer> lineNrOffset = new LinkedHashMap<>();
-			lineNrOffset = offsetLines.get(f);	
+			lineNrOffset = offsetLines.get(f);
 			for (Integer l : lineNrOffset.keySet().stream().sorted().collect(Collectors.toList())) {
 				Integer extraLines = lineNrOffset.get(l);
 				if (debugging) dbgOutput(thisProc()+"f=["+f+"] line=["+l+"] extraLines=["+extraLines+"]", debugRewrite);
-			}	
+			}
 		}
-		if (debugging) dbgOutput(thisProc(), debugRewrite);				
+		if (debugging) dbgOutput(thisProc(), debugRewrite);
 	}
 
-	// apply text substitutions 
+	// apply text substitutions
 	public void performRewriting(String reportName, String appName, String inFileCopy) throws IOException {
 		if (debugging) dbgOutput(thisProc()+"performing rewrites=["+rewriteTextListKeys.size()+"] to copy of ["+inFileCopy+"]", debugRewrite);
 		if (rewriteTextListKeys.size() == 0) return;
-		
+
 		// determine whether there are any substitutions that are overlapping with other ones
 		// when sorted by startPos, the larger range will be sorted first, and the smaller range within that range will be next
 		// subs which contain a smaller sub will be processed in a second pass, since the smaller sub may also extend over multiple lines
 
 		int startLine = -1;
-		int startCol = -1;		
+		int startCol = -1;
 		int endLine = -1;
-		int endCol = -1;		
+		int endCol = -1;
 		int startPos = -1;
 		int endPos = -1;
 		int origLen = -1;
@@ -6192,41 +6358,41 @@ tooltipsHTMLPlaceholder +
 		List<String> tmpRemovedItems = new ArrayList<>();
 		List<String> tmpToDoItems = new ArrayList<>();
 		tmpToDoItems.addAll(rewriteTextListKeys);
-		
+
 		// one-time init
 		if (rwrTabRegex.isEmpty()) rwrTabRegex = escapeRegexChars(rwrTag.trim());
-		
+
 		// next: copy inputfile copy to tmp file; read tmp file as input; write target file as output
 		// next: keep track of added lines/columns and adjust in subsequent cycles
 		String rewrittenDir = getReportDirPathname(reportName, rewrittenDirName);
 		String rewrittenHTMLDir = getReportDirPathname(reportName, rewrittenDirName, rewrittenHTMLDirName);
-		checkDir(rewrittenDir, false, true);	
-		checkDir(rewrittenHTMLDir, false, true);	
-					
-		String tmpFile = getFilePathname(rewrittenDir, rewrittenTmpFile);	
+		checkDir(rewrittenDir, false, true);
+		checkDir(rewrittenHTMLDir, false, true);
+
+		String tmpFile = getFilePathname(rewrittenDir, rewrittenTmpFile);
 		String fName = Paths.get(inFileCopy).getFileName().toString().replaceAll(importFileTag, rewrittenFileTag);
-		String rewrittenFile = getFilePathname(rewrittenDir, fName); 
-		String rewrittenHTMLFile = getFilePathname(rewrittenHTMLDir, fName); 
+		String rewrittenFile = getFilePathname(rewrittenDir, fName);
+		String rewrittenHTMLFile = getFilePathname(rewrittenHTMLDir, fName);
 		rewrittenHTMLFile = changeFilenameSuffix(rewrittenHTMLFile, importFileSuffix, HTMLSuffix);
 		String inFile = inFileCopy;
-		
+
 		Integer tmpCnt = 0;
 		Integer iteration = -1;
 		boolean abortNow = false;
-				
+
 		while (tmpToDoItems.size() > 0) {
 			iteration++;
 			if (debugging) dbgOutput(thisProc()+"top: iteration=["+iteration+"]", debugRewrite);
 
-			checkDir(rewrittenDir, true, true);	
-			checkDir(rewrittenHTMLDir, true, true);	
+			checkDir(rewrittenDir, true, true);
+			checkDir(rewrittenHTMLDir, true, true);
 			deleteFile(tmpFile);
 			copyFile(inFile, tmpFile);
 			if (debugging) dbgOutput(thisProc()+"copied inFile=["+inFile+"] to tmpFile=["+tmpFile+"] target rewrittenFile=["+rewrittenFile+"] rewrittenHTMLFile=["+rewrittenHTMLFile+"] ", debugRewrite);
 
 			openRewrittenFile(reportName, appName, tmpFile, rewrittenFile);
 			inFile = rewrittenFile;
-			
+
 			// DEBUG Only: for next iteration, keep temp file
 			if (debugging && debugRewrite) {
 				tmpCnt++;
@@ -6236,11 +6402,11 @@ tooltipsHTMLPlaceholder +
 			List<String> tmpSorted = tmpToDoItems.stream().sorted().collect(Collectors.toList());
 			tmpRemovedItems.clear();
 			if (debugging) dbgOutput(thisProc()+"tmpToDoItems top=["+tmpToDoItems.size()+"]", debugRewrite);
-			
+
 			for (String s : tmpToDoItems.stream().sorted().collect(Collectors.toList())) {
 				if (debugging) dbgOutput(thisProc()+"s=["+s+"]", debugRewrite);
 				List<String> tmp = new ArrayList<>(Arrays.asList(s.split(captureFileSeparator)));
-				batchNo  = Integer.parseInt(tmp.get(0));				
+				batchNo  = Integer.parseInt(tmp.get(0));
 				startPos = Integer.parseInt(tmp.get(1));
 				endPos = Integer.parseInt(tmp.get(2));
 				startLine = Integer.parseInt(tmp.get(3));
@@ -6252,7 +6418,7 @@ tooltipsHTMLPlaceholder +
 				report   = tmp.get(9);
 				rewriteText = rewriteTextList.get(s);
 				if (debugging) dbgOutput(thisProc()+"startLine=["+startLine+"] startCol=["+startCol+"] startPos=["+startPos+"] endPos=["+endPos+"] endLine=["+endLine+"] endCol=["+endCol+"] origLen=["+origLen+"] rewriteType=["+rewriteType+"]  rewriteText=["+rewriteText+"] report=["+report+"]", debugRewrite);
-				
+
 				if (batchNoPrev == batchNo) {
 					if (startPos >= startPrev && endPos <= endPrev) {
 						// this one falls inside the range of the previous one
@@ -6263,10 +6429,10 @@ tooltipsHTMLPlaceholder +
 					}
 					else if (startPos >= startPrev && endPos > endPrev) {
 						// not expecting this, should not be possible
-						if (debugging) dbgOutput(thisProc()+"unexpected branch: startPos=["+startPos+"] startPrev=["+startPrev+"] endPos=["+endPos+"] endPrev=["+endPrev+"] ", debugRewrite);   
+						if (debugging) dbgOutput(thisProc()+"unexpected branch: startPos=["+startPos+"] startPrev=["+startPrev+"] endPos=["+endPos+"] endPrev=["+endPrev+"] ", debugRewrite);
 					}
 				}
-				
+
 				batchNoPrev = batchNo;
 				startPrev = startPos;
 				endPrev = endPos;
@@ -6274,28 +6440,28 @@ tooltipsHTMLPlaceholder +
 			}
 			tmpToDoItems.clear();
 			tmpToDoItems.addAll(tmpRemovedItems);
-			
+
 			if (debugging && debugRewrite) {
 				for (String s : tmpSorted) {
 					dbgOutput(thisProc()+"tmpSorted   : after range check: s=["+s+"] ", debugRewrite);
-				}		
-								
+				}
+
 				for (String s : tmpToDoItems) {
 					dbgOutput(thisProc()+"tmpToDoItems: after range check: s=["+s+"] ", debugRewrite);
-				}		
-				dumpOffsetCols("after range chk");				
-			}		
-										
+				}
+				dumpOffsetCols("after range chk");
+			}
+
 			int rewriteCount = 0;
 			boolean nextRewrite = true;
-			
+
 			int lineNo = 0;
 			int remainingLength = -1;
 			boolean endOfFile = false;
 			String origStrFull = "";
 			int startLineOrig = -1;
-			
-			while (true) {							
+
+			while (true) {
 				String line = rewrittenInFileReader.readLine();
 				if (line == null) {
 					endOfFile = true;
@@ -6307,20 +6473,20 @@ tooltipsHTMLPlaceholder +
 							// this is the header line from the import copy, discard it
 							continue;
 						}
-					}					
+					}
 				}
 				lineNo++;
 				int lineCut = 0;
 				boolean keepLine = false;
-				int startColOrig = -1;				
-				while (true) {		
+				int startColOrig = -1;
+				while (true) {
 					if (nextRewrite) {
 						String k = tmpSorted.get(rewriteCount);
 						rewriteText = rewriteTextList.get(k);
 						if (debugging) dbgOutput(thisProc()+"rewriteCount=["+rewriteCount+"]  k=["+k+"] rewriteText=["+rewriteText+"]", debugRewrite);
-										
+
 						List<String> tmp = new ArrayList<>(Arrays.asList(k.split(captureFileSeparator)));
-						batchNo  = Integer.parseInt(tmp.get(0));	
+						batchNo  = Integer.parseInt(tmp.get(0));
 						startPos = Integer.parseInt(tmp.get(1));
 						endPos = Integer.parseInt(tmp.get(2));
 						startLine = Integer.parseInt(tmp.get(3));
@@ -6332,60 +6498,60 @@ tooltipsHTMLPlaceholder +
 						report   = tmp.get(9);
 
 						if (debugging) dbgOutput(thisProc()+"rewriteCount=["+rewriteCount+"] iteration=["+iteration+"] startPos=["+startPos+"] endPos=["+endPos+"] startLine=["+startLine+"] startCol=["+startCol+"] endLine=["+endLine+"] endCol=["+endCol+"] origLen=["+origLen+"] rewriteType=["+rewriteType+"] rewriteText=["+rewriteText+"] report=["+report+"]", debugRewrite);
-						
+
 						if (debugging && debugRewrite) dumpOffsetCols("before calc");
-										
+
 						startLineOrig = startLine;
 						startLine = calcOffsetLine(iteration, startLine, rewriteType);
 						if (debugging) dbgOutput(thisProc()+"startLine after adjust=["+startLine+"] delta=["+(startLine-startLineOrig)+"] ", debugRewrite);
-						
+
 						Integer startColNew = calcOffsetCol(iteration, startLineOrig, startCol);
 						if (debugging) dbgOutput(thisProc()+"startCol=["+startCol+"] startColNew=["+startColNew+"]", debugRewrite);
 
 						Integer endColNew = calcOffsetCol(iteration, endLine, endCol);
-						if (debugging) dbgOutput(thisProc()+"endCol=["+startCol+"] endColNew=["+endColNew+"]", debugRewrite);						
-						
+						if (debugging) dbgOutput(thisProc()+"endCol=["+startCol+"] endColNew=["+endColNew+"]", debugRewrite);
+
 						Integer offsetLength = calcOffsetLength(iteration, startLineOrig, startCol, endLine, endCol, rewriteType);
 						Integer origLenNew = origLen + offsetLength;
 						if (debugging) dbgOutput(thisProc()+"offsetLength=["+offsetLength+"]", debugRewrite);
 						if (debugging) dbgOutput(thisProc()+"origLen=["+origLen+"] origLenNew=["+origLenNew+"]", debugRewrite);
-						
+
 						startCol = startColNew;
 						startColOrig = startCol;
 						origLen = origLenNew;
-						
+
 						nextRewrite = false;
 					}
 
 					if (debugging) dbgOutput(thisProc()+"lineNo=["+lineNo+"]=["+line+"]  lineCut=["+lineCut+"]", debugRewrite);
-					if (debugging) dbgOutput(thisProc()+"startLine=["+startLine+"] remainingLength=["+remainingLength+"]", debugRewrite);					
+					if (debugging) dbgOutput(thisProc()+"startLine=["+startLine+"] remainingLength=["+remainingLength+"]", debugRewrite);
 					if (lineNo == startLine) {
 						// reached startline for sub; apply it
 						if (debugging) dbgOutput(thisProc()+"*** applying rewrite=["+rewriteCount+"] origLen=["+origLen+"]", debugRewrite);
 						keepLine = false; // new rewrite to be done
-																
+
 						if (debugging) dbgOutput(thisProc()+"startCol orig=["+startColOrig+"] lineCut=["+lineCut+"] ", debugRewrite);
 						if (startColOrig == -1) startColOrig = startCol;
 						startCol = startColOrig - lineCut;
-						if (debugging) dbgOutput(thisProc()+"startCol adjusted=["+startCol+"] ", debugRewrite);	
-																	
+						if (debugging) dbgOutput(thisProc()+"startCol adjusted=["+startCol+"] ", debugRewrite);
+
 						// sanity check on line length
 						if (line.length() < startCol+1) {
 							// something went wrong, exit without further processing
 							appOutput(thisProc()+inFileCopy+": Internal error at line "+lineNo+": length="+line.length()+". expected at least "+(startCol+1)+". Aborting rewrite for this file.");
 							appOutput(thisProc()+"line=["+line+"] ");
 							abortNow = true;
-							if (debugging || devOptions) errorExit(); 
+							if (debugging || devOptions) errorExit();
 							break;
-						}					
-						
+						}
+
 						// find start & end of original part
 						remainingLength = origLen;
 						String pre = line.substring(0,startCol);
 						lineCut += pre.length();
 						writeRewrittenFile(pre);
 						if (debugging) dbgOutput(thisProc()+"pre=["+pre+"] ", debugRewrite);
-								
+
 						if (debugging) dbgOutput(thisProc()+"remainingLength=["+remainingLength+"] line.length()=["+line.length()+"] pre.length()=["+pre.length()+"] keepLine=["+keepLine+"] ", debugRewrite);
 						if (line.length() - pre.length() >= remainingLength) {
 							if (debugging) dbgOutput(thisProc()+"ends on this line(A), remainingLength=["+remainingLength+"]", debugRewrite);
@@ -6396,14 +6562,14 @@ tooltipsHTMLPlaceholder +
 							if (debugging) dbgOutput(thisProc()+"origStr A=["+origStr+"] remainingLength=["+remainingLength+"]", debugRewrite);
 							if (debugging) dbgOutput(thisProc()+"origStrFull=["+origStrFull+"] ", debugRewrite);
 							assert (remainingLength == 0) : thisProc()+"error, remainingLength("+remainingLength+") should be 0: line=["+line+"] pre=["+pre+"] ";
-							String post = line.substring(pre.length() + origStr.length());	
+							String post = line.substring(pre.length() + origStr.length());
 							line = post;
 							lineCut += origStr.length();
-							keepLine = true;				
-							
-							List<String> newStr = applyRewrite(rewriteType, report, rewriteText, origStrFull); 													
+							keepLine = true;
+
+							List<String> newStr = applyRewrite(rewriteType, report, rewriteText, origStrFull);
 							addOffsets(iteration+1, startLine, startLineOrig, startColOrig, origStrFull, newStr.get(2), newStr.get(0), newStr.get(1), report, fName, rewriteType);
-							
+
 							writeRewrittenFile(newStr.get(0));
 							origStrFull = "";
 						}
@@ -6414,8 +6580,8 @@ tooltipsHTMLPlaceholder +
 							origStrFull += origStr + "\n";
 							remainingLength -= origStr.length();
 							remainingLength--; // for the newline char
-							if (debugging) dbgOutput(thisProc()+"extends on next line(B), origStrFull=["+origStrFull+"]", debugRewrite);							
-						}				
+							if (debugging) dbgOutput(thisProc()+"extends on next line(B), origStrFull=["+origStrFull+"]", debugRewrite);
+						}
 					}
 					else if (remainingLength > 0) {
 						if (debugging) dbgOutput (thisProc()+"extending from previous line(C), remainingLength=["+remainingLength+"]", debugRewrite);
@@ -6423,14 +6589,14 @@ tooltipsHTMLPlaceholder +
 						if (debugging) dbgOutput(thisProc()+"startCol orig=["+startColOrig+"] lineCut=["+lineCut+"] ", debugRewrite);
 						if (startColOrig == -1) startColOrig = startCol;
 						startCol = startColOrig - lineCut;
-						if (debugging) dbgOutput(thisProc()+"startCol adjusted=["+startCol+"] ", debugRewrite);	
-												
+						if (debugging) dbgOutput(thisProc()+"startCol adjusted=["+startCol+"] ", debugRewrite);
+
 						// continue collecting the original string
 						if (line.length() < remainingLength) {
 							// extends to another line
 							remainingLength -= line.length();
-							remainingLength--; // for the newline char	
-							origStrFull += line + "\n";			
+							remainingLength--; // for the newline char
+							origStrFull += line + "\n";
 							if (debugging) dbgOutput(thisProc()+"extends on next line(D)=["+line+"] remainingLength=["+remainingLength+"] origStrFull=["+origStrFull+"]=["+origStrFull.length()+"]", debugRewrite);
 						}
 						else {
@@ -6444,22 +6610,22 @@ tooltipsHTMLPlaceholder +
 							line = post;
 							lineCut += origStr.length();
 							keepLine = true;
-							
+
 							if (debugging) dbgOutput(thisProc()+"origStrFull=["+origStrFull+"]=["+origStrFull.length()+"]", debugRewrite);
-							List<String> newStr = applyRewrite(rewriteType, report, rewriteText, origStrFull); 														
-							addOffsets(iteration+1, startLine, startLineOrig, startColOrig, origStrFull, newStr.get(2), newStr.get(0), newStr.get(1), report, fName, rewriteType);			
-											
-							writeRewrittenFile(newStr.get(0));							
+							List<String> newStr = applyRewrite(rewriteType, report, rewriteText, origStrFull);
+							addOffsets(iteration+1, startLine, startLineOrig, startColOrig, origStrFull, newStr.get(2), newStr.get(0), newStr.get(1), report, fName, rewriteType);
+
+							writeRewrittenFile(newStr.get(0));
 							origStrFull = "";
 						}
 					}
 					else {
 						String newStr = line + "\n";
 						writeRewrittenFile(newStr);
-						if (debugging) dbgOutput(thisProc()+"write newStr(F), =["+newStr+"] ", debugRewrite);						
+						if (debugging) dbgOutput(thisProc()+"write newStr(F), =["+newStr+"] ", debugRewrite);
 						break;
 					}
-					
+
 					if (remainingLength == 0) {
 						// when rewrite is done, move to next rewrite
 						rewriteCount++;
@@ -6472,8 +6638,8 @@ tooltipsHTMLPlaceholder +
 							startLine = -1;
 							nextRewrite = false;
 						}
-					}			
-					
+					}
+
 					if (!keepLine) {
 						if (debugging) dbgOutput(thisProc()+"keepLine=["+keepLine+"], breaking", debugRewrite);
 						break;
@@ -6481,13 +6647,13 @@ tooltipsHTMLPlaceholder +
 				}
 				if (abortNow) break;
 			}
-			if (abortNow) break;						
-			
+			if (abortNow) break;
+
 			// add list of rewrites to bottom of rewritten file
 			if (tmpToDoItems.size() == 0) {
 				writeRewrittenFile("\n");
 				writeRewrittenFile("/*\n");
-				writeRewrittenFile(SQLcodeRewrittenText +rewritesDone.size()+"\n");		
+				writeRewrittenFile(SQLcodeRewrittenText +rewritesDone.size()+"\n");
 				if (rewritesDone.size() > 0) {
 					for (String s : rewritesDone.stream().sorted().collect(Collectors.toList())) {
 						nrRewritesDone++;
@@ -6496,72 +6662,72 @@ tooltipsHTMLPlaceholder +
 						Integer lastLine = Integer.parseInt(tmp.get(2));
 						String origMsg = tmp.get(3);
 						String rewriteTypeMsg = tmp.get(4);
-						
+
 						firstLine = calcOffsetLine(calcOffsetIterationMax, firstLine, rewriteTypeMsg);
-						lastLine = calcOffsetLine(calcOffsetIterationMax, lastLine, rewriteTypeMsg);						
-						
+						lastLine = calcOffsetLine(calcOffsetIterationMax, lastLine, rewriteTypeMsg);
+
 						String lastLineStr = "";
 						if (!firstLine.equals(lastLine)) {
 							lastLineStr = "-"  + lastLine.toString();
 						}
-						
+
 						String msg = "line " + firstLine.toString() + lastLineStr + ": " + origMsg;
 						msg = msg.replaceAll("[\\t ]+", " ");
-						msg = msg.replaceAll("\n\\s*", " \\\\n ");		
-						msg = lineIndent + msg;		
+						msg = msg.replaceAll("\n\\s*", " \\\\n ");
+						msg = lineIndent + msg;
 						writeRewrittenFile(msg+"\n");
 					}
 				}
 				writeRewrittenFile("*/\n");
-				writeRewrittenFile("reset\n");				
+				writeRewrittenFile("reset\n");
 			}
 			closeRewrittenFile();
-			
+
 			if (!(debugging && debugRewrite)) {
 				deleteFile(tmpFile);
-			}			
+			}
 		}
-						
+
 		if (abortNow) {
 			// clean up
-			closeRewrittenFile();			
+			closeRewrittenFile();
 			deleteFile(rewrittenFile);
 			deleteFile(rewrittenHTMLFile);
 		}
 		else {
 			// copy to HTML format
 			writeRewrittenHTMLFile(reportName, appName, rewrittenFile, rewrittenHTMLFile);
-			
+
 			// rename rewritten file
 			File fSrc  = new File(rewrittenFile);
 			File fDest = new File(renameRewrittenFile(appName, rewrittenFile));
-	    	Files.move(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);		
-	    }					
-		
+	    	Files.move(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+	    }
+
 	}
-	
+
 	private List<String> applyRewrite(String rewriteType, String report, String rewriteText, String origStrFull) {
 		if (debugging) dbgOutput(thisProc()+"rewriteType=["+rewriteType+"] report=["+report+"] rewriteText=["+rewriteText+"] origStrFull=["+origStrFull+"]", debugRewrite);
-	
+
 		String origStrReport = origStrFull;
-		
-		List<String> result = new ArrayList<>();		
+
+		List<String> result = new ArrayList<>();
 		String newStr = "";
-		String newStrNoComment = "";		
+		String newStrNoComment = "";
 		rewrittenOppties.put(report, rewrittenOppties.getOrDefault(report, 0)+1);
-		if (rewriteType.equals(rewriteTypeExpr1)) {			
-			newStr = rwrTag + rewriteText.replaceAll(CompassAnalyze.rewriteTag1, origStrFull);	
+		if (rewriteType.equals(rewriteTypeExpr1)) {
+			newStr = rwrTag + rewriteText.replaceAll(CompassAnalyze.rewriteTag1, origStrFull);
 			newStr = newStr.trim();
-			newStrNoComment = newStr;	
+			newStrNoComment = newStr;
 			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");
 		}
-		else if (rewriteType.equals(rewriteTypeExpr2)) {		
+		else if (rewriteType.equals(rewriteTypeExpr2)) {
 			String origStrComment = getPatternGroup(origStrFull, "^(\\w+)\\s*\\(", 1);
 			origStrFull = applyPatternFirst(origStrFull, "^\\w+\\s*\\(", "");
 			origStrFull = applyPatternFirst(origStrFull, "\\)$", "");
-			newStr = rwrTag + " /*"+origStrComment+"()*/ "+ rewriteText.replaceAll(CompassAnalyze.rewriteTag1, origStrFull);	
+			newStr = rwrTag + " /*"+origStrComment+"()*/ "+ rewriteText.replaceAll(CompassAnalyze.rewriteTag1, origStrFull);
 			newStr = newStr.trim();
-			newStrNoComment = newStr;	
+			newStrNoComment = newStr;
 			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");
 		}
 		else if (rewriteType.equals(rewriteTypeReplace)) {
@@ -6572,16 +6738,16 @@ tooltipsHTMLPlaceholder +
 		}
 		else if (rewriteType.equals(rewriteTypeODBCfunc1)) {
 			String origStrCopy = applyPatternAll(origStrFull, "\\/\\*.*?\\*\\/", " ", "multiline");  // this won't handle nested comments, but let's ignore that
-			origStrCopy = applyPatternAll(origStrCopy, "\\s+", " ");  
-			String funcName = getPatternGroup(origStrCopy, "\\bFN\\b\\s+\\b(\\w+)\\b", 1);		
+			origStrCopy = applyPatternAll(origStrCopy, "\\s+", " ");
+			String funcName = getPatternGroup(origStrCopy, "\\bFN\\b\\s+\\b(\\w+)\\b", 1);
 			String commentFuncName = " /*" + funcName + "*/ ";
 			if (rewriteText.contains("(")) {
-				newStr = applyPatternFirst(origStrFull, "\\b"+funcName+"\\b.*?\\(", rewriteText + commentFuncName);							
+				newStr = applyPatternFirst(origStrFull, "\\b"+funcName+"\\b.*?\\(", rewriteText + commentFuncName);
 			}
 			else {
-				newStr = applyPatternFirst(origStrFull, "\\b"+funcName+"\\b", rewriteText + commentFuncName);			
+				newStr = applyPatternFirst(origStrFull, "\\b"+funcName+"\\b", rewriteText + commentFuncName);
 			}
-			newStrNoComment = newStr;			
+			newStrNoComment = newStr;
 			newStr = applyPatternFirst(newStr, "(\\{.*?\\bFN\\b)", "/*$1*/", "multiline");
 			newStr = applyPatternFirst(newStr, "(\\})$", "/*$1*/");
 			newStr = rwrTag + newStr.trim();
@@ -6591,15 +6757,15 @@ tooltipsHTMLPlaceholder +
 		}
 		else if (rewriteType.equals(rewriteTypeODBClit1)) {
 			String origStrCopy = applyPatternAll(origStrFull, "\\/\\*.*?\\*\\/", " ",  "multiline");  // won't handle nested comments, but let's ignore that
-			origStrCopy = applyPatternAll(origStrCopy, "\\s+", " "); 
-			String funcName = getPatternGroup(origStrCopy, "\\{.*?\\b(D|T|TS|GUID|INTERVAL)\\b", 1);			
+			origStrCopy = applyPatternAll(origStrCopy, "\\s+", " ");
+			String funcName = getPatternGroup(origStrCopy, "\\{.*?\\b(D|T|TS|GUID|INTERVAL)\\b", 1);
 			if (rewriteText.contains("(")) {
-				newStr = applyPatternFirst(origStrFull, "\\b"+funcName+"\\b", rewriteText);		
+				newStr = applyPatternFirst(origStrFull, "\\b"+funcName+"\\b", rewriteText);
 			}
 			else {
-				newStr = applyPatternFirst(origStrFull, "\\b"+funcName+"\\b", rewriteText);			
+				newStr = applyPatternFirst(origStrFull, "\\b"+funcName+"\\b", rewriteText);
 			}
-			newStrNoComment = newStr;			
+			newStrNoComment = newStr;
 			newStr = applyPatternFirst(newStr, "(\\{)", "/*$1*/ ");
 			newStr = applyPatternFirst(newStr, "(\\})$", ") /*$1*/");
 			newStr = rwrTag + newStr.trim();
@@ -6608,30 +6774,30 @@ tooltipsHTMLPlaceholder +
 			newStrNoComment = applyPatternFirst(newStrNoComment, "(\\})$", ")");
 		}
 		else if (rewriteType.equals(rewriteTypeCommentAndAppend)) {
-			// used for inline index only: partially replace (to comment out), and append new statement after end of stmt						
+			// used for inline index only: partially replace (to comment out), and append new statement after end of stmt
 			Integer rwrID = Integer.valueOf(rewriteText);
-			
-			assert (rewriteIDDetails.containsKey(rwrID)) : thisProc()+"rwrID not found: "+rwrID;			
+
+			assert (rewriteIDDetails.containsKey(rwrID)) : thisProc()+"rwrID not found: "+rwrID;
 			Map<String, List<Integer>> positions = new HashMap<>();
-			positions = rewriteIDDetails.get(rwrID);			
-			
-			Map<String, String> tmpRwr = new HashMap<>();	
+			positions = rewriteIDDetails.get(rwrID);
+
+			Map<String, String> tmpRwr = new HashMap<>();
 			int indent = positions.get("indent").get(0);
-						
-			int startClause = positions.get("inlineindexclause").get(0);	
-			int endClause   = positions.get("inlineindexclause").get(1);	
+
+			int startClause = positions.get("inlineindexclause").get(0);
+			int endClause   = positions.get("inlineindexclause").get(1);
 			int lengthClause = endClause - startClause + 1;
-			
+
 			origStrReport = origStrFull.substring(0,lengthClause);
 
-			// pick up rewritten CREATE INDEX statement	
-			rewriteText = rewriteTextListOrigText.get(rwrID.toString()); 
+			// pick up rewritten CREATE INDEX statement
+			rewriteText = rewriteTextListOrigText.get(rwrID.toString());
 			if (debugging) dbgOutput(thisProc()+"rewriteText=["+rewriteText+"]", debugRewrite);
-			
-			// handle case where it's a table-level index rather than column-level		
+
+			// handle case where it's a table-level index rather than column-level
 			if (positions.containsKey("collist")) {
-				int startCollist = positions.get("collist").get(0);	
-				int endCollist = positions.get("collist").get(1);	
+				int startCollist = positions.get("collist").get(0);
+				int endCollist = positions.get("collist").get(1);
 				String collist = origStrFull.substring(startCollist, endCollist);
 				rewriteText += collist;
 
@@ -6641,18 +6807,18 @@ tooltipsHTMLPlaceholder +
 				String comma = getPatternGroup(tmp, "^(\\s*,)", 1);
 				if (tmp.trim().startsWith(",")) {
 					lengthClause += comma.length();
-				}				
+				}
 			}
-		
+
 			// handle WHERE-clause or index options
 			int startRestOfClause = 0;
 			int startWhere = 0;
 			int startIXOptions = 0;
 			if (positions.containsKey("where_clause")) {
-				startWhere = positions.get("where_clause").get(0);	
+				startWhere = positions.get("where_clause").get(0);
 			}
 			if (positions.containsKey("index_options")) {
-				startIXOptions = positions.get("index_options").get(0);	
+				startIXOptions = positions.get("index_options").get(0);
 			}
 			if ((startWhere > 0) || (startIXOptions > 0)) {
 				if ((startWhere > 0) && (startIXOptions == 0)) startRestOfClause = startWhere;
@@ -6661,107 +6827,107 @@ tooltipsHTMLPlaceholder +
 					if (startWhere < startIXOptions) startRestOfClause = startWhere;
 					else startRestOfClause = startIXOptions;
 				}
-				
+
 				String restOfClause = origStrReport.substring(startRestOfClause);
 				rewriteText += " " + restOfClause;
 			}
-								
+
 			rewriteText = rewriteStmtPatchup("\n"+rewriteText, "", indent);
-						
+
 			// comment out original clause
 			newStr = rwrTag + "/*"+origStrFull.substring(0,lengthClause)+"*/" + origStrFull.substring(lengthClause);
-			newStr = newStr.trim();		
-									
+			newStr = newStr.trim();
+
 			newStr = newStr + rewriteText + "\n";
-			newStr = newStr.trim();		
-			
+			newStr = newStr.trim();
+
 			newStrNoComment = rewriteText;
-			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");								
-			
-		}		
+			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");
+
+		}
 		else if (rewriteType.equals(rewriteTypeBlockReplace) && report.equals(CompassAnalyze.AlterTableAddMultiple)) {
 			// ToDo: combine with MERGE below as parts are identical
-			
-			// for ALTER TABLE..ADD, pick up the various parts 
+
+			// for ALTER TABLE..ADD, pick up the various parts
 			Integer rwrID = Integer.valueOf(rewriteText);
-			
-			assert (rewriteIDDetails.containsKey(rwrID)) : thisProc()+"rwrID not found: "+rwrID;			
+
+			assert (rewriteIDDetails.containsKey(rwrID)) : thisProc()+"rwrID not found: "+rwrID;
 			Map<String, List<Integer>> positions = new HashMap<>();
 			positions = rewriteIDDetails.get(rwrID);
-			
+
 			int startCtx = positions.get("start").get(0);
 			int endStmt = positions.get("start").get(1);
 			String startStmt = origStrFull.substring(0, endStmt-startCtx);
-						
+
 			int indent = positions.get("indent").get(0);
-			Map<String, String> tmpRwr = new HashMap<>();		
-			
+			Map<String, String> tmpRwr = new HashMap<>();
+
 			int cnt = 0;
 			for (String p : positions.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
-				if (p.equals("start")) continue;	
-				if (p.equals("indent")) continue;	
+				if (p.equals("start")) continue;
+				if (p.equals("indent")) continue;
 				int startPos = positions.get(p).get(0);
 				int endPos = positions.get(p).get(1);
 				//if (debugging) dbgOutput(thisProc()+"     p=["+p+"] startPos=["+startPos+"]  endPos=["+endPos+"] ", debugRewrite);
 				startPos -= startCtx;
 				endPos -= startCtx;
 				endPos++;
-				String s = origStrFull.substring(startPos, endPos);				
+				String s = origStrFull.substring(startPos, endPos);
 				// strip comments
 				if (s.contains("/*")) {
 					s = applyPatternAll(s, "\\/\\*.*?\\*\\/", " ","multiline");  // this won't handle nested comments, but let's ignore that
 				}
 				if (s.contains("--")) {
 					s = applyPatternAll(s, "\\-\\-.*?\n", "\n","multiline");  // betting that '--' won't occur in a string
-				}					
-				if (debugging) dbgOutput(thisProc()+"     p=["+p+"] startPos=["+startPos+"]  endPos=["+endPos+"]  s=["+s+"] ", debugRewrite);	
-				tmpRwr.put(p, s);						
+				}
+				if (debugging) dbgOutput(thisProc()+"     p=["+p+"] startPos=["+startPos+"]  endPos=["+endPos+"]  s=["+s+"] ", debugRewrite);
+				tmpRwr.put(p, s);
 				cnt++;
 			}
-			
-			String blankLine = "\n"+rewriteBlankLine+"\n";						
+
+			String blankLine = "\n"+rewriteBlankLine+"\n";
 			String rwrSteps = "\n"+rwrTag+"\n/* --- start rewritten ALTER TABLE..ADD statement --- */\n";
-						
+
 			boolean addBlank = false;
 			for (String p : tmpRwr.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
 				String s = tmpRwr.get(p);
-				if (debugging) dbgOutput(thisProc()+"    p=["+p+"]  s=["+s+"] ", debugRewrite);		
+				if (debugging) dbgOutput(thisProc()+"    p=["+p+"]  s=["+s+"] ", debugRewrite);
 				if (addBlank) rwrSteps += blankLine;
-				addBlank = true;															
-				rwrSteps += startStmt + "\n";																
-				rwrSteps += s + "\n";						
+				addBlank = true;
+				rwrSteps += startStmt + "\n";
+				rwrSteps += s + "\n";
 			}
 
 			rwrSteps += "/* --- end rewritten ALTER TABLE..ADD statement --- */\n";
-			rwrSteps = rewriteStmtPatchup(rwrSteps, origStrFull, indent);	
+			rwrSteps = rewriteStmtPatchup(rwrSteps, origStrFull, indent);
 			rewriteText = rwrSteps;
-			
+
 			// comment out original block and append new block
 			// NB: first line should not get shorter so start comment on first line
-			String origStrCopy = applyPatternAll(origStrFull, "\\/\\*.*?\\*\\/", " "); 
-			origStrCopy = applyPatternAll(origStrCopy, "\\s+", " "); 		
+			String origStrCopy = applyPatternAll(origStrFull, "\\/\\*.*?\\*\\/", " ");
+			origStrCopy = applyPatternAll(origStrCopy, "\\s+", " ");
 			newStr = "/* original ALTER TABLE statement -- " + origStrFull + " -- end original ALTER TABLE statement */\n" + rewriteText + "\n";
-			
+
 			// let last line past end of original text continue at original offset
 			String lastLineTmp = origStrFull.substring(origStrFull.lastIndexOf("\n")+1);
 			String lastLine = stringRepeat(" ", lastLineTmp.length());
-			newStr += lastLine;			
-			
+			newStr += lastLine;
+
 			newStrNoComment = "ALTER TABLE..ADD, "+ cnt + " times";
-			
+
 		}
 		else if (rewriteType.equals(rewriteTypeBlockReplace) && report.equals(CompassAnalyze.MergeStmt)) {
-			// for MERGE, pick up the various parts 
+			// for MERGE, pick up the various parts
 			Integer rwrID = Integer.valueOf(rewriteText);
-			
-			assert (rewriteIDDetails.containsKey(rwrID)) : thisProc()+"rwrID not found: "+rwrID;			
+
+			assert (rewriteIDDetails.containsKey(rwrID)) : thisProc()+"rwrID not found: "+rwrID;
 			Map<String, List<Integer>> positions = new HashMap<>();
 			positions = rewriteIDDetails.get(rwrID);
-			
+
 			int startCtx = positions.get("start").get(0);
-						
-			Map<String, String> tmpMerge = new HashMap<>();		
-			
+
+			Map<String, String> tmpMerge = new HashMap<>();
+
 			for (String p : positions.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
 				if (p.equals("start")) continue;
 				if (p.equals("when_matches")) continue;
@@ -6778,44 +6944,44 @@ tooltipsHTMLPlaceholder +
 				}
 				if (s.contains("--")) {
 					s = applyPatternAll(s, "\\-\\-.*?\n", "\n","multiline");  // betting that '--' won't occur in a string
-				}				
+				}
 				if (debugging) dbgOutput(thisProc()+"     p=["+p+"] startPos=["+startPos+"]  endPos=["+endPos+"]  s=["+s+"] ", debugRewrite);
 				tmpMerge.put(p, s);
-				
+
 				if (p.toUpperCase().startsWith("WHEN_MATCHES WHENNOTMATCHED")) {
 					if (!p.toUpperCase().endsWith("INSERT")) {
-						// NOT MATCHED BY SOURCE: DELETE or UPDATE				
+						// NOT MATCHED BY SOURCE: DELETE or UPDATE
 						// condition specified for BY SOURCE?
 						String cond = getPatternGroup(s, "^.*?\\bMATCHED\\s+BY\\s+SOURCE\\s+AND\\b(.*?)\\bTHEN\\s+(UPDATE|DELETE)\\b.*$", 1, "multiline");
-						if (!cond.isEmpty()) {						
-							tmpMerge.put("by source cond", cond);    					
-						}	
+						if (!cond.isEmpty()) {
+							tmpMerge.put("by source cond", cond);
+						}
 					}
 				}
-				
+
 				if (p.toUpperCase().startsWith("WHEN_MATCHES WHENMATCHED")) {
-					// MATCHED: DELETE or UPDATE				
+					// MATCHED: DELETE or UPDATE
 					// condition specified?
 					String cond = getPatternGroup(s, "^.*?\\bWHEN\\s+MATCHED\\s+AND\\b(.*?)\\bTHEN\\s+(UPDATE|DELETE)\\b.*$", 1, "multiline");
 					if (!cond.isEmpty()) {
-						tmpMerge.put("when matched cond", cond);  
-					}  						
-				}										
+						tmpMerge.put("when matched cond", cond);
+					}
+				}
 			}
-			
-			// ToDo: if we want to reset this counter in every batch (which would work fine), then 
+
+			// ToDo: if we want to reset this counter in every batch (which would work fine), then
 			// we need to take the batch number along when we identify a rewrite case. Since applying
 			// the rewrites is done on a per-file basis, there is no batch concept at this time
 			nrMergeRewrites++;
 
-			String savePt   = "savept_merge_rewritten_"+nrMergeRewrites;			
-			String errVar   = "@MERGE_REWRITTEN_ERROR_"+nrMergeRewrites;			
-			String rcTmpVar = "@MERGE_REWRITTEN_RCTMP_"+nrMergeRewrites;	
-			String rcVar    = "@MERGE_REWRITTEN_ROWCOUNT_"+nrMergeRewrites;	
-			String rollbkLbl= "lbl_rollback_merge_rewritten_"+nrMergeRewrites;	
-			String commitLbl= "lbl_commit_merge_rewritten_"+nrMergeRewrites;	
-			String stmtEnd  = "SELECT "+errVar+ "=@@ERROR, "+rcTmpVar+ "=@@ROWCOUNT\nIF "+errVar+ " <> 0 GOTO "+rollbkLbl+"\nSET "+rcVar+" += "+rcTmpVar+ "\n";		
-			
+			String savePt   = "savept_merge_rewritten_"+nrMergeRewrites;
+			String errVar   = "@MERGE_REWRITTEN_ERROR_"+nrMergeRewrites;
+			String rcTmpVar = "@MERGE_REWRITTEN_RCTMP_"+nrMergeRewrites;
+			String rcVar    = "@MERGE_REWRITTEN_ROWCOUNT_"+nrMergeRewrites;
+			String rollbkLbl= "lbl_rollback_merge_rewritten_"+nrMergeRewrites;
+			String commitLbl= "lbl_commit_merge_rewritten_"+nrMergeRewrites;
+			String stmtEnd  = "SELECT "+errVar+ "=@@ERROR, "+rcTmpVar+ "=@@ROWCOUNT\nIF "+errVar+ " <> 0 GOTO "+rollbkLbl+"\nSET "+rcVar+" += "+rcTmpVar+ "\n";
+
 			String mergeSteps = "\n"+rwrTag+"\n/* --- start rewritten MERGE statement #"+nrMergeRewrites+" --- */\n";
 			mergeSteps += "/* Note: please review/modify the rewritten SQL code below, especially for handling of ROLLBACK */\n";
 			mergeSteps += "BEGIN TRANSACTION\n";
@@ -6826,22 +6992,22 @@ tooltipsHTMLPlaceholder +
 			String blankLine = "\n"+rewriteBlankLine+"\n";
 			for (String p : tmpMerge.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
 				String s = tmpMerge.get(p);
-				if (debugging) dbgOutput(thisProc()+"    p=["+p+"]  s=["+s+"] ", debugRewrite);				
-				
-				String action = "INSERT";				
+				if (debugging) dbgOutput(thisProc()+"    p=["+p+"]  s=["+s+"] ", debugRewrite);
+
+				String action = "INSERT";
 				if (p.toUpperCase().endsWith("UPDATE")) action = "UPDATE";
 				else if (p.toUpperCase().endsWith("DELETE")) action = "DELETE";
-				
+
 				String bytgt = "";
 				if (action.equals("INSERT") && !getPatternGroup(s, "(\\bBY\\s+TARGET\\b)", 1, "multiline").isEmpty()) bytgt = "BY TARGET ";
-								
+
 				// condition?
 				String cond = "";
 				String condDisplay = "";
 				if (!getPatternGroup(s, "^.*?\\bMATCHED\\s+(BY\\s+\\w+\\s+)?\\bAND\\b(.*?)\\bTHEN\\s+(UPDATE|DELETE|INSERT)\\b.*$", 2, "multiline").isEmpty()) {
 					cond = applyPatternFirst(s, "^.*?\\bMATCHED\\s+(BY\\s+\\w+\\s+)?\\bAND\\b(.*?)\\bTHEN\\s+(UPDATE|DELETE|INSERT)\\b.*$", "$2", "multiline");
 					condDisplay = "AND (condition) ";
-				}		
+				}
 
 				if (p.toUpperCase().startsWith("WHEN_MATCHES WHENNOTMATCHED")) {
 					if (action.equals("INSERT")) {
@@ -6849,7 +7015,7 @@ tooltipsHTMLPlaceholder +
 						if (tmpMerge.containsKey("output_clause")) {
 							String outputClause = rewriteMergeStmtOutput(tmpMerge.get("output_clause"), action) + "\n";
 							insCollist = applyPatternFirst(insCollist, "\\bVALUES\\b", "\n"+escapeRegexChars(outputClause+"\nVALUES"));
-						}								
+						}
 						// determine in VALUES clause contains anythinig other than constants/variables/function calls
 						String valuesTest = applyPatternFirst(insCollist, "^.*?\\bVALUES\\b.*?\\(", " ", "multiline");
 						valuesTest = applyPatternAll(valuesTest, "'.*?'", " ");
@@ -6861,34 +7027,34 @@ tooltipsHTMLPlaceholder +
 						valuesTest = applyPatternAll(valuesTest, "\\bAT\\s+TIME\\s+ZONE\\b", " ");
 						boolean varsConstantsOnly = false;
 						if (getPatternGroup(valuesTest, "(\\w)", 1).isEmpty()) varsConstantsOnly = true;
-						
+
 						if (!varsConstantsOnly) {
 							if (!getPatternGroup(insCollist, "(\\bVALUES\\b.*?\\()", 1, "multiline").isEmpty()) {
 								insCollist = applyPatternFirst(insCollist, "\\bVALUES\\b.*?\\(", "SELECT ", "multiline");
 								insCollist = applyPatternFirst(insCollist, "\\)$", " ");
 							}
 						}
-						
+
 						String insStmt = blankLine;
 						insStmt += "/* WHEN NOT MATCHED "+bytgt+condDisplay+"THEN "+action+" */\n";
-						if (tmpMerge.containsKey("with_expression")) insStmt += ";" +tmpMerge.get("with_expression") + "\n";						
-						insStmt += "INSERT INTO " + tmpMerge.get("ddl_object") + "\n";					
+						if (tmpMerge.containsKey("with_expression")) insStmt += ";" +tmpMerge.get("with_expression") + "\n";
+						insStmt += "INSERT INTO " + tmpMerge.get("ddl_object") + "\n";
 						insStmt += insCollist;
-						
+
 						if (!varsConstantsOnly) {
 							insStmt += "\nFROM " + tmpMerge.get("table_sources");
 							insStmt += "\nWHERE NOT EXISTS (";
 							insStmt += "\nSELECT * FROM " + tmpMerge.get("ddl_object") + " " + tmpMerge.getOrDefault("table_alias", "");
 							insStmt += "\nWHERE " + tmpMerge.get("search_condition") ;
-							insStmt += "\n)\n";			
+							insStmt += "\n)\n";
 						}
 						else {
-							insStmt += "\n";			
+							insStmt += "\n";
 						}
-						insStmt += stmtEnd;		
+						insStmt += stmtEnd;
 						if (debugging) dbgOutput(thisProc()+"insStmt=["+insStmt+"] ", debugRewrite);
 						mergeSteps += insStmt;
-					}	
+					}
 					else {
 						// NOT MATCHED BY SOURCE: DELETE or UPDATE
 						String stmt = blankLine;
@@ -6909,7 +7075,7 @@ tooltipsHTMLPlaceholder +
 						}
 						if (tmpMerge.containsKey("output_clause")) {
 							stmt += rewriteMergeStmtOutput(tmpMerge.get("output_clause"), action) + "\n";
-						}						
+						}
 						if (tmpMerge.containsKey("table_alias")) {
 							stmt += "FROM " + tmpMerge.get("ddl_object") + " " + tmpMerge.getOrDefault("table_alias", "") + "\n";
 						}
@@ -6917,21 +7083,21 @@ tooltipsHTMLPlaceholder +
 						stmt += "SELECT * FROM " + tmpMerge.get("table_sources") + "\n";
 						stmt += "WHERE " + tmpMerge.get("search_condition")+"\n";
 						if (!cond.isEmpty()) {
-							stmt += "AND (" + cond+")\n";						
-						}			
+							stmt += "AND (" + cond+")\n";
+						}
 						else if (tmpMerge.containsKey("by source cond")) {
 							stmt += "AND NOT (" + tmpMerge.get("by source cond")+")\n"; //"
-						}			
+						}
 						stmt += ")\n";
 						stmt += stmtEnd;
 						if (debugging) dbgOutput(thisProc()+"stmt=["+stmt+"] ", debugRewrite);
 						mergeSteps += stmt;
-					}			
+					}
 				}
 				else if (p.toUpperCase().startsWith("WHEN_MATCHES WHENMATCHED")) {
 					// MATCHED: DELETE or UPDATE
 					String stmt = blankLine;
-					stmt += "/* WHEN MATCHED "+condDisplay+"THEN "+action+" */\n";					
+					stmt += "/* WHEN MATCHED "+condDisplay+"THEN "+action+" */\n";
 					if (tmpMerge.containsKey("with_expression")) stmt += ";"+tmpMerge.get("with_expression") + "\n";
 					String tgtName = tmpMerge.get("ddl_object");
 					String updSet = "";
@@ -6946,10 +7112,10 @@ tooltipsHTMLPlaceholder +
 						stmt += "UPDATE " + tgtName + "\n";
 						stmt += updSet + "\n";
 					}
-					if (debugging) dbgOutput(thisProc()+"stmt=["+stmt+"] ", debugRewrite);					
+					if (debugging) dbgOutput(thisProc()+"stmt=["+stmt+"] ", debugRewrite);
 					if (tmpMerge.containsKey("output_clause")) {
 						stmt += rewriteMergeStmtOutput(tmpMerge.get("output_clause"), action) + "\n";
-					}						
+					}
 					if (tmpMerge.containsKey("table_alias") || tmpMerge.containsKey("table_sources") ) {
 						stmt += "FROM \n";
 					}
@@ -6965,49 +7131,49 @@ tooltipsHTMLPlaceholder +
 					}
 					stmt += "WHERE " + tmpMerge.get("search_condition")+"\n";
 					if (!cond.isEmpty()) {
-						stmt += "AND (" + cond+")\n";						
-					}			
+						stmt += "AND (" + cond+")\n";
+					}
 					else if (tmpMerge.containsKey("when matched cond")) {
 						stmt += "AND NOT (" + tmpMerge.get("when matched cond")+")\n"; //"
-					}	
+					}
 					stmt += stmtEnd;
 					if (debugging) dbgOutput(thisProc()+"stmt=["+stmt+"] ", debugRewrite);
 					mergeSteps += stmt;
-				}			
+				}
 			}
 			mergeSteps += blankLine;
-			mergeSteps += "\n"+"GOTO "+commitLbl+"\n";					
+			mergeSteps += "\n"+"GOTO "+commitLbl+"\n";
 			mergeSteps += "/* in case of an error, roll back to savepoint at the start but do no abort the transaction: there may be an outermost transaction active*/\n";
-			mergeSteps += "\n"+rollbkLbl+": ROLLBACK TRANSACTION "+savePt+"\n";	
-			mergeSteps += "\n"+commitLbl+":   COMMIT\n";			
+			mergeSteps += "\n"+rollbkLbl+": ROLLBACK TRANSACTION "+savePt+"\n";
+			mergeSteps += "\n"+commitLbl+":   COMMIT\n";
 			mergeSteps += ";/* --- end rewritten MERGE statement #"+nrMergeRewrites+" --- */\n";
-			mergeSteps = rewriteStmtPatchup(mergeSteps, origStrFull, "USING");	
+			mergeSteps = rewriteStmtPatchup(mergeSteps, origStrFull, "USING");
 			rewriteText = mergeSteps;
-			
+
 			// comment out original block and append new block
 			// NB: first line should not get shorter so start comment on first line
-			String origStrCopy = applyPatternAll(origStrFull, "\\/\\*.*?\\*\\/", " "); 
-			origStrCopy = applyPatternAll(origStrCopy, "\\s+", " "); 		
+			String origStrCopy = applyPatternAll(origStrFull, "\\/\\*.*?\\*\\/", " ");
+			origStrCopy = applyPatternAll(origStrCopy, "\\s+", " ");
 			newStr = "/* original MERGE statement -- " + origStrFull + " -- end original MERGE statement */\n" + rewriteText + "\n";
-			
+
 			// let last line past end of original text continue at original offset
 			String lastLineTmp = origStrFull.substring(origStrFull.lastIndexOf("\n")+1);
 			String lastLine = stringRepeat(" ", lastLineTmp.length());
 			newStr += lastLine;
-		}		
+		}
 		else {
 			assert false : thisProc()+"invalid rewriteType=["+rewriteType+"] ";
 		}
-		
+
 		// these are picked up for reporting
 		result.add(newStr);
 		if (newStrNoComment.isEmpty()) newStrNoComment = newStr;
 		result.add(newStrNoComment.trim());
 		//result.add(origStrFull);
 		result.add(origStrReport.trim());
-		return result;			
+		return result;
 	}
-	
+
 	public String rewriteMergeStmtOutput(String s, String action) {
 		s = applyPatternAll(s, "\\$ACTION\\b", "'"+action+"'");
 		if (action.equals("DELETE")) {
@@ -7017,7 +7183,7 @@ tooltipsHTMLPlaceholder +
 		if (action.equals("INSERT")) {
 			s = applyPatternAll(s, "\\bDELETED\\.\\w+\\b", "NULL");
 			s = applyPatternAll(s, "\\bDELETED\\.[\\[].*?[\\]]", "NULL");
-			
+
 			// for an INSERT..OUTPUT, we don't seem to be able to reference anything other than INSERTED
 			String tmp = applyPatternAll(s, "\\b(OUTPUT)\\b", "");
 			tmp = applyPatternAll(tmp, "[\\(\\)]", ",");
@@ -7033,8 +7199,8 @@ tooltipsHTMLPlaceholder +
 
 		}
 		return s;
-	}	
-	
+	}
+
 	public String rewriteStmtPatchup(String s, String origStmt, String kwd) {
 		return rewriteStmtPatchup(s, origStmt, kwd, 0);
 	}
@@ -7056,9 +7222,9 @@ tooltipsHTMLPlaceholder +
 		s = applyPatternAll(s, "\\n", "\n"+leading);
 		s = applyPatternAll(s, rewriteBlankLine, "");
 		return s;
-	}	
-	
-	public void createAnonymizedReport() throws IOException {			
+	}
+
+	public void createAnonymizedReport() throws IOException {
 		// get capture files
 		List<Path> captureFiles = getCaptureFiles(reportName);
 		if (debugging) dbgOutput(thisProc() + "captureFiles(" + captureFiles.size() + ")=[" + captureFiles + "] ", debugReport);
@@ -7072,7 +7238,7 @@ tooltipsHTMLPlaceholder +
 			appOutput(cfv);
 			errorExit();
 		}
-		String cfVersion = captureFilesValid("tgtversion", captureFiles, true);		
+		String cfVersion = captureFilesValid("tgtversion", captureFiles, true);
 
 		Date now = new Date();
 		String nowFmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now);
@@ -7121,15 +7287,15 @@ tooltipsHTMLPlaceholder +
 
 				// strip off the last two semicolons
 				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
-				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));							
+				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
 				capLine = unEscapeHTMLChars(capLine);
-					
+
 				// remove customer-specific items
 				List<String> tmp = new ArrayList<>(Arrays.asList(capLine.split(captureFileSeparator)));
-				
+
 				if (!(tmp.get(9).equals(BatchContext))) {
 					// wipe out identifiers in context
-					String objType = getPatternGroup(tmp.get(9),"^(\\w+)\\s+(.*)$",1);	
+					String objType = getPatternGroup(tmp.get(9),"^(\\w+)\\s+(.*)$",1);
 					String objName = getPatternGroup(tmp.get(9),"^(\\w+)\\s+(.*)$",2).toLowerCase();
 					if (!objNames.containsKey(objName)) objNames.put(objName, objType.toLowerCase()+(objNames.size()+1));
 					tmp.set(9, objType+" "+objNames.get(objName));
@@ -7137,46 +7303,46 @@ tooltipsHTMLPlaceholder +
 				if (tmp.size() >= 11) {
 					if (!tmp.get(10).isEmpty()) {
 						// wipe out identifiers in context
-						String objType = getPatternGroup(tmp.get(10),"^(\\w+)\\s+(.*)$",1);							
+						String objType = getPatternGroup(tmp.get(10),"^(\\w+)\\s+(.*)$",1);
 						String objName = getPatternGroup(tmp.get(10),"^\\w+\\s+(.*)$",1).toLowerCase();
 						if (!objNames.containsKey(objName)) objNames.put(objName, "table"+(objNames.size()+1));
 						tmp.set(10, objType+" "+objNames.get(objName));
 					}
 				}
-				
+
 				// remove user-specific fields
 				if (tmp.size() >= 12) {
-					tmp.remove(11);	
+					tmp.remove(11);
 				}
-				tmp.remove(8);	
-				tmp.remove(7);	
-				tmp.remove(6);	
+				tmp.remove(8);
+				tmp.remove(7);
+				tmp.remove(6);
 
 				// wipe out appname
 				if (!appNames.containsKey(tmp.get(5).toLowerCase())) appNames.put(tmp.get(5).toLowerCase(), "app"+(appNames.size()+1));
 				tmp.set(5,appNames.get(tmp.get(5).toLowerCase()));
-				
-				tmp.remove(4);	
-				tmp.remove(3);	
-				tmp.remove(1);	
-				
-				// wipe out UDD name				
+
+				tmp.remove(4);
+				tmp.remove(3);
+				tmp.remove(1);
+
+				// wipe out UDD name
 				if (tmp.get(0).indexOf(" (UDD ") > -1) {
-					tmp.set(0, tmp.get(0).substring(0, tmp.get(0).indexOf(" (UDD "))+" (UDD)" + tmp.get(0).substring(tmp.get(0).lastIndexOf(")")+1));			
-				}	
-				
+					tmp.set(0, tmp.get(0).substring(0, tmp.get(0).indexOf(" (UDD "))+" (UDD)" + tmp.get(0).substring(tmp.get(0).lastIndexOf(")")+1));
+				}
+
 				// wipe out DB name
 				if (tmp.get(0).startsWith("USE ")) {
 					String dbName = tmp.get(0).substring(4).toLowerCase();
 					if (!dbNames.containsKey(dbName)) dbNames.put(dbName, "db"+(dbNames.size()+1));
-					tmp.set(0, "USE " +dbNames.get(dbName));			
-				}	
+					tmp.set(0, "USE " +dbNames.get(dbName));
+				}
 				if (tmp.get(0).contains(" DATABASE ")) {
 					String dbName = tmp.get(0).substring(tmp.get(0).indexOf(" DATABASE ")+" DATABASE ".length()).toLowerCase();
 					if (!dbNames.containsKey(dbName)) dbNames.put(dbName, "db"+(dbNames.size()+1));
-					tmp.set(0, tmp.get(0).substring(0, tmp.get(0).indexOf(" DATABASE ")+" DATABASE ".length())+dbNames.get(dbName));			
-				}	
-				
+					tmp.set(0, tmp.get(0).substring(0, tmp.get(0).indexOf(" DATABASE ")+" DATABASE ".length())+dbNames.get(dbName));
+				}
+
 				capLine = String.join(captureFileSeparator, tmp);
 
 				// add babelfish version & compass version
@@ -7188,11 +7354,11 @@ tooltipsHTMLPlaceholder +
 		anonItemsFileWriter.close();
 		appOutput("Items for anonymized reporting: "+itemCount);
 		appOutput("All identifiers and customer-specific details have been removed from the captured items\nin "+anonItemPathName);
-	}	
-	
+	}
+
 	public void checkForUpdate () {
 		if (!updateCheck) return;
-		
+
 		try {
 			URL GHurl = new URL(compassRESTReleaseGet);
 			HttpURLConnection GHconn = (HttpURLConnection) GHurl.openConnection();
@@ -7210,11 +7376,11 @@ tooltipsHTMLPlaceholder +
 			BufferedReader br = new BufferedReader(new InputStreamReader((GHconn.getInputStream())));
 
 			String lineRead;
-			while ((lineRead = br.readLine()) != null) {			
-				if (lineRead.contains("\"tag_name\"")) {					
+			while ((lineRead = br.readLine()) != null) {
+				if (lineRead.contains("\"tag_name\"")) {
 					//format: "tag_name":"v2022-03-a"
 					// just looking for a particular string, so don't bother about true JSON parsing
-					String latestVersion = getPatternGroup(lineRead, "\"tag_name\":\"(.*?)\"", 1);								
+					String latestVersion = getPatternGroup(lineRead, "\"tag_name\":\"(.*?)\"", 1);
 				    latestVersion = applyPatternFirst(latestVersion, "^v", "");
 				   	String latestVersionNormalized = normalizeCheckForUpdate(latestVersion);
 				    String thisProgVersionNormalized = normalizeCheckForUpdate(thisProgVersion);
@@ -7224,26 +7390,26 @@ tooltipsHTMLPlaceholder +
 				    		newVersionAvailable += "\nDownload the latest from <a href=\""+compassLatestURL+"\" target=\"_blank\">"+compassLatestURL+"</a>";
 				    		appOutput(removeHTMLTags(newVersionAvailable)+"\n");
 				    	}
-				    }		    					
+				    }
 					break;
 				}
-			}		
+			}
 			GHconn.disconnect();
 		} catch (Exception e) {
 			// we get here when there is no network connection. Only report it when in dev mode to avoid error messages that might just confuse the regular user
 			if (devOptions) {
-				appOutput("Error accessing "+ compassRESTReleaseGet+ " while checking for update\n"); 
+				appOutput("Error accessing "+ compassRESTReleaseGet+ " while checking for update\n");
 			}
 			return;
-		}		
+		}
 	}
-	
+
 	private String normalizeCheckForUpdate (String version) {
 		version = applyPatternAll(version, "[\\W\\_]", "");
 		return version;
 	}
-	
-	public String stringAsHex (String s) {		
+
+	public String stringAsHex (String s) {
 		StringBuilder sb =  new StringBuilder();
 		for (char c : s.toCharArray()) {
 			sb.append("0x");
@@ -7254,9 +7420,9 @@ tooltipsHTMLPlaceholder +
 			}
 			sb.append(hexString);
 		}
-		return sb.toString();	
-	}	
-											
+		return sb.toString();
+	}
+
  	// ---- error handling in Lexer ----------------------------------------
 	private String errorMsg;
 
@@ -7308,7 +7474,7 @@ tooltipsHTMLPlaceholder +
 		sb.append("lexical error: ").append(s).append(" with hex=");
 		sb.append(stringAsHex(s));
 	}
-	
+
 	public void setErrorMsg(int line, int col, String s) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("Line ").append(line).append(":").append(col + 1).append(", ");

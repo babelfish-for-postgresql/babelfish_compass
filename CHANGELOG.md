@@ -1,3 +1,9 @@
+# 2022-07
+- Support for Babelfish 1.3.1 and 2.1.1.
+- Add -rewrite support for cases of DATE{PART|NAME|DIFF|ADD}() functions with an unsupported 'unit' argument.
+- Add -rewrite support for DEFAULT parameter values in function/procedure calls.
+- When generating reports from prior analysis, do not lose the 'rewrite' cases from the report.
+
 # 2022-06-a
 - Consume XML files with queries captured by SQL Server Profiler.
 - Mark cursor variables as supported since v.1.0.0.
