@@ -1299,21 +1299,21 @@ public class CompassAnalyze {
 				//visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
-			}			
+			}
 
 			@Override public String visitColumn_definition(TSQLParser.Column_definitionContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"ctx=["+ctx.getText()+"] ", u.debugPtree);
 				if (!u.buildColSymTab) return null;
 
-	            //find type of column by looking for parent
-	            // todo: view columns, datatype of view columsn and computed clumns
+				// find type of column by looking for parent
+				// todo: view columns, datatypes of view columns and computed columns
 				String colType = ""; // default: regular table
 				if (hasParent(ctx.parent,"declare_statement"))                 colType = "(table variable)";
 				else if (hasParent(ctx.parent,"create_type"))                  colType = "(table type)";
 				else if (hasParent(ctx.parent,"func_body_returns_table"))      colType = "(table function result)";
 				else if (hasParent(ctx.parent,"func_body_returns_table_clr"))  colType = "(table function result)";
-								
+
 				if (!colType.isEmpty()) return null; 
 
 				String colName  = "";
@@ -1880,7 +1880,7 @@ public class CompassAnalyze {
 				if (argList != null) if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"BIF=["+funcName+"()] nrArgs=["+nrArgs+"] argList.size()=["+argList.size()+"]  ", u.debugPtree);
 
 				if (featureExists(BuiltInFunctions, funcName)) {
-					status = featureSupportedInVersion(BuiltInFunctions, funcName);;
+					status = featureSupportedInVersion(BuiltInFunctions, funcName);
 					// any argument needs to be validated?
 					String argN = cfg.featureExistsArg(funcName);
 
