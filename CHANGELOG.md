@@ -1,3 +1,11 @@
+# 2022-09
+- Support for Babelfish v.2.2.0.
+- Mark ALTER TABLE..{ENABLE|DISABLE} TRIGGER as supported since v.1.0.0 (it was incorrectly marked as not supported).
+- Mark CHECKPOINT as not supported (it was incorrectly marked as supported).
+- Add -rewrite support for compound comparison operators containing whitespace.
+- Better detection of non-supported operators and function calls in computed columns.
+- Generating a .csv file to facilitate user-defined quantifying of migration effort.
+
 # 2022-07
 - Support for Babelfish 1.3.1 and 2.1.1.
 - Add -rewrite support for cases of DATE{PART|NAME|DIFF|ADD}() functions with an unsupported 'unit' argument.

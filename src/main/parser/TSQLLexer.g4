@@ -1283,6 +1283,7 @@ fragment LETTER
 //	| '\u3105'..'\u312c' // Bopomofo
 //	| '\u3131'..'\u318e' // Hangul Compatability Jamo 
 //	| '\u31a0'..'\u31b7' // Bopomofo Extended 
+//  | '\u4e00'..'\u9fff' // CJK Unified Ideographs
 //	| '\ua000'..'\ua48c' // Yi Syllables 
 //	| '\uac00'           // Hangul Syllables 
 //	| '\ud7a3'           

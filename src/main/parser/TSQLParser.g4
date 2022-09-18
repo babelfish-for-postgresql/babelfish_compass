@@ -926,7 +926,7 @@ create_event_notification
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-event-session-transact-sql
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/create-event-session-transact-sql
 create_or_alter_event_session
-    : (CREATE | ALTER) EVENT SESSION event_session_name=id ON SERVER
+    : (CREATE | ALTER) EVENT SESSION event_session_name=id ON ( SERVER | DATABASE )
        (COMMA? ADD EVENT ( (event_module_guid=id DOT)? event_package_name=id DOT event_name=id)
         (LR_BRACKET
           (SET ( COMMA? event_customizable_attributue=id EQUAL expression )* )?

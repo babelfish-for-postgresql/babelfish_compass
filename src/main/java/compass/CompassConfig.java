@@ -29,21 +29,45 @@ public class CompassConfig {
 	static List<String> Babelfish_VersionList = new ArrayList<>();
 	static Map<String, Map<String, List<String>>> sectionList = new LinkedHashMap<>();
 	static Map<String, Map<String, List<String>>> sectionOverrideList = new LinkedHashMap<>();
+	static Map<String, Map<String, List<String>>> sectionEffortList = new LinkedHashMap<>();
+	static Map<String, Map<String, List<String>>> sectionComplexityList = new LinkedHashMap<>();
 	static Map<String, String> featureArgOptions = new LinkedHashMap<>();  // assuming only one argument per feature. If more, the value needs to become a List
-    static boolean cfgFileValid = true;
-    static boolean userCfgFileValid = true;
     static boolean versionInvalid = false;
     static int overrideCount = 0;
+    static String lastCfgCheckSection = "";
+    static String lastCfgCheckName = "";
+    static boolean effortEstimatesFound = false;
 
     // keys in sections
-    static final String validVersionsTag  = "VALID_VERSIONS";
-    static final String fileFormatTag     = "FILE_FORMAT";
-    static final String fileTimestampTag  = "FILE_TIMESTAMP";
-    static final String listValuesTag     = "LIST";
-    static final String defaultStatusTag  = "DEFAULT_CLASSIFICATION";
-    static final String reportGroupTag    = "REPORT_GROUP";
-    static final String supportedTag      = "SUPPORTED";
-    static final String ruleTag           = "RULE";
+    static final String validVersionsTag      = "VALID_VERSIONS";
+    static final String fileFormatTag         = "FILE_FORMAT";
+    static final String fileTimestampTag      = "FILE_TIMESTAMP";
+    static final String listValuesTag         = "LIST";
+    static final String defaultStatusTag      = "DEFAULT_CLASSIFICATION";
+    static final String reportGroupTag        = "REPORT_GROUP";
+    static final String supportedTag          = "SUPPORTED";
+    static final String ruleTag               = "RULE";
+    static final String complexityTag         = "COMPLEXITY_SCORE";  
+    static final String complexityUndefined   = "";  
+    static final String complexityPattern     = "^((low|medium|high)|((\\-|\\+)?(\\d+)))$";
+    static final int complexityPatternGrpCfg         = 2;
+    static final int complexityPatternGrpUserCfg     = 1;
+    static final int complexityPatternGrpUserCfgNum  = 3;
+    static final String complexityPatternHelpCfg     = "low, medium, or high"; 
+    static final String complexityPatternHelpUserCfg = "low/medium/high, or a number"; 
+    static final int maxComplexityValue       = 100;         
+    static final String effortTag             = "EFFORT_ESTIMATE";
+    static final String effortPatternUnit     = "(d|day|days|h|hr|hrs|hour|hours|m|min|mins|minute|minutes)";
+    static final String effortPattern         = "^(\\d+)"+effortPatternUnit+"$";
+    static final String effortPatternHelp     = "<number>"+effortPatternUnit;
+    static final String effortUndefined       = "";    
+    static final String maxEffortValue        = "'5days'";
+    static final int maxEffortValueMins       = 7200;  // minutes in max value
+    
+    // these are not used by Compass, but for generating documentation
+    static final String docURLTag             = "DOCURL";    
+    static final String docTxtTag             = "DOCTXT";    
+
 
 	static final String wildcardChar = "%"; // can be used in list key as a wildcard
 	static final String wildcardTag = "WILDCARD";
@@ -69,181 +93,6 @@ public class CompassConfig {
 
 	public static CompassConfig getInstance() {
 		return instance;
-	}
-
-	// entry point for initializating the .cfg part
-	public void validateCfgFile(String pCfgFileName, String pUserCfgFileName) throws Exception {
-		supportOptionsCfgFileUpperCase = new ArrayList<>(u.supportOptionsCfgFile);	
-		u.listToUpperCase(supportOptionsCfgFileUpperCase);	
-		readCfgFile(pCfgFileName);
-
-		if (u.debugCfg) {
-			// this output may not get into the session log at that may nto be opened yet at this point
-			dumpCfg();
-		}
-
-		if (!cfgFileValid) {
-			if (versionInvalid) {
-				cfgOutput("Valid Babelfish versions: " + validBabelfishVersions());
-			}
-			cfgOutput("Configuration file not valid");
-			u.errorExit();
-		}
-		cfgOutput("Latest "+u.babelfishProg+" version supported: "+latestBabelfishVersion());
-		
-		// user .cfg file
-		validateUserCfgFile(pUserCfgFileName); 
-		if (!userCfgFileValid) {
-			cfgOutput(userConfigFilePathName, "User configuration file not valid. Delete file or remove offendng sections.");
-			u.errorExit();	
-		}
-	}
-
-	// validate/update the user's .cfg file; create if not existing
-	private static void validateUserCfgFile(String pUserCfgFileName) throws IOException {
-		userConfigFileName = pUserCfgFileName;
-		userConfigFilePathName = u.getUserCfgFilePathName(userConfigFileName);		
-        userCfgFile = new File(userConfigFilePathName);
-		if (u.userConfig) {
-	       // nothing
-	    }
-	    else {
-	        u.appOutput("Skipping "+userConfigFilePathName);
-	        return;
-	    }
-                
-        if (!userCfgFile.exists()) {
-        	u.appOutput("Creating user configuration file "+userConfigFilePathName);
-        	
-			u.openUserCfgFileNew(userConfigFileName);	
-			for (String s : cfgSections) {
-				if (s.equals(Babelfish_Compass_Name)) continue;
-				u.writeUserCfgFile("["+s+"]\n\n");
-			}
-			u.closeUserCfgFile();	    			    	
-        }
-        else {
-        	// read and validate contents of user .cfg file
-        	 u.appOutput("Reading "+userConfigFilePathName);
-			userCfg = getCfg(userConfigFilePathName, true);    
-			for (String sectionName: userCfg.keySet()) {         
-				Map<String, String> section = userCfg.get(sectionName);
-				//u.appOutput("sectionName=[" + sectionName + "]");
-				if (!sectionList.containsKey(sectionName.toUpperCase())) {
-					cfgOutput(userConfigFilePathName, "section ["+sectionName+"] not found in " + configFilePathName);
-					userCfgFileValid = false;
-					continue;
-				}
-
-				for (String optionKey : section.keySet()) {
-					String optionVal = section.get(optionKey);
-					String optionKeyCopy = optionKey;
-					optionKey = optionKey.toUpperCase();
-					String thisKey = createKey(optionKey);
-					// key: 'default_classification' items
-					if (optionKey.startsWith(defaultStatusTag)) {
-						overrideCount++;						
-						if (optionKey.equals(defaultStatusTag)) {
-							if (u.validSupportOptionsCfgFile.contains(optionVal.toUpperCase())) {
-								optionVal = u.supportOptions.get(supportOptionsCfgFileUpperCase.indexOf(optionVal.toUpperCase()));
-							} 
-							else {
-								cfgOutput(userConfigFilePathName, "Section [" + sectionName + "]: override key " + defaultStatusTag + " has invalid value [" + optionVal + "]. Valid values are " + u.validSupportOptionsCfgFileOrig);
-								userCfgFileValid = false;
-							}
-						} 
-						else if (!u.overrideClassificationsKeys.contains(optionKey)) {
-							cfgOutput(userConfigFilePathName, "Section [" + sectionName + "]: override key " + optionKey + " is invalid. Valid values are " + u.overrideClassificationsKeysOrig);
-							userCfgFileValid = false;
-						}
-						else {
-							if (optionVal.equals("*")) {
-								// default_classification-xxx=* ==> change to: default_classification=xxx
-								optionVal = optionKey.substring(defaultStatusTag.length() + 1);
-								optionKey = optionKey.substring(0,defaultStatusTag.length());
-								thisKey = createKey(optionKey);
-							}
-						}
-					}
-					// key: 'report_group', 'report_group-XYZ'
-					else if (optionKey.startsWith(reportGroupTag)) {
-						overrideCount++;						
-						if (optionVal.isEmpty()) {
-							cfgOutput(userConfigFilePathName, "Invalid override key '" + reportGroupTag + "=': value cannot be blank");
-							userCfgFileValid = false;
-						} 
-						else if (optionVal.equals("*")) {
-							if (optionKey.length() > reportGroupTag.length()) {
-								// report_group-xxx=* ==> change to: report_group=xxx
-								optionVal = optionKey.substring(reportGroupTag.length() + 1);
-								optionKey = optionKey.substring(0,reportGroupTag.length());
-								thisKey = createKey(optionKey);				
-							}
-							else {
-								cfgOutput(userConfigFilePathName, "Invalid key '" + reportGroupTag + "=': value must be a group name, not '*'");
-								cfgFileValid = false;
-							}							
-						}
-						// do not lowercase the group name when it is part of the key
-						if (optionKey.length() > reportGroupTag.length()) {
-							String groupName = optionKeyCopy.substring(reportGroupTag.length() + 1);
-							// the key is in uppercase, but we want the group name to preserve the case, so patch it in
-							thisKey = reportGroupTag + subKeySeparator + groupName; 
-						}
-					} 
-					else {
-						// catchall
-						cfgOutput(userConfigFilePathName, "Invalid override key '" + optionKey + "'");
-						userCfgFileValid = false;
-					}	
-						
-					// record the overrides
-					List<String> theseItems = new ArrayList<>(Arrays.asList(optionVal.split(",")));
-					if (!optionKey.equals(reportGroupTag)) {
-						u.listToUpperCase(theseItems);
-					}
-							
-					if (!sectionOverrideList.containsKey(sectionName.toUpperCase())) {
-						sectionOverrideList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
-					}
-					
-					Map<String, List<String>> featureList;
-					featureList = sectionOverrideList.get(sectionName.toUpperCase());
-					featureList.put(thisKey, theseItems);
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added override key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "]", u.debugCfg);		
-					
-					// check items in 'report_group-xxx', default_classification-XXX'  are in the listValues key (if a list exists)
-					if (optionKey.startsWith(reportGroupTag+subKeySeparator) ||
-					    optionKey.startsWith(defaultStatusTag+subKeySeparator)
-					   ) {					
-						boolean itemValid = validateItemsListed(userConfigFilePathName, optionKey, optionVal, thisKey, sectionName, sectionList.get(sectionName.toUpperCase()), theseItems);				
-						userCfgFileValid = userCfgFileValid & itemValid;
-					}															
-				}				
-			}
-			if (!userCfgFileValid) {
-				return;
-			}
-			
-			// patch up .cfg file
-			// first determine if there are any keys missing compared to the main .cfg file
-			// if so, append the missing keys 
-			StringBuilder addLines = new StringBuilder("");
-			for (String mainSection: cfg.keySet()) {
-				if (mainSection.equals(Babelfish_Compass_Name)) continue;
-				if (userCfg.containsKey(mainSection)) continue;
-				u.appOutput("Appending section ["+mainSection+"] to "+ userConfigFilePathName);
-				addLines.append("["+mainSection+"]\n\n");
-			}
-			
-			// add missing sections
-			if (addLines.length() > 0) {
-				u.openUserCfgFileAppend(userConfigFileName);	
-				u.writeUserCfgFile(addLines.toString());
-				u.closeUserCfgFile();	 
-			}
-		}
-		//u.errorExit();
 	}
 	
 	public static void cfgOutput(String s) {
@@ -502,6 +351,8 @@ public class CompassConfig {
 				status = featureDefaultStatus(section);				
 			}					
 		}
+		lastCfgCheckSection = section;
+		lastCfgCheckName    = "";
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: status=[" + status + "] ", u.debugCfg);
 		return status;
 	}
@@ -606,6 +457,8 @@ public class CompassConfig {
 				status = featureDefaultStatus(section, name);				
 			}
 		}
+		lastCfgCheckSection = section;
+		lastCfgCheckName    = name;
 		return status;
 	}
 
@@ -660,6 +513,221 @@ public class CompassConfig {
 		}
 		return isSupported;
 	}
+
+	// find original section in .cfg for an item (for effort matching)
+	// not currently used
+	public static String findSectionForItem(String item) {
+		item = item.toUpperCase();
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: item=["+item+"] ", u.debugCfg);			
+		String section = "";
+		boolean done = false;
+		for (String key : sectionList.keySet()) {
+			Map<String, List<String>> featureList = sectionList.get(key);
+			for (String key2 : featureList.keySet()) {
+				List<String> thisList = featureList.get(key2);	
+				if (thisList == null) continue;		
+				if (thisList.contains(item)) {
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " found key=[" + key + "] key2=["+key2+"] with item in thisList=[" + thisList + "] ", u.debugCfg);
+					section = key;
+					done = true;
+					break;
+				}
+			}
+			if (done) break;
+		}			
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: section=["+section+"] ", u.debugCfg);		
+		return section;
+	}
+
+	// Is there a complexity score defined for this section?
+	public static String featureComplexityDefined(String section) {
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"]", u.debugCfg);			
+		String complexityDef = complexityUndefined;
+		section = section.toUpperCase();
+		if (sectionComplexityList.containsKey(section)) {
+			Map<String, List<String>> featureComplexitytList = sectionComplexityList.get(section);
+			String complexityKey = createKey(complexityTag);
+			List<String> thisComplexitytList = featureComplexitytList.get(complexityKey);
+			if (thisComplexitytList != null) {
+				complexityDef = thisComplexitytList.get(0);
+			}		
+		}				
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: complexityDef=["+complexityDef+"] section=["+section+"] ", u.debugCfg);		
+		return complexityDef;
+	}
+	
+	// Is there a complexity score defined for this section + item ?
+	public static String featureComplexityDefined(String section, String name) {
+		return featureComplexityDefined(section, name, false);
+	}
+	public static String featureComplexityDefined(String section, String name, boolean getDefaultValue) {
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"] name=["+name+"] getDefaultValue=["+getDefaultValue+"] ", u.debugCfg);		
+		String complexityDef = complexityUndefined;
+		section = section.toUpperCase();
+		name = name.toUpperCase();
+		if (sectionComplexityList.containsKey(section)) {
+			Map<String, List<String>> featureComplexityList = sectionComplexityList.get(section);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "section=["+section+"] name=["+name+"] featureComplexityList=["+featureComplexityList+"] ", u.debugCfg);	
+			for (String key : featureComplexityList.keySet()) {
+				List<String> nameList = featureComplexityList.get(key);
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "key=["+key+"] nameList=["+nameList+"]  ", u.debugCfg);	
+				if (nameList.contains(name)) {
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "name found in list=["+name+"] ", u.debugCfg);	
+					// get complexity score from key
+					complexityDef = key.substring(complexityTag.length() + 1);
+					break;
+				}
+			}	
+			if (complexityDef.equalsIgnoreCase(complexityUndefined)) {
+				if (getDefaultValue) {
+					// check for default complexity score
+					if (featureComplexityList.containsKey(complexityTag)) {
+						complexityDef = featureComplexityList.get(complexityTag).get(0);
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "dft complexity score for section=["+section+"] complexityDef=["+complexityDef+"] ", u.debugCfg);	
+					}
+				}
+			}
+		}				
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: complexityDef=["+complexityDef+"] section=["+section+"] name=["+name+"] ", u.debugCfg);		
+		return complexityDef;
+	}		
+
+	// validate complexity score value; regex has already been verified
+	// only called form user .cfg since main .cfg has no numeric values
+	private static boolean validateComplexityValue (String complexityValue) {
+		boolean isValid = true;
+		//u.appOutput(u.thisProc()+"complexityValue=["+complexityValue+"] complexityPattern=["+complexityPattern+"] complexityPatternGrpUserCfgNum=["+complexityPatternGrpUserCfgNum+"] ");
+		String m = u.getPatternGroup(complexityValue, complexityPattern, complexityPatternGrpUserCfgNum);
+		//u.appOutput(u.thisProc()+"m=["+m+"] ");
+		if (m != null) {
+			if (!m.isEmpty()) {
+				int complexityValueNum = Integer.parseInt((u.getPatternGroup(complexityValue, complexityPattern, complexityPatternGrpUserCfg)));
+				if (Math.abs(complexityValueNum) > maxComplexityValue) {									
+					cfgOutput(userConfigFilePathName, "Complexity score value '"+complexityValue+"' must be between 0 and "+maxComplexityValue + " (inclusive)");
+					isValid = false;
+				}		
+			}
+		}
+		return isValid;
+	}	
+
+	// Is there an effort defined for this section?
+	public static String featureEffortDefined(String section) {
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"]", u.debugCfg);			
+		String effortDef = effortUndefined;
+		section = section.toUpperCase();
+		if (sectionEffortList.containsKey(section)) {
+			Map<String, List<String>> featureEffortList = sectionEffortList.get(section);
+			String effortKey = createKey(effortTag);
+			List<String> thisEffortList = featureEffortList.get(effortKey);
+			if (thisEffortList != null) {
+				effortDef = thisEffortList.get(0);
+			}		
+		}				
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: effortDef=["+effortDef+"] section=["+section+"] ", u.debugCfg);		
+		return effortDef;
+	}
+
+	// Is there an effort estimate defined for this section + item ?
+	public static String featureEffortDefined(String section, String name) {
+		return featureEffortDefined(section, name, false);
+	}
+	public static String featureEffortDefined(String section, String name, boolean getDefaultValue) {
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"] name=["+name+"] getDefaultValue=["+getDefaultValue+"] ", u.debugCfg);		
+		String effortDef = effortUndefined;
+		section = section.toUpperCase();
+		name = name.toUpperCase();
+		if (sectionEffortList.containsKey(section)) {
+			Map<String, List<String>> featureEffortList = sectionEffortList.get(section);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "section=["+section+"] name=["+name+"] featureEffortList=["+featureEffortList+"] ", u.debugCfg);	
+			for (String key : featureEffortList.keySet()) {
+				List<String> nameList = featureEffortList.get(key);
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "key=["+key+"] nameList=["+nameList+"]  ", u.debugCfg);	
+				if (nameList.contains(name)) {
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "name found in list=["+name+"] ", u.debugCfg);	
+					// get effort from key
+					effortDef = key.substring(effortTag.length() + 1);
+					break;
+				}
+			}	
+			if (effortDef.equalsIgnoreCase(effortUndefined)) {
+				if (getDefaultValue) {
+					// check for default effort
+					if (featureEffortList.containsKey(effortTag)) {
+						effortDef = featureEffortList.get(effortTag).get(0);
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "dft effort for section=["+section+"] effortDef=["+effortDef+"] ", u.debugCfg);	
+					}
+				}
+			}
+		}				
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: effortDef=["+effortDef+"] section=["+section+"] name=["+name+"] ", u.debugCfg);		
+		return effortDef;
+	}	
+
+	public static String formatEffort(String effortValue) {
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: effortValue=["+effortValue+"] ", u.debugCfg);	
+		if (effortValue.equalsIgnoreCase(effortUndefined)) {
+			return effortUndefined;
+		}		
+		String effortUnit = u.getPatternGroup(effortValue, effortPattern, 2);			
+		char unit = effortUnit.toUpperCase().charAt(0);
+		assert ((unit == 'D') || (unit == 'H') || (unit == 'M')) : "Invalid unit=["+unit+"] effortValue=["+effortValue+"]";
+		
+		Integer effortValueNum = Integer.parseInt((u.getPatternGroup(effortValue, effortPattern, 1)));
+		String effortUnitFmt = "";
+		if (unit == 'D') {
+			effortUnitFmt = "day";
+		}
+		else if (unit == 'H') {
+			effortUnitFmt = "hour";
+		}
+		else if (unit == 'M') {
+			effortUnitFmt = "minute";
+		}
+		else {
+			// we cannot get here	
+		}	
+				
+		String effortFmt = effortValueNum.toString() + " " + effortUnitFmt;
+		if (effortValueNum != 1) effortFmt += "s";
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: effortValue=["+effortValue+"] ", u.debugCfg);		
+		return effortFmt;
+	}
+	
+	// validate effort estimate value; regex has already been verified
+	private static boolean validateEffortValue (String effortValue) {
+		boolean isValid = true;
+		if (convertEffortValue(effortValue) > maxEffortValueMins) {									
+			cfgOutput(userConfigFilePathName, "Effort estimate value '"+effortValue+"' is unreasonably high; use max value accepted is " + maxEffortValue);
+			isValid = false;
+		}		
+		return isValid;
+	}	
+
+	// convert effort to minutes; regex has already been verified
+	public static Integer convertEffortValue (String effortValue) {		
+		if (effortValue.equalsIgnoreCase(effortUndefined) || effortValue.isEmpty()) {
+			return 0;
+		}		
+		int effortMinutes = 0;
+		int effortValueNum = Integer.parseInt((u.getPatternGroup(effortValue, effortPattern, 1)));
+		String effortUnit = u.getPatternGroup(effortValue, effortPattern, 2);	
+		if (effortUnit.toUpperCase().charAt(0) == 'D') {
+			effortMinutes = effortValueNum * 1440;
+		}
+		else if (effortUnit.toUpperCase().charAt(0) == 'H') {
+			effortMinutes = effortValueNum * 60;
+		}
+		else if (effortUnit.toUpperCase().charAt(0) == 'M') {
+			effortMinutes = effortValueNum;
+		}
+		else {
+			// we cannot get here
+			u.appOutput("Invalid effortUnit=["+effortUnit+"] effortValue=[$effortValue] ");
+			u.errorExitStackTrace();			
+		}		
+		return effortMinutes;
+	}	
 
 	// TODO use section.toUpperCase() if called from outside (not by a Config method) -- but this is not currently the case
 	public static String featureDefaultStatus(String section) {
@@ -883,7 +951,7 @@ public class CompassConfig {
 					List<String> thisList = featureList.get(key);
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " foundGroup=[" + foundGroup + "]  thisList=[" + thisList + "] ", u.debugCfg);
 					if (thisList.contains(name)) {
-						// this feature should be reported under 'foundGroup'
+						// this feature should be reporteunder 'foundGroup'
 						foundGroup = u.getPatternGroup(foundGroup, "^\\" + subKeySeparator + "(.*?)(\\=|$)", 1); // TODO substring until equal or end (indexOf = -1)
 						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " foundGroup=[" + foundGroup + "] ", u.debugCfg);
 						group = foundGroup;
@@ -961,19 +1029,39 @@ public class CompassConfig {
 	}
 
 	// debug: dump all config keys
-	public static void dumpCfg() {
+	public static void dumpCfg(String type) {
+		Map<String, Map<String, List<String>>> cfgSectionList = new LinkedHashMap<>();	
 		int nrKeys = 0;
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "=== dumping config ================= ", u.debugCfg);
+		String typeStr = type;
+		if (type.equals("main")) {
+			cfgSectionList = sectionList;
+		}
+		else if (type.equals("user")) {
+			cfgSectionList = sectionOverrideList;
+		}
+		else if (type.equals(effortTag)) {
+			cfgSectionList = sectionEffortList;
+		}
+		else if (type.equals(complexityTag)) {
+			cfgSectionList = sectionComplexityList;
+		}
+		else {
+			u.appOutput("Invalid argument type=["+type+"]");
+			u.errorExitStackTrace();
+		}
+		
+		if (u.debugging) u.dbgOutput(" ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "=== dumping "+ typeStr +" config ================= ", u.debugCfg);
 		if (u.debugging) u.dbgOutput("=== sections: ================= ", u.debugCfg);
-		for (String section : sectionList.keySet()) {
+		for (String section : cfgSectionList.keySet()) {
 			if (u.debugging) u.dbgOutput("  section=[" + section + "] ", u.debugCfg);
 		}
-		if (u.debugging) u.dbgOutput("=== Nr. sections: " + sectionList.size() + " ================= ", u.debugCfg);
+		if (u.debugging) u.dbgOutput("=== Nr. sections: " + cfgSectionList.size() + " ================= ", u.debugCfg);
 		if (u.debugging) u.dbgOutput("", u.debugCfg);
 		if (u.debugging) u.dbgOutput("=== keys: ================= ", u.debugCfg);
-
-		for (String sectionName : sectionList.keySet()) {
-			Map<String, List<String>> featureList = sectionList.get(sectionName);
+		
+		for (String sectionName : cfgSectionList.keySet()) {
+			Map<String, List<String>> featureList = cfgSectionList.get(sectionName);
 			for (String key : featureList.keySet()) {
 				nrKeys++;
 				List<String> thisList = featureList.get(key);
@@ -981,7 +1069,7 @@ public class CompassConfig {
 			}
 		}
 		if (u.debugging) u.dbgOutput("=== Nr. keys: " + nrKeys + " ================= ", u.debugCfg);
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "======= end config ================= ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "======= end "+ typeStr +" config ================= ", u.debugCfg);
 	}
 
 	private static boolean matchWildcard(String sectionName, String s, List<String> allItems) {
@@ -1002,7 +1090,8 @@ public class CompassConfig {
 	}
 
 	// read the .cfg file
-	private static void readCfgFile(String pCfgFileName) throws Exception {
+	private static boolean readCfgFile(String pCfgFileName) throws Exception {
+		boolean cfgFileValid = true;
 		configFileName = pCfgFileName;
 		configFilePathName = Paths.get(pCfgFileName).toAbsolutePath().toString();
 
@@ -1019,7 +1108,7 @@ public class CompassConfig {
         if (cfg.keySet().size() < 25) {
         	cfgFileValid = false;
         	cfgOutput("file invalid, only "+cfg.keySet().size()+" sections found; expecting many more");
-			return;
+			return cfgFileValid;
         }
 
 		int sectionCount = 0;
@@ -1030,7 +1119,7 @@ public class CompassConfig {
 			if (sectionCount == 1 && !sectionName.equals(Babelfish_Compass_Name)) {
 				cfgFileValid = false;
 				cfgOutput("first section must be [" + Babelfish_Compass_Name + "]");
-				return;  //just don't proceed;
+				return cfgFileValid;  //just don't proceed;
 			}
 
 			if (sectionCount == 2) {
@@ -1042,7 +1131,7 @@ public class CompassConfig {
 				}
 
 				if (!cfgFileValid) {
-					return; // just don't proceed if versions are not correct
+					return cfgFileValid; // just don't proceed if versions are not correct
 				}
 			}
 
@@ -1200,7 +1289,7 @@ public class CompassConfig {
 				// key: 'report_group', 'report_group-XYZ'
 				else if (optionKey.startsWith(reportGroupTag)) {							
 					if (optionVal.isEmpty()) {
-						cfgOutput("Invalid key '" + reportGroupTag + "=': value cannot be blank");
+						cfgOutput("["+sectionName+"]: Invalid key '" + reportGroupTag + "=': value cannot be blank");
 						cfgFileValid = false;
 					} 
 					else if (optionVal.equals("*")) {
@@ -1211,7 +1300,7 @@ public class CompassConfig {
 							thisKey = createKey(optionKey);				
 						}
 						else {
-							cfgOutput("Invalid key '" + reportGroupTag + "=': value must be a group name, not '*'");
+							cfgOutput("["+sectionName+"]: Invalid key '" + reportGroupTag + "=': value must be a group name, not '*'");
 							cfgFileValid = false;
 						}
 					}
@@ -1222,31 +1311,127 @@ public class CompassConfig {
 						thisKey = reportGroupTag + subKeySeparator + groupName; // TODO This probably works, but test this if there are still issues
 					}
 				}
+				// this code is (almost) duplicated for the user .cfg file					
+				// key: 'complexity_score' items
+				else if (optionKey.equals(complexityTag)) {	
+					optionVal = optionVal.replaceAll(" ", "");
+					if (optionVal.isEmpty()) {
+						cfgOutput("Invalid complexity key '" + complexityTag + "=': value cannot be blank");
+						cfgFileValid = false;
+						continue;
+					} 									
+					else {
+						String m = u.getPatternGroup(optionVal, complexityPattern, complexityPatternGrpCfg);
+						if (m == null) m = "";
+						if (!m.isEmpty()) {
+							if (!validateComplexityValue(optionVal)) {
+								cfgFileValid = false;
+								continue;
+							}
+							thisKey = createKey(optionKey);
+						}
+						else {
+							cfgOutput("["+sectionName+"]: Invalid key '" + complexityTag + "=': value [" + optionVal + "], must be " + complexityPatternHelpCfg);
+							cfgFileValid = false;
+							continue;
+						}	
+					}	
+				}
+				// this code is (almost) duplicated for the user .cfg file
+				else if (optionKey.startsWith(complexityTag)) {	
+					optionKey = optionKey.replaceAll(" ", "");
+					String complexityVal = optionVal;
+					if (optionVal.isEmpty()) {
+						cfgOutput("["+sectionName+"]: Invalid key '" + complexityTag + "=': value cannot be blank");
+						cfgFileValid = false;
+						continue;
+					} 
+					else if (optionVal.equals("*")) {
+						if (optionKey.length() > complexityTag.length()) {
+							// complexity-xxx=* ==> change to: complexity=xxx
+							if (!validateComplexityValue(complexityVal)) {
+								cfgFileValid = false;
+								continue;
+							}
+							thisKey = createKey(optionKey);		
+						}
+						else {
+							cfgOutput("["+sectionName+"]: Invalid key '" + complexityTag + "=': value must be " + complexityPatternHelpCfg + ", not '*'");
+							cfgFileValid = false;
+							continue;
+						}							
+					}
+					if (optionKey.length() > complexityTag.length()) {
+						complexityVal = optionKey.substring(complexityTag.length() + 1);
+						thisKey = complexityTag + subKeySeparator + complexityVal; 
+					}		
+									
+					if (!u.getPatternGroup(complexityVal, complexityPattern, complexityPatternGrpCfg).isEmpty()) {
+						if (!validateComplexityValue(complexityVal)) {
+							cfgFileValid = false;
+							continue;
+						}
+						thisKey = createKey(optionKey);
+					}
+					else {
+						cfgOutput("["+sectionName+"]: Invalid key '" + complexityTag + "=': value [" + complexityVal + "], must be " + complexityPatternHelpCfg);
+						cfgFileValid = false;
+						continue;
+					}		
+					thisKey = thisKey.toUpperCase();
+				}					
 				// key: 'rule'
 				else if (optionKey.equals(ruleTag)) {
-					//not yet processed
+					// ignored by Compass
+				} 
+				else if (optionKey.startsWith(docURLTag)) {
+					// ignored by Compass
+				} 
+				else if (optionKey.startsWith(docTxtTag)) {
+					// ignored by Compass
 				} 
 				else {
 					// catchall
-					cfgOutput("Invalid key '" + optionKey + "'");
+					cfgOutput("["+sectionName+"]: Invalid key '" + optionKey + "'");
 					cfgFileValid = false;
 					break;
 				}
-
+				
+				// record the keys
+				Map<String, List<String>> featureList;
+				
 				List<String> theseItems = new ArrayList<>(Arrays.asList(optionVal.split(",")));
 				if (!optionKey.equals(reportGroupTag)) {
 					u.listToUpperCase(theseItems);
 					u.listTrim(theseItems);
 				}
 
-				Map<String, List<String>> featureList;
-
+				if (optionKey.startsWith(complexityTag)) {	
+					if (!sectionComplexityList.containsKey(sectionName.toUpperCase())) {
+						sectionComplexityList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
+					}
+				}					
+				else {					
+					if (!sectionList.containsKey(sectionName.toUpperCase())) {
+						sectionList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
+					}
+				}
+				
 				if (!sectionList.containsKey(sectionName.toUpperCase())) {
 					sectionList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
 				}
 				featureList = sectionList.get(sectionName.toUpperCase());
+				
+				if (optionKey.startsWith(complexityTag)) {	
+					featureList = sectionComplexityList.get(sectionName.toUpperCase());						
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added complexity key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);								
+				}					
+				else {
+					featureList = sectionList.get(sectionName.toUpperCase());					
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);		
+				}
+									
 				featureList.put(thisKey, theseItems);
-				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "]", u.debugCfg);
 
 					// check items in 'supported-XXX', 'report_group-xxx', default_classification-XXX'  are in the listValues key (if a list exists)
 				if (optionKey.startsWith(supportedTag+subKeySeparator) || 
@@ -1258,6 +1443,7 @@ public class CompassConfig {
 				}
 			}
 		}
+		return cfgFileValid;
 	}
 	
 	// check items in a non-list key are in the listValues key (if a list exists)
@@ -1296,11 +1482,354 @@ public class CompassConfig {
 		}		
 		return isValid;
 	}
+	
 
+	// entry point for initializating the .cfg part
+	public void validateCfgFile(String pCfgFileName, String pUserCfgFileName) throws Exception {
+		supportOptionsCfgFileUpperCase = new ArrayList<>(u.supportOptionsCfgFile);	
+		u.listToUpperCase(supportOptionsCfgFileUpperCase);	
+		boolean cfgFileValid = readCfgFile(pCfgFileName);
+
+		if (u.debugCfg) {
+			// this output may not get into the session log at that may nto be opened yet at this point
+			dumpCfg("main");
+			dumpCfg(complexityTag);
+		}
+
+		if (!cfgFileValid) {
+			if (versionInvalid) {
+				cfgOutput("Valid Babelfish versions: " + validBabelfishVersions());
+			}
+			cfgOutput("Configuration file not valid");
+			u.errorExit();
+		}
+		cfgOutput("Latest "+u.babelfishProg+" version supported: "+latestBabelfishVersion());
+		// user .cfg file
+		boolean userCfgFileValid = validateUserCfgFile(pUserCfgFileName); 
+		if (u.debugCfg) {
+			// this output may not get into the session log at that may nto be opened yet at this point
+			dumpCfg("user");
+			dumpCfg(effortTag);
+			dumpCfg(complexityTag);
+		}		
+		if (!userCfgFileValid) {
+			cfgOutput(userConfigFilePathName, "User configuration file not valid. Delete file or remove/correct offending sections.");
+			u.errorExit();	
+		}			
+	}
+
+	// validate/update the user's .cfg file; create if not existing
+	private static boolean validateUserCfgFile(String pUserCfgFileName) throws IOException {
+		boolean cfgFileValid = true;
+		userConfigFileName = pUserCfgFileName;
+		userConfigFilePathName = u.getUserCfgFilePathName(userConfigFileName);		
+        userCfgFile = new File(userConfigFilePathName);
+		if (u.userConfig) {
+	       // nothing
+	    }
+	    else {
+	        u.appOutput("Skipping "+userConfigFilePathName);
+	        cfgFileValid = false;
+	        return cfgFileValid;
+	    }
+                
+        if (!userCfgFile.exists()) {
+        	u.appOutput("Creating user configuration file "+userConfigFilePathName);
+        	
+			u.openUserCfgFileNew(userConfigFileName);	
+			for (String s : cfgSections) {
+				if (s.equals(Babelfish_Compass_Name)) continue;
+				u.writeUserCfgFile("["+s+"]\n\n");
+			}
+			u.closeUserCfgFile();	    			    	
+        }
+        else {
+        	// read and validate contents of user .cfg file
+        	u.appOutput("Reading "+userConfigFilePathName);
+			userCfg = getCfg(userConfigFilePathName, true);    
+			for (String sectionName: userCfg.keySet()) {         
+				Map<String, String> section = userCfg.get(sectionName);
+				//u.appOutput("sectionName=[" + sectionName + "]");
+				if (!sectionList.containsKey(sectionName.toUpperCase())) {
+					cfgOutput(userConfigFilePathName, "section ["+sectionName+"] not found in " + configFilePathName);
+					cfgFileValid = false;
+					continue;
+				}
+
+				for (String optionKey : section.keySet()) {
+					String optionVal = section.get(optionKey);
+					String optionKeyCopy = optionKey;
+					optionKey = optionKey.toUpperCase();
+					String thisKey = createKey(optionKey);
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() +"section=[" + sectionName + "] optionKey=[" + optionKey + "] thisKey=[" + thisKey + "]  val=[" + optionVal + "]", u.debugCfg);					
+					// key: 'default_classification' items
+					if (optionKey.startsWith(defaultStatusTag)) {
+						overrideCount++;						
+						if (optionKey.equals(defaultStatusTag)) {
+							if (u.validSupportOptionsCfgFile.contains(optionVal.toUpperCase())) {
+								optionVal = u.supportOptions.get(supportOptionsCfgFileUpperCase.indexOf(optionVal.toUpperCase()));
+							} 
+							else {
+								cfgOutput(userConfigFilePathName, "Section [" + sectionName + "]: override key " + defaultStatusTag + " has invalid value [" + optionVal + "]. Valid values are " + u.validSupportOptionsCfgFileOrig);
+								cfgFileValid = false;
+							}
+						} 
+						else if (!u.overrideClassificationsKeys.contains(optionKey)) {
+							cfgOutput(userConfigFilePathName, "Section [" + sectionName + "]: override key " + optionKey + " is invalid. Valid values are " + u.overrideClassificationsKeysOrig);
+							cfgFileValid = false;
+						}
+						else {
+							if (optionVal.equals("*")) {
+								// default_classification-xxx=* ==> change to: default_classification=xxx
+								optionVal = optionKey.substring(defaultStatusTag.length() + 1);
+								optionKey = optionKey.substring(0,defaultStatusTag.length());
+								thisKey = createKey(optionKey);
+							}
+						}
+					}
+					// key: 'report_group', 'report_group-XYZ'
+					else if (optionKey.startsWith(reportGroupTag)) {
+						overrideCount++;						
+						if (optionVal.isEmpty()) {
+							cfgOutput(userConfigFilePathName, "Invalid override key '" + reportGroupTag + "=': value cannot be blank");
+							cfgFileValid = false;
+						} 
+						else if (optionVal.equals("*")) {
+							if (optionKey.length() > reportGroupTag.length()) {
+								// report_group-xxx=* ==> change to: report_group=xxx
+								optionVal = optionKey.substring(reportGroupTag.length() + 1);
+								optionKey = optionKey.substring(0,reportGroupTag.length());
+								thisKey = createKey(optionKey);				
+							}
+							else {
+								cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + reportGroupTag + "=': value must be a group name, not '*'");
+								cfgFileValid = false;
+							}							
+						}
+						// do not lowercase the group name when it is part of the key
+						if (optionKey.length() > reportGroupTag.length()) {
+							String groupName = optionKeyCopy.substring(reportGroupTag.length() + 1);
+							// the key is in uppercase, but we want the group name to preserve the case, so patch it in
+							thisKey = reportGroupTag + subKeySeparator + groupName; 
+						}
+					} 
+					// key: 'effort_estimate' items
+					else if (optionKey.equals(effortTag)) {	
+						optionVal = optionVal.replaceAll(" ", "");
+						if (optionVal.isEmpty()) {
+							cfgOutput(userConfigFilePathName, "Invalid effort key '" + effortTag + "=': value cannot be blank");
+							cfgFileValid = false;
+						} 									
+						else if (!u.getPatternGroup(optionVal, effortPattern, 1).isEmpty()) {
+							if (!validateEffortValue(optionVal)) {
+								cfgFileValid = false;
+								continue;
+							}
+							thisKey = createKey(optionKey);
+						}
+						else {
+							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + effortTag + "=': value [" + optionVal + "], must be " + effortPatternHelp);
+							cfgFileValid = false;
+							continue;
+						}		
+					}
+					else if (optionKey.startsWith(effortTag)) {	
+						optionKey = optionKey.replaceAll(" ", "");
+						String effortVal = optionVal;
+						if (optionVal.isEmpty()) {
+							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + effortTag + "=': value cannot be blank");
+							cfgFileValid = false;
+							continue;
+						} 
+						else if (optionVal.equals("*")) {
+							if (optionKey.length() > effortTag.length()) {
+								// effort-xxx=* ==> change to: effort=xxx
+								if (!validateEffortValue(effortVal)) {
+									cfgFileValid = false;
+									continue;
+								}
+								thisKey = createKey(optionKey);		
+							}
+							else {
+								cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + effortTag + "=': value must be " + effortPatternHelp + ", not '*'");
+								cfgFileValid = false;
+								continue;
+							}							
+						}
+						if (optionKey.length() > effortTag.length()) {
+							effortVal = optionKey.substring(effortTag.length() + 1);
+							thisKey = effortTag + subKeySeparator + effortVal; 
+						}		
+										
+						if (!u.getPatternGroup(effortVal, effortPattern, 1).isEmpty()) {
+							if (!validateEffortValue(effortVal)) {
+								cfgFileValid = false;
+								continue;
+							}
+							thisKey = createKey(optionKey);
+						}
+						else {
+							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + effortTag + "=': value [" + effortVal + "], must be " + effortPatternHelp);
+							cfgFileValid = false;
+							continue;
+						}		
+						thisKey = thisKey.toUpperCase();
+					}					
+					// this code is (almost) duplicated for the main .cfg file					
+					// key: 'complexity_score' items
+					else if (optionKey.equals(complexityTag)) {	
+						optionVal = optionVal.replaceAll(" ", "");
+						if (optionVal.isEmpty()) {
+							cfgOutput(userConfigFilePathName, "Invalid complexity key '" + complexityTag + "=': value cannot be blank");
+							cfgFileValid = false;
+							continue;
+						} 									
+						else if (!u.getPatternGroup(optionVal, complexityPattern, complexityPatternGrpUserCfg).isEmpty()) {
+							if (!validateComplexityValue(optionVal)) {
+								cfgFileValid = false;
+								continue;
+							}
+							thisKey = createKey(optionKey);
+						}
+						else {
+							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + complexityTag + "=': value [" + optionVal + "], must be " + complexityPatternHelpUserCfg);
+							cfgFileValid = false;
+							continue;
+						}		
+					}
+					// this code is (almost) duplicated for the main .cfg file
+					else if (optionKey.startsWith(complexityTag)) {	
+						optionKey = optionKey.replaceAll(" ", "");
+						String complexityVal = optionVal;
+						if (optionVal.isEmpty()) {
+							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + complexityTag + "=': value cannot be blank");
+							cfgFileValid = false;
+							continue;
+						} 
+						else if (optionVal.equals("*")) {
+							if (optionKey.length() > complexityTag.length()) {
+								// complexity-xxx=* ==> change to: complexity=xxx
+								if (!validateComplexityValue(complexityVal)) {
+									cfgFileValid = false;
+									continue;
+								}
+								thisKey = createKey(optionKey);		
+							}
+							else {
+								cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + complexityTag + "=': value must be " + complexityPatternHelpUserCfg + ", not '*'");
+								cfgFileValid = false;
+								continue;
+							}							
+						}
+						if (optionKey.length() > complexityTag.length()) {
+							complexityVal = optionKey.substring(complexityTag.length() + 1);
+							thisKey = complexityTag + subKeySeparator + complexityVal; 
+						}		
+										
+						if (!u.getPatternGroup(complexityVal, complexityPattern, complexityPatternGrpUserCfg).isEmpty()) {
+							if (!validateComplexityValue(complexityVal)) {
+								cfgFileValid = false;
+								continue;
+							}
+							thisKey = createKey(optionKey);
+						}
+						else {
+							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + complexityTag + "=': value [" + complexityVal + "], must be " + complexityPatternHelpUserCfg);
+							cfgFileValid = false;
+							continue;
+						}		
+						thisKey = thisKey.toUpperCase();
+					}					
+					else {
+						// catchall
+						cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid override key '" + optionKey + "'");
+						cfgFileValid = false;
+						continue;
+					}						
+												
+					// record the overrides
+					Map<String, List<String>> featureList;
+					
+					List<String> theseItems = new ArrayList<>(Arrays.asList(optionVal.split(",")));
+					if (!optionKey.equals(reportGroupTag)) {
+						u.listToUpperCase(theseItems);
+					}									
+					
+					if (optionKey.startsWith(effortTag)) {	
+						if (!sectionEffortList.containsKey(sectionName.toUpperCase())) {
+							sectionEffortList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
+						}
+						effortEstimatesFound = true;
+					}
+					else if (optionKey.startsWith(complexityTag)) {	
+						if (!sectionComplexityList.containsKey(sectionName.toUpperCase())) {
+							sectionComplexityList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
+						}
+					}					
+					else {					
+						if (!sectionOverrideList.containsKey(sectionName.toUpperCase())) {
+							sectionOverrideList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
+						}
+					}					
+					
+					if (optionKey.startsWith(effortTag)) {	
+						featureList = sectionEffortList.get(sectionName.toUpperCase());						
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added effort key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);								
+					}
+					else if (optionKey.startsWith(complexityTag)) {	
+						featureList = sectionComplexityList.get(sectionName.toUpperCase());						
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added complexity key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);								
+					}					
+					else {
+						featureList = sectionOverrideList.get(sectionName.toUpperCase());					
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added override key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);		
+					}
+					
+					// do the actual add:
+					featureList.put(thisKey, theseItems);					
+					
+					// check items in 'report_group-xxx', default_classification-XXX'  are in the listValues key (if a list exists)
+					if (optionKey.startsWith(reportGroupTag+subKeySeparator) ||
+					    optionKey.startsWith(defaultStatusTag+subKeySeparator)
+					   ) {					
+						boolean itemValid = validateItemsListed(userConfigFilePathName, optionKey, optionVal, thisKey, sectionName, sectionList.get(sectionName.toUpperCase()), theseItems);				
+						cfgFileValid = cfgFileValid & itemValid;
+					}															
+				}				
+			}
+			if (!cfgFileValid) {
+				return cfgFileValid;
+			}
+			
+			// determine if header needs to be upgraded; new header lines were added in v.2022-09
+			u.upgradeUserCfgFile(userConfigFileName);	
+			
+			// patch up .cfg file
+			// first determine if there are any keys missing compared to the main .cfg file
+			// if so, append the missing keys 
+			StringBuilder addLines = new StringBuilder("");
+			for (String mainSection: cfg.keySet()) {
+				if (mainSection.equals(Babelfish_Compass_Name)) continue;
+				if (userCfg.containsKey(mainSection)) continue;
+				u.appOutput("Appending section ["+mainSection+"] to "+ userConfigFilePathName);
+				addLines.append("["+mainSection+"]\n\n");
+			}
+			
+			// add missing sections
+			if (addLines.length() > 0) {
+				u.openUserCfgFileAppend(userConfigFileName);	
+				u.writeUserCfgFile(addLines.toString());
+				u.closeUserCfgFile();	 
+			}
+		}
+		//u.errorExit();
+		
+		return cfgFileValid;
+	}
+		
 	private static void printError(int nrLine, String line, String msg) {
 		if (!line.isEmpty()) line = ":" + line;
 		cfgOutput("Configuration file error at line " + nrLine + ". " + msg + line);
-		cfgFileValid = false;
 		u.errorExit();
 	}
 

@@ -39,6 +39,7 @@ public class CompassAnalyze {
 	static final String VarAggrAcrossRowsFmt   = "Variable may aggregate across rows";
 	static final String SpatialReportGroup     = "Geospatial";
 	static final String SpatialMethodCallFmt   = "Spatial method";
+	static final String WithRollupCubeOldSyntax= "GROUP BY...WITH ROLLUP/CUBE (old syntax)";
 
 	// for reporting items that do not fit elsewhere
 	static final String MiscReportGroup       = "Miscellaneous SQL Features";
@@ -81,6 +82,7 @@ public class CompassAnalyze {
 	static final String InformationSchema     = "INFORMATION_SCHEMA";
 	static final String XMLFeatures           = "XML features";
 	static final String HIERARCHYIDFeatures   = "HIERARCHYID features";
+	static final String Geospatial            = "Geospatial features";		
 	static final String JSONFeatures          = "JSON features";
 	static final String GlobalTmpTableFmt     = "##globaltmptable";     // for display
 	static final String GlobalTmpTable        = "Global Temporary Tables";
@@ -213,18 +215,24 @@ public class CompassAnalyze {
 	static final String VarAggrAcrossRows     = "Variable aggregates across rows";
 	static final String VarAssignDependency   = "Variable assignment dependency";
 	static final String TSQLOJ                = "T-SQL Outer Join operator";
+	static final String CompoundOpWhitespace  = "Compound operator containing whitespace";
+	static final String CompoundOpWhitespaceFmt = "Operator containing whitespace";
 	static final String LikeSquareBrackets    = "LIKE '[...]'";
+	static final String LikeSquareBracketsCfg = "LIKE '[...";  // for checking against the cfg file; when reading it we lose the closing square bracket and  beyond
 	static final String StringAggWithinGroup  = "STRING_AGG() WITHIN GROUP";
 	static final String SyntaxIssues          = "Syntax Issues";
 
 	// matching special values in the .cfg file
-	static final String CfgNonZero            = "NONZERO";
-	static final String CfgVariable           = "VARIABLE";
-	static final String CfgExpression         = "EXPRESSION";
-	static final String CfgXmlMethodCall      = "XML_METHOD_CALL";
-	static final String CfgHierachyIdMethodCall = "HIERACHYID_METHOD_CALL";
-	static final String CfgScalarUdfCall      = "SCALAR_UDF_CALL";
-	static final String CfgXMLSchema          = "XML(xmlschema)";
+	static final String cfgNonZero            = "NONZERO";
+	static final String cfgVariable           = "VARIABLE";
+	static final String cfgExpression         = "EXPRESSION";
+	static final String cfgXmlMethodCall      = "XML_METHOD_CALL";
+	static final String cfgHierachyIdMethodCall = "HIERACHYID_METHOD_CALL";
+	static final String cfgScalarUdfCall      = "SCALAR_UDF_CALL";
+	static final String cfgXMLSchema          = "XML(xmlschema)";
+	static final String cfgStringConcatPlus   = "STRING_CONCAT_PLUS";
+	static final String cfgCastDatetime       = "DATETIME";
+	static final String cfgConvertDatetime    = "DATETIME";
 	static final String cfgDoubleQuotedString                = "STRING";
 	static final String cfgDoubleQuoteEmbeddedSingleQuote    = "EMBEDDED_SINGLE_QUOTE";
 	static final String cfgDoubleQuoteEmbeddedDoubleQuote    = "EMBEDDED_DOUBLE_QUOTE";
@@ -484,10 +492,11 @@ public class CompassAnalyze {
 		}
 	}
 
-	private String cleanupTerm(String s) {
+	private String cleanupTermErrorCode(String s) {
 		s = s.trim();
 		while (s.startsWith("(")) s = s.substring(1).trim();
 		while (s.endsWith(")"))   s = CompassUtilities.removeLastChar(s).trim();
+		if (s.endsWith("(")) s += ")";
 		return s;
 	}
 
@@ -631,14 +640,17 @@ public class CompassAnalyze {
 		return resultType;
 	}
 
-	// lookup a column
-	private String lookupCol(String name) {
+	// lookup a column; must be called with resolved object name 
+	private String lookupCol(String objName, String colName) {
 		String resultType = "";
-		//String resolvedName = u.resolveName(name.toUpperCase());
-		String resolvedName = u.decodeIdentifier(name.toUpperCase());
-		if (CompassUtilities.colSymTab.containsKey(resolvedName)) {
-			resultType = CompassUtilities.colSymTab.get(resolvedName);
+		String resolvedObjName = u.resolveName(objName.toUpperCase());
+		String colKey = u.makeColSymTabKey(resolvedObjName, colName);
+		//u.appOutput(u.thisProc()+"objName=["+objName+"] colName=["+colName+"]  resolvedName=["+resolvedObjName+"] colKey=["+colKey+"] ");
+		//u.dumpSymTab("lookupCol objName=["+objName+"] colName=["+colName+"]  resolvedName=["+resolvedObjName+"] colKey=["+colKey+"]");
+		if (CompassUtilities.colSymTab.containsKey(colKey)) {
+			resultType = CompassUtilities.colSymTab.get(colKey);
 		}
+		//u.appOutput(u.thisProc()+"resultType=["+resultType+"] ");
 		return resultType;
 	}
 
@@ -646,7 +658,7 @@ public class CompassAnalyze {
 	private String lookupParDft(String objName, int parNo) {
 		String parDft = "";
 		String resolvedName = u.decodeIdentifier(u.resolveName(objName.toUpperCase()));
-		String parNoKey = u.makeparSymTabKey(resolvedName, parNo);
+		String parNoKey = u.makeParSymTabKey(resolvedName, parNo);
 		if (CompassUtilities.parSymTab.containsKey(parNoKey)) {
 			parDft = CompassUtilities.parSymTab.get(parNoKey);			
 		}
@@ -656,7 +668,7 @@ public class CompassAnalyze {
 	private String lookupParDft(String objName, String parName) {
 		String parDft = "";
 		String resolvedName = u.decodeIdentifier(u.resolveName(objName.toUpperCase()));
-		String parNameKey = u.makeparSymTabKey(resolvedName, parName);
+		String parNameKey = u.makeParSymTabKey(resolvedName, parName);
 		if (CompassUtilities.parSymTab.containsKey(parNameKey)) {
 			parDft = CompassUtilities.parSymTab.get(parNameKey);			
 		}
@@ -839,9 +851,9 @@ public class CompassAnalyze {
 		String separator = CompassUtilities.captureFileSeparator;
 
 		String currentContext = u.currentObjectType + " " + u.currentObjectName;
-		String subContext = u.currentObjectTypeSub + " " + u.currentObjectNameSub;
+		String subContext = u.currentObjectTypeSub + " " + u.currentObjectNameSub;		
 
-		// check if an item has a presentation string
+		// check if an item has a modified presentation string
 		item = item.trim();
 		if (displayString.containsKey(item)) {
 			item = displayString.get(item);
@@ -855,7 +867,7 @@ public class CompassAnalyze {
 		//   - if no group found, use Misc SQL features
 		String itemGroup = section;
 		String reportGroupCfg = "";
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"getting reportGroup: section=["+section+"] sectionItem=["+sectionItem+"]  ", u.debugCfg);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"getting reportGroup: section=["+section+"] sectionItem=["+sectionItem+"]  item=["+item+"] status=["+status+"] ", u.debugCfg);
 		if (!sectionItem.isEmpty()) {
 			reportGroupCfg = featureGroup(section, sectionItem);
 			if (reportGroupCfg.isEmpty()) {
@@ -881,7 +893,30 @@ public class CompassAnalyze {
 		if (itemGroup.contains(separator)) itemGroup = itemGroup.replaceAll(separator, CompassUtilities.captureFileSeparatorMarker);
 		if (currentContext.contains(separator)) currentContext = currentContext.replaceAll(separator, CompassUtilities.captureFileSeparatorMarker);
 		if (subContext.contains(separator)) subContext = subContext.replaceAll(separator, CompassUtilities.captureFileSeparatorMarker);
-
+		itemGroup = itemGroup.trim();
+	
+		// for (optional) effort estimation, try to link the original cfg section/item to what is shown in the report (since the effort estimation csv file is based on the report)
+		//u.appOutput(u.thisProc()+"lastCfgCheck=["+CompassConfig.lastCfgCheckSection+"] name=["+CompassConfig.lastCfgCheckName+"] ");
+		//u.appOutput(u.thisProc()+"item=["+item+"]  itemGroup=["+itemGroup+"] sectionItem=["+sectionItem+"] status=["+status+"] ");
+		String xrefLine = "";
+		if (!status.equals(u.Supported) && !status.equals(u.RewriteOppty)) {
+			if (!CompassConfig.lastCfgCheckSection.isEmpty()) {
+				String xrefLineKey = item +separator+ itemGroup +separator+ CompassConfig.lastCfgCheckSection +separator+ CompassConfig.lastCfgCheckName+separator;
+				xrefLineKey = xrefLineKey.toUpperCase();
+				if (!u.xrefLineFilter.containsKey(xrefLineKey)) {		
+					u.xrefLineFilter.put(xrefLineKey, 1);
+					//u.appOutput(u.thisProc()+"keep: ["+CompassConfig.lastCfgCheckSection+"], ["+CompassConfig.lastCfgCheckName+"]  ==>  ["+itemGroup+"], ["+item+"], ["+sectionItem+"]");
+					xrefLine = item +separator+ "" +separator+ itemGroup +separator+ u.XRefOnly +separator+ CompassConfig.lastCfgCheckSection +separator+ CompassConfig.lastCfgCheckName +separator+ "" +separator+ "" +separator+ "" +separator+ "" +separator+ "" +separator+ "" + separator + "~" + separator;	
+				}		
+			}
+		}
+		// the RewriteOppty record is always captured just before the Not-Supported  record we are interested in, so don't wipe out
+		if (!status.equals(u.RewriteOppty)) {		
+			CompassConfig.lastCfgCheckSection = "";		
+			CompassConfig.lastCfgCheckName = "";	
+		}	
+		
+		
 		// newlines are allowed in delimited identifiers (very rare, but possible). Remove 'm from itemDetail
 		// treat these chars the same as when writing to the symtab
 		if (itemDetail.contains("\n") || itemDetail.contains("\r")) {
@@ -893,7 +928,7 @@ public class CompassAnalyze {
 		// create the record
 		// NB: this format corresponds to 'captureFileFormatVersion = 1'
 		// if this format is ever changed, we need to provide backward compatibility to avoid breaking apps relying on the format; also potentially affects -pgimport upload file preparation
-		String itemLine = item +separator+ itemDetail.trim() +separator+ itemGroup.trim() +separator+ status +separator+ lineNr +separator+ u.currentAppName +separator+ u.currentSrcFile  +separator+ u.batchNrInFile +separator+ u.lineNrInFile +separator+ currentContext.trim() +separator+ subContext.trim() +separator+ misc + separator + "~" + separator;
+		String itemLine = item +separator+ itemDetail.trim() +separator+ itemGroup +separator+ status +separator+ lineNr +separator+ u.currentAppName +separator+ u.currentSrcFile  +separator+ u.batchNrInFile +separator+ u.lineNrInFile +separator+ currentContext.trim() +separator+ subContext.trim() +separator+ misc + separator + "~" + separator;
 
 		// check for newlines -- these will mess everything up (could still occur due to identifiers containing a newline)
 		// printing a warning so that any cases that may results from bugs, are not being lost and may be reported back
@@ -942,12 +977,21 @@ public class CompassAnalyze {
 		} catch (Exception e) {
 			u.appOutput("Error writing to capture file");
 		}
+		
+		// write Xref record
+		if (!xrefLine.isEmpty()) {
+			try {
+				u.appendCaptureFile(xrefLine);
+			} catch (Exception e) {
+				u.appOutput("Error writing XRefOnly record to capture file");
+			}		
+		}
 
 	    // debug
 	    if (u.echoCapture) {
 			u.appOutput("captured: itemLine=["+itemLine+"] ");
 		   	u.printStackTrace();
-		}
+		}		
 
 	    return;
 	}
@@ -1029,7 +1073,7 @@ public class CompassAnalyze {
 			// this is a XML method call inside a computed column
 			compCol += ", in computed column";
 			if (status.equals(u.Supported)) {
-				String statusUDF = featureSupportedInVersion(CompColFeatures, CfgXmlMethodCall);
+				String statusUDF = featureSupportedInVersion(CompColFeatures, cfgXmlMethodCall);
 				status = statusUDF;
 			}
 		}
@@ -1043,7 +1087,7 @@ public class CompassAnalyze {
 			// this is a HIERARCHYID method call inside a computed column
 			compCol += ", in computed column";
 			if (status.equals(u.Supported)) {
-				String statusUDF = featureSupportedInVersion(CompColFeatures, CfgHierachyIdMethodCall);
+				String statusUDF = featureSupportedInVersion(CompColFeatures, cfgHierachyIdMethodCall);
 				status = statusUDF;
 			}
 		}
@@ -1303,8 +1347,8 @@ public class CompassAnalyze {
 
 			@Override public String visitColumn_definition(TSQLParser.Column_definitionContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
-				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"ctx=["+ctx.getText()+"] ", u.debugPtree);
-				if (!u.buildColSymTab) return null;
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"ctx=["+ctx.getText()+"] buildColSymTab=["+u.buildColSymTab+"] ", u.debugPtree);
+				if (!u.buildColSymTab) return null; //only proceed if we really build a permament symtab for columns in pass 1
 
 				// find type of column by looking for parent
 				// todo: view columns, datatypes of view columns and computed columns
@@ -1572,10 +1616,22 @@ public class CompassAnalyze {
 				}
 
 				if ((expr instanceof TSQLParser.Full_col_name_exprContext))  {
-					// ToDo: look up the column, but we don't have a symbol table for columns yet.
 					String result = "";
-					result = CompassUtilities.BBFUnknownType;
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"Full_col_name_exprContext: result=["+result+"] ", u.debugPtree);
+					String col = expr.getText().toUpperCase();
+					// look up the column, but since we don't have a way to resolve column references in a query yet,
+					// only do this inside a CREATE TABLE/ALTER TABLE stmt
+					// ToDo: maybe identify single-table queries as an easy case? 
+					String objName = "";
+	            	if (u.currentObjectType.equals("TABLE")) objName = u.currentObjectName;
+	            	else if (u.currentObjectTypeSub.equals("TABLE")) objName = u.currentObjectNameSub;
+	            	if (!objName.isEmpty()) {	// only do this for CREATE/ALTER TABLE:
+	            		String colName = u.getObjectNameFromID(col);  // get the last name in a combined name, which is the column name here
+						String colDataType = lookupCol(objName, colName);
+						if (!colDataType.isEmpty()) result = colDataType;
+	            	}
+	            			
+					if (result.isEmpty()) result = CompassUtilities.BBFUnknownType;
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"Full_col_name_exprContext: ["+col+"] result=["+result+"] ", u.debugPtree);
 					return result;
 				}
 
@@ -1876,7 +1932,7 @@ public class CompassAnalyze {
 				if (!options.contains("nobracket")) {
 					funcNameReport = funcName + "()";
 				}
-				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"BIF=["+funcName+"()] nrArgs=["+nrArgs+"] ", u.debugPtree);
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"BIF=["+funcName+"()] nrArgs=["+nrArgs+"] inCompCol=["+inCompCol+"] ", u.debugPtree);
 				if (argList != null) if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"BIF=["+funcName+"()] nrArgs=["+nrArgs+"] argList.size()=["+argList.size()+"]  ", u.debugPtree);
 
 				if (featureExists(BuiltInFunctions, funcName)) {
@@ -2212,7 +2268,7 @@ public class CompassAnalyze {
 					createdNew = true;
 					newSelectStmt("SELECT", ctx.start.getLine());
 				}
-
+				
 				if (ctx.order_by_clause() != null) {
 					addStmtAttribute("ORDERBY");
 				}
@@ -2243,6 +2299,33 @@ public class CompassAnalyze {
 			@Override public String visitQuery_specification(TSQLParser.Query_specificationContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 
+				// DEV: how many tables? 
+				// Try to exclude reporting single-table queries without an ORDER-BY that select on a PK or unique index
+//				if ((ctx.table_sources() != null) && (ctx.where != null)) {
+//					int nrTables = ctx.table_sources().table_source_item().size();
+//					u.appOutput(u.thisProc()+"nrTables=["+nrTables+"] ");
+//					if (nrTables == 1) {
+//						// single-table
+//						u.appOutput(u.thisProc()+"search_condition=["+ctx.where.getText()+"] OR=["+ctx.where.OR().size()+"] ");
+//						// get search condition - cannot contain OR
+//						if (ctx.where.OR().size() == 0) {
+//							List<TSQLParser.Predicate_brContext> preds = ctx.where.predicate_br();
+//							u.appOutput(u.thisProc()+"preds=["+preds.size()+"] ");
+//							for (int i=0; i < preds.size(); i++) {
+//								String s = u.stripEnclosingBrackets(getTextSpaced(preds.get(i)));
+//								u.appOutput(u.thisProc()+"pred=["+s+"] NOT=["+preds.get(i).NOT().size()+"] ");
+//								// must be: column EQUALS expression (or v.v. , but not testing for that one)
+//								// predicate cannot include NOT!
+//								if (preds.get(i).NOT().size() > 0) {
+//									u.appOutput(u.thisProc()+"break on NOT");
+//									break;
+//								}
+//								// get column name, check for EQUALS operators
+//							}
+//						}
+//					}
+//				}
+				
 				if (ctx.INTO() != null) {
 					String intoTableNameRaw = ctx.into.getText();
 					String intoTableName = u.normalizeName(intoTableNameRaw);
@@ -2283,16 +2366,16 @@ public class CompassAnalyze {
 					String topClauseTest = topClauseText;
 					if (!CompassUtilities.getPatternGroup(topClauseText, "^(\\d+)$", 1).isEmpty()) {
 						if (!topClauseText.equals("0") && !(topClauseText.equals("100")&&(hasPercent))) {
-							topClauseTest = CfgNonZero;
+							topClauseTest = cfgNonZero;
 							topClauseText = u.escapeHTMLChars("<number>");
 						}
 					}
 					else if (!CompassUtilities.getPatternGroup(topClauseText, "^("+u.varPattern+")$", 1).isEmpty()) {
-						topClauseTest = CfgVariable;
+						topClauseTest = cfgVariable;
 						topClauseText = "(@v)";
 					}
 					else {
-						topClauseTest = CfgExpression;
+						topClauseTest = cfgExpression;
 						topClauseText = u.escapeHTMLChars("(<expression>)");
 					}
 					if (hasPercent) {
@@ -2584,9 +2667,9 @@ public class CompassAnalyze {
 				List<TSQLParser.ExpressionContext> exprList = ctx.expression();
 				List<String> valueList = new ArrayList<>();
 
-				String expr1 = cleanupTerm(exprList.get(0).getText());
+				String expr1 = cleanupTermErrorCode(exprList.get(0).getText());
 				String expr2 = "";
-				if (exprList.size() > 1) expr2 = cleanupTerm(exprList.get(1).getText());
+				if (exprList.size() > 1) expr2 = cleanupTermErrorCode(exprList.get(1).getText());
 				String op = "";
 
 				if (ctx.comparison_operator() != null) {
@@ -2602,12 +2685,12 @@ public class CompassAnalyze {
 				else if ((ctx.IN() != null) && (ctx.subquery() == null)) {
 					op = "IN";
 					valueList = new ArrayList<String>(Arrays.asList(ctx.expression_list().getText().split(",")));
-					for (int i=0; i < valueList.size(); i++) valueList.set(i, cleanupTerm(valueList.get(i)));
+					for (int i=0; i < valueList.size(); i++) valueList.set(i, cleanupTermErrorCode(valueList.get(i)));
 				}
 				else if (ctx.BETWEEN() != null) {
 					op = "BETWEEN";
 					valueList.add(expr2);
-					String expr3 = cleanupTerm(exprList.get(2).getText());
+					String expr3 = cleanupTermErrorCode(exprList.get(2).getText());
 					valueList.add(expr3);
 				}
 				if (!op.isEmpty() && (valueList.size() > 0)) {
@@ -2626,11 +2709,13 @@ public class CompassAnalyze {
 				else if (expr1.equalsIgnoreCase("@@ERROR")) {
 					if (ctx.subquery() != null) {
 						// cannot automate this
+						String status = featureSupportedInVersion(AtAtErrorValueRef, "-999");  // status is not actually used, but will allow effort estimate to be found
 						captureItem(AtAtErrorValueRef+ ", comparison with subquery"+via, via2, AtAtErrorValueRef, "", u.ReviewManually, ctx.start.getLine());
 					}
 				}
 				else {
 					// cannot figure it out
+					String status = featureSupportedInVersion(AtAtErrorValueRef, "-999");  // status is not actually used, but will allow effort estimate to be found					
 					captureItem(AtAtErrorValueRef+ ", referenced value unclear"+via, via2, AtAtErrorValueRef, "", u.ReviewManually, ctx.start.getLine());
 				}
 			}
@@ -2709,7 +2794,7 @@ public class CompassAnalyze {
 
 								if ((patt.contains("[")) && (patt.contains("]"))) {
 									//u.appOutput(u.thisProc()+"LIKE [] found: x=["+ctx.expression().get(1).getText()+"] ");
-									String statusLike = featureSupportedInVersion(LikeSquareBrackets);
+									String statusLike = featureSupportedInVersion(LikeSquareBracketsCfg);
 									captureItem(LikeSquareBrackets, "", "", "", statusLike, ctx.LIKE().getSymbol().getLine());
 								}
 							}
@@ -3066,11 +3151,11 @@ public class CompassAnalyze {
 				if ((collist == null) && colName.isEmpty()) return;
 				assert !tableName.isEmpty() : "tableName should not be blank";
 				String n = " SINGLE";
-				String typeChk = type + n;
+				String typeChk = (type + n).toUpperCase();
 
 				if (!colName.isEmpty()) {
 					String tabcol = tableName + "." + colName;
-					String colDataType = lookupCol(tabcol);
+					String colDataType = lookupCol(tableName, colName);
 					//u.appOutput(CompassUtilities.thisProc()+"colName=["+colName+"] colDataType=["+colDataType+"] typeChk=["+typeChk+"] ");
 					if (colDataType.endsWith(" NULL")) {
 						String status = featureSupportedInVersion(UniqueOnNullableCol, typeChk);
@@ -3083,13 +3168,13 @@ public class CompassAnalyze {
 
 				List<TSQLParser.IdContext> cols = collist.id();
 				if (cols.size() > 1) n = " MULTIPLE";
-				typeChk = type + n;
+				typeChk = (type + n).toUpperCase();
 				for (TSQLParser.IdContext col : cols) {
 					String colName2 = u.normalizeName(col.getText());
 					//u.appOutput(CompassUtilities.thisProc()+"colname2=["+colName2+"] ");
 
 					String tabcol = tableName + "." + colName2;
-					String colDataType = lookupCol(tabcol);
+					String colDataType = lookupCol(tableName, colName2);
 					//u.appOutput(CompassUtilities.thisProc()+"colDataType=["+colDataType+"] ");
 					if (colDataType.endsWith(" NULL")) {
 						String status = featureSupportedInVersion(UniqueOnNullableCol, typeChk);
@@ -3098,6 +3183,7 @@ public class CompassAnalyze {
 						else typeFmt = type;
 						captureItem(UniqueOnNullableCol+" with "+typeFmt, tabcol, "", UniqueOnNullableCol, status, col.start.getLine());
 						//u.appOutput(CompassUtilities.thisProc()+"found typeChk=["+typeChk+"] on nullable column tabcol=["+tabcol+"] status=["+status+"] ");
+						break; 
 					}
 				}
 			}
@@ -3545,7 +3631,7 @@ public class CompassAnalyze {
 
 			@Override public String visitColumn_definition(TSQLParser.Column_definitionContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
-				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"ctx=["+ctx.getText()+"] ", u.debugPtree);
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"ctx=["+getTextSpaced(ctx)+"] ", u.debugPtree);
 
 	            //find type of column by looking for parent
 				String colType = ""; // default: regular table
@@ -3640,6 +3726,30 @@ public class CompassAnalyze {
 
 	            	if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"column: colName=["+colName+"] dataType=["+dataType+"]", u.debugPtree);
 			        
+			        if (!u.buildColSymTab) {
+			        	// record columns defined in current batch, also when no permanent symtab is built: needed for unique-on-nullable check
+		            	// only do this for CREATE/ALTER TABLE
+		            	if (hasParent(ctx.parent,"create_table") || hasParent(ctx.parent,"alter_table")) {
+			            	boolean nullable = false;
+			            	if (ctx.null_notnull().size() == 0) {
+			            		if (ctx.column_constraint().size() > 0) {
+			            			if (ctx.column_constraint().get(0).null_notnull() != null) {
+			            				if (ctx.column_constraint().get(0).null_notnull().NOT() == null) nullable = true;
+			            			}
+			            			else if (ctx.column_constraint().size() > 1) {
+			            				if (ctx.column_constraint().get(1).null_notnull() != null) {
+				            				if (ctx.column_constraint().get(1).null_notnull().NOT() == null) nullable = true;
+				            			}
+			            			}
+			            		}
+			            	}
+			            	else if (ctx.null_notnull().size() > 0) {
+			            		if (ctx.null_notnull().get(0).NOT() == null) nullable = true;
+			            	}
+			            	u.addColSymTab(u.currentObjectName, colName, dataType, nullable, false);
+			            }			        	
+					}
+
 					// check the datatype
 					String UDD = lookupUDD(dataType);
 					String dataTypeOrig = "";
@@ -4563,10 +4673,16 @@ public class CompassAnalyze {
 									if (argList.get(i).getText().equalsIgnoreCase("DEFAULT")) {
 										String statusDft = featureSupportedInVersion(ParamValueDEFAULT, "function");
 										if (!statusDft.equals(u.Supported)) {
-											// look up param default value: function calls only use by-position arguments, cannot use by=name
+											// look up param default value: function calls only use by-position arguments, cannot use by-name
 											int parNo = i+1;
-											String parDft = lookupParDft(funcName, parNo);
-											if (!parDft.isEmpty()) {											
+											String parDft = lookupParDft(funcName, parNo);		
+											if (parDft.isEmpty()) {
+												// if function is found but there is no parameter default, the DEFAULT results in NULL being (determined emperically)	
+												// (for procs, this is not the case and there'll just be an error)
+												if (!lookupSUDF(funcName).isEmpty()) parDft = "NULL";
+												else if (!lookupTUDF(funcName).isEmpty()) parDft = "NULL";
+											}		
+											if (!parDft.isEmpty()) {		
 												if (u.rewrite) {
 													String rewriteText = parDft;
 													//u.appOutput(u.thisProc()+"param DEFAULT in function call: funcName=["+funcName+"] parNo=["+parNo+"] parDft=["+parDft+"]");
@@ -4578,7 +4694,7 @@ public class CompassAnalyze {
 												}
 											}
 											else {
-												// couldn't find the default, so don't attempt to rewrite												
+												// couldn't find the function, so don't attempt to rewrite												
 											}
 										}
 										captureItem(itemTxt, "", ParamValueDEFAULT, "function", statusDft, ctx.start.getLine());				
@@ -4619,7 +4735,7 @@ public class CompassAnalyze {
 									if (inCompCol) {
 										// this is a SUDF call inside a computed column
 										compCol += ", in computed column";
-										statusUDF = featureSupportedInVersion(CompColFeatures, CfgScalarUdfCall);
+										statusUDF = featureSupportedInVersion(CompColFeatures, cfgScalarUdfCall);
 									}
 									captureItem("Function call, scalar"+compCol, funcName+"()", FunctionsReportGroup, "", statusUDF, ctx.start.getLine());
 								}
@@ -4824,12 +4940,18 @@ public class CompassAnalyze {
 
 				// check for numeric-as-date
 				checkNumericAsDate(dataType, funcName, funcName+"()", ctx.expression(), 1, ctx.start.getLine());
+				
+				if (inCompCol) {
+					if (funcName.equals("CAST")) {
+						captureCompColTypeCast(funcName, dataType, ctx.expression(), ctx.start.getLine());					
+					}
+				}
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
-			}
-
+			}		
+			
 			@Override public String visitBif_convert(TSQLParser.Bif_convertContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 
@@ -4865,11 +4987,39 @@ public class CompassAnalyze {
 					// check for numeric-as-date
 					checkNumericAsDate(dataType, funcName, funcName+"()", ctx.convert_expression, 2, ctx.start.getLine());
 				}
+					
+				if (inCompCol) {
+					if (funcName.equals("CONVERT")) {
+						captureCompColTypeCast(funcName, dataType, ctx.convert_expression, ctx.start.getLine());					
+					}
+				}				
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
 			}
+			
+			private void captureCompColTypeCast(String funcName, String dataType, TSQLParser.ExpressionContext expr, int lineNo) {
+				// in a computed column with CAST() or CONVERT(), when datetime is involved it may not be supported
+				String srcType = expressionDataType(expr);
+				String tgtType = dataType;
+				String chkType = "";
+				if (isDateTime(srcType) || isDateTime(tgtType)) {
+					chkType = cfgCastDatetime;
+				}
+				if (!chkType.isEmpty()) {
+					String chkCast = "CAST("+chkType+")";
+					String statusCC = u.Supported;								
+					if (featureExists(CompColFeatures, chkCast)) {
+						statusCC = featureSupportedInVersion(CompColFeatures, chkCast);							
+						captureItem(funcName + "() involving "+chkType+", in computed column", "", DatatypeConversion, "", statusCC, lineNo);
+					}
+				}	
+				else {
+					String statusCC = u.Supported;
+					captureItem(funcName + "(), in computed column", "", DatatypeConversion, "", statusCC, lineNo);					
+				}			
+			}				
 
 			@Override public String visitTRIM(TSQLParser.TRIMContext ctx) {
 				captureBIF("TRIM", ctx.start.getLine());
@@ -4975,7 +5125,7 @@ public class CompassAnalyze {
 
 				if (ctx.data_type().xml_type_definition() != null) {
 					statusDataType = featureSupportedInVersion(XMLFeatures, "XML TYPE DEFINITION");
-					dataType = CfgXMLSchema;
+					dataType = cfgXMLSchema;
 					varItem = dataType+" variable";
 					captureItem(varItem, varName, XMLFeatures, "", statusDataType, ctx.start.getLine());
 					captured = true;
@@ -5254,7 +5404,8 @@ public class CompassAnalyze {
 				String status = featureSupportedInVersion(RollupCubeOldSyntax);
 				String s = ctx.getText().toUpperCase();
 				s = s.replaceFirst("WITH", "WITH ");
-				captureItem(RollupCubeOldSyntax, s, RollupCubeOldSyntax, s, status, ctx.start.getLine());
+				// reporting here as WithRollupCubeOldSyntax for better clarity. But we cannot change the .cfg file so keeping RollupCubeOldSyntax there
+				captureItem(WithRollupCubeOldSyntax, s, RollupCubeOldSyntax, s, status, ctx.start.getLine());
 				visitChildren(ctx);
 				return null;
 			}
@@ -5458,14 +5609,14 @@ public class CompassAnalyze {
 							setValueFmt = "0";
 						}
 						else {
-							setValue = CfgNonZero;
+							setValue = cfgNonZero;
 							setValueFmt = u.escapeHTMLChars("<number>");
 						}
 					}
 					else {
 						setValueOrig = ctx.LOCAL_ID().getText();
 						setValueFmt = "@v";
-						setValue = CfgVariable;
+						setValue = cfgVariable;
 					}
 					captureSEToption("SET ROWCOUNT", setValue, setValueFmt, ctx.start.getLine(), setValueOrig);
 				}
@@ -5518,7 +5669,7 @@ public class CompassAnalyze {
 
 					if (setValue.charAt(0) == '@') {
 						setValueFmt = "@v";
-						setValue = CfgVariable;
+						setValue = cfgVariable;
 					}
 					else {
 						Integer exprInt = getIntegerConstant(setValue);
@@ -5528,7 +5679,7 @@ public class CompassAnalyze {
 							}
 							else {
 								setValueFmt = u.escapeHTMLChars("<number>");
-								setValue = CfgNonZero;
+								setValue = cfgNonZero;
 							}
 						}
 					}
@@ -5567,11 +5718,11 @@ public class CompassAnalyze {
 					return;
 				}
 				if (!CompassUtilities.getPatternGroup(setValueTest, "^("+u.varPattern+")$", 1).isEmpty()) {
-					setValueTest = CfgVariable;
+					setValueTest = cfgVariable;
 				}
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"feature=["+feature+"] setValueTest=["+setValueTest+"] ", u.debugPtree);
 				String status = featureSupportedInVersion(feature, setValueTest);
-				if (setValueTest.equals(CfgVariable)) {
+				if (setValueTest.equals(cfgVariable)) {
 					if (status.equals(u.NotSupported)) {
 						if (!feature.equals("SET ROWCOUNT")) {
 							status = u.ReviewManually;
@@ -5712,9 +5863,11 @@ public class CompassAnalyze {
 					List<TSQLParser.ExpressionContext> expr = ctx.expression();
 					String lhsType = expressionDataType(expr.get(0));
 					String rhsType = expressionDataType(expr.get(1));
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"lhs=["+expr.get(0).getText()+"] rhs=["+expr.get(1).getText()+"] ", u.debugPtree);
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"lhsType=["+lhsType+"] rhsType=["+rhsType+"] ctx=["+ctx.getText()+"] ", u.debugPtree);
 					if (op.equals("+")) {
 						opFmt = "Arithmetic operator +";
+						
 						if (isString(lhsType) && isString(rhsType)) {
 							opFmt = "String concatenation operator +";
 						}
@@ -5726,6 +5879,19 @@ public class CompassAnalyze {
 						}
 						else if (isUnknown(lhsType) || isUnknown(rhsType)) {
 							opFmt = "";  // cannot determine
+						}
+
+						// check for string operator in computed column
+						if (!opFmt.isEmpty()) {
+							if (opFmt.startsWith("String")) {  // see above
+								if (inCompCol) {
+									String statusCC = u.Supported;								
+									if (featureExists(CompColFeatures, cfgStringConcatPlus)) {
+										statusCC = featureSupportedInVersion(CompColFeatures, cfgStringConcatPlus);							
+										captureItem(opFmt + ", in computed column", "", OperatorsReportGroup, "", statusCC, ctx.start.getLine());
+									}
+								}
+							}
 						}
 					}
 					else {
@@ -5743,6 +5909,44 @@ public class CompassAnalyze {
 				return null;
 			}
 
+			@Override public String visitComparison_operator(TSQLParser.Comparison_operatorContext ctx) {
+				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
+				// This is only for capturing compound operators containing whitespace
+				// NB: SQL Server does not allow whitespace inside compound assignment operators (+=, -=, etc.), so no need to test for those
+				String op = ctx.getText();
+				// only for operators consisting of 2 chars:
+				if (op.length() < 2) return null;
+				
+				// is there any whitespace inside?
+				int ixStart = ctx.start.getStartIndex();
+				int ixStop = ctx.stop.getStopIndex();
+				if (ixStop - ixStart <= 1) return null;
+				
+				// is this operator listed? If not, whitespace inside is supported
+				if (featureExists(CompoundOpWhitespace,op)) {
+					String status = featureSupportedInVersion(CompoundOpWhitespace, op);
+					String item = CompoundOpWhitespaceFmt+"("+op+")";
+					if (!status.equals(u.Supported)) {
+						if (u.rewrite) {
+							String rewriteText = op;
+							addRewrite(item, "", u.rewriteTypeReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.stop.getLine(), ctx.stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.stop.getStopIndex());
+							status = u.Rewritten;
+						}
+						else {
+							addRewrite(item);
+						}
+					}
+					
+					captureItem(item, op, OperatorsReportGroup, "", status, ctx.start.getLine());
+				}
+				else {
+					// not listed, don't report
+				}
+				
+				// no children to visit
+				return null;
+			}		
+			
 			@Override public String visitOdbc_scalar_function(TSQLParser.Odbc_scalar_functionContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 				String funcName = ctx.odbc_scalar_function_name().getText().toUpperCase();
@@ -5762,7 +5966,7 @@ public class CompassAnalyze {
 									rewriteType = u.rewriteTypeReplace;
 									List<TSQLParser.ExpressionContext> args = ctx.odbc_scalar_function_name().expression();
 									rewriteText = "(("+args.get(0).getText()+ ")%("+args.get(1).getText()+"))";   // Note: losing inter-keyword whitespace here, but let's gamble that's OK in this case
-									                                                                              // If not, we need to apply spacing around keywords, but that may mess up identiiers (eg 'datefrom')
+									                                                                              // If not, we need to apply spacing around keywords, but that may mess up identifiers (eg 'datefrom')
 								}
 							}
 							if (rewriteType.isEmpty()) {
@@ -6073,8 +6277,8 @@ public class CompassAnalyze {
 				String id = u.normalizeName(idOrig).toUpperCase();
 
 				if (!u.getPatternGroup(idOrig, "^(GEOGRAPHY|GEOMETRY)\\s*::", 1).isEmpty()) {
-					String status = u.NotSupported; // no support for geospatial in sight...
 					String spatialCall = u.getPatternGroup(idOrig, "^\\w+\\s*::\\s*(\\w+)\\b", 1);
+					String status = featureSupportedInVersion(Geospatial,spatialCall);
 					captureItem(SpatialMethodCallFmt + " " + spatialCall, "", SpatialReportGroup, "", status, ctx.start.getLine());
 				}
 				else {
@@ -6522,6 +6726,7 @@ public class CompassAnalyze {
 				String status = u.Supported;
 				String tableName = "";
 				String tableNameRaw = "";
+				String openXXXfunction = "";
 				if (ctx.ddl_object() != null) {
 					tableNameRaw = ctx.ddl_object().getText().toUpperCase();
 					tableName = u.normalizeName(tableNameRaw);
@@ -6531,6 +6736,7 @@ public class CompassAnalyze {
 					tableName = ctx.rowset_function().getText().toUpperCase();
 					tableName = tableName.substring(0,tableName.indexOf("("));
 					status = featureSupportedInVersion(UpdateStmt,tableName);
+					openXXXfunction = ", " + tableName + "()";			
 				}
 
 				String top = "";
@@ -6568,10 +6774,10 @@ public class CompassAnalyze {
 				visitChildren(ctx);
 
 				if (!captureTableSrcDML(ctx.parent, tableName, "UPDATE", ctx.start.getLine())) {
-					CaptureXMLNameSpaces(ctx.parent, "UPDATE", ctx.start.getLine());
-
-					captureItem("UPDATE"+top+updVarAssign+CTE+outputClause+whereCurrentOf, tableName, UpdateStmt, "UPDATE", status, ctx.start.getLine());
+					captureItem("UPDATE"+top+updVarAssign+CTE+outputClause+whereCurrentOf+openXXXfunction, tableName, UpdateStmt, "UPDATE", status, ctx.start.getLine());
 					captureVariableAssignDepends("UPDATE", ctx.start.getLine(), true);
+					
+					CaptureXMLNameSpaces(ctx.parent, "UPDATE", ctx.start.getLine());					
 				}
 
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -6741,10 +6947,12 @@ public class CompassAnalyze {
 				String status = u.Supported;
 				String tableName = "";
 				String tableNameRaw = "";
+				String openXXXfunction = "";
 				if (ctx.delete_statement_from().rowset_function() != null) {
 					tableName = ctx.delete_statement_from().rowset_function().getText().toUpperCase();
 					tableName = tableName.substring(0,tableName.indexOf("("));
 					status = featureSupportedInVersion(DeleteStmt,tableName);
+					openXXXfunction = ", " + tableName + "()";
 				}
 				else {
 					tableNameRaw = ctx.delete_statement_from().getText().toUpperCase();
@@ -6780,7 +6988,7 @@ public class CompassAnalyze {
 				}
 
 				if (!captureTableSrcDML(ctx.parent, tableName, "DELETE", ctx.start.getLine())) {
-					captureItem("DELETE"+top+CTE+outputClause+whereCurrentOf, tableName, DeleteStmt, "DELETE", status, ctx.start.getLine());
+					captureItem("DELETE"+top+CTE+outputClause+whereCurrentOf+openXXXfunction, tableName, DeleteStmt, "DELETE", status, ctx.start.getLine());
 					CaptureXMLNameSpaces(ctx.parent, "DELETE", ctx.start.getLine());
 				}
 
@@ -7561,14 +7769,15 @@ public class CompassAnalyze {
 
 			// called only for rules named '{create|alter|drop}_stmt'
 			// todo: add object name for detailed reporting
-			private String captureSimpleStmt (String ruleName, int lineNr) {
-				ruleName = ruleName.replaceFirst("create_or_alter", "create");
+			private String captureSimpleStmt (String ruleName, ParseTree ctx, int lineNr) {
+				String kwd = u.getPatternGroup(getTextSpaced(ctx), "\\b(CREATE|ALTER|DROP)\\b", 1).toUpperCase();
+				ruleName = ruleName.replaceFirst("create_or_alter", kwd);
 				List<String> words = new ArrayList<>(Arrays.asList(ruleName.toUpperCase().split("_")));
-				String kwd = words.get(0);
 				words.remove(0);
 				String obj = String.join(" ", words);
 				String status = featureSupportedInVersion(MiscObjects, obj);
 				captureItem(kwd + " " + obj, "", MiscObjects, obj, status, lineNr);
+				captureItem("CREATE " + obj, "", "", "", u.ObjCountOnly, 0, 0);
 				return status;
 			}
 
@@ -8133,14 +8342,14 @@ public class CompassAnalyze {
 			}
 
 			@Override public String visitDrop_login(TSQLParser.Drop_loginContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitSpatial_methods(TSQLParser.Spatial_methodsContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 				String spatialCall = ctx.method.getText();
 				//u.appOutput(u.thisProc()+"spatialCall=["+spatialCall+"] ");
-				String status = u.NotSupported; // no support for geospatial in sight...
+				String status = featureSupportedInVersion(Geospatial,spatialCall);
 				captureItem(SpatialMethodCallFmt + " ." + spatialCall, "", SpatialReportGroup, "", status, ctx.start.getLine());
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -8196,10 +8405,10 @@ public class CompassAnalyze {
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
-			}
-
+			}	
+			
 			@Override public String visitCreate_sequence(TSQLParser.Create_sequenceContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine());
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine());
  				String seqName = ctx.sequence_name.getText();
  				if (ctx.schema_name != null) seqName = ctx.schema_name.getText() + "." + seqName;
  				seqName = u.normalizeName(seqName);
@@ -8224,8 +8433,9 @@ public class CompassAnalyze {
 				visitChildren(ctx);
 				return null;
 			}
+			
 			@Override public String visitAlter_sequence(TSQLParser.Alter_sequenceContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine());
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine());
  				String seqName = ctx.sequence_name.getText();
  				if (ctx.schema_name != null) seqName = ctx.schema_name.getText() + "." + seqName;
  				seqName = u.normalizeName(seqName);
@@ -8260,73 +8470,73 @@ public class CompassAnalyze {
 			}
 
 			@Override public String visitDrop_sequence(TSQLParser.Drop_sequenceContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_application_role(TSQLParser.Create_application_roleContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_application_role(TSQLParser.Alter_application_roleContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_application_role(TSQLParser.Drop_application_roleContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_column_encryption_key(TSQLParser.Create_column_encryption_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_column_encryption_key(TSQLParser.Alter_column_encryption_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_column_encryption_key(TSQLParser.Drop_column_encryption_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_column_master_key(TSQLParser.Create_column_master_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_column_master_key(TSQLParser.Drop_column_master_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_asymmetric_key(TSQLParser.Create_asymmetric_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_asymmetric_key(TSQLParser.Alter_asymmetric_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_asymmetric_key(TSQLParser.Drop_asymmetric_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_master_key(TSQLParser.Create_master_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_master_key(TSQLParser.Alter_master_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_master_key(TSQLParser.Drop_master_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_service_master_key(TSQLParser.Alter_service_master_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_symmetric_key(TSQLParser.Create_symmetric_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_symmetric_key(TSQLParser.Alter_symmetric_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_symmetric_key(TSQLParser.Drop_symmetric_keyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_assembly(TSQLParser.Create_assemblyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_assembly(TSQLParser.Alter_assemblyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_assembly(TSQLParser.Drop_assemblyContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_synonym(TSQLParser.Create_synonymContext ctx) {
-				String status = captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine());
+				String status = captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine());
 				if (status.equals(u.Supported)) {
 					String synBaseObjRaw = ctx.full_object_name().getText();
 					String synBaseObj = u.normalizeName(synBaseObjRaw);
@@ -8336,235 +8546,235 @@ public class CompassAnalyze {
 				return null;
 			}
 			@Override public String visitDrop_synonym(TSQLParser.Drop_synonymContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_aggregate(TSQLParser.Create_aggregateContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_aggregate(TSQLParser.Drop_aggregateContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_credential(TSQLParser.Create_credentialContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_credential(TSQLParser.Alter_credentialContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_credential(TSQLParser.Drop_credentialContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_cryptographic_provider(TSQLParser.Create_cryptographic_providerContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_cryptographic_provider(TSQLParser.Alter_cryptographic_providerContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_cryptographic_provider(TSQLParser.Drop_cryptographic_providerContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_contract(TSQLParser.Create_contractContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_contract(TSQLParser.Drop_contractContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_diagnostic_session(TSQLParser.Create_diagnostic_sessionContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_diagnostic_session(TSQLParser.Drop_diagnostic_sessionContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_default(TSQLParser.Create_defaultContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_default(TSQLParser.Drop_defaultContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitCreate_rule(TSQLParser.Create_ruleContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_rule(TSQLParser.Drop_ruleContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_route(TSQLParser.Create_routeContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_route(TSQLParser.Drop_routeContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_queue(TSQLParser.Create_queueContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_queue(TSQLParser.Alter_queueContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_queue(TSQLParser.Drop_queueContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_service(TSQLParser.Create_serviceContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_service(TSQLParser.Alter_serviceContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_service(TSQLParser.Drop_serviceContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_message_type(TSQLParser.Create_message_typeContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_message_type(TSQLParser.Alter_message_typeContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_message_type(TSQLParser.Drop_message_typeContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_certificate(TSQLParser.Create_certificateContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_certificate(TSQLParser.Alter_certificateContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_certificate(TSQLParser.Drop_certificateContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_availability_group(TSQLParser.Create_availability_groupContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_availability_group(TSQLParser.Alter_availability_groupContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_availability_group(TSQLParser.Drop_availability_groupContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_external_data_source(TSQLParser.Create_external_data_sourceContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_external_data_source(TSQLParser.Alter_external_data_sourceContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_external_data_source(TSQLParser.Drop_external_data_sourceContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_external_library(TSQLParser.Create_external_libraryContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_external_library(TSQLParser.Alter_external_libraryContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_external_library(TSQLParser.Drop_external_libraryContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_external_resource_pool(TSQLParser.Create_external_resource_poolContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_external_resource_pool(TSQLParser.Alter_external_resource_poolContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_external_resource_pool(TSQLParser.Drop_external_resource_poolContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitAlter_resource_governor(TSQLParser.Alter_resource_governorContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_workload_classifier(TSQLParser.Create_workload_classifierContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_workload_classifier(TSQLParser.Drop_workload_classifierContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_workload_group(TSQLParser.Create_workload_groupContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_workload_group(TSQLParser.Alter_workload_groupContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_workload_group(TSQLParser.Drop_workload_groupContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_fulltext_catalog(TSQLParser.Create_fulltext_catalogContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_fulltext_catalog(TSQLParser.Alter_fulltext_catalogContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_fulltext_catalog(TSQLParser.Drop_fulltext_catalogContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_fulltext_index(TSQLParser.Create_fulltext_indexContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_fulltext_index(TSQLParser.Alter_fulltext_indexContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_fulltext_index(TSQLParser.Drop_fulltext_indexContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_fulltext_stoplist(TSQLParser.Create_fulltext_stoplistContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_fulltext_stoplist(TSQLParser.Alter_fulltext_stoplistContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_fulltext_stoplist(TSQLParser.Drop_fulltext_stoplistContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_remote_service_binding(TSQLParser.Create_remote_service_bindingContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitAlter_remote_service_binding(TSQLParser.Alter_remote_service_bindingContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_remote_service_binding(TSQLParser.Drop_remote_service_bindingContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_or_alter_endpoint(TSQLParser.Create_or_alter_endpointContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_endpoint(TSQLParser.Drop_endpointContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_or_alter_event_session(TSQLParser.Create_or_alter_event_sessionContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_event_session(TSQLParser.Drop_event_sessionContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_event_notification(TSQLParser.Create_event_notificationContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_event_notification(TSQLParser.Drop_event_notificationContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_or_alter_database_audit_specification(TSQLParser.Create_or_alter_database_audit_specificationContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 			@Override public String visitCreate_or_alter_broker_priority(TSQLParser.Create_or_alter_broker_priorityContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 			@Override public String visitDrop_broker_priority(TSQLParser.Drop_broker_priorityContext ctx) {
-				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx.start.getLine()); visitChildren(ctx); return null;
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
 		};
