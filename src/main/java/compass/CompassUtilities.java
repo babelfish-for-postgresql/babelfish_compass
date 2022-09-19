@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2022-07";
-	public static final String thisProgVersionDate  = "July 2022";
+	public static final String thisProgVersion      = "2022-09";
+	public static final String thisProgVersionDate  = "September 2022";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -73,13 +73,16 @@ public class CompassUtilities {
           + "validating it against the actual SQL/DDL code on which this report is based.\n";
 
 	// .cfg file is in a fixed place, %COMPASS%/<defaultfilename>
-	public String cfgFileName = uninitialized;
+	public static String cfgFileName = uninitialized;
 	public final String defaultCfgFileName = "BabelfishFeatures.cfg";
 
 	// user .cfg file is in a fixed place, under document folder
-	public String userCfgFileName = uninitialized;
+	public static String userCfgFileName = uninitialized;
 	public static final String defaultUserCfgFileName  = "BabelfishCompassUser.cfg";
 	public static boolean userConfig = true;
+	
+	// this string is tested for to see if the header needs to be upgraded
+	private String userCfgComplexityHdrLine202209 = "# Complexity_score overrides values defined by Compass in "+defaultCfgFileName+".";	
 
 	// .cfg file format version as found in the .cfg file; this is validated
 	public Integer cfgFileFormatVersionRead = 0;
@@ -134,6 +137,7 @@ public class CompassUtilities {
 	public final static String rewrittenTmpFile = "bbf~rewritten.tmp";
 	public final static String textSuffix = "txt";
 	public final static String HTMLSuffix = "html";
+	public final static String CSVSuffix = "csv";
 	public final static String logDirName = "log";
 	public final static String PGImportFileName = "pg_import";
 	public final static String extractedDirName = "extractedSQL";
@@ -144,9 +148,11 @@ public class CompassUtilities {
 
 	public String reportFileTextPathName = uninitialized;
 	public String reportFileHTMLPathName = uninitialized;
+	public String CSVFilePathName = uninitialized;
 	public String reportFilePathName = uninitialized;
 	public BufferedWriter reportFileWriter;
 	public BufferedWriter reportFileWriterHTML;
+	public BufferedWriter CSVFileWriter;
 	public String batchFilePathName;
 	public BufferedWriter batchFileWriter;
 	public String errBatchFilePathName;
@@ -171,10 +177,11 @@ public class CompassUtilities {
 	public static final String autoFmt = "auto"; // not currently supported
 	public static final String sqlcmdFmt = "sqlcmd";
 	public static final String jsonQueryFmt = "jsonQuery";  // seen this once, but so far never found out how this was generated
-	public static final String extendedEventsXMLFmt = "extendedEventsXML"; // not implemented
+	public static final String extendedEventsXMLFmt = "extendedEventsXML"; // experimental, not yet fully clear
 	public static final String genericSQLXMLFmt = "sqlXML"; // not implemented
 	public static final String SQLServerProfilerXMLFmt = "MSSQLProfilerXML";
 	public static final String unknownFormat = "unknown";
+	//public static List<String> importFormatSupported        = Arrays.asList(SQLServerProfilerXMLFmt, extendedEventsXMLFmt);  // don't let the cust specify 'sqlcmd' format
 	public static List<String> importFormatSupported        = Arrays.asList(SQLServerProfilerXMLFmt);  // don't let the cust specify 'sqlcmd' format
 	public static List<String> importFormatSupportedDisplay = null;
 	public static List<String> importFormatOption           = Arrays.asList(unknownFormat, autoFmt, sqlcmdFmt, jsonQueryFmt,  extendedEventsXMLFmt, genericSQLXMLFmt, SQLServerProfilerXMLFmt);
@@ -424,6 +431,7 @@ tooltipsHTMLPlaceholder +
 	private static final String escapeHatchTableHintsText       = "\\\\\"sp_babelfish_configure 'escape_hatch_table_hints', 'ignore' [, 'server']\\\\\"";
 	private static final String escapeHatchJoinHintsText        = "\\\\\"sp_babelfish_configure 'escape_hatch_join_hints', 'ignore' [, 'server']\\\\\"";
 	private static final String escapeHatchQueryHintsText       = "\\\\\"sp_babelfish_configure 'escape_hatch_query_hints', 'ignore' [, 'server']\\\\\"";
+	private static final String rewriteOption                   = "(the -rewrite option handles this for you)";
 
 	private List<String> hintsList = new ArrayList<>();
 	private Map<String, String> hintsListMap = new HashMap<>();
@@ -447,22 +455,22 @@ tooltipsHTMLPlaceholder +
 		"OBJECT_SCHEMA_NAME()"+tttSeparator+"OBJECT_SCHEMA_NAME(): Rewrite as catalog query",
 		"ORIGINAL_LOGIN("+tttSeparator+"ORIGINAL_LOGIN() is not currently supported; Rewrite as SUSER_NAME()",
 		"SESSION_USER"+tttSeparator+"SESSION_USER is not currently supported; Rewrite as USER_NAME()",
-		"SYSTEM_USER"+tttSeparator+"SYSTEM_USER is not currently supported; Rewrite as SUSER_NAME() (the -rewrite option handles this for you)",
-		"EOMONTH("+tttSeparator+"EOMONTH() is not currently supported; rewrite with DATEADD()/DATEPART() (the -rewrite option handles this for you)",
-		"DATEPART(y)"+tttSeparator+"The 'y' unit currently returns an incorrect result; rewrite as 'dy' (the -rewrite option handles this for you)",
-		"DATENAME(y)"+tttSeparator+"The 'y' unit currently returns an incorrect result; rewrite as 'dy' (the -rewrite option handles this for you)",
-		"DATEPART(w)"+tttSeparator+"The 'w' unit currently returns an incorrect result; rewrite as 'dw' (the -rewrite option handles this for you)",
-		"DATEPART(mi)"+tttSeparator+"The 'mi' unit is not currently supported; rewrite as 'minute' (the -rewrite option handles this for you)",
-		"DATENAME(mi)"+tttSeparator+"The 'mi' unit is not currently supported; rewrite as 'minute' (the -rewrite option handles this for you)",
-		"DATEDIFF(mi)"+tttSeparator+"The 'mi' unit is not currently supported; rewrite as 'minute' (the -rewrite option handles this for you)",
-		"DATEADD(mi)"+tttSeparator+"The 'mi' unit is not currently supported; rewrite as 'minute' (the -rewrite option handles this for you)",
-		"DATEDIFF(weekday)"+tttSeparator+"The 'weekday' unit is not currently supported; rewrite as 'day' (the -rewrite option handles this for you)",
-		"DATEDIFF(dw)"+tttSeparator+"The 'dw' unit is not currently supported; rewrite as 'day' (the -rewrite option handles this for you)",
+		"SYSTEM_USER"+tttSeparator+"SYSTEM_USER is not currently supported; Rewrite as SUSER_NAME() " + rewriteOption,
+		"EOMONTH("+tttSeparator+"EOMONTH() is not currently supported; rewrite with DATEADD()/DATEPART() " + rewriteOption,
+		"DATEPART(y)"+tttSeparator+"The 'y' unit currently returns an incorrect result; rewrite as 'dy' " + rewriteOption,
+		"DATENAME(y)"+tttSeparator+"The 'y' unit currently returns an incorrect result; rewrite as 'dy' " + rewriteOption,
+		"DATEPART(w)"+tttSeparator+"The 'w' unit currently returns an incorrect result; rewrite as 'dw' " + rewriteOption,
+		"DATEPART(mi)"+tttSeparator+"The 'mi' unit is not currently supported; rewrite as 'minute' " + rewriteOption,
+		"DATENAME(mi)"+tttSeparator+"The 'mi' unit is not currently supported; rewrite as 'minute' " + rewriteOption,
+		"DATEDIFF(mi)"+tttSeparator+"The 'mi' unit is not currently supported; rewrite as 'minute' " + rewriteOption,
+		"DATEADD(mi)"+tttSeparator+"The 'mi' unit is not currently supported; rewrite as 'minute' " + rewriteOption,
+		"DATEDIFF(weekday)"+tttSeparator+"The 'weekday' unit is not currently supported; rewrite as 'day' " + rewriteOption,
+		"DATEDIFF(dw)"+tttSeparator+"The 'dw' unit is not currently supported; rewrite as 'day' " + rewriteOption,
 		"DATEPART("+tttSeparator+"This unit is not currently supported; rewrite using a different unit",
 		"DATENAME("+tttSeparator+"This unit is not currently supported; rewrite using a different unit",
 		"DATEDIFF("+tttSeparator+"This unit is not currently supported; rewrite using a different unit",
 		"DATEADD("+tttSeparator+"This unit is not currently supported; rewrite using a different unit",
-		"DATABASE_PRINCIPAL_ID("+tttSeparator+"DATABASE_PRINCIPAL_ID() is not currently supported; Rewrite as USER_NAME() (the -rewrite option handles this for you)",
+		"DATABASE_PRINCIPAL_ID("+tttSeparator+"DATABASE_PRINCIPAL_ID() is not currently supported; Rewrite as USER_NAME() " + rewriteOption,
 		"FORMAT("+tttSeparator+"FORMAT() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
 		"FORMATMESSAGE("+tttSeparator+"FORMATMESSAGE() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
 		"STRING_AGG() WITHIN GROUP"+tttSeparator+"STRING_AGG() is not supported with the WITHIN GROUP clause. Rewrite the query",
@@ -484,19 +492,20 @@ tooltipsHTMLPlaceholder +
 		"\\w+ FULLTEXT "+tttSeparator+"Fulltext search is not currently supported",
 		"expression AT TIME ZONE"+tttSeparator+"A date/time expression with the AT TIME ZONE syntax is not currently supported; rewrite the expression with time zone offset syntax '+/-hh:mm', e.g. '01-Jan-2022 11:12:13 +02:00' ",
 		"Sequence option CACHE" +tttSeparator+"For a sequence, the CACHE option without a number is not currently supported; add a number",
-		"Sequence option NO CACHE" +tttSeparator+"For a sequence, the NO CACHE option without a number is not currently supported; remove NO CACHE (the -rewrite option handles this for you)",
-		CompassAnalyze.NextValueFor+tttSeparator+"The NEXT VALUE FOR function for sequence objects is not currently supported. Consider using identity columns instead",
-		CompassAnalyze.ParamValueDEFAULT+tttSeparator+"Specifying DEFAULT as a parameter value in a procedure or function call is not currently supported; specify the actual default value instead",
-		CompassAnalyze.UnQuotedString+tttSeparator+"Unquoted strings are not currently supported; enclose the string in quotes (the -rewrite option handles this for you)",
+		"Sequence option NO CACHE" +tttSeparator+"For a sequence, the NO CACHE option without a number is not currently supported; remove NO CACHE " + rewriteOption,
+		CompassAnalyze.CompoundOpWhitespaceFmt+tttSeparator+"Whitespace inside this compound operator is not currently supported; remove the whitespace " + rewriteOption,
+		CompassAnalyze.NextValueFor+tttSeparator+"The NEXT VALUE FOR function for sequence objects is not currently supported. Consider using identity columns instead, or as a workaround, call the PG function NEXTVAL() directly",
+		CompassAnalyze.ParamValueDEFAULT+tttSeparator+"Specifying DEFAULT as a parameter value in a procedure or function call is not currently supported; specify the actual default value instead " + rewriteOption + ". In case you still see this reported when using -rewrite, this probably means the declaration of the procedure or function was not found",
+		CompassAnalyze.UnQuotedString+tttSeparator+"Unquoted strings are not currently supported; enclose the string in quotes " + rewriteOption,
 		CompassAnalyze.LineContinuationChar+" in hex string"+tttSeparator+"The line continuation character is not currently supported for hex strings; rewrite by putting the string on a single line",
 		CompassAnalyze.LineContinuationChar+" in character string"+tttSeparator+"The line continuation character is not currently supported for character strings, and is interpreted as an actual backslash + newline inside the string; rewrite by putting the string on a single line",
-		CompassAnalyze.DoubleQuotedString+", embedded single"+tttSeparator+"An embedded single quote in a double-quoted string is not currently supported. Change the double-quote string delimiters to single quotes and escape the embedded single quote by doubling it (the -rewrite option handles this for you)",
-		CompassAnalyze.DoubleQuotedString+", embedded double"+tttSeparator+"An embedded double quote in a double-quoted string is not currently supported, and will result in two double quotes in the string. Change the double-quote string delimiters to single quotes and un-escape the embedded double quote (the -rewrite option handles this for you)",
+		CompassAnalyze.DoubleQuotedString+", embedded single"+tttSeparator+"An embedded single quote in a double-quoted string is not currently supported. Change the double-quote string delimiters to single quotes and escape the embedded single quote by doubling it " + rewriteOption,
+		CompassAnalyze.DoubleQuotedString+", embedded double"+tttSeparator+"An embedded double quote in a double-quoted string is not currently supported, and will result in two double quotes in the string. Change the double-quote string delimiters to single quotes and un-escape the embedded double quote " + rewriteOption,
 		CompassAnalyze.ExecuteSQLFunction+tttSeparator+"Calling a SQL function with EXECUTE is not currently supported. Call the function in an expression instead",
-		CompassAnalyze.ColonColonFunctionCall+tttSeparator+"Old-style function call with :: syntax is not supported; rewrite without :: (the -rewrite option handles this for you)",
+		CompassAnalyze.ColonColonFunctionCall+tttSeparator+"Old-style function call with :: syntax is not supported; rewrite without :: " + rewriteOption,
 		CompassAnalyze.TemporaryProcedures+tttSeparator+"Temporary stored procedures (with a name starting with #) are created, but not dropped automatically at the end of a session",
-		CompassAnalyze.NumericAsDateTime+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 (the -rewrite option handles this for you)",
-		CompassAnalyze.NumericDateTimeVarAssign+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 (the -rewrite option handles this for you)",
+		CompassAnalyze.NumericAsDateTime+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 " + rewriteOption,
+		CompassAnalyze.NumericDateTimeVarAssign+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 " + rewriteOption,
 		"EXECUTE procedure sp_db_vardecimal_storage_format"+tttSeparator+"This system stored procedure is not currently supported, but it may not have any function in Babelfish as it is usually part of a standard SSMS-generated DDL script",
 		"EXECUTE procedure sp_fulltext_database"+tttSeparator+"This system stored procedure is not currently supported, but it may not have any function in Babelfish as it is usually part of a standard SSMS-generated DDL script",
 		"EXECUTE procedure sp_addrolemember"+tttSeparator+"This  system stored procedure is not currently supported; rewrite as ALTER ROLE..ADD MEMBER",
@@ -513,11 +522,16 @@ tooltipsHTMLPlaceholder +
 		"CREATE SYNONYM"+tttSeparator+"Synonyms are not currently supported; try to rewrite with views (for tables) or procedures/functions (for procedures/functions)",
 		"BACKUP"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
 		"RESTORE"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
+		CompassAnalyze.CheckpointStmt+tttSeparator+"CHECKPOINT is not currently supported; in Babelfish for Aurora PostgreSQL, CHECKPOINT is meaningless due to Aurora's internal optimizations",
 		"GRANT"+tttSeparator+"This variation of GRANT is not currently supported",
 		"REVOKE"+tttSeparator+"This variation of REVOKE is not currently supported",
 		"DENY"+tttSeparator+"DENY is not currently supported",
 		"ALTER AUTHORIZATION"+tttSeparator+"ALTER AUTHORIZATION (change object ownership) is not currently supported",
 		"CREATE ROLE"+tttSeparator+"DB-level roles are not currently supported, except the predefined 'db_owner' role",
+		"ALTER ROLE db_datareader"+tttSeparator+"The db_datareader role is not currently supported; rewrite by granting permissions on all tables/views",
+		"ALTER ROLE db_denydatareader"+tttSeparator+"The db_denydatareader role is not currently supported; rewrite by revoking permissions on all tables/views",
+		"ALTER ROLE db_datawriter"+tttSeparator+"The db_datawriter role is not currently supported; rewrite by granting permissions on all tables/views",
+		"ALTER ROLE db_denydatawriter"+tttSeparator+"The db_denydatawriter role is not currently supported; rewrite by revoking permissions on all tables/views",
 		"ALTER ROLE"+tttSeparator+"ALTER ROLE for this DB-level role is not currently supported",
 		"CREATE SERVER ROLE"+tttSeparator+"Server-level roles are not currently supported, except the predefined 'sysadmin' role",
 		"ALTER SERVER ROLE"+tttSeparator+"ALTER SERVER ROLE for server-level roles is not currently supported, except the predefined 'sysadmin' role",
@@ -535,7 +549,7 @@ tooltipsHTMLPlaceholder +
 		"Column attribute FILESTREAM"+tttSeparator+"The FILESTREAM attribute is not currently supported; use escape hatch "+escapeHatchStorageOptionsText+" to ignore and proceed",
 		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported; use escape hatch "+escapeHatchStorageOptionsText+" to ignore and proceed",
 		"Column attribute ROWGUIDCOL"+tttSeparator+"The ROWGUIDCOL attribute is not currently supported; use escape hatch "+escapeHatchStorageOptionsText+" to ignore and proceed",
-		CompassAnalyze.AlterTable+"..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements (the -rewrite option handles this for you)",
+		CompassAnalyze.AlterTable+"..ADD multiple"+tttSeparator+"ALTER TABLE currently supports only a single action item; split multiple actions items into separate ALTER TABLE statements " + rewriteOption,
 		CompassAnalyze.AlterTable+"..CHECK CONSTRAINT"+tttSeparator+"Enabling FK or CHECK constraints is not currently supported; constraints are always enabled; use escape hatch "+escapeHatchNoCheckText+" to ignore and proceed",
 		CompassAnalyze.AlterTable+"..NOCHECK CONSTRAINT"+tttSeparator+"Disabling FK or CHECK constraints is not currently supported; constraints are always enabled; use escape hatch "+escapeHatchNoCheckText+" to ignore the error message and proceed",
 		CompassAnalyze.AlterTable+"..ALTER COLUMN NULL"+tttSeparator+"NULL/NOT NULL is not currently supported with ALTER COLUMN. To change column nullability, use ALTER TABLE { SET | DROP } NOT NULL in PG",
@@ -545,9 +559,10 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.ODBCLiterals+tttSeparator+"ODBC literal expressions are not currently supported; rewrite with CAST() to the desired datatype (some cases can be handled automatically with the -rewrite option)",
 		CompassAnalyze.ODBCOJ+tttSeparator+"ODBC Outer Join syntax is not currently supported; rewrite with regular join syntax",
 		CompassAnalyze.Traceflags+tttSeparator+"Traceflags are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
-		CompassAnalyze.RollupCubeOldSyntax+tttSeparator+"Deprecated WITH CUBE/ROLLUP syntax is not currently supported; rewrite as GROUP BY CUBE/ROLLUP",
+		CompassAnalyze.WithRollupCubeOldSyntax+tttSeparator+"Deprecated GROUP BY...WITH CUBE/ROLLUP syntax is not currently supported; rewrite as GROUP BY CUBE/ROLLUP",
 		CompassAnalyze.GroupByAll+tttSeparator+"Deprecated GROUP BY ALL syntax is not currently supported; rewrite query",
 		"DATABASE_DEFAULT,"+tttSeparator+"Many collations are supported, but the concept of a default collation on database level is currently not available",
+		"Option CATALOG_COLLATION"+tttSeparator+"Option CATALOG_COLLATION is not currently supported. Remove the option.",
 		"Catalog reference "+tttSeparator+"This SQL Server catalog is not currently supported",
 		"@@DBTS"+tttSeparator+"The database timestamp mechanism (with also the TIMESTAMP/ROWVERSION datatype) is not currently supported",
 		"@@PROCID"+tttSeparator+"Rewrite as OBJECT_ID('object-name')",
@@ -558,7 +573,8 @@ tooltipsHTMLPlaceholder +
 		"GEOGRAPHY "+tttSeparator+"The GEOGRAPHY datatype is not supported; consider using the PG PostGIS extension",
 		"GEOMETRY "+tttSeparator+"The GEOMETRY datatype is not supported; consider using the PG PostGIS extension",
 		"Spatial method "+tttSeparator+"GEOGRAPHY/GEOMETRY datatypes are not supported; consider using the PG PostGIS extension",
-		CompassAnalyze.AtAtErrorValueRef+tttSeparator+"The application explicitly references the @@ERROR value shown here, but this particular SQL Server error code is not currently supported by "+thisProgName+". Rewrite manually to check for the PostgreSQL error code",
+		CompassAnalyze.AtAtErrorValueRef+", referenced value unclear"+tttSeparator+"The application references an @@ERROR value, but it is unclear exactly which error number is referenced.",
+		CompassAnalyze.AtAtErrorValueRef+tttSeparator+"The application references the @@ERROR value shown here, but this particular SQL Server error code is not currently supported by "+thisProgName+". Rewrite manually to check for the PostgreSQL error code",
 		CompassAnalyze.VarDeclareAtAt+tttSeparator+"Local variables or parameters starting with '@@' can be declared, but cannot currently be referenced",
 		"Cursor option "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
 		"FETCH  "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
@@ -617,7 +633,7 @@ tooltipsHTMLPlaceholder +
 		"INSERT..DEFAULT VALUES"+tttSeparator+"INSERT..DEFAULT VALUES: this syntax is not currently supported. Rewrite manually as an INSERT with actual values",
 		"INSERT TOP..SELECT"+tttSeparator+"Rewrite as INSERT.. SELECT TOP",
 		CompassAnalyze.InsertBulkStmt+tttSeparator+"INSERT BULK is not a T-SQL statement, but only available through specific client-server APIs",
-		CompassAnalyze.BulkInsertStmt+tttSeparator+"BULK INSERT is not currently supported. Use a different method to load data from a file, for example PostgreSQL's COPY statement",
+		CompassAnalyze.BulkInsertStmt+tttSeparator+"BULK INSERT is not currently supported. Use a different method to load data from a file, for example the 'bcp' utility (with Babelfish v.2.1.0 or later), or the PostgreSQL's COPY statement",
 		CompassAnalyze.DMLTableSrcFmt+tttSeparator+"A DML statement with OUTPUT clause, as source of an INSERT-SELECT, is not currently supported. Rewrite with OUTPUT into a temp table or table variable, and INSERT-SELECT from that",
 		CompassAnalyze.VarAggrAcrossRowsFmt+tttSeparator+"In SQL Server, an assignment of a variable where the same variable also occurs in the assigned expression, may carry over its value for every qualifying row, thus creating a kind of aggregation. This is not currently supported in Babelfish. Verify if more than 1 row may qualify and if so, rewrite the query manually",
 		CompassAnalyze.VarAssignDependency+tttSeparator+"Assignment of a variable depending on another variable which is itself assigned in the same statement, may produce unexpected results since the order of assignment is not guaranteed. Rewrite the query manually, for example by splitting it up into separate statements",
@@ -630,14 +646,14 @@ tooltipsHTMLPlaceholder +
 		"OUTER APPLY"+tttSeparator+"OUTER APPLY: lateral joins are not currently supported. Rewrite manually",
 		"T-SQL Left Outer Join"+tttSeparator+"The (long-deprecated) T-SQL Outer Join syntax is not supported; rewrite with ANSI Outer Join syntax",
 		"T-SQL Right Outer Join"+tttSeparator+"The (long-deprecated) T-SQL Outer Join syntax is not supported; rewrite with ANSI Outer Join syntax",
-		"WAITFOR DELAY"+tttSeparator+"WAITFOR DELAY: Rewrite this as a call to pg_sleep, e.g. EXECUTE pg_sleep 60 (the -rewrite option handles this for you)",
+		"WAITFOR DELAY"+tttSeparator+"WAITFOR DELAY: Rewrite this as a call to pg_sleep, e.g. EXECUTE pg_sleep 60 " + rewriteOption,
 		CompassAnalyze.SelectTopWoOrderBy+tttSeparator+"SELECT TOP without ORDER BY: without ORDER BY, the order of rows in the result is not guaranteed, and therefore the TOP n rows aren't either. Even though the order may still have been deterministic in SQL Server (for example, due to a clustered index), this cannot be relied on when migrating to Babelfish/PostgreSQL. Recommendation is to review these queries and in case it is possible that the result set has >1 row, add an ORDER BY before migrating to Babelfish",
 		"Constraint PRIMARY KEY/UNIQUE, CLUSTERED,"+tttSeparator+"CLUSTERED constraints are not currently supported. The constraint will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
 		"Index, CLUSTERED,"+tttSeparator+"CLUSTERED indexes are not currently supported. The index will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
 		"Index, UNIQUE, CLUSTERED,"+tttSeparator+"CLUSTERED indexes are not currently supported. The index will be created as if NONCLUSTERED was specified. Review all (implicit) assumptions about row ordering or performance due to existence of a CLUSTERED index",
 		"Inline index in CREATE TABLE"+tttSeparator+"Inline indexes are not currently supported; create separately with CREATE INDEX (in CREATE TABLE, the -rewrite option handles this for you)",
 		"Inline index"+tttSeparator+"Inline indexes are not currently supported; create separately with CREATE INDEX",
-		"NONCLUSTERED HASH"+tttSeparator+"NONCLUSTERED HASH indexes or -constraints are not currently supported; remove HASH (the -rewrite option handles this for you)",
+		"NONCLUSTERED HASH"+tttSeparator+"NONCLUSTERED HASH indexes or -constraints are not currently supported; remove HASH " + rewriteOption,
 		"CLUSTERED COLUMNSTORE"+tttSeparator+"CLUSTERED COLUMNSTORE indexes (without a column list) are not currently supported; review performance expectations related to such indexes",
 		"COLUMNSTORE index"+tttSeparator+"COLUMNSTORE indexes are not currently supported; review performance expectations related to such indexes",
 		"Indexed view "+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
@@ -649,7 +665,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.QueryHint+tttSeparator+"Query hints are not currently supported by Babelfish; escape hatch "+escapeHatchQueryHintsText+" will silently ignore query hints ('strict' will raise an error). Review the expected impact on query plans in the original query and rewrite the query as needed",
 		CompassAnalyze.NumericColNonNumDft+tttSeparator+"NUMERIC/DECIMAL table columns with a non-numeric column default still allow the table to be created in SQL Server but will raise an error only when the default is used; in Babelfish, the error is raised when the table is created. Remove the non-numeric default",
 		CompassAnalyze.TableValueConstructor+tttSeparator+"Rewrite the VALUES() clause as SELECT statements and/or UNIONs",
-		CompassAnalyze.MergeStmt+tttSeparator+"Rewrite MERGE as a series of INSERT/UPDATE/DELETE statements (the -rewrite option handles this for you)",
+		CompassAnalyze.MergeStmt+tttSeparator+"Rewrite MERGE as a series of INSERT/UPDATE/DELETE statements " + rewriteOption,
 		CompassAnalyze.DynamicSQLEXECStringReview+tttSeparator+"Dynamic SQL with EXECUTE(string) is supported by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
 		CompassAnalyze.DynamicSQLEXECSPReview+tttSeparator+"Dynamic SQL with sp_executesql is supported by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
 		CompassAnalyze.FKrefDBname+tttSeparator+"Remove the database name from the referenced table. E.g. change: REFERENCES yourdb.dbo.yourtable(yourcol) to: REFERENCES dbo.yourtable(yourcol)",
@@ -661,7 +677,8 @@ tooltipsHTMLPlaceholder +
 		"Number of function parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the function to use less parameters (for example, by using a table variable as parameter)",
 		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action, in case the trigger body references the transition tables INSERTED or DELETED",
 		"SET FMTONLY"+tttSeparator+"SET FMTONLY applies only to SELECT * in v.1.2.0 or later; otherwise it is ignored",
-		"SET ANSI_WARNINGS OFF"+tttSeparator+"SET ANSI_WARNINGS OFF is currently not supported due to PG limitations (PG cannot silently return NULL for arithmetic overflow or divide-by-zero, or silently truncate too-long strings). Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the error message fromSET ANSI_WARNINGS OFF",
+		"SET PARSEONLY"+tttSeparator+"SET PARSEONLY is not currently supported. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
+		"SET ANSI_WARNINGS OFF"+tttSeparator+"SET ANSI_WARNINGS OFF is currently not supported due to PG limitations (PG cannot silently return NULL for arithmetic overflow or divide-by-zero, or silently truncate too-long strings). Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the error message from SET ANSI_WARNINGS OFF",
 		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
 		"SET ARITHABORT OFF"+tttSeparator+"Currently, only the semantics of ARITHABORT=ON are supported. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
 		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported; for other numbers, use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message and treat the number as 0. When using a variable, an error is raised regardless",
@@ -698,7 +715,7 @@ tooltipsHTMLPlaceholder +
 		"EXECUTE AS"+tttSeparator+"The EXECUTE AS statement (not to be confused with the EXECUTE AS clause in CREATE PROCEDURE/FUNCTION/etc.) is not currently supported",
 		"EXECUTE procedure sp_addextendedproperty"+tttSeparator+"System stored procedure sp_addextendedproperty is not currently supported; this is most often used to create metadata comments (e.g. COMMENT ON in PostgreSQL) and does not otherwise affect SQL functionality",
 		"REVERT"+tttSeparator+"The REVERT statement is not currently supported",
-		"LIKE '[...]'"+tttSeparator+"Square brackets [...] for pattern matching are not currently supported with LIKE",
+		"LIKE '[...]'"+tttSeparator+"Square brackets [...] for pattern matching are not currently supported with LIKE. It may be possible to achieve similar results by rewriting the LIKE predicate as a call to PATINDEX(), although PATINDEX may match a substring where LIKE must match the entire source string",
 
 		"\\w+, option WITH EXECUTE AS CALLER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY INVOKER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
 		"\\w+, option WITH EXECUTE AS OWNER"+tttSeparator+"The clause WITH EXECUTE AS OWNER for procedures, functions and triggers maps to SECURITY DEFINER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
@@ -905,7 +922,7 @@ tooltipsHTMLPlaceholder +
 	static Map<String, String> SUDFSymTab = new HashMap<>();
 	static Map<String, String> TUDFSymTab = new HashMap<>();
 	static Map<String, String> colSymTab = new HashMap<>();  // columns
-	public static boolean buildColSymTab = false;  // false=no columns in symtab
+	public static boolean buildColSymTab = false;  // false=no columns in symtab in pass 1
 	static Map<String, String> parSymTab = new HashMap<>();  // parameters with defaults
 
 	//XML methods
@@ -967,13 +984,14 @@ tooltipsHTMLPlaceholder +
 	public static final String ReviewManually    = "REVIEWMANUALLY";
 	public static final String Ignored           = "IGNORED";
 	public static final String ObjCountOnly      = "OBJECTCOUNTONLY";
+	public static final String XRefOnly          = "XREFONLY";
 	public static final String Rewritten         = "REWRITTEN";
 	public static final String RewriteOppty      = "REWRITEOPPTY";
 
 	// TODO Convert these lists in sets for efficiency
-	public static List<String> supportOptions        = Arrays.asList(Supported,    NotSupported,    ReviewSemantics,    ReviewPerformance,    ReviewManually,    Ignored, ObjCountOnly, RewriteOppty, Rewritten);
+	public static List<String> supportOptions        = Arrays.asList(Supported,    NotSupported,    ReviewSemantics,    ReviewPerformance,    ReviewManually,    Ignored, ObjCountOnly, RewriteOppty, Rewritten, XRefOnly);
 	// values for default_classification in .cfg file:
-	public static List<String> supportOptionsCfgFile = Arrays.asList("Supported", "NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually",  "Ignored", ObjCountOnly, RewriteOppty, Rewritten);
+	public static List<String> supportOptionsCfgFile = Arrays.asList("Supported", "NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually",  "Ignored", ObjCountOnly, RewriteOppty, Rewritten, XRefOnly);
 	public static List<String> validSupportOptionsCfgFileOrig = Arrays.asList("NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually", "Ignored");
 	public static List<String> validSupportOptionsCfgFile = new ArrayList<>();
 	// keys for default_classification in .cfg file, e.g. '-ReviewSemantics':
@@ -986,7 +1004,7 @@ tooltipsHTMLPlaceholder +
 	public static List<String> overrideClassificationsKeys = new ArrayList<>();
 
 	// display values
-	public static List<String> supportOptionsDisplay = Arrays.asList("Supported", "Not Supported", "Review Semantics", "Review Performance", "Review Manually", "Ignored", ObjCountOnly, "Rewrite opportunities", "Rewritten by Babelfish Compass");
+	public static List<String> supportOptionsDisplay = Arrays.asList("Supported", "Not Supported", "Review Semantics", "Review Performance", "Review Manually", "Ignored", ObjCountOnly, "Rewrite opportunities", "Rewritten by Babelfish Compass", XRefOnly);
 
 	// iteration order for report
 	public static List<String> supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Supported);
@@ -1001,7 +1019,8 @@ tooltipsHTMLPlaceholder +
 	                                                                 0,     // Ignored
 	                                                                 0,     // ObjCountOnly, not applicable
 	                                                                 0,     // RewriteOppty, not applicable
-	                                                                 100    // Rewritten
+	                                                                 100,   // Rewritten
+	                                                                 0      // XRefOnly, not applicable
 	                                                                );
 	public final String WeightedStr = "Weighted";
 
@@ -1054,6 +1073,10 @@ tooltipsHTMLPlaceholder +
 	// SQL rewrites performed
 	public static List<String> rewritesDone = new ArrayList<>();
 
+	// avoiding duplicate XRefOnly records	
+	public static Map<String,Integer> xrefLineFilter = new HashMap<>();
+	public static Map<String,String> xrefMap = new HashMap<>();
+	
 	// flags
 	public static boolean devOptions = false;
 	public static boolean updateCheck = true;
@@ -1062,6 +1085,7 @@ tooltipsHTMLPlaceholder +
 	public static boolean QuotedIdentifierFlag = false;
 	public static boolean listHints = false;
 	public static boolean reportSyntaxIssues = false;
+	public static boolean generateCSV = true;
 
 	// misc
 	public static final String miscDelimiter = "~!~@~!~";
@@ -1118,10 +1142,10 @@ tooltipsHTMLPlaceholder +
 	    	importFormatSupportedDisplay = new ArrayList<>(importFormatSupported);
 	    	importFormatSupportedDisplay.remove(sqlcmdFmt);
 		}
-	    listToLowerCase(importFormatSupported);
+	    listToLowerCase(importFormatSupported);	    
     }
 
-	/**
+	/*
 	 * Sets the operating system executable name, reports folder name based on osName.
 	 * Optionally turns on the developer options flag. Optionally sets the hint icon value for reports. Optionally turns
 	 * on the visibility of percent complete.
@@ -1157,6 +1181,11 @@ tooltipsHTMLPlaceholder +
 			devOptions = true;
 		}
 
+		if (System.getenv().containsKey("COMPASS_NOUPDATECHK") || System.getenv().containsKey("compass_noupdatechk")) {
+			// useful for demos
+			updateCheck = false;
+		}
+
 		if (System.getenv().containsKey("COMPASS_HINT_ICON") || System.getenv().containsKey("compass_hint_icon")) {
 			// you can get an arbitrary emoji as icon when you specify it in envvar COMPASS_HINT_ICON
 			String iconEnv = System.getenv().get("COMPASS_HINT_ICON");
@@ -1170,10 +1199,9 @@ tooltipsHTMLPlaceholder +
 			}
 		}
 
-		if (System.getenv().containsKey("COMPASS_COMPAT_PERCENTAGE") || System.getenv().containsKey("compass_compat_percentage")) {
-			showPercentage = true;
-		}
-
+//		if (System.getenv().containsKey("COMPASS_COMPAT_PERCENTAGE") || System.getenv().containsKey("compass_compat_percentage")) {
+//			showPercentage = true;
+//		}
     }
 
  	// for debugging, and for launching the window with the final report
@@ -1975,7 +2003,7 @@ tooltipsHTMLPlaceholder +
 	}
 
 	// report file pathname
-    public String getreportFilePathName(String reportName, Date now) {
+    public String getReportFilePathName(String reportName, Date now) {
     	String now_fname = new SimpleDateFormat("yyyy-MMM-dd-HH.mm.ss").format(now);
     	String reportNameFull = "report-" + reportName + "-" + "bbf." + targetBabelfishVersion + "-" + fixNameChars("report", now_fname) + "." + textSuffix;
     	if (stdReport) { // development only
@@ -1988,7 +2016,7 @@ tooltipsHTMLPlaceholder +
 	}
 
 	public String getReportFileHTMLPathname(String reportName, Date now) {
-		String f = getreportFilePathName(reportName, now);
+		String f = getReportFilePathName(reportName, now);
 		f = changeFilenameSuffix(f, textSuffix, HTMLSuffix);
 		return f;
 	}
@@ -2492,6 +2520,7 @@ tooltipsHTMLPlaceholder +
 	// get attribute from imported file's first line
     public String importFileAttribute(String line, int part) throws IOException {
     	assert (part >= 1 && part <= 5): "invalid part value ["+part+"] ";
+    	if (line == null) return "";
     	return getPatternGroup(line, "^"+importFileLinePart1+"[\\[](.*?)[\\]]"+importFileLinePart2+"[\\[](.*?)[\\]]"+importFileLinePart3+"[\\[](.*?)[\\]]"+importFileLinePart4+"[\\[](.*?)[\\]]"+importFileLinePart5+"(.*)$", part);
     }
 
@@ -2609,7 +2638,7 @@ tooltipsHTMLPlaceholder +
 		}
 
 		if (!export && !targetVersionTest.equals(targetBabelfishVersion)) {
-			result = "Analysis was performed for a different "+babelfishProg+" version ("+targetVersionTest+") than targeted by this run (v."+targetBabelfishVersion+"):\n";
+			result = "Analysis was performed for a different "+babelfishProg+" version (v."+targetVersionTest+") than targeted by this run (v."+targetBabelfishVersion+"):\n";
 		}
 		else if (!identicalTargetVersion) {
 			result = "Analysis files are for different "+babelfishProg+" versions:\n";
@@ -2944,12 +2973,24 @@ tooltipsHTMLPlaceholder +
 						jsonQueryFmtFound++;
 					}
 				}
-				else if (line.startsWith("<event name=\"sql_statement_completed\"")) {
+				else if (line.startsWith("<EVENT NAME=\"SQL_STATEMENT_COMPLETED\" PACKAGE=\"SQLSERVER\"")) {
 					extendedEventsXMLFound++;
 				}
-				else if (line.startsWith("<data name=\"statement\"")) {
+				else if (line.startsWith("<EVENT NAME=\"SP_STATEMENT_COMPLETED\" PACKAGE=\"SQLSERVER\"")) {
 					extendedEventsXMLFound++;
 				}
+				else if (line.startsWith("<EVENT NAME=\"SQL_BATCH_COMPLETED\" PACKAGE=\"SQLSERVER\"")) {
+					extendedEventsXMLFound++;
+				}
+				else if (line.startsWith("<EVENT NAME=\"RPC_COMPLETED\" PACKAGE=\"SQLSERVER\"")) {
+					extendedEventsXMLFound++;
+				}
+				else if (line.startsWith("<DATA NAME=\"STATEMENT\"")) {
+					extendedEventsXMLFound++;
+				}
+				else if (line.startsWith("<DATA NAME=\"BATCH TEXT\"")) {
+					extendedEventsXMLFound++;
+				}				
 				else if (line.startsWith("<?XML VERSION=")) {
 					if (!getPatternGroup(line,"^.(\\w+) ", 1).isEmpty()) {
 						genericSQLXMLFound++;
@@ -2957,9 +2998,6 @@ tooltipsHTMLPlaceholder +
 					}
 				}
 				else if (line.startsWith("<")) {
-					if (!getPatternGroup(line,"^.(\\w+) ", 1).isEmpty()) {
-						genericSQLXMLFound++;
-					}
 					if (line.startsWith("<TRACEPROVIDER NAME=\"MICROSOFT SQL SERVER\"")) {
 						SQLServerProfilerXMLFound++;
 					}
@@ -3024,7 +3062,7 @@ tooltipsHTMLPlaceholder +
 		if (importFormat.equalsIgnoreCase(extendedEventsXMLFmt)) {
 			//appOutput(thisProc()+"jsonQueryFmt, jsonQueryFmtFound=["+jsonQueryFmtFound+"] ");
 			if (extendedEventsXMLFound == 0) {
-				importFormatSeemsInvalidMsg(inputFileName, extendedEventsXMLFmt, seemsFormat, "tag: <event name=\"sql_statement_completed\"");
+				importFormatSeemsInvalidMsg(inputFileName, extendedEventsXMLFmt, seemsFormat, "tag: <event name=\"sql_statement_completed\" package=\"sqlserver\"");
 			}
 		}
 
@@ -3050,6 +3088,7 @@ tooltipsHTMLPlaceholder +
 
 	private void importFormatSeemsInvalidMsg(String inputFileName, String importFmtSpecified, String seemsFormat, String fmtExample) {
 		//appOutput(thisProc()+"inputFileName=["+inputFileName+"] seemsFormat=["+seemsFormat+"] importFmtSpecified=["+importFmtSpecified+"] ");
+		if (importFmtSpecified.equals(sqlcmdFmt) && seemsFormat.equals(unknownFormat)) return; // don't report this case
 		String s = "\nInput format '"+importFmtSpecified+"' was specified, but input file does not seem to be in this format";
 		if (seemsFormat.isEmpty()) {
 			s += ",\nsince no corresponding formatting was found ("+fmtExample+").";
@@ -3075,12 +3114,19 @@ tooltipsHTMLPlaceholder +
 		String SQLServerProfilerXMLStart = "<Column id=\"1\" name=\"TextData\">";
 		String SQLServerProfilerXMLEnd   = "</Column>";
 
+		String ExtendedEventXMLStatementStart = "<data name=\"statement\">";
+		String ExtendedEventXMLBatchStart     = "<data name=\"batch_text\">";
+		String ExtendedEventXMLLineStart      = "<value>";
+		String ExtendedEventXMLEnd            = "</value>";
+
 		// open file for extracted queries
 		String extractedFilePathName = openExtractedFile(reportName, inputFileName, fullPath, appName, charset.toString());
 
 		appOutput("Using input file format '"+importFormat+"'");
 		appOutput("Writing extracted SQL queries to '"+extractedFilePathName+"'");
 
+		deDupQueries.clear();
+		
 		if (!deDupExtracted) {
 			appOutput("Not performing de-duplication of extracted batches.");
 			writeExtractedFile("-- Batches extracted from input file: see end of this file");
@@ -3161,7 +3207,30 @@ tooltipsHTMLPlaceholder +
 				}
 				stmt = line;
 			}
+			else if (importFormat.equalsIgnoreCase(extendedEventsXMLFmt)) {
+				// captured SQL starts at <data name="statement" or <data name="batch_text" 
+				if (!startFound) {
+					if (!line.startsWith(ExtendedEventXMLStatementStart) && !line.startsWith(ExtendedEventXMLBatchStart) ) continue;
+					startFound = true;
+					if (line.startsWith(ExtendedEventXMLStatementStart)) line = line.substring(ExtendedEventXMLStatementStart.length());
+					if (line.startsWith(ExtendedEventXMLBatchStart)) line = line.substring(ExtendedEventXMLBatchStart.length());
+				}
 
+				if (startFound) {
+					if (line.startsWith(ExtendedEventXMLLineStart)) line = line.substring(ExtendedEventXMLLineStart.length());
+					if (line.endsWith(ExtendedEventXMLEnd))  {
+						line = line.substring(0,line.indexOf(ExtendedEventXMLEnd));
+						startFound = false;
+					}
+					else {
+						stmt += "\n" + line;
+						continue;
+					}
+				}
+				stmt += "\n" + line;				
+			}
+				
+				
 			stmt = stmt.trim();
 
 			if (importFormat.equalsIgnoreCase(SQLServerProfilerXMLFmt)) {
@@ -3524,7 +3593,7 @@ tooltipsHTMLPlaceholder +
 		if (options.contains("datatype")) {
 			if (name.toUpperCase().startsWith("SYS.")) name = name.substring(4);
 			else if (name.toUpperCase().equals("XMLCOLUMN_SETFORALL_SPARSE_COLUMNS")) name = "XML COLUMN_SET FOR ALL_SPARSE_COLUMNS";
-			else if (name.toUpperCase().startsWith("XML(")) name = applyPatternFirst(name, "^XML\\([\\[\\]\\w\\.]+\\)", CompassAnalyze.CfgXMLSchema);
+			else if (name.toUpperCase().startsWith("XML(")) name = applyPatternFirst(name, "^XML\\([\\[\\]\\w\\.]+\\)", CompassAnalyze.cfgXMLSchema);
 			else if (name.toUpperCase().startsWith("NATIONALCHAR")) name = "NATIONAL " + name.substring("NATIONAL".length());
 
 			if (name.toUpperCase().contains("VARYING")) name = applyPatternFirst(name, "\\b((N)?CHAR(ACTER)?)(VARYING\\b)", "$1 $4");  // not handling a UDD named CHARVARYING, but let's accept that
@@ -3578,9 +3647,11 @@ tooltipsHTMLPlaceholder +
 		if (!readingSymTab) {
 			objName = resolveName(objName);
 		}
-		// don't need #tmp tables in this symtab
+		// don't need #tmp tables in this symtab, unless storing columns in symtab
 		if (objName.charAt(0) == '#') {
-			return;
+			if (!buildColSymTab) {
+				return;
+			}
 		}
 		objTypeSymTab.put(objName.toUpperCase(), objType);
 	}
@@ -3625,6 +3696,9 @@ tooltipsHTMLPlaceholder +
 	}
 
 	// add to symbol table
+	public String makeColSymTabKey(String tableName, String colName) {
+		return (maskChar(tableName, symTabSeparator) + symTabSeparator + maskChar(colName, symTabSeparator)).toUpperCase();
+	}
 	public void addColSymTab(String tableName, String colName, String dataType) {
 		addColSymTab(tableName, colName, dataType, false, false);
 	}
@@ -3638,22 +3712,21 @@ tooltipsHTMLPlaceholder +
 			colName = normalizeName(colName);
 			dataType = normalizeName(dataType);
 		}
-		String tabcol = maskChar(tableName, symTabSeparator) + symTabSeparator + maskChar(colName, symTabSeparator);
-		tabcol = tabcol.toUpperCase();
+		String tabcol = makeColSymTabKey(tableName, colName);
 		String nullFmt = "";
 		if (nullable) nullFmt = " NULL";
 		colSymTab.put(tabcol, dataType + nullFmt);
-		//appOutput(thisProc()+"adding tabcol("+colSymTab.size()+")=["+tabcol+"] dataType=["+dataType+nullFmt+"] ");
+		//appOutput(thisProc()+"pass=["+analysisPass+"] adding tabcol("+colSymTab.size()+")=["+tabcol+"] dataType=["+dataType+nullFmt+"] ");
 	}
 
 	// add to symbol table
-	public String makeparSymTabKey(String objName, String parName, int parNo) {
+	public String makeParSymTabKey(String objName, String parName, int parNo) {
 		return maskChar(objName, symTabSeparator) + symTabSeparator + parName + symTabSeparator + parNo;
 	}
-	public String makeparSymTabKey(String objName, String parName) {
+	public String makeParSymTabKey(String objName, String parName) {
 		return maskChar(objName, symTabSeparator) + symTabSeparator + parName;
 	}
-	public String makeparSymTabKey(String objName, int parNo) {
+	public String makeParSymTabKey(String objName, int parNo) {
 		return maskChar(objName, symTabSeparator) + symTabSeparator + parNo;
 	}
 	public void addParSymTab(String objName, String parName, int parNo, String parDft) {
@@ -3667,7 +3740,7 @@ tooltipsHTMLPlaceholder +
 		
 		if (!readingSymTab) {
 			// pass 1: only for being able to write to the symtab file: keep parName and parNo together
-			String parKey = makeparSymTabKey(objName, parName, parNo);		
+			String parKey = makeParSymTabKey(objName, parName, parNo);		
 			parKey = parKey.toUpperCase();
 			
 			// handle special string cases
@@ -3706,12 +3779,12 @@ tooltipsHTMLPlaceholder +
 		}
 		else {			
 			// reading symtab in pass 2: add both with the parameter name and position to enable lookups
-			String parNameKey = makeparSymTabKey(objName, parName);					
+			String parNameKey = makeParSymTabKey(objName, parName);					
 			parNameKey = parNameKey.toUpperCase();
 			parSymTab.put(parNameKey, parDft);
 			//appOutput(thisProc()+"adding par("+parSymTab.size()+")=["+parNameKey+"] parDft=["+parDft+"] ");
 			
-			String parNoKey = makeparSymTabKey(objName, parNo);
+			String parNoKey = makeParSymTabKey(objName, parNo);
 			parNoKey = parNoKey.toUpperCase();
 			parSymTab.put(parNoKey, parDft);
 			//appOutput(thisProc()+"adding par("+parSymTab.size()+")=["+parNoKey+"] parDft=["+parDft+"] ");
@@ -4022,6 +4095,13 @@ tooltipsHTMLPlaceholder +
 		reportFileWriterHTML.write("<pre>\n");
 	}
 
+	public void writeReportFile() throws IOException {
+		reportFileWriter.write("\n");
+		reportFileWriter.flush();
+		reportFileWriterHTML.write("\n");
+		reportFileWriterHTML.flush();
+	}
+	
 	public void writeReportFile(StringBuilder line) throws IOException {
 		writeReportFile(line.toString());
 	}
@@ -4034,6 +4114,44 @@ tooltipsHTMLPlaceholder +
 		reportFileWriter.flush();
 	}
 
+	public void closeReportFile() throws IOException {
+		reportFileWriter.close();
+		reportFileWriterHTML.write("\n</pre>\n");
+		reportFileWriterHTML.close();
+	}
+	
+	// handle CSV file
+    public String getCSVFilePathName(String reportFilePathName) {
+    	String fCSV = applyPatternFirst(reportFilePathName, "\\.\\w+$", "."+CSVSuffix);
+    	return fCSV;
+	}
+	
+	public void openCSVFile(String reportName) throws IOException {
+		CSVFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(CSVFilePathName), StandardCharsets.UTF_8)));
+		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
+		String initLine = "This file created at " + now + " for report " + reportName + " and " + babelfishProg + " v." + targetBabelfishVersion + " by " + thisProgName + " version " + thisProgVersion;
+		CSVFileWriter.write(initLine+"\n");
+	}
+
+	public void writeCSVFile() throws IOException {
+		CSVFileWriter.write("\n");
+		CSVFileWriter.flush();
+	}
+	
+	public void writeCSVFile(StringBuilder line) throws IOException {
+		writeCSVFile(line.toString());
+	}
+
+	public void writeCSVFile(String line) throws IOException {
+		line = removeHTMLTags(line);
+		CSVFileWriter.write(unEscapeHTMLChars(line) + "\n");
+		CSVFileWriter.flush();
+	}
+
+	public void closeCSVFile() throws IOException {
+		CSVFileWriter.close();
+	}
+		
 	public String removeHTMLTags (String line) {
 		// for the .txt version, remove HTML tags
 		if (line.contains("<a ")) {
@@ -4056,19 +4174,6 @@ tooltipsHTMLPlaceholder +
 		return line;
 	}
 
-	public void writeReportFile() throws IOException {
-		reportFileWriter.write("\n");
-		reportFileWriter.flush();
-		reportFileWriterHTML.write("\n");
-		reportFileWriterHTML.flush();
-	}
-
-	public void closeReportFile() throws IOException {
-		reportFileWriter.close();
-		reportFileWriterHTML.write("\n</pre>\n");
-		reportFileWriterHTML.close();
-	}
-
 	public String progressCnt(int currentCount, int totalCount) {
 		assert currentCount >= 1 : "currentCount must be >= 1";
 		assert totalCount >= 1 : "totalCount must be >= 1";
@@ -4077,9 +4182,17 @@ tooltipsHTMLPlaceholder +
 	}
 
 	public void reportSummaryStatus(String status, List<String> sortedList, Map<String, Integer> itemCount, Map<String, String>appItemList) throws IOException {
-		StringBuilder lines = new StringBuilder();
+		StringBuilder lines = new StringBuilder();		
 		StringBuilder prevGroup = new StringBuilder(uninitialized);
 		final String statsMarker = "~STATSHERE~";
+		final String CSVseparator = ",";
+			
+		boolean doCSV = false;
+		// rewritten and ignored items can be omitted fromthe .csv file as they don;t represent any realistic complexity
+		if (status.equals(NotSupported) || status.equals(ReviewSemantics) || status.equals(ReviewPerformance) || status.equals(ReviewManually)) doCSV = true;
+		if (!generateCSV) doCSV = false;
+		
+		StringBuilder linesCSV = new StringBuilder();				
 
 		//progress indicator
 		printProgress();
@@ -4103,7 +4216,8 @@ tooltipsHTMLPlaceholder +
 					itemCnt.clear();
 				}
 				if (sortStatus.toString().equals(lastItem)) break;
-				lines.append(group + " ("+statsMarker+")\n");
+				lines.append(group).append(" ("+statsMarker+")\n");
+				if (doCSV) linesCSV.append("\n").append(CSVseparator).append(group).append("\n");
 			}
 			grpCount += itemCount.get(s);
 			totalCnt += itemCount.get(s);
@@ -4115,11 +4229,72 @@ tooltipsHTMLPlaceholder +
 				int spacerTab = 8;
 				int spacerLen = spacerTab - (thisItem.length()%spacerTab);
 				if (spacerLen < minSpacer) spacerLen += spacerTab;
-				lines.append(stringRepeat(" ", spacerLen) + appItemList.get(s));
+				lines.append(stringRepeat(" ", spacerLen) + appItemList.get(s));					
 			}
 			lines.append("\n");
+			
+			// generate CSV lines
+			if (doCSV) {
+				String hint = "";
+				String itemHintKey = getItemHintKey(item.toString());	
+				String itemOrig = item.toString();	
+				String itemCSV =  collapseWhitespace(item.toString().replaceAll(CSVseparator, " "));			
+				if (!itemHintKey.isEmpty()) {
+					hint = hintsTextMap.get(itemHintKey);
+					hint = hint.replaceAll(CSVseparator, "");				
+				}	
+				
+				// Any complexity score or effort estimate defined for this reported item?
+				// This is not always straightforward to determine since we need to find the section name in the .cfg file
+				// for which this item was classified; but because we report some items in more user-friendly categories, that 
+				// relation is not always there. So we need to try a few things.
+				// The steps below will work for almost all caes. One exception is the cae where a proc has > #max parameters
+				// for those cases the user must specify an effort estimate in the .csv file themselves
+				String itemUserCfgCheck = itemCSV;
+				itemUserCfgCheck = applyPatternFirst(itemUserCfgCheck, "\\(\\)$", "");
+				if (debugging) dbgOutput(thisProc()+"itemUserCfgCheck=["+itemUserCfgCheck+"] itemCSV=["+itemCSV+"] itemOrig=["+itemOrig+"]", debugReport);				
+				// is this a SET option?
+				if (itemUserCfgCheck.startsWith("SET ")) {
+					if (!getPatternGroup(itemUserCfgCheck, "^(SET [\\w ]+?) (\\w+)$", 1).isEmpty()) {
+						String setValue = getPatternGroup(itemUserCfgCheck, "^(SET .*?) (\\w+)$", 2);
+						String setStmt = getPatternGroup(itemUserCfgCheck, "^(SET .*?) (\\w+)$", 1);
+						group = new StringBuilder(setStmt);
+						itemUserCfgCheck = setValue;
+					}
+				}
+				else {
+					// some mappings must be specified explicitly
+					if (itemUserCfgCheck.equalsIgnoreCase("CREATE TABLE " + CompassAnalyze.GlobalTmpTableFmt)) itemUserCfgCheck = CompassAnalyze.GlobalTmpTable;
+				}
+				
+				String complexityDefined = getUserDefinedProperty(CompassConfig.complexityTag, group.toString(), itemUserCfgCheck, itemOrig);
+				String effortDefined =     getUserDefinedProperty(CompassConfig.effortTag, group.toString(), itemUserCfgCheck, itemOrig);
+				if (debugging) dbgOutput(thisProc()+"complexityDefined=["+complexityDefined+"]  effortDefined=["+effortDefined+"] ", debugReport);						
+
+				if (complexityDefined.equals(CompassConfig.complexityUndefined)) complexityDefined = " ";
+		    									
+				String effortDefinedMinutes = " ";
+				if (effortDefined.equalsIgnoreCase(CompassConfig.effortUndefined)) {
+					effortDefined = " ";
+				}
+				else {
+					effortDefinedMinutes = CompassConfig.convertEffortValue(effortDefined).toString();
+					effortDefined = CompassConfig.formatEffort(effortDefined);
+				}
+								
+				linesCSV.append(CSVseparator).append(CSVseparator).append(itemCSV).append(CSVseparator).append(itemCount.get(s).toString()).append(CSVseparator).append(hint).append(CSVseparator).append(complexityDefined).append(CSVseparator).append(effortDefined).append(CSVseparator).append(effortDefinedMinutes).append(CSVseparator);	
+				linesCSV.append("\n");
+			}
 		}
 
+		// write CSV file
+		if (doCSV) {	
+			if (linesCSV.length() > 0) {
+				writeCSVFile("Status: " + supportOptionsDisplay.get(supportOptions.indexOf(status)));
+				writeCSVFile(linesCSV);
+			}
+		}
+		
 		// align datatype lengths
 		lines = new StringBuilder(alignDataTypeLength(lines.toString()));
 
@@ -4154,6 +4329,71 @@ tooltipsHTMLPlaceholder +
 		}
 	}
 
+	private String getUserDefinedProperty(String property, String group, String itemUserCfgCheck, String itemOrig) {	
+		assert (property.equals(CompassConfig.complexityTag) || property.equals(CompassConfig.effortTag)) : "invalid property=["+property+"] ";
+		assert (!group.isEmpty()) : "group should not be empty";
+					
+		String result = "";
+		
+		if (property.equals(CompassConfig.complexityTag))
+			result = CompassConfig.featureComplexityDefined(group, itemUserCfgCheck);
+		else
+			result = CompassConfig.featureEffortDefined(group, itemUserCfgCheck);	
+		if (debugging) dbgOutput(thisProc()+"property=["+property+"] group/item: group=["+group+"] item=["+itemUserCfgCheck+"] result=["+result+"]   ", debugReport);
+
+		if ((result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) || 
+		    (result.equals(CompassConfig.effortUndefined) && property.equals(CompassConfig.effortTag))) {			
+			// if not found, this could be because the report group is different from the original cfg section name
+			// try to dig up the original section name based on what we recorded at capture time
+			String xrefMapKey = (group +captureFileSeparator+ itemOrig).toUpperCase();
+			if (xrefMap.containsKey(xrefMapKey)) {
+				String origMapStr = xrefMap.get(xrefMapKey) ;
+				List<String> origMap = new ArrayList<String>(Arrays.asList(origMapStr.split(captureFileSeparator)));
+				if (debugging) dbgOutput(thisProc()+"xref map found: xrefMapKey=["+xrefMapKey+"] origMap=["+origMap+"] origMapStr=["+origMapStr+"] ", debugReport);	
+				if (property.equals(CompassConfig.complexityTag))
+					result = CompassConfig.featureComplexityDefined(origMap.get(0), origMap.get(1));
+				else
+					result = CompassConfig.featureEffortDefined(origMap.get(0), origMap.get(1));
+				if (debugging) dbgOutput(thisProc()+"property=["+property+"] xref result without default: result=["+result+"] ", debugReport);	
+					
+				if ((result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) || 
+				    (result.equals(CompassConfig.effortUndefined) && property.equals(CompassConfig.effortTag))) {		
+					if (property.equals(CompassConfig.complexityTag))
+						result = CompassConfig.featureComplexityDefined(origMap.get(0), origMap.get(1), true);
+					else
+						result = CompassConfig.featureEffortDefined(origMap.get(0), origMap.get(1), true);				    	
+					if (debugging) dbgOutput(thisProc()+"property=["+property+"] xref result with default: result=["+result+"] ", debugReport);	
+				}						
+			}	
+			if (debugging) dbgOutput(thisProc()+"property=["+property+"] item from capture xref: result=["+result+"] ", debugReport);	
+		}		
+				
+		if ((result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) || 
+		    (result.equals(CompassConfig.effortUndefined) && property.equals(CompassConfig.effortTag))) {
+			if (property.equals(CompassConfig.complexityTag))
+				result = CompassConfig.featureComplexityDefined(group);	
+			else
+				result = CompassConfig.featureEffortDefined(group);	
+			if (debugging) dbgOutput(thisProc()+"property=["+property+"] group only: result=["+result+"]  ", debugReport);
+		}
+		
+		if ((result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) || 
+		    (result.equals(CompassConfig.effortUndefined) && property.equals(CompassConfig.effortTag))) {
+			if (property.equals(CompassConfig.complexityTag))	    	
+				result = CompassConfig.featureComplexityDefined(itemUserCfgCheck);	
+			else
+				result = CompassConfig.featureEffortDefined(itemUserCfgCheck);	
+			if (debugging) dbgOutput(thisProc()+"property=["+property+"] item as group only: result=["+result+"] ", debugReport);										
+		}
+		
+		if (result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) {
+			result = "MEDIUM";
+		}	
+		
+		if (debugging) dbgOutput(thisProc()+"final: property=["+property+"] result=["+result+"] ", debugReport);	
+		return result;	
+	}
+	
 	public void reportXrefByFeature(String status, List<String> sortedList) throws IOException {
 		StringBuilder lines = new StringBuilder(doXrefMsg(status, "feature"));
 		Integer skippedFilter = 0;
@@ -4887,8 +5127,9 @@ tooltipsHTMLPlaceholder +
 		// generic init
 		Date now = new Date();
 		String now_report = new SimpleDateFormat("yyyy-MMM-dd HH:mm:ss").format(now);
-		reportFileTextPathName = getreportFilePathName(reportName, now);
+		reportFileTextPathName = getReportFilePathName(reportName, now);
 		reportFileHTMLPathName = getReportFileHTMLPathname(reportName, now);
+		CSVFilePathName = getCSVFilePathName(reportFileTextPathName);
 		reportFilePathName = reportFileHTMLPathName;
 		appOutput("");
 		appOutput("Generating report " + reportFilePathName + "...", false, true);
@@ -4939,6 +5180,7 @@ tooltipsHTMLPlaceholder +
 
 		// init map
 		addSrcFileNameMap(lastItem, lastItem);
+		xrefLineFilter.clear();
 
 		// check flag
 		if (!reportOptionXref.isEmpty()) showObjectIssuesList = true;
@@ -5181,6 +5423,23 @@ tooltipsHTMLPlaceholder +
 				if (status.equals(ObjCountOnly)) {
 					continue;
 				}
+				// for items logged only to xref the report to the original cfg sections, put 'm in a buffer and discard
+				if (status.equals(XRefOnly)) {
+					//appOutput(thisProc()+"XRefOnly line=["+capLine+"] ");
+					String xrefLineKey = item +captureFileSeparator+ itemGroup +captureFileSeparator+ CompassConfig.lastCfgCheckSection +captureFileSeparator+ CompassConfig.lastCfgCheckName+captureFileSeparator;
+					xrefLineKey = xrefLineKey.toUpperCase();
+					if (!xrefLineFilter.containsKey(xrefLineKey)) {		
+						xrefLineFilter.put(xrefLineKey, 1);	
+						
+						String xrefMapKey = itemGroup +captureFileSeparator+ item;
+						String xrefMapValue = lineNr +captureFileSeparator+ appName + captureFileSeparator + "~" + captureFileSeparator;
+						xrefMap.put(xrefMapKey.toUpperCase(), xrefMapValue.toUpperCase());				
+						for (String k : xrefMap.keySet()) {
+							if (debugging) dbgOutput(thisProc() + "xrefMap read: k=["+k+"]  v=["+xrefMap.get(k)+"]  ", debugReport);
+						}
+					}			
+					continue;
+				}
 
 				statusCount.put(status, statusCount.getOrDefault(status, 0L) + 1);
 
@@ -5212,7 +5471,7 @@ tooltipsHTMLPlaceholder +
 					rewrite = true;
 					if (rewriteReportOnly) nrRewritesDone++;
 				}
-				if (status.equals(Supported) || status.equals(Ignored) || status.equals(ReviewSemantics) || status.equals(ReviewPerformance)  || status.equals(Rewritten) || status.equals(ObjCountOnly)) {
+				if (status.equals(Supported) || status.equals(Ignored) || status.equals(ReviewSemantics) || status.equals(ReviewPerformance)  || status.equals(Rewritten) || status.equals(ObjCountOnly) || status.equals(XRefOnly)) {
 					// do not count as issue
 					skipItemIssue = true;
 				}
@@ -5590,12 +5849,39 @@ tooltipsHTMLPlaceholder +
 		List<String> sortedList = itemCount.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList());
 		sortedList.add(stringRepeat(lastItem + sortKeySeparator, 5));
 
+		openCSVFile(CSVFilePathName);
+		String CSVhdr = "\n";
+		CSVhdr += "This .csv file is intended for import into a spreadsheet.\n";
+		CSVhdr += "It is aimed at assisting specialist "+thisProgName+" users in quantifying the amount of work required\n";
+		CSVhdr += "to address non-supported items in a "+babelfishProg+" migration -- based on the user's own estimates and experience.\n";		
+		CSVhdr += "The column for 'Complexity' (below) indicates an expected low/medium/high complexity for the item in question as defined\n";
+		CSVhdr += "by Compass but this can be overridden with user-specified values in config file " + CompassConfig.userConfigFilePathName + ".\n";
+		if (CompassConfig.effortEstimatesFound) {		
+			CSVhdr += "The column for 'Effort' (below) is populated from user-specified values in config file\n";
+			CSVhdr += CompassConfig.userConfigFilePathName + " (a blank value means that no user-defined value was specified).\n";
+		}
+		CSVhdr += "The user should add their own formulas to the spreadsheet for performing calculations.\n";
+		CSVhdr += "\n";
+		
+		CSVhdr += String.join(",", "Status", "Category", "Issue", "Count", "Babelfish Compass Hint", "Complexity Score", " ");
+		if (CompassConfig.effortEstimatesFound) {
+			CSVhdr += String.join(",", "Effort/Occurrence", "Effort/Occurrence (minutes)", " ");
+		}
+		if (!generateCSV) {
+			if (!reportOptionFilter.isEmpty()) {
+				CSVhdr = "\nThis .csv file is not generated when '-reportoption filter=' is specified.";
+			}
+		}
+		writeCSVFile(CSVhdr+"\n");
+		
 		for (int i=0; i <supportOptionsIterate.size(); i++) {
 			reportSummaryStatus(supportOptionsIterate.get(i), sortedList, itemCount, appItemList);
 		}
 		sortedList.clear();
 		itemCount.clear();
 		appItemList.clear();
+		writeCSVFile("\n\n(end)\n");		
+		closeCSVFile();		
 
 		if (!rewrite) {
 			if (rewriteOppties.containsKey(rewriteOpptiesTotal)) {
@@ -5837,6 +6123,7 @@ tooltipsHTMLPlaceholder +
 					continue;
 				}
 				if (capLine.contains(captureFileSeparator+ObjCountOnly+captureFileSeparator)) continue;
+				if (capLine.contains(captureFileSeparator+XRefOnly+captureFileSeparator)) continue;
 				if (capLine.contains(captureFileSeparator+RewriteOppty+captureFileSeparator)) continue;
 
 				capCount++;
@@ -5934,6 +6221,62 @@ tooltipsHTMLPlaceholder +
 	public String openUserCfgFileNew(String fileName) throws IOException {
 		return openUserCfgFile(fileName, true);
 	}
+	
+	private String userCfgFileHeader() {
+		String hdr =
+"#------------------------------------------------------------------------------\n" +
+"#\n" +
+"# Babelfish Compass user .cfg file \n" +
+"#\n" +
+"# This file allows the user of Babelfish Compass to override the classification\n" +
+"# of not-supported features and of reporting groups.\n" +
+"# This file is automatically created by Babelfish Compass; the sections in this\n" +
+"# file are identical to those in BabelfishFeatures.cfg.\n" +
+"# Do not modify the section headers as this will render the file invalid!\n" +
+"#\n" +
+"# Users can add the following entries in a section:\n" +
+"#    default_classification=<value>\n" +
+"#    default_classification-<value>=commalist\n" +
+"#    report_group=<value>\n" +
+"#    report_group-<value>=commalist\n" +
+"#    complexity_score=<value>\n" +
+"#    complexity_score-<value>=commalist\n" +
+"#    effort_estimate=<value>\n" +
+"#    effort_estimate-<value>=commalist\n" +
+"#\n" +
+"# default_classification: overriding the classification is possible only for items which are not \n" +
+"# classified as 'Supported', so overrides for supported items will be ignored. \n" +
+"# Also, an unsupported item cannot be reclassified as 'Supported': only 'Ignored',\n"+
+"# 'ReviewSemantics', 'ReviewPerformance' and 'ReviewManually' can be used.\n"+
+"#\n" +
+userCfgComplexityHdrLine202209 + "\n" +
+"# For complexity_score, <value> is either LOW/MEDIUM/HIGH or an abstract number ranging 0..100;\n" +
+"#     it is up to the user to assign meaning to such numbers; presumably, higher=more complex\n" +
+"# For effort_estimate, <value> is a number of minutes, hours or days:\n" +
+"#     "+CompassConfig.effortPatternHelp+"\n" +
+"#\n" +
+"# Examples:\n" +
+"#    [DESC constraint]\n" +
+"#    default_classification=ReviewManually\n" +
+"#    report_group=Indexing\n" +
+"#\n" +
+"#    [Built-in functions]\n" +
+"#    default_classification-Ignored=FULLTEXTSERVICEPROPERTY   # this often occurs in SSMS-generated scripts, assume it can be ignored\n" +
+"#    complexity_score-LOW=APP_NAME,STR   # complexity = LOW for these functions, if unsupported\n" +
+"#    complexity_score-HIGH=COL_LENGTH    # complexity = HIGH for this function, if unsupported\n" +
+"#    complexity_score=MEDIUM             # complexity = MEDIUM for any other unsupported built-in function\n" +
+"#\n" +
+"#    [Cursor options]\n" +
+"#    effort_estimate-4hours=SCROLL,FOR_UPDATE  # 4 hours for these options, if unsupported\n" +
+"#    effort_estimate=1hour                     # 1 hour for any other unsupported options\n" +
+"#\n" +
+"# NB: when the same key occurs twice in a section, the last one is kept and\n" +
+"# preceding entries will be discarded.\n" +
+"#------------------------------------------------------------------------------\n" +
+"#\n";		
+		return hdr;
+	}	
+
 	public String openUserCfgFile(String fileName, boolean newFile) throws IOException {
 		checkDir(getDocDirPathname(), false, true);
 		String userCfgFilePathName = getUserCfgFilePathName(fileName);
@@ -5942,38 +6285,7 @@ tooltipsHTMLPlaceholder +
 		if (newFile) {
 			String initLine = "# This file created at " + now + " by " + thisProgName + " version " + thisProgVersion + ", " + thisProgVersionDate;
 			writeUserCfgFile(initLine);
-			initLine =
-"#------------------------------------------------------------------------------\n" +
-"#\n" +
-"# Babelfish Compass user .cfg file \n" +
-"#\n" +
-"# This file allows the user of Babelfish Compass to override the classification\n" +
-"# of not-supported features and of reporting groups.\n" +
-"# This file is automatically created by Babelfish Compass; the sections in this\n" +
-"# file will be identical to those in BabelfishFeatures.cfg. Do not modify the \n" +
-"# section headers!\n" +
-"# Users can add the following entries in a section:\n" +
-"#    default_classification=<value>\n" +
-"#    default_classification-<value>=commalist\n" +
-"#    report_group=<value>\n" +
-"#    report_group-<value>=commalist\n" +
-"#\n" +
-"# Examples:\n" +
-"#    [Built-in functions]\n" +
-"#    default_classification-Ignored=FULLTEXTSERVICEPROPERTY   # this often occurs in SSMS-generated scripts, assume it can be ignored\n" +
-"#\n" +
-"#    [DESC constraint]\n" +
-"#    default_classification=ReviewManually\n" +
-"#    report_group=Indexing\n" +
-"#\n" +
-"# NB: overriding the classification is possible only for items which are not \n" +
-"# classified as 'Supported': overrides for supported items will be ignored. \n" +
-"# Also, an item cannot be reclassified as 'Supported': only values 'Ignored',\n"+
-"# 'ReviewSemantics', 'ReviewPerformance' and 'ReviewManually' can be used.\n"+
-"#\n" +
-"#------------------------------------------------------------------------------\n" +
-"#\n";
-
+			initLine = userCfgFileHeader();
 			writeUserCfgFile(initLine);
 		}
 		else {
@@ -5983,16 +6295,56 @@ tooltipsHTMLPlaceholder +
 		return userCfgFilePathName;
 	}
 
+	// upgrade file header with new text in 2022-09, if needed
+	public void upgradeUserCfgFile(String fileName) throws IOException {
+		checkDir(getDocDirPathname(), false, true);
+		String userCfgFilePathName = getUserCfgFilePathName(fileName);		
+		FileInputStream fis = new FileInputStream(userCfgFilePathName);
+		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+		BufferedReader rewrittenInFileReader = new BufferedReader(isr);	
+		
+		String body = "";
+		boolean hasNewHdr = false;
+		boolean bodyFound = false;
+		
+		while (true) {
+			String line = rewrittenInFileReader.readLine();
+			if (line == null) {
+				//EOF
+				break;
+			}
+			if (line.startsWith(userCfgComplexityHdrLine202209)) hasNewHdr = true;
+			if (line.length() > 0) if (line.charAt(0) == '[') bodyFound = true;
+			if (bodyFound) {
+				body += line + "\n";
+			}
+		}		
+		rewrittenInFileReader.close();
+	    rewrittenInFileReader = null;
+	    	    
+	    if (hasNewHdr) return; // nothing to upgrade
+
+		// if we get here, then must upgrade file header
+		openUserCfgFileNew(CompassConfig.userConfigFileName);	
+		writeUserCfgFile(body);
+		closeUserCfgFile(false);	  
+	}
+
 	public void writeUserCfgFile(String line) throws IOException {
 		userCfgFileWriter.write(line + "\n");
 		userCfgFileWriter.flush();
 	}
 
     public void closeUserCfgFile() throws IOException {
+    	closeUserCfgFile(true);
+    }
+    public void closeUserCfgFile(boolean writeEndLine) throws IOException {
     	if (userCfgFileWriter == null) return;
-    	String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
-		String endLine = "# end ("+now+")\n";
-		writeUserCfgFile(endLine);
+    	if (writeEndLine) {
+	    	String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
+			String endLine = "# end ("+now+")\n";
+			writeUserCfgFile(endLine);
+		}
 	    userCfgFileWriter.close();
 	    userCfgFileWriter = null;
 	}
@@ -7282,6 +7634,7 @@ tooltipsHTMLPlaceholder +
 					continue;
 				}
 				if (capLine.contains(captureFileSeparator+ObjCountOnly+captureFileSeparator)) continue;
+				if (capLine.contains(captureFileSeparator+XRefOnly+captureFileSeparator)) continue;
 
 				itemCount++;
 

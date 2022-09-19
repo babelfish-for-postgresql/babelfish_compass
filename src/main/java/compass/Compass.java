@@ -474,6 +474,7 @@ public class Compass {
 								u.errorExit();				
 							}
 							CompassUtilities.reportOptionFilter = optionValue; 
+							u.generateCSV = false;
 						}
 						else if (option.equals("hints")) {
 							CompassUtilities.listHints = true;
@@ -596,7 +597,12 @@ public class Compass {
 					CompassUtilities.caching = true;
 					continue;
 				}
-				if (arg.equals("-symtab_all")) { // development only; we shouldn't need this
+				if (arg.equals("-symtab_col")) { // development only: put columns in symbol table (requires further development to be useful)
+					u.buildColSymTab = true;
+					u.appOutput("Experimental: Including columns in symbol table in pass 1");
+					continue;
+				}					
+				if (arg.equals("-symtab_all")) { // development only: load symtab for all applications -- but we shouldn't need this
 					u.symTabAll = true;
 					continue;
 				}					
@@ -673,6 +679,11 @@ public class Compass {
 							arg = arg.replaceAll("\\\\", "");
 						}						
 					}
+					if (arg.endsWith(","))  {
+						//user has specified a comma-separated list of files; be kind to the user and strip the comma
+						arg = u.removeLastChar(arg);
+					}
+					
 					tmpInputFiles.add(arg);
 				}
 				continue;
@@ -804,6 +815,10 @@ public class Compass {
 			if (deleteReport) {
 				// first delete the report dir before proceeding
 				u.deleteReportDir(reportName); 
+				if (inputFiles.size() == 0) {
+					// nothing to do
+					return;
+				}
 			}
 
 			u.checkDir(u.getDocDirPathname(), false, true);
@@ -1190,10 +1205,6 @@ public class Compass {
 		// Note that addInputFile already filters out input file paths that don't exist or can't
 		// be read or don't match our include and exclude file patterns
 		if (inputFiles.size() == 0) {
-			if (deleteReport) {
-				u.appOutput("With -delete, must specify input file(s)");
-				return false;
-			}
 			if (addReport) {
 				u.appOutput("With -add, must specify input file(s)");
 				return false;
@@ -1406,10 +1417,10 @@ public class Compass {
 		}			
 				
 		if (inputFiles.size()==0) {
-			if (deleteReport) {
-				u.appOutput("With -delete, must specify input file(s)");
-				return false;
-			}
+//			if (deleteReport) {
+//				u.appOutput("With -delete, must specify input file(s)");
+//				return false;
+//			}
 			if (addReport) {
 				u.appOutput("With -add, must specify input file(s)");
 				return false;
@@ -1453,7 +1464,27 @@ public class Compass {
 			// print message
 			u.appOutput("Ignoring report name with -stdin");
 		}
-		
+				
+		// some options can be used only when when doing actual analysis
+		if (((inputFiles.size() > 0) && (!(parseOnly || importOnly))) || reAnalyze) {
+			// ok
+		}
+		else {
+			if (userSpecifiedBabelfishVersion) {
+				u.appOutput("Cannot specify -babelfish-version when not performing analysis");
+				return false;					
+			}			
+			if (u.rewrite) {
+				u.appOutput("Cannot specify -rewrite when not performing analysis");
+				return false;				
+			}		
+			if (u.reportSyntaxIssues) {
+				u.appOutput("Cannot specify -syntax_issues when not performing analysis");
+				return false;				
+			}			
+		}
+
+				
 		// if we get here, we're good
 		
 		// ensure report-only case is reflected in the flag
@@ -1648,13 +1679,14 @@ public class Compass {
 		for (int i = 0; i < tmpInputFiles.size(); i++) {
 			String f = tmpInputFiles.get(i);
 			if (f.isEmpty()) continue;
-			if ((u.analysisPass == 1) && (!reAnalyze)) {
+			//if ((u.analysisPass == 1) && (!reAnalyze)) {
+			if (!reAnalyze) {
 				inputFiles.add(f);
 			} 
 			else {
 				// already-imported files: need to sort on app name + original src file path
-				String app = u.getAppNameFromImported(f);						
-				String origSrcFile = u.importFileAttribute(u.importFileFirstLine(f), 1);						
+				String app = u.getAppNameFromImported(f);					
+				String origSrcFile = u.importFileAttribute(u.importFileFirstLine(f), 1);	
 				sortInputFiles.add(app.toUpperCase() + sortKeySeparator + origSrcFile + sortKeySeparator + f);
 			}
 
@@ -1677,7 +1709,8 @@ public class Compass {
 		
 		// sort the input files on their original pathnames so as to process files for all apps together 
 		// (performance-relevant when combining apps recursively read from directory trees)
-		if ((u.analysisPass == 1) && (!reAnalyze)) {
+		//if ((u.analysisPass == 1) && (!reAnalyze)) {
+		if (!reAnalyze) {
 			// first-time import
 			inputFiles = inputFiles.stream().sorted().collect(Collectors.toList());
 		}
@@ -1712,8 +1745,23 @@ public class Compass {
 				if (!Files.exists(Paths.get(inFile))) {
 					continue;
 				}
+						
+				// regular case
 				appName = forceAppName ? applicationName : u.getFileNameFromPathName(inFile);
-				appName = u.fixNameChars("appname", appName);
+				appName = u.fixNameChars("appname", appName);		
+				
+				if (recursiveInputFiles && (!forceAppName)) {
+					// for recursive cases, without -appname, try to guess the appname to avoid ending up with as many appnames as inputfiles
+					String inFileTest = inFile.replaceAll("\\\\", "/"); // doesn't hurt on non-Windows			
+					for (String origFile : inputFilesOrig) {
+						origFile = origFile.replaceAll("\\\\", "/");  // doesn't hurt on non-Windows			
+						if (inFileTest.toUpperCase().startsWith(origFile.toUpperCase() + "/")) {							
+							appName = u.fixNameChars("appname", u.getFileNameFromPathName(origFile));		
+							break;
+						}
+					}
+				}
+			
 				if (appName.isEmpty()) {
 					u.appOutput("Application name '" + appName + "' is blank for '"+inFile+"' . Use -appname");
 					u.errorExit();
@@ -2228,7 +2276,11 @@ public class Compass {
 						continue;
 					} 
 					else {
-						batchLines--; // subtract the last line
+						// Reinstated counting the last line: while the line represents the batch terminator and therefore not contains any SQL,
+						// not counting this lines results in the number of lines reported to the user to differ from the #lines in the 
+						// actual input file (the difference being the number of batches)
+						// In order to avoid confusion, let's therefore count all the lines and have consistent line counts everywhere.
+						//batchLines--; // do not count the last line
 
 						if (u.analysisPass == 1) {
 							nrLinesTotalP1 += batchLines;
