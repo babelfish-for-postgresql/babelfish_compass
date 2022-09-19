@@ -473,16 +473,4 @@ public class CompassTest {
         compass.addInputFile(validInputFilePath.toString());
         assertTrue(Compass.inputFilesValid(), "Input files must not be empty with -add");
     }
-
-    @Test
-    @DisplayName("Input files validation with -delete")
-    void testInputFilesValid_Delete() {
-        Compass compass = new Compass(new String[]{"test", "-delete"});
-        assertFalse(Compass.inputFilesValid(), "Empty input files list not allowed with -delete");
-        String output = new String(stdOut.toByteArray());
-        assertTrue(output.contains("With -delete, must specify input file(s)"));
-
-        compass.addInputFile(validInputFilePath.toString());
-        assertTrue(Compass.inputFilesValid(), "Input files must not be empty with -delete");
-    }
 }
