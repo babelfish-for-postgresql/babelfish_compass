@@ -5856,8 +5856,10 @@ tooltipsHTMLPlaceholder +
 		CSVhdr += "to address non-supported items in a "+babelfishProg+" migration -- based on the user's own estimates and experience.\n";		
 		CSVhdr += "The column for 'Complexity' (below) indicates an expected low/medium/high complexity for the item in question as defined\n";
 		CSVhdr += "by Compass but this can be overridden with user-specified values in config file " + CompassConfig.userConfigFilePathName + ".\n";
-		CSVhdr += "The column for 'Effort' (below) is populated from user-specified values in config file\n";
-		CSVhdr += CompassConfig.userConfigFilePathName + " (a blank value means that no user-defined value was specified).\n";
+		if (CompassConfig.effortEstimatesFound) {		
+			CSVhdr += "The column for 'Effort' (below) is populated from user-specified values in config file\n";
+			CSVhdr += CompassConfig.userConfigFilePathName + " (a blank value means that no user-defined value was specified).\n";
+		}
 		CSVhdr += "The user should add their own formulas to the spreadsheet for performing calculations.\n";
 		CSVhdr += "\n";
 		
