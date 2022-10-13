@@ -2641,7 +2641,12 @@ public class CompassAnalyze {
 			private void captureAtAtErrorValue(Integer exprInt, String via, String op, int lineNr) {
 				String status = featureSupportedInVersion(AtAtErrorValueRef, exprInt.toString());
 				String usrDefined = "";
-				if (exprInt > 50000) usrDefined = " (user-defined)";
+				if (exprInt > 50000) {
+					usrDefined = " (user-defined)";
+					if (!via.isEmpty()) {
+						status = u.Supported;
+					}
+				}
 				captureItem(AtAtErrorValueRef+ " " +String.format("%6d",exprInt)+usrDefined+via, via, AtAtErrorValueRef, exprInt.toString(), status, lineNr);
 			}
 
@@ -3923,10 +3928,12 @@ public class CompassAnalyze {
 				}
 				else if (ctx.COLUMN() != null) {
 					subcmd = "ALTER COLUMN"; // todo: not checking all possible options here
-					if (ctx.column_definition().null_notnull().size() > 0) {
-						String n = ctx.column_definition().null_notnull().get(0).getText().toUpperCase();
-						if (n.startsWith("NOT")) n = "NOT NULL";
-						subcmd += " " + n;
+					if (ctx.column_definition() != null) {
+						if (ctx.column_definition().null_notnull().size() > 0) {
+							String n = ctx.column_definition().null_notnull().get(0).getText().toUpperCase();
+							if (n.startsWith("NOT")) n = "NOT NULL";
+							subcmd += " " + n;
+						}
 					}
 					status = featureSupportedInVersion(AlterTable, subcmd);
 				}
@@ -4874,6 +4881,21 @@ public class CompassAnalyze {
 				else if (ctx.change_table() != null) funcType = "CHANGETABLE";
 				else if (ctx.predict_function() != null) funcType = "PREDICT";
 				captureBIF(funcType, ctx.start.getLine());
+				
+									
+//				// ad-hoc analysis
+//				if (ctx.open_query() != null) {
+//					String stmt = "SELECT";
+//					if (hasParent(ctx.parent, "update_statement")) stmt = "UPDATE";
+//					else if (hasParent(ctx.parent, "delete_statement")) stmt = "DELETE";
+//					else if (hasParent(ctx.parent, "insert_statement")) stmt = "INSERT";
+//					else if (hasParent(ctx.parent, "merge_statement")) stmt = "MERGE";
+//					// if (hasParent(ctx.parent, "select_statement")) stmt = "SELECT";
+//									
+//					String qryArg = ctx.open_query().query.getText();
+//					qryArg = u.applyPatternAll(qryArg, "\\s+", " ");
+//					u.appOutput("OPENQUERY() in "+stmt+": qryArg=["+qryArg+"] currentSrcFile=["+u.currentSrcFile+"] line=["+ctx.start.getLine()+"] ");
+//				}
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());

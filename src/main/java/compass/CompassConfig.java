@@ -1529,7 +1529,7 @@ public class CompassConfig {
 	    }
 	    else {
 	        u.appOutput("Skipping "+userConfigFilePathName);
-	        cfgFileValid = false;
+	        cfgFileValid = true;
 	        return cfgFileValid;
 	    }
                 

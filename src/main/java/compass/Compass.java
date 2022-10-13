@@ -96,7 +96,7 @@ public class Compass {
 			".gzip", ".gz", ".rar", ".7z", ".tar", ".tgz", ".sh", ".bash", ".csh", ".tcsh", ".bat", ".csv", ".md", 
 			".mp4", ".mov", ".jpg", ".gif", ".png",	".tmp", ".pl", ".py", ".cs", ".cpp", ".vb", ".vbproj", ".c", ".php", 
 			".java", ".classpath", ".project", ".rb", ".js", ".exe", ".dll", ".sln", ".scc", ".gitignore", ".json", 
-			".yml", ".yaml", ".xml", ".xsl", ".xsd", ".xslt", ".rdl", ".properties", ".config", ".cfg", ".sdcs",
+			".yml", ".yaml", ".xml", ".xel", ".xsl", ".xsd", ".xslt", ".rdl", ".properties", ".config", ".cfg", ".sdcs",
 			".rpt", ".rptproj", ".rss", ".res", ".resx", ".cache", ".settings")
 	);	
 	protected static boolean generateReport = true;
@@ -243,7 +243,7 @@ public class Compass {
 				u.appOutput("   -pgimporttable <table-name>  : table name for -pgimport; default="+u.psqlImportTableNameDefault);
 				u.appOutput("   -recursive                   : recursively add files if inputfile is a directory");
 				u.appOutput("   -include <list>              : pattern of input file types to include (e.g.: .txt,.ddl)");
-				u.appOutput("   -exclude <list>              : pattern of input file types to exclude (e.g.: .xml)");
+				u.appOutput("   -exclude <list>              : pattern of input file types to exclude (e.g.: .pptx)");
   				u.appOutput("   -rewrite                     : rewrites selected unsupported SQL features");
   				u.appOutput("   -noupdatechk                 : do not check for " + CompassUtilities.thisProgName + " updates");
 				u.appOutput("   -importfmt <fmt>             : process special-format captured query files");
@@ -1195,6 +1195,9 @@ public class Compass {
 			if (u.importFormat.toUpperCase().contains("XML")) {
 				excludes.remove(".xml");
 			}
+			if (u.importFormat.equalsIgnoreCase(u.extendedEventsXMLFmt)) {
+				excludes.remove(".xel");
+			}
 		}
 
 		excludePattern = parseInputPattern(String.join(",", excludes));
@@ -1586,6 +1589,10 @@ public class Compass {
 		
 		if (u.rewrite) u.appOutput("SQL rewrites         : "+ u.nrRewritesDone, writeToReport);
 		else           u.appOutput("SQL rewrite oppties  : "+ u.rewriteOppties.getOrDefault(u.rewriteOpptiesTotal,0), writeToReport);
+		if (u.queriesExtractedAll > 0) {
+			           u.appOutput("Batches extracted    : "+ u.queriesExtractedAll, writeToReport);
+			           u.appOutput("Duplicates removed   : "+ u.deDupSkippedAll, writeToReport);
+		}
 		u.appOutput("Session log          : "+ sessionLog, writeToReport);
 		if (!u.reportFilePathName.equals(u.uninitialized)) {
 			u.appOutput("Assessment report    : "+ u.reportFilePathName, writeToReport);
@@ -1704,6 +1711,16 @@ public class Compass {
 						}
 					}
 				}
+				
+				//intercept .xel files
+				if (u.importFormat.equalsIgnoreCase(u.extendedEventsXMLFmt)) {
+					String suffix = f.substring(f.lastIndexOf(".")+1);
+					if (suffix.equalsIgnoreCase("XEL")) {
+						u.appOutput("For Extended Events files, .xel files cannot be processed; instead, extract the XML into .xml files");
+						u.errorExit();
+					}
+				}
+				
 			}
 		}			
 		
