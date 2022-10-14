@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2022-09";
-	public static final String thisProgVersionDate  = "September 2022";
+	public static final String thisProgVersion      = "2022-10";
+	public static final String thisProgVersionDate  = "October 2022";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -181,22 +181,25 @@ public class CompassUtilities {
 	public static final String genericSQLXMLFmt = "sqlXML"; // not implemented
 	public static final String SQLServerProfilerXMLFmt = "MSSQLProfilerXML";
 	public static final String unknownFormat = "unknown";
-	//public static List<String> importFormatSupported        = Arrays.asList(SQLServerProfilerXMLFmt, extendedEventsXMLFmt);  // don't let the cust specify 'sqlcmd' format
-	public static List<String> importFormatSupported        = Arrays.asList(SQLServerProfilerXMLFmt);  // don't let the cust specify 'sqlcmd' format
+	public static List<String> importFormatSupported        = Arrays.asList(SQLServerProfilerXMLFmt, extendedEventsXMLFmt);  // don't let the cust specify 'sqlcmd' format
 	public static List<String> importFormatSupportedDisplay = null;
 	public static List<String> importFormatOption           = Arrays.asList(unknownFormat, autoFmt, sqlcmdFmt, jsonQueryFmt,  extendedEventsXMLFmt, genericSQLXMLFmt, SQLServerProfilerXMLFmt);
-	public static List<String> importFormatOptionDisplay    = Arrays.asList(unknownFormat, autoFmt, sqlcmdFmt, "JSON query", "extended events/XML", "generic SQL XML", "SQL Server Profiler XML");
+	public static List<String> importFormatOptionDisplay    = Arrays.asList(unknownFormat, autoFmt, sqlcmdFmt, "JSON query", "Extended events/XML", "Generic SQL XML", "SQL Server Profiler XML");
 
 	// user-definable import format, default = sqlcmd
 	public static String importFormat = sqlcmdFmt.toLowerCase();
 
 	// deduplication
+	public static int queriesExtractedAll = 0;
 	public static boolean deDupExtracted = true; // perform  deduplication (or not)
 	public static int deDupSkipped = 0;
+	public static int deDupSkippedAll = 0;
 	public static String dedupScope = "";
 	public static final List<String> dedupScopeOption = Arrays.asList("S", "N", "H");
 	public static final List<String> dedupScopeOptionDisplay = Arrays.asList("string", "number", "hex");
 	private Map<String, String> deDupQueries = new HashMap<>();
+	private Map<String, String> deDupQueriesOrder = new HashMap<>();
+	private Map<String, String> deDupQueriesAll = new HashMap<>();
 	private Map<String, Integer> dupQueryCount = new HashMap<>();
 
 	// HTML header/footer
@@ -565,6 +568,7 @@ tooltipsHTMLPlaceholder +
 		"Option CATALOG_COLLATION"+tttSeparator+"Option CATALOG_COLLATION is not currently supported. Remove the option.",
 		"Catalog reference "+tttSeparator+"This SQL Server catalog is not currently supported",
 		"@@DBTS"+tttSeparator+"The database timestamp mechanism (with also the TIMESTAMP/ROWVERSION datatype) is not currently supported",
+		"@@TEXTSIZE"+tttSeparator+"@@TEXTSIZE is not currently supported, but can likely be removed and ignored",
 		"@@PROCID"+tttSeparator+"Rewrite as OBJECT_ID('object-name')",
 		"HIERARCHYID"+tttSeparator+"The HIERARCHYID datatype is not supported",
 		CompassAnalyze.TimestampColumnSolo+tttSeparator+"Declaring a TIMESTAMP column without a column name is not currently supported; declare as 'TIMESTAMP TIMESTAMP'",
@@ -681,7 +685,7 @@ tooltipsHTMLPlaceholder +
 		"SET ANSI_WARNINGS OFF"+tttSeparator+"SET ANSI_WARNINGS OFF is currently not supported due to PG limitations (PG cannot silently return NULL for arithmetic overflow or divide-by-zero, or silently truncate too-long strings). Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the error message from SET ANSI_WARNINGS OFF",
 		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
 		"SET ARITHABORT OFF"+tttSeparator+"Currently, only the semantics of ARITHABORT=ON are supported. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
-		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported; for other numbers, use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message and treat the number as 0. When using a variable, an error is raised regardless",
+		"SET ROWCOUNT"+tttSeparator+"Currently, only SET ROWCOUNT 0 is supported; for other values, try rewriting as SELECT/UPDATE/DELETE TOP(value). Otherwise use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message and treat the number as 0. When using a variable, an error is raised regardless",
 		"SET QUOTED_IDENTIFIER \\w+, before end of batch"+tttSeparator+"SET QUOTED_IDENTIFIER takes effect only at the start of the next batch in Babelfish; the SQL Server semantics where it applies to the next statement, is not currently supported",
 		"SET DEADLOCK_PRIORITY"+tttSeparator+"Setting the deadlock victimization priority is not currently supported",
 		"SET LOCK_TIMEOUT"+tttSeparator+"Setting the lock timeout is not currently supported",
@@ -768,7 +772,7 @@ tooltipsHTMLPlaceholder +
 	public int pgImportReportGroupLength = 50;
 	public int pgImportStatusLength = 20;
 	public int pgImportAppNameLength = 50;
-	public int pgImportSrcFileLength = 200;
+	public int pgImportSrcFileLength = 300;
 	public int pgImportContextLength = 200;
 	public int pgImportSubContextLength = 200;
 
@@ -961,7 +965,7 @@ tooltipsHTMLPlaceholder +
 
 	// debug flags
 	public boolean dbgTimestamp = true;  // can be swirched off from cmdline
-	public final HashSet<String> dbgOptions = new HashSet<>(Arrays.asList("all", "batch", "ptree", "cfg", "dir", "symtab", "report", "calc", "os", "fmt", "rewrite"));
+	public final HashSet<String> dbgOptions = new HashSet<>(Arrays.asList("all", "batch", "ptree", "cfg", "dir", "symtab", "report", "calc", "os", "fmt", "fmtdetail", "rewrite"));
 	public final HashSet<String> specifiedDbgOptions = new HashSet<>(dbgOptions.size());
 	public boolean debugBatch;
 	public boolean debugPtree;
@@ -972,6 +976,7 @@ tooltipsHTMLPlaceholder +
 	public boolean debugReport;
 	public boolean debugCalc;
 	public boolean debugFmt;
+	public boolean debugFmtDetail;
 	public boolean debugRewrite;
 	public boolean debugging;
 	public int debugSpecial = 0;
@@ -1432,7 +1437,7 @@ tooltipsHTMLPlaceholder +
 	public String maskStringConstants(String s, String tag) {
 		if (!s.contains("'") && !s.contains("\"")) return s;
 
-		s = applyPatternAll(s, "''", "");
+		s = applyPatternAll(s, "''", "' '");
 		if (!QuotedIdentifierFlag) s = applyPatternAll(s, "\"\"", "");
 
 		String quotePatt = "'";
@@ -1443,13 +1448,20 @@ tooltipsHTMLPlaceholder +
 		String tmp = "";
 		while (true) {
 			tmp = getPatternGroup(s, "^(.*?)["+quotePatt+"]", 1, "multiline");
+			if (tmp.length() == 0) {
+				tmp = getPatternGroup(s, "^(["+quotePatt+"])", 1, "multiline");
+				if (tmp.length() == 0) {
+					break;
+				}			
+				tmp = "";	
+			}
 			sNew += tmp;
 			s = s.substring(tmp.length());
 			char c = s.charAt(0);
-			String qs = getPatternGroup(s, "^("+c+".+?"+c+")", 1, "multiline");
+			String qs = getPatternGroup(s, "^("+c+".*?"+c+")", 1, "multiline");
 			if (qs.isEmpty()) {
 				// should not happen
-				appOutput(thisProc()+"Internal error s=["+s+"]. Continuing, but errors may occur");
+				appOutput("Internal error s=["+s+"] c=["+c+"] . Continuing, but errors may occur");
 				if (devOptions) errorExit();
 				break;
 			}
@@ -1459,8 +1471,10 @@ tooltipsHTMLPlaceholder +
 		}
 		sNew += s;
 		sNew = sNew.replaceAll("N"+marker, marker);
+		while (sNew.indexOf(marker+" "+marker) > -1) {
+			sNew = sNew.replaceAll(marker+" "+marker, marker);
+		}
 		sNew = sNew.replaceAll(marker, "'"+tag+"'");
-
 		return sNew;
 	}
 
@@ -1803,6 +1817,9 @@ tooltipsHTMLPlaceholder +
 		}
 		if (specifiedDbgOptions.contains("fmt") || specifiedDbgOptions.contains("all")) {
 			debugFmt = true;
+		}
+		if (specifiedDbgOptions.contains("fmtdetail") || specifiedDbgOptions.contains("all")) {
+			debugFmtDetail = true;
 		}
 		if (specifiedDbgOptions.contains("rewrite") || specifiedDbgOptions.contains("all")) {
 			debugRewrite = true;
@@ -3097,7 +3114,7 @@ tooltipsHTMLPlaceholder +
 			s += ".\nInstead, it seems to be in '"+importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()))+"' format.";
 		}
 		else {
-			s += ".\nInstead, it seems to be in '"+importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()))+"' format.\nTo process accordingly, do not specify the '-importfmt' option.";
+			s += ".\nInstead, it seems to be in '"+importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()))+"' format.\nTo process this file accordingly, do not specify the '-importfmt' option.";
 		}
 		s += "\nProceeding, but errors may occur.\n";
 		appOutput(s);
@@ -3114,10 +3131,14 @@ tooltipsHTMLPlaceholder +
 		String SQLServerProfilerXMLStart = "<Column id=\"1\" name=\"TextData\">";
 		String SQLServerProfilerXMLEnd   = "</Column>";
 
-		String ExtendedEventXMLStatementStart = "<data name=\"statement\">";
-		String ExtendedEventXMLBatchStart     = "<data name=\"batch_text\">";
-		String ExtendedEventXMLLineStart      = "<value>";
+		String ExtendedEventStart             = "<event name=\"";
+		String ExtendedEventEnd               = "</event>";
+		
+		String ExtendedEventXMLStatementStart = "<data name=\"statement\"><value>";
+		String ExtendedEventXMLBatchStart     = "<data name=\"batch_text\"><value>";
 		String ExtendedEventXMLEnd            = "</value>";
+		String XESpecialSplitMarker           = "~~~~~"+BBFMark+"~~~~~";
+
 
 		// open file for extracted queries
 		String extractedFilePathName = openExtractedFile(reportName, inputFileName, fullPath, appName, charset.toString());
@@ -3126,6 +3147,8 @@ tooltipsHTMLPlaceholder +
 		appOutput("Writing extracted SQL queries to '"+extractedFilePathName+"'");
 
 		deDupQueries.clear();
+		deDupQueriesOrder.clear();
+		deDupSkipped = 0;
 		
 		if (!deDupExtracted) {
 			appOutput("Not performing de-duplication of extracted batches.");
@@ -3135,7 +3158,7 @@ tooltipsHTMLPlaceholder +
 			writeExtractedFile("\n");
 		}
 		else {
-			appOutput("Performing de-duplication of extracted batches...");
+			appOutput("Performing de-duplication of extracted batches...", false, true);
 		}
 
 		int lineNr = 0;
@@ -3143,6 +3166,9 @@ tooltipsHTMLPlaceholder +
 		int queriesWritten = 0;
 		String stmt = "";
 		boolean startFound = false;
+		boolean endFound = false;
+		boolean fullLine = false;
+		String XELine = "";
 
 		while (true) {
 			lineNr++;
@@ -3152,7 +3178,12 @@ tooltipsHTMLPlaceholder +
 			}
 			String lineCopy = line;
 			line = line.trim();
-
+			//appOutput(thisProc()+"line=["+line+"] ");
+			if (lineNr%10000 == 0) {
+				printProgress();
+			}
+			if (debugging) dbgOutput(thisProc()+"lineNr=["+lineNr+"] startFound=["+startFound+"] endFound=["+endFound+"]   line=["+line+"] ", debugFmtDetail);
+		
 			// process depending on file format
 			if (importFormat.equalsIgnoreCase(SQLServerProfilerXMLFmt)) {
 				// captured SQL starts at '<Column id="1" name="TextData">'
@@ -3208,30 +3239,76 @@ tooltipsHTMLPlaceholder +
 				stmt = line;
 			}
 			else if (importFormat.equalsIgnoreCase(extendedEventsXMLFmt)) {
-				// captured SQL starts at <data name="statement" or <data name="batch_text" 
 				if (!startFound) {
-					if (!line.startsWith(ExtendedEventXMLStatementStart) && !line.startsWith(ExtendedEventXMLBatchStart) ) continue;
-					startFound = true;
-					if (line.startsWith(ExtendedEventXMLStatementStart)) line = line.substring(ExtendedEventXMLStatementStart.length());
-					if (line.startsWith(ExtendedEventXMLBatchStart)) line = line.substring(ExtendedEventXMLBatchStart.length());
-				}
-
-				if (startFound) {
-					if (line.startsWith(ExtendedEventXMLLineStart)) line = line.substring(ExtendedEventXMLLineStart.length());
-					if (line.endsWith(ExtendedEventXMLEnd))  {
-						line = line.substring(0,line.indexOf(ExtendedEventXMLEnd));
+					if (line.startsWith(ExtendedEventStart)) {
+						startFound = true;
+						endFound = false;						
+					}
+					if (line.endsWith(ExtendedEventEnd)) {
 						startFound = false;
+						endFound = true;
+						fullLine = true;
+						XELine = line;
 					}
-					else {
-						stmt += "\n" + line;
-						continue;
+				}				
+				if (startFound && !endFound) {
+					if (!fullLine) XELine += "\n" + line;
+					if (line.endsWith(ExtendedEventEnd)) {
+						startFound = false;
+						endFound = true;
 					}
+				}			
+				if (!startFound && endFound) {
+					// when we get here, we have the entire <event ...> ... </event> tag
 				}
-				stmt += "\n" + line;				
+				else {
+					continue; // continue reading
+				}
+				
+				// extract the relevant parts from the XML tag
+				XELine = applyPatternAll(XELine, "\\>\\s+\\<", "><", "multiline");
+				
+				// captured SQL starts at <data name="statement" or <data name="batch_text" 
+				if (debugging) dbgOutput(thisProc()+"XEline=["+XELine+"] ", debugFmtDetail);
+
+				XELine = XELine.replaceFirst("</value></data><data name=\"parameterized_plan_handle\"><value /></data><action name=\"sql_text\" package=\"sqlserver\"><value>", XESpecialSplitMarker);					
+				XELine = XELine.replaceFirst("</value></data><action name=\"sql_text\" package=\"sqlserver\"><value>", XESpecialSplitMarker);					
+
+				int ixStart = XELine.indexOf(ExtendedEventXMLStatementStart);
+				//if (debugging) dbgOutput(thisProc()+"ixStart stmt=["+ixStart+"]  ", debugFmtDetail);
+				if (ixStart > -1) ixStart += ExtendedEventXMLStatementStart.length();
+				else {
+					ixStart = XELine.indexOf(ExtendedEventXMLBatchStart);
+					if (ixStart > -1) ixStart += ExtendedEventXMLBatchStart.length();
+					//if (debugging) dbgOutput(thisProc()+"ixStart B=["+ixStart+"]  ", debugFmtDetail);
+				}
+				if (ixStart > -1) {
+					XELine = XELine.substring(ixStart);
+				}
+				else {
+					// something's wrong, discard this one
+					if (debugging) dbgOutput(thisProc()+"discarding ixStart: XEline=["+XELine+"] ", debugFmt);
+					continue;
+				}
+				
+				int ixEnd = XELine.indexOf(ExtendedEventXMLEnd);
+				if (debugging) dbgOutput(thisProc()+"ixEnd=["+ixEnd+"]  ", debugFmtDetail);
+				if (ixEnd > -1) {
+					 XELine = XELine.substring(0,ixEnd);
+				}
+				else {
+					// something's wrong, discard this one
+					if (debugging) dbgOutput(thisProc()+"discarding ixEnd: XEline=["+XELine+"] ", debugFmt);
+					continue;
+				}
+				
+				
+				stmt += "\n" + XELine;
+				if (debugging) dbgOutput(thisProc()+"stmt=["+stmt+"]  ", debugFmtDetail);
 			}
 				
-				
 			stmt = stmt.trim();
+			if (debugging) dbgOutput(thisProc()+"stmt final=["+stmt+"]  ", debugFmtDetail);
 
 			if (importFormat.equalsIgnoreCase(SQLServerProfilerXMLFmt)) {
 				if (!startFound) {
@@ -3243,7 +3320,44 @@ tooltipsHTMLPlaceholder +
 				}
 			}
 
+			if (stmt.indexOf(XESpecialSplitMarker) > -1) {
+				List<String> tmp = new ArrayList<>(Arrays.asList(stmt.split(XESpecialSplitMarker)));
+				
+				// remove parameters
+				for (int i=0; i < tmp.size(); i++) {
+					String tmpLine = tmp.get(i);
+					if(tmpLine.startsWith("(@"))  {
+						String params = findClosingBracket(tmpLine);
+						tmp.set(i, tmpLine.substring(params.length()));
+					} 
+					else if (tmpLine.startsWith("*password---------------")) {
+						tmp.remove(i);
+					}					
+				}
+				
+				// remove some seemingly duplicates
+				if (tmp.size() == 2) {
+					if (tmp.get(0).equals(tmp.get(1))) {
+						tmp.remove(1);
+					}
+					else if (tmp.get(0).startsWith(tmp.get(1))) {
+						tmp.remove(1);
+					}
+					else if (tmp.get(1).startsWith(tmp.get(0))) {
+						tmp.remove(0);
+					}
+					else if (tmp.get(0).endsWith(tmp.get(1))) {
+						tmp.remove(1);
+					}
+					else if (tmp.get(1).endsWith(tmp.get(0))) {
+						tmp.remove(0);
+					}
+				}
+				stmt = String.join("\n", tmp);
+			}
+			
 			stmt = patchupSpecialCharsExtractedSQL(stmt);
+			stmt = patchupQuotes(stmt);
 
 			if (deDupExtracted) {
 				deDuplicateExtractedQueries(stmt);
@@ -3256,11 +3370,17 @@ tooltipsHTMLPlaceholder +
 			}
 
 			queriesExtracted++;
+			queriesExtractedAll++;
 			stmt = "";
+			startFound = false;
+			endFound = false;
+			fullLine = false;
+			XELine = "";
 		}
 		inFileReader.close();
 
 		if (deDupExtracted) {
+			appOutput("");
 			appOutput("Duplicate batches removed: "+deDupSkipped);
 			appOutput("De-duplicated batches remaining: "+deDupQueries.size());
 
@@ -3279,7 +3399,8 @@ tooltipsHTMLPlaceholder +
 			writeExtractedFile(composeOutputLine("", "-"));
 			writeExtractedFile("\n");
 
-			for (String qry : deDupQueries.keySet()) {
+			for (String k : deDupQueriesOrder.keySet().stream().sorted().collect(Collectors.toList())) {
+				String qry = deDupQueriesOrder.get(k);
 				int dupCnt = dupQueryCount.getOrDefault(qry, 0);
 				if (dupCnt > 0) {
 					writeExtractedFile("/* Duplicates removed: "+dupCnt + " */");
@@ -3304,7 +3425,6 @@ tooltipsHTMLPlaceholder +
 		if (dedupScope.isEmpty()) {
 			dedupScope = String.join("", dedupScopeOption);
 		}
-
 		String qryOrig = applyPatternAll(qry, "[ \\t]+", " "); // don't remove newlines since this inteferes with simple comments
 
 		if (dedupScope.contains("S")) {
@@ -3336,15 +3456,18 @@ tooltipsHTMLPlaceholder +
 		}
 
 		qry = qry.trim();
-
-		if (deDupQueries.containsKey(qry)) {
+		
+		if (deDupQueriesAll.containsKey(qry)) {
 			// duplicate query found, skipped
 			deDupSkipped++;
+			deDupSkippedAll++;
 			dupQueryCount.put(qry, dupQueryCount.getOrDefault(qry, 0)+1);
 		}
 		else {
 			// new query found
 			deDupQueries.put(qry, qryOrig);
+			deDupQueriesOrder.put(String.format("%08d",deDupQueriesOrder.size()), qry);
+			deDupQueriesAll.put(qry, "");
 		}
 	}
 
@@ -3357,6 +3480,18 @@ tooltipsHTMLPlaceholder +
 		if (s.contains("\\u003c")) s = s.replaceAll("\\\\u003c", "<");
 		if (s.contains("\\u003e")) s = s.replaceAll("\\\\u003e", ">");
 		s = unEscapeHTMLChars(s);
+		return s;
+	}
+	
+	// in case of an unclosed string, add a quote
+	// not taking into account double-quoted strings - don't occur often
+	public String patchupQuotes (String s) {
+		if (!s.contains("'")) return s;
+		String s2 = s.replaceAll("'", "");
+		if ((s.length()-s2.length())%2 == 1) {
+			// odd number of quotes, so add one
+			s += "'";
+		}
 		return s;
 	}
 
@@ -5307,7 +5442,7 @@ tooltipsHTMLPlaceholder +
 					continue;
 				}
 
-				String objType = getPatternGroup(itemList.get(capPosItem), "^CREATE (.*)$", 1);
+				String objType = getPatternGroup(itemList.get(capPosItem), "^CREATE (OR ALTER )?(.*)$", 2);
 				if (objType.isEmpty()) {
 					objType = getPatternGroup(itemList.get(capPosItem), "^Constraint (.*?)(\\(.*)?$", 1);
 					String objTypeTmp = getPatternGroup(objType, "^(.*?),.*$", 1);
@@ -6139,8 +6274,14 @@ tooltipsHTMLPlaceholder +
 				// field positions in capLine, and total #fields, are hard-coded here
 				boolean fieldModified = false;
 				int numFields = 12;
-				if (capFields.get(1).length() > pgImportItemDetailLength) {
-					capFields.set(1, capFields.get(1).substring(0,pgImportItemDetailLength));
+				if (capFields.get(capPosItemDetail).length() > pgImportItemDetailLength) {
+					capFields.set(capPosItemDetail, capFields.get(capPosItemDetail).substring(0,pgImportItemDetailLength));
+					fieldModified = true;
+				}
+				if (capFields.get(capPosSrcFile).length() > pgImportSrcFileLength) {
+					String tag = "(...)";					
+					int offset = (capFields.get(capPosSrcFile).length() - pgImportSrcFileLength) + tag.length();
+					capFields.set(capPosSrcFile, tag + capFields.get(capPosSrcFile).substring(offset));
 					fieldModified = true;
 				}
 				if (fieldModified) {
@@ -6156,6 +6297,7 @@ tooltipsHTMLPlaceholder +
 				capLine = cfVersion + captureFileSeparator + nowFmt + captureFileSeparator + capLine;
 
 				PGImportFileWriter.write(capLine+"\n");
+				//appOutput(thisProc()+"writing line "+capCount+": capLine=["+capLine+"]  ");
 			}
 			capFile.close();
 		}

@@ -1,3 +1,8 @@
+# 2022-10
+- Detect THROW when it is first statement in the batch.
+- Support processing of Extended Events capture files. 
+- Adjusted various default complexity scores.
+
 # 2022-09
 - Support for Babelfish v.2.2.0.
 - Mark ALTER TABLE..{ENABLE|DISABLE} TRIGGER as supported since v.1.0.0 (it was incorrectly marked as not supported).

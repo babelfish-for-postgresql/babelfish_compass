@@ -39,7 +39,7 @@ options {
 
 tsql_file
     : batch_level_statement SEMI? EOF
-    | execute_body_batch? sql_clauses* EOF
+    | (throw_statement | execute_body_batch)? sql_clauses* EOF  /* THROW as first stmt in the batch is interpreted as a proc call */
     ;
 
 batch_level_statement
