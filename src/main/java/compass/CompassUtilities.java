@@ -511,7 +511,6 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.NumericDateTimeVarAssign+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 " + rewriteOption,
 		"EXECUTE procedure sp_db_vardecimal_storage_format"+tttSeparator+"This system stored procedure is not currently supported, but it may not have any function in Babelfish as it is usually part of a standard SSMS-generated DDL script",
 		"EXECUTE procedure sp_fulltext_database"+tttSeparator+"This system stored procedure is not currently supported, but it may not have any function in Babelfish as it is usually part of a standard SSMS-generated DDL script",
-		"EXECUTE procedure sp_addrolemember"+tttSeparator+"This  system stored procedure is not currently supported; rewrite as ALTER ROLE..ADD MEMBER",
 		"EXECUTE procedure sp_oacreate"+tttSeparator+"This OLE system stored procedure is not currently supported",
 		"EXECUTE procedure sp_oadestroy"+tttSeparator+"This OLE system stored procedure is not currently supported",
 		"EXECUTE procedure sp_oamethod"+tttSeparator+"This OLE system stored procedure is not currently supported",
@@ -717,6 +716,14 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.SpecialCharsIdentifier+tttSeparator+"Some characters are not currently supported in identifiers; go to the cross-reference section to find the specific case",
 		CompassAnalyze.SpecialCharsParameter+tttSeparator+"Some characters are not currently supported in parameter declarations; go to the cross-reference section to find the specific case",
 		"EXECUTE AS"+tttSeparator+"The EXECUTE AS statement (not to be confused with the EXECUTE AS clause in CREATE PROCEDURE/FUNCTION/etc.) is not currently supported",
+		"EXECUTE procedure sp_addlogin"+tttSeparator+"System stored procedure sp_addlogin is not currently supported; rewrite as CREATE LOGIN",
+		"EXECUTE procedure sp_droplogin"+tttSeparator+"System stored procedure sp_droplogin is not currently supported; rewrite as DROP LOGIN",
+		"EXECUTE procedure sp_adduser"+tttSeparator+"System stored procedure sp_adduser is not currently supported; rewrite as CREATE USER",
+		"EXECUTE procedure sp_dropuser"+tttSeparator+"System stored procedure sp_dropuser is not currently supported; rewrite as DROP USER",
+		"EXECUTE procedure sp_addrolemember"+tttSeparator+"System stored procedure sp_addrolemember is not currently supported; rewrite as ALTER ROLE...ADD MEMBER",
+		"EXECUTE procedure sp_droprolemember"+tttSeparator+"System stored procedure sp_droprolemember is not currently supported; rewrite as ALTER ROLE...DROP MEMBER",
+		"EXECUTE procedure sp_addsrvrolemember"+tttSeparator+"System stored procedure sp_addsrvrolemember is not currently supported; rewrite as ALTER SERVER ROLE...ADD MEMBER",
+		"EXECUTE procedure sp_dropsrvrolemember"+tttSeparator+"System stored procedure sp_dropsrvrolemember is not currently supported; rewrite as ALTER SERVER ROLE...DROP MEMBER",
 		"EXECUTE procedure sp_addextendedproperty"+tttSeparator+"System stored procedure sp_addextendedproperty is not currently supported; this is most often used to create metadata comments (e.g. COMMENT ON in PostgreSQL) and does not otherwise affect SQL functionality",
 		"REVERT"+tttSeparator+"The REVERT statement is not currently supported",
 		"LIKE '[...]'"+tttSeparator+"Square brackets [...] for pattern matching are not currently supported with LIKE. It may be possible to achieve similar results by rewriting the LIKE predicate as a call to PATINDEX(), although PATINDEX may match a substring where LIKE must match the entire source string",
@@ -3044,48 +3051,48 @@ tooltipsHTMLPlaceholder +
 		if (debugging) dbgOutput(thisProc()+"genericSQLXMLFound    =["+genericSQLXMLFound+"]", debugFmt);
 		if (debugging) dbgOutput(thisProc()+"SQLServerProfilerXML  =["+SQLServerProfilerXMLFound+"]", debugFmt);
 
-		String seemsFormat = "";
-		String seemsFormatDisplay = "";
-		if ((SQLServerProfilerXMLFound >= 4) && (genericSQLXMLFound >= 10)) {
-			seemsFormat = SQLServerProfilerXMLFmt;
+		String detectedFormat = "";
+		String detectedFormatDisplay = "";
+		if (SQLServerProfilerXMLFound >= 4) {
+			detectedFormat = SQLServerProfilerXMLFmt;
 		}
 		else if (jsonQueryFmtFound > 0) {
-			seemsFormat = jsonQueryFmt;
+			detectedFormat = jsonQueryFmt;
 		}
 		else if (extendedEventsXMLFound > 0) {
-			seemsFormat = extendedEventsXMLFmt;
+			detectedFormat = extendedEventsXMLFmt;
 		}
 		else if (goFound > 0) {
-			seemsFormat = sqlcmdFmt;
+			detectedFormat = sqlcmdFmt;
 		}
-		if (!seemsFormatDisplay.isEmpty()) {
-			seemsFormatDisplay = importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()));
+		if (!detectedFormatDisplay.isEmpty()) {
+			detectedFormatDisplay = importFormatOptionDisplay.get(importFormatOption.indexOf(detectedFormat.toLowerCase()));
 		}
 
 		if (importFormat.equalsIgnoreCase(SQLServerProfilerXMLFmt)) {
 			//appOutput(thisProc()+"SQLServerProfilerXMLFound=["+SQLServerProfilerXMLFound+"] ");
 			if (SQLServerProfilerXMLFound <= 2) {
-				importFormatSeemsInvalidMsg(inputFileName, SQLServerProfilerXMLFmt, seemsFormat, "<TraceProvider name=\"Microsoft SQL Server\"");
+				importFormatSeemsInvalidMsg(inputFileName, SQLServerProfilerXMLFmt, detectedFormat, "<TraceProvider name=\"Microsoft SQL Server\"");
 			}
 		}
 
 		if (importFormat.equalsIgnoreCase(jsonQueryFmt)) {
 			//appOutput(thisProc()+"jsonQueryFmt Found=["+jsonQueryFmtFound+"] ");
 			if (jsonQueryFmtFound == 0) {
-				importFormatSeemsInvalidMsg(inputFileName, jsonQueryFmt, seemsFormat, "prefix: \"query_999\"");
+				importFormatSeemsInvalidMsg(inputFileName, jsonQueryFmt, detectedFormat, "prefix: \"query_999\"");
 			}
 		}
 
 		if (importFormat.equalsIgnoreCase(extendedEventsXMLFmt)) {
 			//appOutput(thisProc()+"jsonQueryFmt, jsonQueryFmtFound=["+jsonQueryFmtFound+"] ");
 			if (extendedEventsXMLFound == 0) {
-				importFormatSeemsInvalidMsg(inputFileName, extendedEventsXMLFmt, seemsFormat, "tag: <event name=\"sql_statement_completed\" package=\"sqlserver\"");
+				importFormatSeemsInvalidMsg(inputFileName, extendedEventsXMLFmt, detectedFormat, "tag: <event name=\"sql_statement_completed\" package=\"sqlserver\"");
 			}
 		}
 
 		else if (importFormat.equalsIgnoreCase(sqlcmdFmt)) {
 			if (SQLServerProfilerXMLFound> 0) {
-				importFormatSeemsInvalidMsg(inputFileName, sqlcmdFmt, seemsFormat, "batch delimiters: 'go'");
+				importFormatSeemsInvalidMsg(inputFileName, sqlcmdFmt, detectedFormat, "batch delimiters: 'go'");
 			}
 			else if ((jsonQueryFmtFound + extendedEventsXMLFound + genericSQLXMLFound)> 0) {
 				importFormatSeemsInvalidMsg(inputFileName, sqlcmdFmt, unknownFormat, "batch delimiters: 'go'");
@@ -3100,21 +3107,21 @@ tooltipsHTMLPlaceholder +
 			}
 		}
 
-		return seemsFormat;
+		return detectedFormat;
 	}
 
-	private void importFormatSeemsInvalidMsg(String inputFileName, String importFmtSpecified, String seemsFormat, String fmtExample) {
-		//appOutput(thisProc()+"inputFileName=["+inputFileName+"] seemsFormat=["+seemsFormat+"] importFmtSpecified=["+importFmtSpecified+"] ");
-		if (importFmtSpecified.equals(sqlcmdFmt) && seemsFormat.equals(unknownFormat)) return; // don't report this case
+	private void importFormatSeemsInvalidMsg(String inputFileName, String importFmtSpecified, String detectedFormat, String fmtExample) {
+		//appOutput(thisProc()+"inputFileName=["+inputFileName+"] detectedFormat=["+detectedFormat+"] importFmtSpecified=["+importFmtSpecified+"] ");
+		if (importFmtSpecified.equals(sqlcmdFmt) && detectedFormat.equals(unknownFormat)) return; // don't report this case
 		String s = "\nInput format '"+importFmtSpecified+"' was specified, but input file does not seem to be in this format";
-		if (seemsFormat.isEmpty()) {
+		if (detectedFormat.isEmpty()) {
 			s += ",\nsince no corresponding formatting was found ("+fmtExample+").";
 		}
-		else if (seemsFormat.equals(unknownFormat)) {
-			s += ".\nInstead, it seems to be in '"+importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()))+"' format.";
+		else if (detectedFormat.equals(unknownFormat)) {
+			s += ".\nInstead, it seems to be in '"+importFormatOptionDisplay.get(importFormatOption.indexOf(detectedFormat.toLowerCase()))+"' format.";
 		}
 		else {
-			s += ".\nInstead, it seems to be in '"+importFormatOptionDisplay.get(importFormatOption.indexOf(seemsFormat.toLowerCase()))+"' format.\nTo process this file accordingly, do not specify the '-importfmt' option.";
+			s += ".\nInstead, it seems to be in '"+importFormatOptionDisplay.get(importFormatOption.indexOf(detectedFormat.toLowerCase()))+"' format.\nTo process this file accordingly, do not specify the '-importfmt' option.";
 		}
 		s += "\nProceeding, but errors may occur.\n";
 		appOutput(s);
