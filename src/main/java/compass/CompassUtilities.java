@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2022-10";
-	public static final String thisProgVersionDate  = "October 2022";
+	public static final String thisProgVersion      = "2022-11";
+	public static final String thisProgVersionDate  = "November 2022";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -101,6 +101,7 @@ public class CompassUtilities {
 	// user-specified
 	public static final String fileNameCharsAllowed = "[^\\w\\_\\.\\-\\/\\(\\)]";
 	public String targetBabelfishVersion = ""; // Babelfish version for which we're doing the analysis
+	public String targetBabelfishVersionReportLine = "Target Babelfish version   : v."; // line in report listing the target version	
 	public boolean stdReport = false;	// development only
 
 	// minimum Babelfish version; this is fixed
@@ -2661,6 +2662,22 @@ tooltipsHTMLPlaceholder +
 			}
 		}
 
+		// report generation only is OK
+		if (Compass.reportOnly || (Compass.inputFiles.size() == 0 && Compass.generateReport)) {
+			if (result.isEmpty()) {
+				if (!targetVersionTest.equals(targetBabelfishVersion)) {
+					// turns out the original analysis for which we're going to generate a report now, 
+					// is not the same as the latest Babelfish version, but we have already written that version
+					// in the report header. So update the report header right now
+					// The report file name will also reflect this version, but the session log file name, which is already open, is not changed
+					// The lines echo'd to the stdout (and written to the session log file) won't be changed either
+					targetBabelfishVersion = targetVersionTest;
+					reportHdrLines = applyPatternFirst(reportHdrLines, targetBabelfishVersionReportLine + ".+?\n", targetBabelfishVersionReportLine + targetVersionTest + " (due to earlier analysis)\n");
+				}
+				return result;
+			}
+		}
+
 		if (!export && !targetVersionTest.equals(targetBabelfishVersion)) {
 			result = "Analysis was performed for a different "+babelfishProg+" version (v."+targetVersionTest+") than targeted by this run (v."+targetBabelfishVersion+"):\n";
 		}
@@ -2732,6 +2749,14 @@ tooltipsHTMLPlaceholder +
  	}
 
 
+	// check report dir exists
+    public boolean checkReportExists(String reportName) throws IOException {
+		if (debugging) dbgOutput(thisProc() + "reportName=[" + reportName + "] ", debugDir);
+		String dirPath = getReportDirPathname(reportName);
+		File reportDir = new File(dirPath);
+		return reportDir.exists();
+	}	
+	
 	// check report dir exists, and create if not
     public boolean checkReportExists(String reportName, List<String> inputFiles, boolean forceAppName, String applicationName, boolean replaceFiles, boolean addReport) throws IOException {
 		if (debugging) dbgOutput(thisProc() + "reportName=[" + reportName + "] forceAppName=[" + forceAppName + "] applicationName=[" + applicationName + "] replaceFiles=[" + replaceFiles + "] addReport=[" + addReport + "] ", debugDir);
@@ -5266,6 +5291,29 @@ tooltipsHTMLPlaceholder +
      		supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Rewritten, Supported);
     	}
 
+		// get all capture files
+		List<Path> captureFiles = getCaptureFiles(reportName);
+		if (debugging) dbgOutput(thisProc() + "captureFiles(" + captureFiles.size() + ")=[" + captureFiles + "] ", debugReport);
+		if (captureFiles.size() == 0) {
+			List<Path> importedFiles = getImportFiles(reportName);
+			if (importedFiles.size() == 0) {
+				appOutput("No imported files found. Specify input file(s) to add to this report.");
+			}
+			else {
+				String msg = "\nNo analysis results found. Use -analyze to perform analysis and generate a report.";
+				appOutput(msg);
+				writeReportFile("\n"+msg);
+			}
+			errorExit();
+		}
+		String cfv = captureFilesValid("report", captureFiles);
+		if (!cfv.isEmpty()) {
+			// print error message and exit
+			appOutput(cfv);
+			errorExit();
+		}
+		
+
 		// generic init
 		Date now = new Date();
 		String now_report = new SimpleDateFormat("yyyy-MMM-dd HH:mm:ss").format(now);
@@ -5344,28 +5392,6 @@ tooltipsHTMLPlaceholder +
 
 		// adjust category ordering
 		setupreportGroupSortAdjustment();
-
-		// get all capture files
-		List<Path> captureFiles = getCaptureFiles(reportName);
-		if (debugging) dbgOutput(thisProc() + "captureFiles(" + captureFiles.size() + ")=[" + captureFiles + "] ", debugReport);
-		if (captureFiles.size() == 0) {
-			List<Path> importedFiles = getImportFiles(reportName);
-			if (importedFiles.size() == 0) {
-				appOutput("No imported files found. Specify input file(s) to add to this report.");
-			}
-			else {
-				String msg = "\nNo analysis results found. Use -analyze to perform analysis and generate a report.";
-				appOutput(msg);
-				writeReportFile("\n"+msg);
-			}
-			errorExit();
-		}
-		String cfv = captureFilesValid("report", captureFiles);
-		if (!cfv.isEmpty()) {
-			// print error message and exit
-			appOutput(cfv);
-			errorExit();
-		}
 
 		// process captured items
 		constructsFound = 0;
@@ -6199,6 +6225,11 @@ tooltipsHTMLPlaceholder +
 			envvarPrefix = "\\$";
 			envvarSuffix = "";
 		}
+		
+		if (!checkReportExists(reportName)) {
+			appOutput("Report '"+reportName+"' does not exist");					
+			return;
+		}				
 
 		// Check for code injection risks - though it's difficult to see what could go wrong given that
 		// the current session as well as the PG session are owned by this user anyway.
@@ -7880,10 +7911,10 @@ userCfgComplexityHdrLine202209 + "\n" +
 			String lineRead;
 			while ((lineRead = br.readLine()) != null) {
 				if (lineRead.contains("\"tag_name\"")) {
-					//format: "tag_name":"v2022-03-a"
+					//format: "tag_name":"(v)?(.)?2022-03(-a)?"
 					// just looking for a particular string, so don't bother about true JSON parsing
 					String latestVersion = getPatternGroup(lineRead, "\"tag_name\":\"(.*?)\"", 1);
-				    latestVersion = applyPatternFirst(latestVersion, "^v", "");
+				    latestVersion = applyPatternFirst(latestVersion, "^v\\D*", "");
 				   	String latestVersionNormalized = normalizeCheckForUpdate(latestVersion);
 				    String thisProgVersionNormalized = normalizeCheckForUpdate(thisProgVersion);
 				    if (!latestVersionNormalized.isEmpty()) {

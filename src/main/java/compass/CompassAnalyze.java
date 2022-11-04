@@ -103,6 +103,7 @@ public class CompassAnalyze {
 	static final String CursorFetch           = "FETCH cursor";
 	static final String NonPersistedCompCol   = "Non-PERSISTED computed columns";
 	static final String CompColFeatures       = "Features in computed columns";
+	static final String SUDFinTableDDL        = "Scalar UDF in table DDL";
 	static final String IndexOptions          = "Index options";
 	static final String MaxColumnsIndex       = "Maximum columns per index";
 	static final String MaxProcParameters     = "Maximum parameters per procedure";
@@ -2024,12 +2025,6 @@ public class CompassAnalyze {
 					}
 				}
 
-				if (funcName.equals("NEWSEQUENTIALID")) {
-					if (status.equals(u.ReviewSemantics)) {
-						funcNameReport += ", implemented as NEWID(): sequential values not guaranteed";
-					}
-				}
-
 				boolean captured = false;
 				if (funcName.equals("STRING_AGG")) {
 					if (STRING_AGG_WITHIN_GROUP) { // true=WITHIN GROUP was specified
@@ -2526,9 +2521,36 @@ public class CompassAnalyze {
 					String forJSONType = "";
 					if (ctx.AUTO() != null) forJSONType = "AUTO";
 					if (ctx.PATH() != null) forJSONType = "PATH";
-					forJSONType = "SELECT FOR JSON "+forJSONType;
-					String status = featureSupportedInVersion(JSONFeatures, forJSONType);
-					captureItem(forJSONType, "", JSONFeatures, forJSONType, status, ctx.start.getLine());
+					
+					List<String> opts = new ArrayList<>();
+					opts.add(forJSONType);
+					if (ctx.ROOT().size() > 0) opts.add("ROOT");
+					if (ctx.INCLUDE_NULL_VALUES().size() > 0) opts.add("INCLUDE_NULL_VALUES");
+					if (ctx.WITHOUT_ARRAY_WRAPPER().size() > 0) opts.add("WITHOUT_ARRAY_WRAPPER");
+					
+					String status = u.Supported;
+					String forJSONreport = "";
+					String forJSONreportErr = forJSONType + ",";
+					for (String opt : opts) {
+						opt = opt.trim();
+						String forJSONtest = "SELECT FOR JSON "+forJSONType + " " + opt;
+						forJSONtest = forJSONtest.replaceAll(forJSONType + " " + forJSONType, forJSONType);
+						forJSONtest = forJSONtest.trim();
+						forJSONreport += opt + ",";
+						String status2 = featureSupportedInVersion(JSONFeatures, forJSONtest);	
+						if (!status2.equals(u.Supported)) {
+							forJSONreportErr += opt + ",";
+							status = u.NotSupported;
+						}
+					}
+					forJSONreport = u.applyPatternFirst(forJSONreport, ",$", "");	
+					forJSONreportErr = u.applyPatternFirst(forJSONreportErr, ",$", "");	
+					if (!status.equals(u.Supported)) {
+						if (!forJSONreport.equals(forJSONreportErr)) {
+							forJSONreport =  " ("+forJSONreportErr+")";
+						}
+					}
+					captureItem("SELECT FOR JSON " +forJSONreport, "", JSONFeatures, forJSONreport, status, ctx.start.getLine());
 				}
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -2641,7 +2663,7 @@ public class CompassAnalyze {
 			private void captureAtAtErrorValue(Integer exprInt, String via, String op, int lineNr) {
 				String status = featureSupportedInVersion(AtAtErrorValueRef, exprInt.toString());
 				String usrDefined = "";
-				if (exprInt > 50000) {
+				if (exprInt >= 50000) {
 					usrDefined = " (user-defined)";
 					if (!via.isEmpty()) {
 						status = u.Supported;
@@ -3213,8 +3235,8 @@ public class CompassAnalyze {
 				String baseObjType = lookupObjType(tableName.toUpperCase());
 				if (baseObjType.equals("VIEW")) {
 					String status = featureSupportedInVersion(IndexedView);
-					captureItem(IndexedView+" (materialized view)", ixName, DDLReportGroup, IndexedView, status, 0, 0);
-					captureItem("CREATE " +"indexed view (materialized view)", "", u.ObjCountOnly, "", u.ObjCountOnly, 0, 0);
+					captureItem(IndexedView+" (materialized view)", ixName, DDLReportGroup, IndexedView, status, ctx.start.getLine(), 0);
+					captureItem("CREATE " +"indexed view (materialized view)", "", u.ObjCountOnly, "", u.ObjCountOnly, ctx.start.getLine(), 0);
 				}
 
 				CaptureIdentifier(tableName, tableName, "CREATE INDEX", ctx.start.getLine());
@@ -3237,7 +3259,7 @@ public class CompassAnalyze {
 						}
 					}
 					String status = featureSupportedInVersion(IndexAttribute, type);
-					captureItem(type + " index: " + hint, ixName, DDLReportGroup, type, status, 0, 0);
+					captureItem(type + " index: " + hint, ixName, DDLReportGroup, type, status, ctx.start.getLine(), 0);
 				}
 
 				captureIndexConstraint(ixName, ixType, ixContext, clustered, false, ctx.start.getLine());
@@ -3248,7 +3270,8 @@ public class CompassAnalyze {
 					int nrIncludeCols = nrColumn_name_list(ctx.column_name_list());
 					int maxCols = featureIntValueSupportedInVersion(MaxColumnsIndex);
 					if (nrCols+nrIncludeCols > maxCols) {
-						captureItem("Index exceeds "+maxCols+" columns("+nrCols+" column, +"+nrIncludeCols+ " included)" , "", DDLReportGroup, MaxColumnsIndex, u.NotSupported, 0, 0);
+						String status = u.ReviewPerformance; // we cannot actually get this from the .cfg file since it'll be seen as supported
+						captureItem("Index exceeds "+maxCols+" columns("+nrCols+" column"+((nrCols==1)?"":"s")+", +"+nrIncludeCols+ " included)" , "", DDLReportGroup, MaxColumnsIndex, status, ctx.start.getLine(), 0);
 					}
 				}
 
@@ -3285,7 +3308,7 @@ public class CompassAnalyze {
 					option = u.applyPatternFirst(option, "^(\\w+)\\b.*$", "$1");
 					//u.appOutput(u.thisProc()+"option=["+option+"] ");
 					String status = featureSupportedInVersion(AlterIndex, option);
-					captureItem(AlterIndex+".."+option, tableName+"."+ixName, DDLReportGroup, "", status, 0, 0);				
+					captureItem(AlterIndex+".."+option, tableName+"."+ixName, DDLReportGroup, "", status, ctx.start.getLine(), 0);				
 				}
 
 				visitChildren(ctx);
@@ -3331,7 +3354,7 @@ public class CompassAnalyze {
 
 				captureIndexOptions(ixName, ixType, ixContext, ctx.with_index_options());
 
-				captureItem("CREATE " + ixType.toUpperCase(), "", u.ObjCountOnly, "", u.ObjCountOnly, 0, 0);
+				captureItem("CREATE " + ixType.toUpperCase(), "", u.ObjCountOnly, "", u.ObjCountOnly, ctx.start.getLine(), 0);
 
 				String ixStatus = featureSupportedInVersion(InlineIndex);
 
@@ -4650,7 +4673,8 @@ public class CompassAnalyze {
 						}
 					}
 
-					if (!done) {													
+					if (!done) {	
+						// it's a BIF or UDF												
 						TSQLParser.Function_arg_listContext argListRaw = ctx.function_arg_list();
 						int nrArgs = argListCount( ctx.function_arg_list());
 
@@ -4738,13 +4762,34 @@ public class CompassAnalyze {
 								}
 								else {
 									String statusUDF = u.Supported;
-									String compCol = "";
+									String UDFcontext = "";
 									if (inCompCol) {
 										// this is a SUDF call inside a computed column
-										compCol += ", in computed column";
+										UDFcontext = ", in computed column";
 										statusUDF = featureSupportedInVersion(CompColFeatures, cfgScalarUdfCall);
 									}
-									captureItem("Function call, scalar"+compCol, funcName+"()", FunctionsReportGroup, "", statusUDF, ctx.start.getLine());
+									else {										
+										if (hasParent(ctx.parent, "table_constraint") || hasParent(ctx.parent, "column_constraint")) {
+											// UDF is either in a column default or in a CHECK constraint
+											// ToDo: tabvars?
+											String ddl = "CREATE TABLE";
+											if (hasParent(ctx.parent, "alter_table")) ddl = "ALTER TABLE";
+											
+											if (hasParent(ctx.parent, "search_condition")) {
+												// CHECK constraint 
+												String statusUDFInCHECK = featureSupportedInVersion(SUDFinTableDDL, ddl + " CHECK");
+												if (!statusUDFInCHECK.equals(u.Supported)) statusUDF = statusUDFInCHECK;
+												UDFcontext = ", in CHECK constraint ("+ddl+")";
+											}
+											else {
+												// column DEFAULT
+												String statusUDFInDEFAULT = featureSupportedInVersion(SUDFinTableDDL, ddl + " DEFAULT");
+												if (!statusUDFInDEFAULT.equals(u.Supported)) statusUDF = statusUDFInDEFAULT;												
+												UDFcontext = ", in column DEFAULT ("+ddl+")";
+											}
+										}
+									}
+									captureItem("Function call, scalar"+UDFcontext, funcName+"()", FunctionsReportGroup, "", statusUDF, ctx.start.getLine());
 								}
 							}	
 						}					

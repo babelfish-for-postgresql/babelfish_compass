@@ -1,3 +1,12 @@
+# 2022-11
+- Report SELECT FOR JSON options.
+- Allow generating a report only when analysis was done on an older Babelfish version.
+- Detecting and reporting scalar user-defined function calls in column defaults and CHECK constraints.
+- Line numbers in Xref reports were not correct for some index-related items.
+- '@@error value 50000, via THROW' now classified as supported.
+- Indexes with additional included columns exceeding the maximum of 32 now classified as 'Review Performance'.
+- Better error message for some cases of a non-existing report name.
+
 # 2022-10
 - Detect THROW when it is first statement in the batch.
 - Support processing of Extended Events capture files. 

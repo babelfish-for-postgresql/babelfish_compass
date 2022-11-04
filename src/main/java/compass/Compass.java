@@ -822,6 +822,16 @@ public class Compass {
 			}
 
 			u.checkDir(u.getDocDirPathname(), false, true);
+			if ((inputFiles.size() == 0) ) {
+				if (nrFileNotFound > 0) {
+					return;
+				}
+				// check for non-existing report (e.g. misspelled) when doing report only
+				if (!u.checkReportExists(reportName)) {
+					u.appOutput("Report '"+reportName+"' does not exist");					
+					return;
+				}
+			}
 			if (u.checkReportExists(reportName, inputFiles, forceAppName, applicationName, replaceFiles, addReport)) {
 				// we cannot proceed for some reason
 				return;
@@ -853,7 +863,7 @@ public class Compass {
 			tmp = u.cfgFileName + " file : v." + cfg.latestBabelfishVersion() + ", " + u.cfgFileTimestamp;
 			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
-			tmp = "Target Babelfish version   : v." + u.targetBabelfishVersion;
+			tmp = u.targetBabelfishVersionReportLine + u.targetBabelfishVersion;
 			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
 			tmp = "Command line arguments     : " + String.join(" ", cmdFlags);
@@ -1857,7 +1867,7 @@ public class Compass {
 					}
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "Using encoding=[" + charset.toString() + "]", u.debugBatch);
 
-					String detectedFmt = u.detectImportFileFormat(inFile, u.importFormat, charset);
+					String detectedFmt = u.detectImportFileFormat(inFile, u.importFormat, charset);					
 					String useImportFormat = u.sqlcmdFmt;
 					if (u.importFormat.equalsIgnoreCase(u.autoFmt)) {
 						useImportFormat = detectedFmt;
