@@ -2018,6 +2018,7 @@ function_option
     | SCHEMABINDING
     | RETURNS NULL ON NULL INPUT
     | CALLED ON NULL INPUT
+    | INLINE EQUAL on_off
     | execute_as_clause
     ;
 
@@ -3039,7 +3040,7 @@ transaction_statement
     // https://msdn.microsoft.com/en-us/library/ms188386.aspx
     : BEGIN DISTRIBUTED (TRAN | TRANSACTION) (id | LOCAL_ID)? SEMI?
     // https://msdn.microsoft.com/en-us/library/ms188929.aspx
-    | BEGIN (TRAN | TRANSACTION) ((id | LOCAL_ID) (WITH MARK char_string)?)? SEMI?
+    | BEGIN (TRAN | TRANSACTION) ((id | xactnamevar=LOCAL_ID) (WITH MARK (char_string | markvar=LOCAL_ID))?)? SEMI?
     // https://msdn.microsoft.com/en-us/library/ms190295.aspx
     | COMMIT (TRAN | TRANSACTION) (id | LOCAL_ID)? (WITH LR_BRACKET DELAYED_DURABILITY EQUAL (OFF | ON) RR_BRACKET )? SEMI?
     // https://msdn.microsoft.com/en-us/library/ms178628.aspx
