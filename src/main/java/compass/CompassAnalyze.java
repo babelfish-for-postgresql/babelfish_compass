@@ -797,7 +797,7 @@ public class CompassAnalyze {
 		}
 		else if (option.startsWith("EXECUTEAS") || option.startsWith("EXECAS")) {
 			String execAs = option.substring(option.indexOf("AS")+2);
-			if ((execAs.charAt(0) == '\'') || execAs.startsWith("N'") || (execAs.charAt(0) == '"')) execAs = "USER";
+			if (u.isQuotedString(execAs)) execAs = "USER";
 			option = "EXECUTE AS " + execAs;
 		}
 		return option;
@@ -2134,7 +2134,7 @@ public class CompassAnalyze {
 				else if (argValidate.equalsIgnoreCase(BIFNoArg)) return "";
 				else if (argValidate.equalsIgnoreCase(BIFSingleArg)) return "arg";
 				else if (argValidate.equalsIgnoreCase(BIFMultipleArg)) return "arg, arg,...";
-				if ((arg.charAt(0) == '\'') || (arg.charAt(0) == '"') || (arg.startsWith("N'")) ) {
+				if (u.isQuotedString(arg)) {
 					arg = '\'' + u.stripStringQuotes(arg) + '\'';
 				}
 				return arg;
@@ -3870,7 +3870,7 @@ public class CompassAnalyze {
         					colName = parentCtx.colname.getText();
 					}
 
-					String status = featureSupportedInVersion(ColumnAttribute);
+					String status = featureSupportedInVersion(ColumnAttribute, option);
 					captureItem(ColumnAttribute+" " +option, colName, ColumnAttribute, option, status, ctx.start.getLine(), 0);
 				}
 
@@ -5517,7 +5517,8 @@ public class CompassAnalyze {
 
 				if (!execImm.isEmpty()) {
 					captureItem("EXECUTE(string)", "", DynamicSQL, "", u.Supported, ctx.start.getLine());
-					captureItem(DynamicSQLEXECStringReview, "", DynamicSQL, "", u.ReviewManually, ctx.start.getLine());
+					String DynamicSQLStatus = featureSupportedInVersion(DynamicSQL);
+					captureItem(DynamicSQLEXECStringReview, "", DynamicSQL, "", DynamicSQLStatus, ctx.start.getLine());					
 				}
 
 				// process any options
@@ -6428,9 +6429,9 @@ public class CompassAnalyze {
 					xactNameFmt = ", with xact name";
 					xactName = ctx.id().getText();
 				}
-				else if (ctx.LOCAL_ID() != null) {
+				else if (ctx.xactnamevar != null) {
 					xactNameFmt = ", with xact name in variable";
-					xactName = ctx.LOCAL_ID().getText();
+					xactName = ctx.xactnamevar.getText();
 					String xactNameTest = "TRANSACTION NAME IN VARIABLE";
 					String status = featureSupportedInVersion(Transactions,xactNameTest);
 					captureItem(stmt+scope+xactNameFmt, xactName, Transactions, xactNameTest, status, ctx.start.getLine());

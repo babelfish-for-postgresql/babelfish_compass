@@ -475,7 +475,7 @@ tooltipsHTMLPlaceholder +
 		"DATEDIFF("+tttSeparator+"This unit is not currently supported; rewrite using a different unit",
 		"DATEADD("+tttSeparator+"This unit is not currently supported; rewrite using a different unit",
 		"DATABASE_PRINCIPAL_ID("+tttSeparator+"DATABASE_PRINCIPAL_ID() is not currently supported; Rewrite as USER_NAME() " + rewriteOption,
-		"FORMAT("+tttSeparator+"FORMAT() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
+        "FORMAT("+tttSeparator+"FORMAT() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
 		"FORMATMESSAGE("+tttSeparator+"FORMATMESSAGE() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
 		"STRING_AGG() WITHIN GROUP"+tttSeparator+"STRING_AGG() is not supported with the WITHIN GROUP clause. Rewrite the query",
 		"FILEGROUP_NAME("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
@@ -809,9 +809,11 @@ tooltipsHTMLPlaceholder +
 "	misc VARCHAR(20) NOT NULL               -- not for customer use; please ignore\n"+
 ");\n";
 
-	public String psqlImportSQLCopy =
+	public String psqlImportCOPY =
 "\\COPY "+psqlImportTablePlaceholder+" FROM '"+psqlImportFilePlaceholder+"'  WITH DELIMITER ';' ;\n"+
-"\n"+
+"\n";
+
+	public String psqlImportSQLUpdate =
 "-- restore any delimiter characters occurring in actual identifiers:\n"+
 "UPDATE "+psqlImportTablePlaceholder+" SET\n"+
 "item        = REPLACE(item, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"'),\n"+
@@ -819,7 +821,9 @@ tooltipsHTMLPlaceholder +
 "reportGroup = REPLACE(reportGroup, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"'),\n"+
 "context     = REPLACE(context, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"'),\n"+
 "subcontext  = REPLACE(subcontext, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"')\n"+
-";\n"+
+";\n";
+
+	public String psqlImportRowCount =
 "SELECT count(*) AS total_rows_in_table FROM "+psqlImportTablePlaceholder+";\n"+
 "\n"
 ;
@@ -1190,6 +1194,9 @@ tooltipsHTMLPlaceholder +
 			hintIcon = hintIconLinux;
 		}
 
+		// ToDo: On Windows envvars are case-sensitive in Java, but no in Windows itself. So when you set 'compass_Develop'
+		// it will not be recognized below, and when you then set 'compass_develop' in Windows it will not change or 
+		// remove the already-existing 'compass_Develop'. A better way is to create a function that cycles through System.getenv()
 		if (System.getenv().containsKey("COMPASS_DEVELOP") || System.getenv().containsKey("compass_develop")) {
 			devOptions = true;
 		}
@@ -1377,6 +1384,12 @@ tooltipsHTMLPlaceholder +
 		return shortened;
 	}
 
+	// test if it is a quoted string constant
+	public static boolean isQuotedString(String s) {
+		if ((s.charAt(0) == '\'') || (s.charAt(0) == '"') || (s.startsWith("N'"))) return true;
+		return false;
+	}
+	
 	// remove the enclosing quotes from a string constant
 	public static String stripStringQuotes(String s) {
 		if (s.isEmpty()) return s;
@@ -2476,13 +2489,20 @@ tooltipsHTMLPlaceholder +
 		return renamedFile;
 	}
 
-	public String writePsqlFile(boolean append, String reportName, String cmd) throws IOException {
+	public String writePsqlFile(boolean append, String reportName, String cmd, boolean containsDelimiter) throws IOException {
 		String psqlImportFilePathNameRoot = getFilePathname(getReportDirPathname(reportName, capDirName), psqlImportFileName)+".";
 		String psqlImportFilePathName = psqlImportFilePathNameRoot + psqlFileSuffix;
 		BufferedWriter psqlImportFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(psqlImportFilePathName), StandardCharsets.UTF_8)));
 		String f = PGImportFileName+"."+captureFileSuffix;
-		String psqlText = psqlImportSQLCopy;
-		if (!append) psqlText = psqlImportSQLCrTb + psqlText;
+		String psqlText = "";
+		if (!append) {
+			psqlText += psqlImportSQLCrTb;
+		}
+		psqlText += psqlImportCOPY;
+		if (containsDelimiter) {
+			psqlText += psqlImportSQLUpdate;
+		}
+		psqlText += psqlImportRowCount;
 		psqlText = applyPatternAll(psqlText, psqlImportFilePlaceholder, f);
 		psqlText = applyPatternAll(psqlText, psqlImportTablePlaceholder, psqlImportTableName);
 		psqlImportFileWriter.write(psqlText);
@@ -2672,7 +2692,7 @@ tooltipsHTMLPlaceholder +
 					// The report file name will also reflect this version, but the session log file name, which is already open, is not changed
 					// The lines echo'd to the stdout (and written to the session log file) won't be changed either
 					targetBabelfishVersion = targetVersionTest;
-					reportHdrLines = applyPatternFirst(reportHdrLines, targetBabelfishVersionReportLine + ".+?\n", targetBabelfishVersionReportLine + targetVersionTest + " (due to earlier analysis)\n");
+					reportHdrLines = applyPatternFirst(reportHdrLines, targetBabelfishVersionReportLine + ".+?\n", targetBabelfishVersionReportLine + targetVersionTest + " (per earlier analysis)\n");
 				}
 				return result;
 			}
@@ -5157,8 +5177,10 @@ tooltipsHTMLPlaceholder +
 	}
 
 	private String getObjectAnchorKey(String context, String appName) {
-		context = context.replaceAll(" ", ".");
-		String anchorKey = context + "." + appName;
+		String anchorKey = context;	
+		if (anchorKey.indexOf(sortKeySeparator) == -1) {
+			anchorKey = context + sortKeySeparator + appName;	
+		}	
 		return anchorKey.toUpperCase();
 	}
 
@@ -5355,6 +5377,7 @@ tooltipsHTMLPlaceholder +
 		Map<String, Integer> objTypeLineCount = new HashMap<>();
 		Map<String, String>  objTypeMap = new HashMap<>();
 		Map<String, String>  objTypeMapCase = new HashMap<>();
+		Map<String, Integer> objTypeMapCount = new HashMap<>();
 		Map<String, Integer> objIssueCount = new HashMap<>();
 		int linesSQLInObjects = 0;
 		boolean showObjectIssuesList = false;
@@ -5550,7 +5573,7 @@ tooltipsHTMLPlaceholder +
 								objType = getPatternGroup(objType, "^(.*?)\\s*\\b\\w*" + captureFileSeparatorMarker + ".*$", 1);       // for proc versioning
 							objType = objType.trim();
 							objTypeCount.put(objType, objTypeCount.getOrDefault(objType, 0) + 1);
-							if (debugging) dbgOutput(thisProc() + "counting objType=[" + objType + "] ", debugReport);
+							if (debugging) dbgOutput(thisProc() + "counting objType=[" + objType + "]=["+objTypeCount.get(objType)+"] ", debugReport);
 							int loc = 0;
 							if (!misc.isEmpty()) loc = Integer.parseInt(misc);
 							objTypeLineCount.put(objType, objTypeLineCount.getOrDefault(objType, 0) + loc);  // misc contains #lines for procedural CREATE object stmts
@@ -5558,11 +5581,15 @@ tooltipsHTMLPlaceholder +
 
 							if (item.startsWith("CREATE ")) {
 								if (objType.startsWith("PROCEDURE") || objType.startsWith("FUNCTION") || objType.startsWith("TRIGGER") || objType.startsWith("TABLE") || objType.startsWith("VIEW")) {
-									if (!objType.startsWith("TABLE ")) {
-										if (!objTypeMap.containsKey(itemDetail.toUpperCase())) {
-											if (showObjectIssuesList) objTypeMapCase.put(itemDetail, objType);
+									if (!objType.startsWith("TABLE ")) {  // skip table type
+										String key = (itemDetail + sortKeySeparator + appName).toUpperCase();
+										if (!objTypeMap.containsKey(key)) {
+											if (showObjectIssuesList) {
+												objTypeMapCase.put(itemDetail + sortKeySeparator + appName, objType);
+											}
 										}
-										objTypeMap.put(itemDetail.toUpperCase(), objType);
+										objTypeMap.put(key, objType);
+										objTypeMapCount.put(itemDetail.toUpperCase(), objTypeMapCount.getOrDefault(itemDetail.toUpperCase(), 0)+1);
 									}
 								}
 							}
@@ -5626,6 +5653,7 @@ tooltipsHTMLPlaceholder +
 						if (contextKey != null) {
 							int ln = Integer.parseInt(lineNrInFile)+Integer.parseInt(lineNr)-1;
 							String s = ln + sortKeySeparator + appName + sortKeySeparator + addSrcFileNameMap(srcFile);
+							contextKey += sortKeySeparator + appName;
 							contextLinkMap.put(contextKey.toUpperCase(), s);
 						}
 					}
@@ -5651,11 +5679,12 @@ tooltipsHTMLPlaceholder +
 					// skip ALTER TABLE..[NO]CHECK CONSTRAINT, it does not affect the CREATE TABLE
 					skipItemIssue = true;
 				}
-				if (!skipItemIssue) {
-					String k = context.toUpperCase();
+				if (!skipItemIssue) {	
+					String k = context;
 					if (k.contains(" ")) {
 						k = k.substring(k.lastIndexOf(" ")+1);
 					}
+					k = (k + sortKeySeparator + appName).toUpperCase();
 					objIssueCount.put(k, objIssueCount.getOrDefault(k,0)+1);
 				}
 
@@ -5747,7 +5776,7 @@ tooltipsHTMLPlaceholder +
 //		for (String t : objTypeIssueMap.keySet()) {
 //			Integer iX = objTypeIssueCount.getOrDefault(t,0);
 //			Integer i0 = objTypeNoIssueCount.getOrDefault(t,0);
-//			appOutput(thisProc()+"t=["+t+"] iX=["+iX+"] i0=["+i0+"] ");
+//			appOutput(thisProc()+"t=["+t+"] objTypeIssueCount=["+iX+"] objTypeNoIssueCount=["+i0+"] ");
 //		}
 
 		// reporting options
@@ -6089,7 +6118,7 @@ tooltipsHTMLPlaceholder +
 		sortedListXRefByObject.clear();
 
 		if (showObjectIssuesList) {
-			reportObjectsIssues(objTypeMapCase, objIssueCount);
+			reportObjectsIssues(objTypeMapCase, objTypeMapCount, objIssueCount);
 		}
 
 		if (listHints) {
@@ -6124,24 +6153,23 @@ tooltipsHTMLPlaceholder +
 		writeReportFile(lines);
 	}
 
-	private void reportObjectsIssues(Map<String, String> objTypeMap, Map<String,Integer> objIssueCount) throws IOException {
+	private void reportObjectsIssues(Map<String, String> objTypeMap, Map<String,Integer> objTypeMapCount, Map<String,Integer> objIssueCount) throws IOException {
 		Map<String, Integer> objTypes = new HashMap<>();
 		for (Map.Entry<String,String> e : objTypeMap.entrySet()) {
 			String c = e.getKey();
 			String type = e.getValue();
 			Integer issues = objIssueCount.getOrDefault(c.toUpperCase(),0);
 			objTypes.put(type, 0);
-			//appOutput(thisProc()+"c=["+c+"] type=["+type+"] issues=["+issues+"] ");
 		}
 
 		writeReportFile("<a name=\""+tagIssueListTop+"\"></a>\n");
 
 		for (String type : objTypes.keySet().stream().sorted().collect(Collectors.toList())) {
-			reportObjectsIssuesList(type, objTypeMap, objIssueCount);
+			reportObjectsIssuesList(type, objTypeMap, objTypeMapCount, objIssueCount);
 		}
 	}
 
-	private void reportObjectsIssuesList(String objType, Map<String, String> objTypeMap, Map<String,Integer> objIssueCount) throws IOException {
+	private void reportObjectsIssuesList(String objType, Map<String, String> objTypeMap, Map<String,Integer> objTypeMapCount, Map<String,Integer> objIssueCount) throws IOException {
 		String objTypeFmt = objType;
 		if (objTypeFmt.contains(", ")) {
 			Integer i = objTypeFmt.indexOf(", ");
@@ -6155,16 +6183,21 @@ tooltipsHTMLPlaceholder +
 			StringBuilder line = new StringBuilder();
 			Integer cnt = 0;
 
-			for (String objName : objTypeMap.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
-				String type = objTypeMap.get(objName);
+			for (String k : objTypeMap.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
+				List<String> objApp = new ArrayList<>(Arrays.asList(k.split(sortKeySeparator)));
+				String objName = objApp.get(0);
+				String appName = objApp.get(1);
+				String type = objTypeMap.get(k);
+				String appFmt = "";
+				if (objTypeMapCount.get(objName.toUpperCase()) > 1) appFmt = ", app " + appName;
 				if (!type.equals(objType)) continue;
-				Integer issues = objIssueCount.getOrDefault(objName.toUpperCase(),0);
+				Integer issues = objIssueCount.getOrDefault(k.toUpperCase(),0);
 
 				String contextObjType = objType;
 				if (contextObjType.startsWith("FUNCTION")) contextObjType = "FUNCTION";
 				String context = contextObjType + " " + objName;
-				context = context.toUpperCase();
-				String contextLink = contextLinkMap.get(context);
+				context += sortKeySeparator + appName;
+				String contextLink = contextLinkMap.get(context.toUpperCase());
 				String anchorLink = "";
 				String anchorLinkEnd = "";
 				if (contextLink != null) { // null = not found => shouldn't happen, but don't break regardless
@@ -6182,11 +6215,11 @@ tooltipsHTMLPlaceholder +
 				}
 
 				if (!withIssues && (issues == 0)) {
-					line.append(lineIndent + objName+"\n");
+					line.append(lineIndent + objName+appFmt+"\n");
 					cnt++;
 				}
 				else if (withIssues && (issues > 0)) {
-					line.append(lineIndent + objName+" ("+anchorLink+issues+" issues"+anchorLinkEnd+")\n");
+					line.append(lineIndent + objName+" ("+anchorLink+issues+" issues"+anchorLinkEnd+")"+appFmt+"\n");
 					cnt++;
 				}
 			}
@@ -6263,6 +6296,7 @@ tooltipsHTMLPlaceholder +
     	String PGImportFilePathName = getPGImportFilePathname(reportName);
     	checkDir(getReportDirPathname(reportName, capDirName), true);
 		PGImportFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(PGImportFilePathName), StandardCharsets.UTF_8)));
+		boolean containsDelimiter = false;
 
 		for (Path cf : captureFiles) {
 			String cfLine = captureFileFirstLine(cf.toString());   // read only first line
@@ -6336,6 +6370,8 @@ tooltipsHTMLPlaceholder +
 
 				PGImportFileWriter.write(capLine+"\n");
 				//appOutput(thisProc()+"writing line "+capCount+": capLine=["+capLine+"]  ");
+				
+				if (!containsDelimiter) if (capLine.contains(captureFileSeparatorMarker)) containsDelimiter = true;
 			}
 			capFile.close();
 		}
@@ -6359,7 +6395,7 @@ tooltipsHTMLPlaceholder +
 		String psqlFile = psqlImportFileName + "." + psqlFileSuffix;
 		psqlCmd= applyPatternFirst(psqlCmd, "~file~", psqlFile);
 
-		String cmdFile = writePsqlFile(append, reportName, psqlCmd);
+		String cmdFile = writePsqlFile(append, reportName, psqlCmd, containsDelimiter);
 
 		// compose the command line
 		String runCmd= "";
