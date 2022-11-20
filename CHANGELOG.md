@@ -6,6 +6,10 @@
 - '@@error value 50000, via THROW' now classified as supported.
 - Indexes with additional included columns exceeding the maximum of 32 now classified as 'Review Performance'.
 - Better error message for some cases of a non-existing report name.
+- Optimization for -pgimport.
+- Fix reporting of duplicate table names for multiple apps in Xref report.
+- Classifying column attributes ROWGUIDCOL,SPARSE,FILESTREAM as Ignored by default.
+- Minor grammar fix.
 
 # 2022-10
 - Detect THROW when it is first statement in the batch.
