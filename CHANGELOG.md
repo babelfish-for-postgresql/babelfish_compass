@@ -1,3 +1,13 @@
+# 2022-12
+- Support for Babelfish v.2.3.0.
+- Include condensed 'Executive Summary' section at top of the report.
+- Dynamic SQL statements consisting only of a string literal are now also analyzed, and the executing statement is not flagged as 'Review Manually'; this is done for EXECUTE(), sp_executesql, sp_prepare, sp_prepexec, sp_cursorprepare, sp_cursorprepexec.
+- Detect and report multiple concatenated constraints in a column definition.
+- New option -userconfigfile to use a specific user-defined .cfg file (default=BabelfishCompassUser.cfg).
+- Include low/medium/high complexity score for not-supported features only.
+- Include complexity score when uploading details with -pgimport.
+- Minor grammar fixes.
+
 # 2022-11
 - Report SELECT FOR JSON options.
 - Allow generating a report only when analysis was done on an older Babelfish version.

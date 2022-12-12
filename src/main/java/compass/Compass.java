@@ -110,7 +110,8 @@ public class Compass {
 	protected static boolean pgImportAppend = false;
 	protected static boolean pgImportTable = false;
 	protected static boolean anonymizedReport = false;
-	protected static boolean importFormatArg = false;
+	protected static boolean importFormatArg = false;	
+	protected static String mergeReport = "";
 
 	protected static boolean antlrSLL = true;
 	protected static boolean antlrShowTokens = false;
@@ -118,6 +119,12 @@ public class Compass {
 	protected static boolean antlrDiagnostics = false;
 	protected static Charset charset;
 	protected static String userEncoding = null;
+	public static boolean analyzingDynamicSQL = false;
+	public static int dynamicSQLLineNr = 0;
+	public static int dynamicSQLBatchNr = 0;
+	public static int dynamicSQLBatchLineNr = 0;	
+	public static String dynamicSQLContext = "";	
+	public static String dynamicSQLSubContext = "";	
 	
 	public static String reportName = null; // must be null when not initialized
 	public static String applicationName;
@@ -128,6 +135,8 @@ public class Compass {
 	public static Map<String,String> inputFilesMapped = new HashMap<>();
 	public static List<String> cmdFlags = new ArrayList<>();
 	public static List<String> pgImportFlags = new ArrayList<>();
+	
+
 
 	protected static TSQLParser.Tsql_fileContext exportedParseTree;
 
@@ -137,24 +146,25 @@ public class Compass {
 
 	public Compass(String[] args) {		
 		u.setPlatformAndOptions(System.getProperty("os.name"));		
-
+			
 		if (args.length < 1) {
 			System.err.println("Must specify arguments. Try -help");
 			return;
 		}
 
-		u.targetBabelfishVersion = CompassUtilities.baseBabelfishVersion;  // init at 1.0
+		u.targetBabelfishVersion = CompassUtilities.baseBabelfishVersion;  // init at 1.00
 
 		for (int i = 0; i < args.length; i++) {
 			cmdFlags.add(args[i]);
-		}
-
+		}					
+					
 		// Need to queue up the input files so we can process them after knowing whether any of
 		// -recursive, -include [pattern] or -exclude [pattern] have been set.
 		List<String> tmpInputFiles = new ArrayList<>();
 
 		for (int i = 0; i < args.length; ) {
 			String arg = args[i];
+			//u.appOutput(u.thisProc()+"arg=["+arg+"] ");
 			i++;
 			if (arg.equals("-version")) {
 				// info already printed by main(String[] args)
@@ -230,8 +240,9 @@ public class Compass {
 				u.appOutput("   -reportoption <options>      : additional reporting detail (try -help -reportoption)");				
 				u.appOutput("   -reportfile <name>           : specifies file name for report file (without .html)");				
 				u.appOutput("   -list                        : display imported files/applications for a report");				
-				u.appOutput("   -analyze                     : (re-)run analysis on imported files, and generate report");		
-				u.appOutput("   -nooverride                  : do not use overrides from " + CompassUtilities.defaultUserCfgFileName);						
+				u.appOutput("   -analyze                     : (re-)run analysis on imported files, and generate report");					
+				u.appOutput("   -userconfigfile <filename>   : specifies user-defined .cfg file (default= " + CompassUtilities.defaultUserCfgFileName+")");	
+				u.appOutput("   -nooverride                  : do not use overrides from user-defined .cfg file");												
 				u.appOutput("   -babelfish-version <version> : specify target Babelfish version (default=latest)");
 				u.appOutput("   -encoding <encoding>         : input file encoding, e.g. '-encoding UTF16'. Default="+Charset.defaultCharset());
 				u.appOutput("                                  use '-encoding help' to list available encodings");
@@ -247,8 +258,9 @@ public class Compass {
   				u.appOutput("   -rewrite                     : rewrites selected unsupported SQL features");
   				u.appOutput("   -noupdatechk                 : do not check for " + CompassUtilities.thisProgName + " updates");
 				u.appOutput("   -importfmt <fmt>             : process special-format captured query files");
-				u.appOutput("   -nodedup                     : with -importfmt, do not deduplicate captured queries");
-				u.appOutput("   -syntax_issues               : also report selected Babelfish syntax errors (experimental)");
+				u.appOutput("   -nodedup                     : with -importfmt, do not de-duplicate captured queries");
+				u.appOutput("   -noreportcomplexity          : do not include complexity scores in report");
+				u.appOutput("   -syntax_issues               : also report selected Babelfish syntax errors (experimental)");				
 				u.appOutput("   -version                     : show version of this tool");
 				u.appOutput("   -help [ <helpoption> ]       : show help information. <helpoption> can be one of:");		
 				u.appOutput("                                  reportoption, encoding, importfmt, exclude");		
@@ -334,6 +346,35 @@ public class Compass {
 				u.userConfig = false;
 				continue;
 			}			
+			if (arg.equals("-userconfigfile") || arg.equals("-usercfgfile") || arg.equals("-userconfig") || arg.equals("-usercfg")) { 
+				if (i >= args.length) {
+					System.err.println("Must specify value with -userconfigfile");
+					u.errorExit();
+				}
+				u.userCfgFileName = args[i];
+				
+				// does file exist?	
+				boolean hasNoOverride = false;			
+				for (int j = 0; j < args.length; j++) {
+					if (args[j].equals("-nooverride")) {
+						hasNoOverride = true;
+						break;
+					}
+				}				
+				if (!hasNoOverride) {	
+					String userConfigFilePathName = "";				
+					try { 
+						userConfigFilePathName = u.getUserCfgFilePathName(u.userCfgFileName);
+					} catch (Exception e) {}													
+					File f = new File(userConfigFilePathName);
+					if (!f.exists()) {
+						System.err.println("User config file ["+userConfigFilePathName+"] not found");
+						u.errorExit();	
+					}
+				}
+				i++;
+				continue;
+			}				
 			if (arg.equals("-importfmt") || arg.equals("-importformat")) {
 				if (i == args.length) {
 					u.appOutput("Must specify argument for -importfmt. Valid values are: "+u.importFormatSupportedDisplay);
@@ -388,9 +429,13 @@ public class Compass {
 			if (arg.equals("-rewrite")) {
 				u.rewrite = true;
 				continue;
-			}					
+			}								
 			if (arg.equals("-noupdatechk")) {
 				u.updateCheck = false;
+				continue;
+			}				
+			if (arg.equals("-noreportcomplexity")) {
+				u.reportComplexityScore = false;
 				continue;
 			}				
 			if (arg.equals("-encoding")) {
@@ -519,9 +564,10 @@ public class Compass {
 					u.errorExit();								
 				}
 				pgImport = true;	
+				generateReport = false;
 				i++;
 				continue;		
-			}			
+			}						
 			if (arg.equals("-syntax") || arg.equals("-syntax_issues")) {	
 				u.reportSyntaxIssues = true;	
 				continue;
@@ -529,7 +575,65 @@ public class Compass {
 			if (arg.equals("-"+CompassUtilities.reverseString("m"+"u"+"s"+"k"+"c"+"e"+"h"+"c"))) {
 				u.configOnly = true;
 				continue;
-			}													
+			}		
+			if (arg.equals("-mergereport")) { // special purposes only			
+				if (i >= args.length) {
+					System.err.println("Must specify target report name with -mergereport");
+					u.errorExit();
+				}
+				mergeReport = args[i];
+				i++; 				
+								
+				try { 
+					if ((!u.checkReportExists(mergeReport))) {
+						u.appOutput("Target merge report '"+mergeReport+"' not found");
+						u.errorExit();
+					}
+				}
+				catch (Exception e) {
+					u.appOutput("Error checking directory existence for merge target report ("+mergeReport+")");
+					u.errorExit();
+				}			
+				
+				if (mergeReport.equalsIgnoreCase(reportName)) {
+					u.appOutput("merge target report cannot be the saem as current report ("+mergeReport+")");
+					u.errorExit();					
+				}
+				
+				continue;								
+			}				
+			if (arg.equals("-recursive")) {
+				recursiveInputFiles = true;
+				continue;
+			}
+			if (arg.equals("-include")) {
+				if (i >= args.length) {
+					System.err.println("missing include file name pattern on -include");
+					u.errorExit();
+				}
+				if (includePattern != null) {
+					// Can only specify -include once per invocation
+					System.err.println("Only one -include flag allowed. Separate multiple file name patterns with a comma.");
+					u.errorExit();
+				}
+				includePattern = parseInputPattern(args[i]);
+				i++;
+				continue;
+			}
+			if (arg.equals("-exclude")) {
+				if (i >= args.length) {
+					System.err.println("missing exclude file name pattern on -exclude");
+					u.errorExit();
+				}
+				if (excludePattern != null) {
+					// Can only specify -exclude once per invocation
+					System.err.println("Only one -exclude flag allowed. Separate multiple file name patterns with a comma.");
+					u.errorExit();
+				}
+				excludePattern = parseInputPattern(args[i]);
+				i++;
+				continue;
+			}																									
 			if (CompassUtilities.devOptions) {
 				if (arg.equals("-debug")) {   // development only
 					if (i == args.length) {
@@ -611,39 +715,6 @@ public class Compass {
 					continue;
 				}
 			}
-			if (arg.equals("-recursive")) {
-				recursiveInputFiles = true;
-				continue;
-			}
-			if (arg.equals("-include")) {
-				if (i >= args.length) {
-					System.err.println("missing include file name pattern on -include");
-					u.errorExit();
-				}
-				if (includePattern != null) {
-					// Can only specify -include once per invocation
-					System.err.println("Only one -include flag allowed. Separate multiple file name patterns with a comma.");
-					u.errorExit();
-				}
-				includePattern = parseInputPattern(args[i]);
-				i++;
-				continue;
-			}
-			if (arg.equals("-exclude")) {
-				if (i >= args.length) {
-					System.err.println("missing exclude file name pattern on -exclude");
-					u.errorExit();
-				}
-				if (excludePattern != null) {
-					// Can only specify -exclude once per invocation
-					System.err.println("Only one -exclude flag allowed. Separate multiple file name patterns with a comma.");
-					u.errorExit();
-				}
-				excludePattern = parseInputPattern(args[i]);
-				i++;
-				continue;
-			}
-
 			// arguments must start with [A-Za-z0-9 _-./] : anything else is invalid
 			if (CompassUtilities.getPatternGroup(arg.substring(0,1), "^([\\w\\-\\.\\/])$", 1).isEmpty()) {
 				System.err.println("Invalid option ["+arg+"]. Try -help");
@@ -705,7 +776,7 @@ public class Compass {
 		inputFilesOrig.addAll(tmpInputFiles);
 		
 		// check for updates of Compass and print reminder
-		u.checkForUpdate();				
+		u.checkForUpdate();		
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -724,8 +795,19 @@ public class Compass {
 
  		if (quitNow) {
 			return;
- 		}
- 		
+ 		} 		
+		 	
+ 		// read config file
+ 		u.cfgFileName = u.defaultCfgFileName; // todo: make configurable?
+ 		if (u.userCfgFileName.equals(u.uninitialized)) u.userCfgFileName = u.defaultUserCfgFileName;  // using default
+		cfg.validateCfgFile(u.cfgFileName, u.userCfgFileName);		
+		assert u.cfgFileFormatVersionRead > 0 : "cfgFileFormatVersionRead=[" + u.cfgFileFormatVersionRead + "], must be > 0";
+		if (u.cfgFileFormatVersionRead > u.cfgFileFormatVersionSupported) {
+			u.appOutput("File format version number in " + u.cfgFileName + " is " + u.cfgFileFormatVersionRead+".");
+			u.appOutput("This version of " + CompassUtilities.thisProgName + " supports version " + u.cfgFileFormatVersionSupported + " or earlier.");
+			u.errorExit();			
+		}
+				 		
  		// perform PG import
 		if (pgImport) {
 			if (!optionsValid()) {
@@ -744,16 +826,6 @@ public class Compass {
 			return;			
 		}
 		
- 		// read config file
- 		u.cfgFileName = u.defaultCfgFileName; // todo: make configurable?
- 		u.userCfgFileName = u.defaultUserCfgFileName; // todo: make configurable?
-		cfg.validateCfgFile(u.cfgFileName, u.userCfgFileName);		
-		assert u.cfgFileFormatVersionRead > 0 : "cfgFileFormatVersionRead=[" + u.cfgFileFormatVersionRead + "], must be > 0";
-		if (u.cfgFileFormatVersionRead > u.cfgFileFormatVersionSupported) {
-			u.appOutput("File format version number in " + u.cfgFileName + " is " + u.cfgFileFormatVersionRead+".");
-			u.appOutput("This version of " + CompassUtilities.thisProgName + " supports version " + u.cfgFileFormatVersionSupported + " or earlier.");
-			u.errorExit();			
-		}
 		if (showVersion) {
 			return;
 		}
@@ -817,13 +889,15 @@ public class Compass {
 				u.deleteReportDir(reportName); 
 				if (inputFiles.size() == 0) {
 					// nothing to do
+					u.appOutput("No input files to process");
 					return;
 				}
 			}
 
 			u.checkDir(u.getDocDirPathname(), false, true);
-			if ((inputFiles.size() == 0) ) {
+			if ((inputFiles.size() == 0)) {
 				if (nrFileNotFound > 0) {
+					u.appOutput("No input files to process");					
 					return;
 				}
 				// check for non-existing report (e.g. misspelled) when doing report only
@@ -869,12 +943,14 @@ public class Compass {
 			tmp = "Command line arguments     : " + String.join(" ", cmdFlags);
 			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
+
 			tmp = "Command line input files   : " + String.join(" ", inputFilesOrig);
+			
 			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
 			tmp = "User .cfg file (overrides) : " + CompassConfig.userConfigFilePathName;
 			if (!u.userConfig) {
-				tmp += " (skipped)";
+				tmp += " (ignored)";
 			}
 			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
@@ -970,6 +1046,22 @@ public class Compass {
 		if (generateReport) {
 			if (!(parseOnly || importOnly)) {
 				u.closeReportFile();
+			}
+		}
+		
+		if (!mergeReport.isEmpty()) {
+			// copy all files into the target report (performance optimization for very large operations only)		
+			String src = CompassUtilities.getReportDirPathname(reportName);	
+			String tgt = CompassUtilities.getReportDirPathname(mergeReport);	
+			if (CompassUtilities.onWindows) {
+				String cmd = "robocopy "+src+" "+tgt+" *.* /E /R:1 /W:1 > NUL";
+				u.appOutput("Copying details into '"+mergeReport+"' :  ["+cmd+"] ");
+				u.runOScmd(cmd);
+			}
+			else {
+				String cmd = "cp -R "+src+"/* "+tgt+" > /dev/null";
+				u.appOutput("Copying details into '"+mergeReport+"' :  ["+cmd+"] ");
+				u.runOScmd(cmd);				
 			}
 		}
 		
@@ -1229,7 +1321,7 @@ public class Compass {
 	private static boolean optionsValid() throws Exception {
 		// validate combinations of various options specified
 		// return true if options are valid
-				
+		
  		if (reportName == null) {
  			reportName = "";
  		}
@@ -1496,7 +1588,12 @@ public class Compass {
 				return false;				
 			}			
 		}
-
+		
+		if (!u.userConfig) {  
+			if (!u.userCfgFileName.equals(u.uninitialized)) {
+				u.appOutput("Ignoring -userconfigfile since -nooverride was specified");					
+			}
+		}
 				
 		// if we get here, we're good
 		
@@ -1510,10 +1607,16 @@ public class Compass {
 		return true;
 	}
 	
-	private static void runPGImport () { 
+	private static void runPGImport () throws Exception { 
 		// import the captured.dat file into a PG table
 					
-		try { u.importPG(pgImportAppend, pgImportFlags); } catch (Exception e) { /*nothing*/ }		
+	//	try { 
+			u.importPG(pgImportAppend, pgImportFlags);
+			// } 
+//		catch (Exception e) { 
+//			u.appOutput(u.thisProc()+"error in importPG");
+//			throw e;
+//		}		
 		
 		//Note: by exiting here, the password entered on command line is not getting written into the log files		
 		// If this is ever changed, the password should be blanked out in the command-line argument before written to the log file
@@ -1575,6 +1678,7 @@ public class Compass {
 		if (CompassUtilities.devOptions) {
 		u.appOutput("#input files         : "+ nrFiles+errFiles);
 		u.appOutput("#batches             : "+ totalBatches);
+		u.appOutput("#dynamic SQL         : "+ u.dynamicSQLNrStmts);
 		u.appOutput("#lines of SQL ph.1   : "+ nrLinesTotalP1);
 		u.appOutput("#lines of SQL ph.2   : "+ nrLinesTotalP2);
 		u.appOutput("#SQL features        : "+ u.constructsFound, writeToReport);
@@ -1621,7 +1725,7 @@ public class Compass {
 
 	}
 
-	private void processInput(String runStartTime) throws Exception {	
+	private void processInput(String runStartTime) throws Exception {			
 		if (readStdin) {
 			// quick parse option, for development only
 			if (u.analysisPass > 1) return;
@@ -1762,6 +1866,7 @@ public class Compass {
 			String inFileCopy = "";
 			FileInputStream fis = null;
 			InputStreamReader isr = null;
+			u.dynamicSQLBuffer.clear();
 			retrySLLFile = 0;
 			if (u.rewrite) u.resetRewrites();
 			u.currentDatabase  = "";
@@ -1949,8 +2054,9 @@ public class Compass {
 			int batchLines = 0;
 			int lineNr = 0;
 			int nrLinesInFile = 0;
-			String line;
+			String line =  null;
 			boolean endBatchFound = false;
+			boolean exitFound = false;
 			boolean startOfNewBatch = true;
 			int startBatchLineNr = 1;
 			int inComment = 0;
@@ -1975,12 +2081,59 @@ public class Compass {
 
 			boolean doEncodingChecks = true;
 			int nrEncodingWarnings = 0;
-			int maxEncodingWarnings = 5;			
+			int maxEncodingWarnings = 5;	
+			boolean lastLineRead = false;	
+			int dynSQLCount = 0;
+			analyzingDynamicSQL = false;
+			dynamicSQLLineNr = 0;
+			dynamicSQLBatchNr = 0;
+			dynamicSQLBatchLineNr = 0;
+			dynamicSQLContext = "";
+			dynamicSQLSubContext = "";
 
 			while (true) {
 				boolean somethingFoundOnLine = false;
 				boolean orphanSquareBracket = false;
-				line = inFileReader.readLine();
+				if (!lastLineRead) {
+					line = inFileReader.readLine();
+				}
+				else if (u.analysisPass == 2) {
+					if (dynSQLCount < u.dynamicSQLBuffer.size()) {
+						if (!analyzingDynamicSQL) {
+							u.dynamicSQLBuffer.add(0, "go");
+							analyzingDynamicSQL = true;
+						}
+						line = u.dynamicSQLBuffer.get(dynSQLCount);
+						dynSQLCount++;
+						if (u.debugging) u.dbgOutput("dynamic SQL: line=["+line+"] ", u.debugDynamicSQL);		
+						if (line.startsWith(u.dynamicSQLBatchLine)) {
+							List<String> tmpBatchLine = new ArrayList<>(Arrays.asList(line.substring(u.dynamicSQLBatchLine.length()).split(",")));
+							//u.appOutput(u.thisProc()+"tmpBatchLine=["+tmpBatchLine+"] ");
+							dynamicSQLLineNr = Integer.parseInt(tmpBatchLine.get(0));
+							dynamicSQLBatchNr = Integer.parseInt(tmpBatchLine.get(1));
+							dynamicSQLBatchLineNr = Integer.parseInt(tmpBatchLine.get(2));
+							dynamicSQLContext = tmpBatchLine.get(3);
+							dynamicSQLSubContext = tmpBatchLine.get(4);
+							if (u.debugging) u.dbgOutput("dynamic SQL: dynamicSQLLineNr=["+dynamicSQLLineNr+"] dynamicSQLBatchNr=["+dynamicSQLBatchNr+"] dynamicSQLBatchLineNr=["+dynamicSQLBatchLineNr+"] dynamicSQLContext=["+dynamicSQLContext+"] dynamicSQLSubContext=["+dynamicSQLSubContext+"] ", u.debugDynamicSQL);		
+							line = u.dynamicSQLBuffer.get(dynSQLCount);
+							dynSQLCount++;							
+							if (u.debugging) u.dbgOutput("dynamic SQL: line=["+line+"] ", u.debugDynamicSQL);		
+						}
+					}
+					else if (dynSQLCount == u.dynamicSQLBuffer.size()) {
+						line = null;
+					}
+				}
+				if ((line == null) && (u.analysisPass == 2)  && !lastLineRead) {
+					lastLineRead = true;		
+					if (u.debugging) u.dbgOutput("last line was read! ", u.debugBatch);			
+					if (u.dynamicSQLBuffer.size() > 0) {
+						// there was some dynamic SQL in this file that needs to be analyzed, so process it now						
+						if (u.debugging) u.dbgOutput("dynamic SQL still to be processed : "+u.dynamicSQLNrStmts+" batches, "+u.dynamicSQLBuffer.size()+" lines", u.debugBatch||u.debugDynamicSQL);	
+						continue;
+					}
+				}
+				
 				if (line == null) {
 					if (u.debugging) u.dbgOutput("end of file", u.debugBatch);
 					endBatchFound = true;
@@ -2043,7 +2196,7 @@ public class Compass {
 					lineNr++;
 					batchLines++;
 					if (u.debugging) u.dbgOutput("read line " + lineNr + "(len:" + line.length() + ")=[" + line + "]", u.debugBatch);
-
+					
 					// check for indications that encoding is not correctly specified
 					if (doEncodingChecks) {
 						if (line.length() == 1) {
@@ -2061,7 +2214,6 @@ public class Compass {
 							doEncodingChecks = false;
 						}
 					}
-
 
 					String lineCopy = line;
 					boolean lineCopyProcessed = false;
@@ -2233,15 +2385,19 @@ public class Compass {
 							}
 							if (line.trim().equalsIgnoreCase("exit")) {
 								if (u.debugging) u.dbgOutput("exit found", u.debugBatch);
-								endOfFile = true;
+								if (u.dynamicSQLBuffer.size() == 0) endOfFile = true;
 								endBatchFound = false;
 								if (u.analysisPass == 1) {
 									if (batchNr == 0) {
 										u.appOutput("No batches found in this file.");
 									}
 								}
-
-								break;
+								exitFound = true;								
+								lastLineRead = true;
+								line = null;
+								batchText.setLength(0); // wipe out the current batch, just as sqlcmd does
+								batchNr--;
+								continue;	
 							}
 						}
 					}
@@ -2274,9 +2430,17 @@ public class Compass {
 
 				if (endBatchFound) {
 					// process the batch
-					batchNr++;
-					u.batchNrInFile = batchNr;
-					u.lineNrInFile = startBatchLineNr;	
+					if (!analyzingDynamicSQL) {
+						batchNr++;
+						if (endOfFile && leadingBlankLines && !exitFound) batchNr--;
+						u.batchNrInFile = batchNr;
+						u.lineNrInFile = startBatchLineNr;		
+					}
+					else {
+						// Dynamic SQL: use numbers from original batch
+						batchNr = u.batchNrInFile = dynamicSQLBatchNr;
+						startBatchLineNr = u.lineNrInFile = dynamicSQLBatchLineNr;		
+					}
 					
 					if (startOfNewBatch || leadingBlankLines) {
 						// nothing to process
@@ -2303,12 +2467,10 @@ public class Compass {
 						continue;
 					} 
 					else {
-						// Reinstated counting the last line: while the line represents the batch terminator and therefore not contains any SQL,
-						// not counting this lines results in the number of lines reported to the user to differ from the #lines in the 
+						// Count the last line: while the line represents the batch terminator and therefore not contains any SQL,
+						// not counting this line results in the number of lines reported to the user to differ from the #lines in the 
 						// actual input file (the difference being the number of batches)
-						// In order to avoid confusion, let's therefore count all the lines and have consistent line counts everywhere.
-						//batchLines--; // do not count the last line
-
+						
 						if (u.analysisPass == 1) {
 							nrLinesTotalP1 += batchLines;
 						}
@@ -2351,6 +2513,12 @@ public class Compass {
 							if (!dumpParseTree) {
 								printErrMsg = false;
 							}
+							if (analyzingDynamicSQL) {
+								printErrMsg = true;								
+								if (hasParseError) {
+									totalParseErrors++;
+								}								
+							}
 						}
 						if (hasParseError) {
 							if (printErrMsg) {
@@ -2360,7 +2528,7 @@ public class Compass {
 							}
 						}
 
-						if (u.analysisPass == 1) {
+						if ((u.analysisPass == 1) || ((u.analysisPass == 2) && analyzingDynamicSQL)) {
 							if (hasParseError) {
 								// write error batch
 								if (u.errBatchFileWriter == null) {
@@ -2368,7 +2536,13 @@ public class Compass {
 								}
 
 								// log error batch to file
-								u.writeErrBatchFile("Syntax error in batch " + batchNr + ", starting at line " + startBatchLineNr + " in file " + Paths.get(inFile).toAbsolutePath() + "\nBatch=[" + batchText + "]");
+								String b = "Batch";
+								String b2 = "";
+								if (analyzingDynamicSQL) {
+									b = "Dynamic SQL";
+									b2 = "dynamic SQL ";
+								}
+								u.writeErrBatchFile("Syntax error "+b2+"in batch " + batchNr + ", starting at line " + startBatchLineNr + " in file " + Paths.get(inFile).toAbsolutePath() + "\n"+b+"=[" + batchText + "]");
 								u.writeErrBatchFile(parseErrorMsg.toString().trim() + "\n");
 								u.writeErrBatchFile(u.composeOutputLine("-", "-") + "\n");			
 								
@@ -2393,8 +2567,9 @@ public class Compass {
 							if (parseOnly && (u.analysisPass > 1)) {
 								// do nothing
 							} 
-							else {
+							else if (exportedParseTree != null) {
 								// even with -parseonly, we need to run analysis in order to process set quoted_identifier, which affects parsing
+								if (u.debugging) u.dbgOutput("Analyzing tree for batch", u.debugBatch);
 								String phase = "analysisTimeP" + u.analysisPass;
 								startTime = System.currentTimeMillis();
 
@@ -2436,6 +2611,7 @@ public class Compass {
 			passCount.put(u.analysisPass,1);
 			if (passCount.size() > 1) {
 				// don't add, or we'd be doubling up the totals
+				// note: no idea what the thinking was here. sorry!
 			} 
 			else {
 				totalBatches += batchNr;
@@ -2539,14 +2715,16 @@ public class Compass {
 			public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
 									int charPositionInLine, String msg, RecognitionException e) {
 				Token token = (Token)offendingSymbol;
-				msg = u.limitTextSize(msg);
+				msg = u.limitTextSize(msg);				
 				parseErrorMsg.append("Line ").append(line).append(":").append(charPositionInLine + 1).append(", ");
 
 				if (token.getType() == TSQLLexer.UNMATCHED_CHARACTER) {
 					u.addLexicalErrorHex(parseErrorMsg, token.getText());
 				}
 				else {
-					parseErrorMsg.append("syntax error: ").append(msg);
+					parseErrorMsg.append("syntax error");
+					if (analyzingDynamicSQL) parseErrorMsg.append(" in dynamic SQL");
+					parseErrorMsg.append(": ").append(msg);
 				}
 				hasParseError = true;
 			}
@@ -2584,7 +2762,7 @@ public class Compass {
 
 			// return parse tree as string, if required
 			if (dumpParseTree) {
-				treeString = tree.toStringTree(parser);
+				//treeString = tree.toStringTree(parser);
 			}
 
 		} catch (Exception e) {

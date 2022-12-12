@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2022-11";
-	public static final String thisProgVersionDate  = "November 2022";
+	public static final String thisProgVersion      = "2022-12";
+	public static final String thisProgVersionDate  = "December 2022";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -80,9 +80,9 @@ public class CompassUtilities {
 	public static String userCfgFileName = uninitialized;
 	public static final String defaultUserCfgFileName  = "BabelfishCompassUser.cfg";
 	public static boolean userConfig = true;
-	
+
 	// this string is tested for to see if the header needs to be upgraded
-	private String userCfgComplexityHdrLine202209 = "# Complexity_score overrides values defined by Compass in "+defaultCfgFileName+".";	
+	private String userCfgComplexityHdrLine202209 = "# Complexity_score overrides values defined by Compass in "+defaultCfgFileName+".";
 
 	// .cfg file format version as found in the .cfg file; this is validated
 	public Integer cfgFileFormatVersionRead = 0;
@@ -101,7 +101,7 @@ public class CompassUtilities {
 	// user-specified
 	public static final String fileNameCharsAllowed = "[^\\w\\_\\.\\-\\/\\(\\)]";
 	public String targetBabelfishVersion = ""; // Babelfish version for which we're doing the analysis
-	public String targetBabelfishVersionReportLine = "Target Babelfish version   : v."; // line in report listing the target version	
+	public String targetBabelfishVersionReportLine = "Target Babelfish version   : v."; // line in report listing the target version
 	public boolean stdReport = false;	// development only
 
 	// minimum Babelfish version; this is fixed
@@ -173,7 +173,12 @@ public class CompassUtilities {
 	public BufferedWriter extractedFileWriter;
 	public BufferedReader rewrittenInFileReader;
 	public BufferedWriter rewrittenFileWriter;
-
+	public Map<String, Integer> complexityScoreCount = new HashMap<>();
+	private static final int complexityCntTypeLo = 0; 
+	private static final int complexityCntTypeMed = 1; 
+	private static final int complexityCntTypeHi = 2; 
+	private static final int complexityCntTypeCustom = 3;	
+		
 	// importformat options
 	public static final String autoFmt = "auto"; // not currently supported
 	public static final String sqlcmdFmt = "sqlcmd";
@@ -219,6 +224,7 @@ public class CompassUtilities {
 	public String appnameHTMLPlaceholder   = "BBF_APPNAMEHTMLPLACEHOLDER";
 	public String tocHTMLPlaceholder       = "BBF_TOCHTMLPLACEHOLDER";
 	public String tooltipsHTMLPlaceholder  = "BBF_TOOLTIPSHTMLPLACEHOLDER";
+	public String tagExecSummary           = "execsumm";
 	public String tagApps                  = "apps";
 	public String tagEstimate              = "estimate";
 	public String tagObjcount              = "objcount";
@@ -475,7 +481,10 @@ tooltipsHTMLPlaceholder +
 		"DATEDIFF("+tttSeparator+"This unit is not currently supported; rewrite using a different unit",
 		"DATEADD("+tttSeparator+"This unit is not currently supported; rewrite using a different unit",
 		"DATABASE_PRINCIPAL_ID("+tttSeparator+"DATABASE_PRINCIPAL_ID() is not currently supported; Rewrite as USER_NAME() " + rewriteOption,
-        "FORMAT("+tttSeparator+"FORMAT() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
+		"FORMAT() culture @var"+tttSeparator+"The culture parameter for this FORMAT() call needs to be validated manually",
+		"FORMAT() culture expression"+tttSeparator+"The culture parameter for this FORMAT() call needs to be validated manually",
+		"FORMAT() culture"+tttSeparator+"This culture parameter for FORMAT() is not currently supported",
+		"FORMAT("+tttSeparator+"This FORMAT() pattern may not currently be supported. Rewrite the formatting using available functions such as CONVERT()",
 		"FORMATMESSAGE("+tttSeparator+"FORMATMESSAGE() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
 		"STRING_AGG() WITHIN GROUP"+tttSeparator+"STRING_AGG() is not supported with the WITHIN GROUP clause. Rewrite the query",
 		"FILEGROUP_NAME("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
@@ -494,6 +503,10 @@ tooltipsHTMLPlaceholder +
 		"CONTAINSTABLE("+tttSeparator+"Fulltext search is not currently supported",
 		"FREETEXTTABLE("+tttSeparator+"Fulltext search is not currently supported",
 		"\\w+ FULLTEXT "+tttSeparator+"Fulltext search is not currently supported",
+		"\\s*INSERT.*, on table function"+tttSeparator+"INSERT on a table-valued function is not currently supported. Rewrite as an update directly against the underlying table or view",
+		"\\s*UPDATE.*, on table function"+tttSeparator+"UPDATE on a table-valued function is not currently supported. Rewrite as an update directly against the underlying table or view",
+		"\\s*DELETE.*, on table function"+tttSeparator+"DELETE on a table-valued function is not currently supported. Rewrite as an update directly against the underlying table or view",
+		"\\s*MERGE.*, on table function"+tttSeparator+"MERGE on a table-valued function is not currently supported. Rewrite as an update directly against the underlying table or view",
 		"expression AT TIME ZONE"+tttSeparator+"A date/time expression with the AT TIME ZONE syntax is not currently supported; rewrite the expression with time zone offset syntax '+/-hh:mm', e.g. '01-Jan-2022 11:12:13 +02:00' ",
 		"Sequence option CACHE" +tttSeparator+"For a sequence, the CACHE option without a number is not currently supported; add a number",
 		"Sequence option NO CACHE" +tttSeparator+"For a sequence, the NO CACHE option without a number is not currently supported; remove NO CACHE " + rewriteOption,
@@ -548,6 +561,7 @@ tooltipsHTMLPlaceholder +
 		"CREATE OR ALTER FUNCTION"+tttSeparator+"CREATE OR ALTER FUNCTION is not currently supported; use DROP+CREATE",
 		"ALTER TRIGGER"+tttSeparator+"ALTER TRIGGER is not currently supported; use DROP+CREATE",
 		"CREATE OR ALTER TRIGGER"+tttSeparator+"CREATE OR ALTER TRIGGER is not currently supported; use DROP+CREATE",
+		"\\s*\\w+ DATABASE SCOPED"+tttSeparator+"This feature is not currently supported",
 		"ALTER DATABASE"+tttSeparator+"ALTER DATABASE is not currently supported; many ALTER DATABASE options may be irrelevant when migrating to " + thisProgName+" and could probably be ignored",
 		"Column attribute FILESTREAM"+tttSeparator+"The FILESTREAM attribute is not currently supported; use escape hatch "+escapeHatchStorageOptionsText+" to ignore and proceed",
 		"Column attribute SPARSE"+tttSeparator+"The SPARSE attribute is not currently supported; use escape hatch "+escapeHatchStorageOptionsText+" to ignore and proceed",
@@ -609,6 +623,7 @@ tooltipsHTMLPlaceholder +
 		"\\w+ XML SCHEMA COLLECTION"+tttSeparator+"XML SCHEMA objects are not currently supported",
 		"\\w+ XML INDEX"+tttSeparator+"XML indexes are not currently supported",
 		"WITH XMLNAMESPACES"+tttSeparator+"XML namespaces are not currently supported",
+		"XML COLUMN_SET"+tttSeparator+"XML column sets are not currently supported",
 		"SELECT FOR XML AUTO"+tttSeparator+"SELECT FOR XML AUTO is not currently supported; SELECT FOR XML RAW/PATH are supported",
 		"SELECT FOR XML EXPLICIT"+tttSeparator+"SELECT FOR XML EXPLICIT is not currently supported; SELECT FOR XML RAW/PATH are supported",
 		"SELECT FOR XML RAW ELEMENTS"+tttSeparator+"SELECT FOR XML RAW, with ELEMENTS is not currently supported; SELECT FOR XML RAW without ELEMENTS is supported",
@@ -664,14 +679,14 @@ tooltipsHTMLPlaceholder +
 		"CREATE TABLE ##"+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, all committed rows are visible to all sesssions, and the table is dropped automatically when the last session accessing the table disconnects",
 		"CREATE TABLE (temporal)"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
 		"ALTER TABLE..SET SYSTEM_VERSIONING"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
-		CompassAnalyze.TableHint+tttSeparator+"Table hints are not currently supported by Babelfish; escape hatch "+escapeHatchTableHintsText+" will silently ignore table hints ('strict' will raise an error). Review the expected impact on concurrency or query plans in the original query and rewrite the query as needed",
-		CompassAnalyze.JoinHint+tttSeparator+"Join hints are not currently supported by Babelfish; escape hatch "+escapeHatchJoinHintsText+" will silently ignore join hints ('strict' will raise an error). Review the expected impact on query plans in the original query and rewrite the query as needed",
-		CompassAnalyze.QueryHint+tttSeparator+"Query hints are not currently supported by Babelfish; escape hatch "+escapeHatchQueryHintsText+" will silently ignore query hints ('strict' will raise an error). Review the expected impact on query plans in the original query and rewrite the query as needed",
+		CompassAnalyze.TableHint+tttSeparator+"These table hints are not currently supported by Babelfish; escape hatch "+escapeHatchTableHintsText+" will silently ignore table hints ('strict' will raise an error). Review the expected impact on concurrency or query plans in the original query and rewrite the query as needed",
+		CompassAnalyze.JoinHint+tttSeparator+"These join hints are not currently supported by Babelfish; escape hatch "+escapeHatchJoinHintsText+" will silently ignore join hints ('strict' will raise an error). Review the expected impact on query plans in the original query and rewrite the query as needed",
+		CompassAnalyze.QueryHint+tttSeparator+"These query hints are not currently supported by Babelfish; escape hatch "+escapeHatchQueryHintsText+" will silently ignore query hints ('strict' will raise an error). Review the expected impact on query plans in the original query and rewrite the query as needed",
 		CompassAnalyze.NumericColNonNumDft+tttSeparator+"NUMERIC/DECIMAL table columns with a non-numeric column default still allow the table to be created in SQL Server but will raise an error only when the default is used; in Babelfish, the error is raised when the table is created. Remove the non-numeric default",
 		CompassAnalyze.TableValueConstructor+tttSeparator+"Rewrite the VALUES() clause as SELECT statements and/or UNIONs",
 		CompassAnalyze.MergeStmt+tttSeparator+"Rewrite MERGE as a series of INSERT/UPDATE/DELETE statements " + rewriteOption,
-		CompassAnalyze.DynamicSQLEXECStringReview+tttSeparator+"Dynamic SQL with EXECUTE(string) is supported by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
-		CompassAnalyze.DynamicSQLEXECSPReview+tttSeparator+"Dynamic SQL with sp_executesql is supported by Babelfish; however, the actual dynamically composed SQL statements cannot be analyzed in advance by this tool, so manual analysis is required",
+		CompassAnalyze.DynamicSQLEXECStringReview+tttSeparator+"Dynamic SQL with EXECUTE(string) is supported by Babelfish; however, when the actual dynamically composed SQL statements cannot be analyzed in advance, manual analysis is required. Use the '-reportoption xref' flag to find the actual occurrence of this statement",
+		CompassAnalyze.DynamicSQLEXECSPReview+tttSeparator+"Dynamic SQL with sp_executesql is supported by Babelfish; however, when the actual dynamically composed SQL statements cannot be analyzed in advance, manual analysis is required. Use the '-reportoption xref' flag to find the actual occurrence of this statement",
 		CompassAnalyze.FKrefDBname+tttSeparator+"Remove the database name from the referenced table. E.g. change: REFERENCES yourdb.dbo.yourtable(yourcol) to: REFERENCES dbo.yourtable(yourcol)",
 		CompassAnalyze.CrossDbReference+tttSeparator+"Cross-database references with 3-part object names (e.g. SELECT * FROM yourdb.dbo.yourtable) are not currently supported, except for objects inside the current database",
 		CompassAnalyze.RemoteObjectReference+tttSeparator+"Remote object references with 4-part object names (e.g. SELECT * FROM REMOTESRVR.somedb.dbo.sometable) are not currently supported",
@@ -806,7 +821,7 @@ tooltipsHTMLPlaceholder +
 "	batchLineInFile INT NOT NULL,           -- line number in file of start of batch\n"+
 "	context VARCHAR("+pgImportContextLength+") NOT NULL,          -- name of object, or 'T-SQL batch'\n"+
 "	subcontext VARCHAR("+pgImportSubContextLength+") NOT NULL,       -- (optional) name of table in object \n"+
-"	misc VARCHAR(20) NOT NULL               -- not for customer use; please ignore\n"+
+"	misc VARCHAR(20) NOT NULL               -- complexity score\n"+
 ");\n";
 
 	public String psqlImportCOPY =
@@ -843,7 +858,7 @@ tooltipsHTMLPlaceholder +
 	public int capPosItemGroup = 2;
 	public int capPosStatus = 3;
 	public int capPosLineNr = 4;
-	public int capPosappName = 5;
+	public int capPosAppName = 5;
 	public int capPosSrcFile = 6;
 	public int capPosBatchNr = 7;
 	public int capPosLineNrInFile = 8;
@@ -976,8 +991,8 @@ tooltipsHTMLPlaceholder +
 	static final List<String> OnOffOption = Arrays.asList("ON", "OFF");
 
 	// debug flags
-	public boolean dbgTimestamp = true;  // can be swirched off from cmdline
-	public final HashSet<String> dbgOptions = new HashSet<>(Arrays.asList("all", "batch", "ptree", "cfg", "dir", "symtab", "report", "calc", "os", "fmt", "fmtdetail", "rewrite"));
+	public boolean dbgTimestamp = true;  // can be switched off from cmdline
+	public final HashSet<String> dbgOptions = new HashSet<>(Arrays.asList("all", "batch", "ptree", "cfg", "dir", "symtab", "report", "calc", "os", "fmt", "fmtdetail", "rewrite", "autoddl", "dynsql"));
 	public final HashSet<String> specifiedDbgOptions = new HashSet<>(dbgOptions.size());
 	public boolean debugBatch;
 	public boolean debugPtree;
@@ -990,6 +1005,8 @@ tooltipsHTMLPlaceholder +
 	public boolean debugFmt;
 	public boolean debugFmtDetail;
 	public boolean debugRewrite;
+	public boolean debugAutoDDL;
+	public boolean debugDynamicSQL;
 	public boolean debugging;
 	public int debugSpecial = 0;
 
@@ -1090,10 +1107,10 @@ tooltipsHTMLPlaceholder +
 	// SQL rewrites performed
 	public static List<String> rewritesDone = new ArrayList<>();
 
-	// avoiding duplicate XRefOnly records	
+	// avoiding duplicate XRefOnly records
 	public static Map<String,Integer> xrefLineFilter = new HashMap<>();
 	public static Map<String,String> xrefMap = new HashMap<>();
-	
+
 	// flags
 	public static boolean devOptions = false;
 	public static boolean updateCheck = true;
@@ -1103,9 +1120,16 @@ tooltipsHTMLPlaceholder +
 	public static boolean listHints = false;
 	public static boolean reportSyntaxIssues = false;
 	public static boolean generateCSV = true;
+	public static boolean reportComplexityScore = true;
+	public static final String CSVseparator = ",";
 
 	// misc
 	public static final String miscDelimiter = "~!~@~!~";
+
+	// dynamic SQL analysis
+	public static int dynamicSQLNrStmts = 0;
+	public static List<String> dynamicSQLBuffer = new ArrayList<>();
+	public static final String dynamicSQLBatchLine = "BBF_DYNSQL_BATCH_LINE ";
 
 	// formatting
 	final String identifierChars = "\\w\\@\\#\\$";
@@ -1159,7 +1183,7 @@ tooltipsHTMLPlaceholder +
 	    	importFormatSupportedDisplay = new ArrayList<>(importFormatSupported);
 	    	importFormatSupportedDisplay.remove(sqlcmdFmt);
 		}
-	    listToLowerCase(importFormatSupported);	    
+	    listToLowerCase(importFormatSupported);
     }
 
 	/*
@@ -1195,7 +1219,7 @@ tooltipsHTMLPlaceholder +
 		}
 
 		// ToDo: On Windows envvars are case-sensitive in Java, but no in Windows itself. So when you set 'compass_Develop'
-		// it will not be recognized below, and when you then set 'compass_develop' in Windows it will not change or 
+		// it will not be recognized below, and when you then set 'compass_develop' in Windows it will not change or
 		// remove the already-existing 'compass_Develop'. A better way is to create a function that cycles through System.getenv()
 		if (System.getenv().containsKey("COMPASS_DEVELOP") || System.getenv().containsKey("compass_develop")) {
 			devOptions = true;
@@ -1225,7 +1249,10 @@ tooltipsHTMLPlaceholder +
     }
 
  	// for debugging, and for launching the window with the final report
-    public void runOScmd (String cmd) throws IOException {
+    public String runOScmd (String cmd) throws IOException {
+    	return runOScmd(cmd, false);
+    }
+    public String runOScmd (String cmd, boolean captureOutput) throws IOException {
     	ProcessBuilder builder;
     	if (debugging) dbgOutput(thisProc() + "onWindows=["+onWindows+"] onMac=["+onMac+"] onLinux=["+onLinux+"] cmd=["+cmd+"]  ", debugOS);
     	if (onWindows) {
@@ -1239,11 +1266,14 @@ tooltipsHTMLPlaceholder +
         Process p = builder.start();
         BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8));
         String cmdOutput;
+        String cmdOutputCaptured = "";
         while (true) {
             cmdOutput = r.readLine();
             if (cmdOutput == null) { break; }
-            appOutput(cmdOutput);
+            if (!captureOutput) appOutput(cmdOutput);
+            else cmdOutputCaptured += cmdOutput + "\n";
         }
+        return cmdOutputCaptured;
     }
 
 	public String escapeRegexChars(String s)
@@ -1389,7 +1419,7 @@ tooltipsHTMLPlaceholder +
 		if ((s.charAt(0) == '\'') || (s.charAt(0) == '"') || (s.startsWith("N'"))) return true;
 		return false;
 	}
-	
+
 	// remove the enclosing quotes from a string constant
 	public static String stripStringQuotes(String s) {
 		if (s.isEmpty()) return s;
@@ -1473,8 +1503,8 @@ tooltipsHTMLPlaceholder +
 				tmp = getPatternGroup(s, "^(["+quotePatt+"])", 1, "multiline");
 				if (tmp.length() == 0) {
 					break;
-				}			
-				tmp = "";	
+				}
+				tmp = "";
 			}
 			sNew += tmp;
 			s = s.substring(tmp.length());
@@ -1627,6 +1657,7 @@ tooltipsHTMLPlaceholder +
 	}
 
 	// align lines on the specified delimiter
+	// ToDo: when lines include HTML tags of varying length, the last column may not be properly aligned
 	public String alignColumn(StringBuilder s, String alignStr, String alignBA, String alignLR) {
 		return alignColumn(s.toString(), alignStr, alignBA, alignLR);
 	}
@@ -1759,7 +1790,6 @@ tooltipsHTMLPlaceholder +
 		s2 += composeOutputLine("--- "+s+" ", "-") + "\n";
 		s2 += composeOutputLine("", "-") + "\n";
 		if (generateTocLink) {
-			// s2 += tocLinkIcon + " " + tocLinkURL + "\n";   // dos not look good
 			s2 += tocLinkURL + "\n";
 		}
 		return s2;
@@ -1844,6 +1874,12 @@ tooltipsHTMLPlaceholder +
 		}
 		if (specifiedDbgOptions.contains("rewrite") || specifiedDbgOptions.contains("all")) {
 			debugRewrite = true;
+		}
+		if (specifiedDbgOptions.contains("autoddl") || specifiedDbgOptions.contains("all")) {
+			debugAutoDDL = true;
+		}
+		if (specifiedDbgOptions.contains("dynsql") || specifiedDbgOptions.contains("all")) {
+			debugDynamicSQL = true;
 		}
 	}
 
@@ -2686,7 +2722,7 @@ tooltipsHTMLPlaceholder +
 		if (Compass.reportOnly || (Compass.inputFiles.size() == 0 && Compass.generateReport)) {
 			if (result.isEmpty()) {
 				if (!targetVersionTest.equals(targetBabelfishVersion)) {
-					// turns out the original analysis for which we're going to generate a report now, 
+					// turns out the original analysis for which we're going to generate a report now,
 					// is not the same as the latest Babelfish version, but we have already written that version
 					// in the report header. So update the report header right now
 					// The report file name will also reflect this version, but the session log file name, which is already open, is not changed
@@ -2775,8 +2811,8 @@ tooltipsHTMLPlaceholder +
 		String dirPath = getReportDirPathname(reportName);
 		File reportDir = new File(dirPath);
 		return reportDir.exists();
-	}	
-	
+	}
+
 	// check report dir exists, and create if not
     public boolean checkReportExists(String reportName, List<String> inputFiles, boolean forceAppName, String applicationName, boolean replaceFiles, boolean addReport) throws IOException {
 		if (debugging) dbgOutput(thisProc() + "reportName=[" + reportName + "] forceAppName=[" + forceAppName + "] applicationName=[" + applicationName + "] replaceFiles=[" + replaceFiles + "] addReport=[" + addReport + "] ", debugDir);
@@ -3059,7 +3095,7 @@ tooltipsHTMLPlaceholder +
 				}
 				else if (line.startsWith("<DATA NAME=\"BATCH TEXT\"")) {
 					extendedEventsXMLFound++;
-				}				
+				}
 				else if (line.startsWith("<?XML VERSION=")) {
 					if (!getPatternGroup(line,"^.(\\w+) ", 1).isEmpty()) {
 						genericSQLXMLFound++;
@@ -3185,7 +3221,7 @@ tooltipsHTMLPlaceholder +
 
 		String ExtendedEventStart             = "<event name=\"";
 		String ExtendedEventEnd               = "</event>";
-		
+
 		String ExtendedEventXMLStatementStart = "<data name=\"statement\"><value>";
 		String ExtendedEventXMLBatchStart     = "<data name=\"batch_text\"><value>";
 		String ExtendedEventXMLEnd            = "</value>";
@@ -3201,7 +3237,7 @@ tooltipsHTMLPlaceholder +
 		deDupQueries.clear();
 		deDupQueriesOrder.clear();
 		deDupSkipped = 0;
-		
+
 		if (!deDupExtracted) {
 			appOutput("Not performing de-duplication of extracted batches.");
 			writeExtractedFile("-- Batches extracted from input file: see end of this file");
@@ -3235,7 +3271,7 @@ tooltipsHTMLPlaceholder +
 				printProgress();
 			}
 			if (debugging) dbgOutput(thisProc()+"lineNr=["+lineNr+"] startFound=["+startFound+"] endFound=["+endFound+"]   line=["+line+"] ", debugFmtDetail);
-		
+
 			// process depending on file format
 			if (importFormat.equalsIgnoreCase(SQLServerProfilerXMLFmt)) {
 				// captured SQL starts at '<Column id="1" name="TextData">'
@@ -3294,7 +3330,7 @@ tooltipsHTMLPlaceholder +
 				if (!startFound) {
 					if (line.startsWith(ExtendedEventStart)) {
 						startFound = true;
-						endFound = false;						
+						endFound = false;
 					}
 					if (line.endsWith(ExtendedEventEnd)) {
 						startFound = false;
@@ -3302,29 +3338,29 @@ tooltipsHTMLPlaceholder +
 						fullLine = true;
 						XELine = line;
 					}
-				}				
+				}
 				if (startFound && !endFound) {
 					if (!fullLine) XELine += "\n" + line;
 					if (line.endsWith(ExtendedEventEnd)) {
 						startFound = false;
 						endFound = true;
 					}
-				}			
+				}
 				if (!startFound && endFound) {
 					// when we get here, we have the entire <event ...> ... </event> tag
 				}
 				else {
 					continue; // continue reading
 				}
-				
+
 				// extract the relevant parts from the XML tag
 				XELine = applyPatternAll(XELine, "\\>\\s+\\<", "><", "multiline");
-				
-				// captured SQL starts at <data name="statement" or <data name="batch_text" 
+
+				// captured SQL starts at <data name="statement" or <data name="batch_text"
 				if (debugging) dbgOutput(thisProc()+"XEline=["+XELine+"] ", debugFmtDetail);
 
-				XELine = XELine.replaceFirst("</value></data><data name=\"parameterized_plan_handle\"><value /></data><action name=\"sql_text\" package=\"sqlserver\"><value>", XESpecialSplitMarker);					
-				XELine = XELine.replaceFirst("</value></data><action name=\"sql_text\" package=\"sqlserver\"><value>", XESpecialSplitMarker);					
+				XELine = XELine.replaceFirst("</value></data><data name=\"parameterized_plan_handle\"><value /></data><action name=\"sql_text\" package=\"sqlserver\"><value>", XESpecialSplitMarker);
+				XELine = XELine.replaceFirst("</value></data><action name=\"sql_text\" package=\"sqlserver\"><value>", XESpecialSplitMarker);
 
 				int ixStart = XELine.indexOf(ExtendedEventXMLStatementStart);
 				//if (debugging) dbgOutput(thisProc()+"ixStart stmt=["+ixStart+"]  ", debugFmtDetail);
@@ -3342,7 +3378,7 @@ tooltipsHTMLPlaceholder +
 					if (debugging) dbgOutput(thisProc()+"discarding ixStart: XEline=["+XELine+"] ", debugFmt);
 					continue;
 				}
-				
+
 				int ixEnd = XELine.indexOf(ExtendedEventXMLEnd);
 				if (debugging) dbgOutput(thisProc()+"ixEnd=["+ixEnd+"]  ", debugFmtDetail);
 				if (ixEnd > -1) {
@@ -3353,12 +3389,12 @@ tooltipsHTMLPlaceholder +
 					if (debugging) dbgOutput(thisProc()+"discarding ixEnd: XEline=["+XELine+"] ", debugFmt);
 					continue;
 				}
-				
-				
+
+
 				stmt += "\n" + XELine;
 				if (debugging) dbgOutput(thisProc()+"stmt=["+stmt+"]  ", debugFmtDetail);
 			}
-				
+
 			stmt = stmt.trim();
 			if (debugging) dbgOutput(thisProc()+"stmt final=["+stmt+"]  ", debugFmtDetail);
 
@@ -3374,19 +3410,19 @@ tooltipsHTMLPlaceholder +
 
 			if (stmt.indexOf(XESpecialSplitMarker) > -1) {
 				List<String> tmp = new ArrayList<>(Arrays.asList(stmt.split(XESpecialSplitMarker)));
-				
+
 				// remove parameters
 				for (int i=0; i < tmp.size(); i++) {
 					String tmpLine = tmp.get(i);
 					if(tmpLine.startsWith("(@"))  {
 						String params = findClosingBracket(tmpLine);
 						tmp.set(i, tmpLine.substring(params.length()));
-					} 
+					}
 					else if (tmpLine.startsWith("*password---------------")) {
 						tmp.remove(i);
-					}					
+					}
 				}
-				
+
 				// remove some seemingly duplicates
 				if (tmp.size() == 2) {
 					if (tmp.get(0).equals(tmp.get(1))) {
@@ -3407,7 +3443,7 @@ tooltipsHTMLPlaceholder +
 				}
 				stmt = String.join("\n", tmp);
 			}
-			
+
 			stmt = patchupSpecialCharsExtractedSQL(stmt);
 			stmt = patchupQuotes(stmt);
 
@@ -3508,7 +3544,7 @@ tooltipsHTMLPlaceholder +
 		}
 
 		qry = qry.trim();
-		
+
 		if (deDupQueriesAll.containsKey(qry)) {
 			// duplicate query found, skipped
 			deDupSkipped++;
@@ -3534,7 +3570,7 @@ tooltipsHTMLPlaceholder +
 		s = unEscapeHTMLChars(s);
 		return s;
 	}
-	
+
 	// in case of an unclosed string, add a quote
 	// not taking into account double-quoted strings - don't occur often
 	public String patchupQuotes (String s) {
@@ -3924,20 +3960,20 @@ tooltipsHTMLPlaceholder +
 		if (!readingSymTab) {
 			objName = resolveName(objName);
 		}
-		
+
 		if (!readingSymTab) {
 			// pass 1: only for being able to write to the symtab file: keep parName and parNo together
-			String parKey = makeParSymTabKey(objName, parName, parNo);		
+			String parKey = makeParSymTabKey(objName, parName, parNo);
 			parKey = parKey.toUpperCase();
-			
+
 			// handle special string cases
 			if (!getPatternGroup(parDft, "^([a-zA-Z_]\\w*)$", 1).isEmpty()) {
 				// unquoted string
 				String status = CompassAnalyze.featureSupportedInVersion(CompassAnalyze.UnQuotedString, "PARAMETER DEFAULT");
-				if (!status.equals(Supported)) {					
+				if (!status.equals(Supported)) {
 					parDft = "'" + parDft + "'";
 				}
-			}			
+			}
 			else if ((parDft.charAt(0) == '"') && (parDft.charAt(parDft.length()-1) == '"')) {
 				String itemChk = CompassAnalyze.cfgDoubleQuotedString;  // default, in case no embedded quotes
 				String s = parDft.substring(1, parDft.length()-1);
@@ -3953,31 +3989,31 @@ tooltipsHTMLPlaceholder +
 					// no embedded quotes
 					parDft = "'" + s + "'";
 				}
-				String status = CompassAnalyze.featureSupportedInVersion(CompassAnalyze.DoubleQuotedString, itemChk);				
+				String status = CompassAnalyze.featureSupportedInVersion(CompassAnalyze.DoubleQuotedString, itemChk);
 				if (!status.equals(Supported)) {
 					s = s.replaceAll("\"\"", "\"");   // remove escaped double quotes
 					s = s.replaceAll("'", "''");      // escape single quotes
 					parDft = "'" + s + "'";
 				}
 			}
-				
+
 			parSymTab.put(parKey, parDft);
-			//appOutput(thisProc()+"adding par("+parSymTab.size()+")=["+parKey+"] parDft=["+parDft+"] ");			
+			//appOutput(thisProc()+"adding par("+parSymTab.size()+")=["+parKey+"] parDft=["+parDft+"] ");
 		}
-		else {			
+		else {
 			// reading symtab in pass 2: add both with the parameter name and position to enable lookups
-			String parNameKey = makeParSymTabKey(objName, parName);					
+			String parNameKey = makeParSymTabKey(objName, parName);
 			parNameKey = parNameKey.toUpperCase();
 			parSymTab.put(parNameKey, parDft);
 			//appOutput(thisProc()+"adding par("+parSymTab.size()+")=["+parNameKey+"] parDft=["+parDft+"] ");
-			
+
 			String parNoKey = makeParSymTabKey(objName, parNo);
 			parNoKey = parNoKey.toUpperCase();
 			parSymTab.put(parNoKey, parDft);
 			//appOutput(thisProc()+"adding par("+parSymTab.size()+")=["+parNoKey+"] parDft=["+parDft+"] ");
 		}
 	}
-			
+
 
 	// write symbol table
 	public void writeSymTab(String reportName, String inputFileName, String appName) throws IOException {
@@ -4130,7 +4166,7 @@ tooltipsHTMLPlaceholder +
 		else if (fields.get(0).equals("col")) {
 			String tableName = unmaskChar(fields.get(1),symTabSeparator);
 			String colName   = unmaskChar(fields.get(2),symTabSeparator);
-			String dataType  = unmaskChar(fields.get(3),symTabSeparator);			
+			String dataType  = unmaskChar(fields.get(3),symTabSeparator);
 			boolean nullable = false;
 			if (dataType.endsWith(" NULL")) {
 				nullable = true;
@@ -4140,7 +4176,7 @@ tooltipsHTMLPlaceholder +
 		}
 		else if (fields.get(0).equals("par")) {
 			String objName  = unmaskChar(fields.get(1),symTabSeparator);
-			String parName  = unmaskChar(fields.get(2),symTabSeparator); 	 
+			String parName  = unmaskChar(fields.get(2),symTabSeparator);
 			int parNo       = Integer.parseInt(fields.get(3));
 			String parDft   = unmaskChar(fields.get(4),symTabSeparator);
 			addParSymTab(objName, parName, parNo, parDft, true);
@@ -4288,7 +4324,7 @@ tooltipsHTMLPlaceholder +
 		reportFileWriterHTML.write("\n");
 		reportFileWriterHTML.flush();
 	}
-	
+
 	public void writeReportFile(StringBuilder line) throws IOException {
 		writeReportFile(line.toString());
 	}
@@ -4306,13 +4342,13 @@ tooltipsHTMLPlaceholder +
 		reportFileWriterHTML.write("\n</pre>\n");
 		reportFileWriterHTML.close();
 	}
-	
+
 	// handle CSV file
     public String getCSVFilePathName(String reportFilePathName) {
     	String fCSV = applyPatternFirst(reportFilePathName, "\\.\\w+$", "."+CSVSuffix);
     	return fCSV;
 	}
-	
+
 	public void openCSVFile(String reportName) throws IOException {
 		CSVFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(CSVFilePathName), StandardCharsets.UTF_8)));
 		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
@@ -4324,7 +4360,7 @@ tooltipsHTMLPlaceholder +
 		CSVFileWriter.write("\n");
 		CSVFileWriter.flush();
 	}
-	
+
 	public void writeCSVFile(StringBuilder line) throws IOException {
 		writeCSVFile(line.toString());
 	}
@@ -4338,7 +4374,7 @@ tooltipsHTMLPlaceholder +
 	public void closeCSVFile() throws IOException {
 		CSVFileWriter.close();
 	}
-		
+
 	public String removeHTMLTags (String line) {
 		// for the .txt version, remove HTML tags
 		if (line.contains("<a ")) {
@@ -4368,18 +4404,23 @@ tooltipsHTMLPlaceholder +
 		return "("+currentCount+"/"+totalCount+") ";
 	}
 
-	public void reportSummaryStatus(String status, List<String> sortedList, Map<String, Integer> itemCount, Map<String, String>appItemList) throws IOException {
-		StringBuilder lines = new StringBuilder();		
+	// whether a complexity is assigned to this status
+	public boolean hasComplexityEffort(String status) {
+		boolean result = false;
+		if (status.equals(NotSupported) || status.equals(ReviewSemantics) || status.equals(ReviewPerformance) || status.equals(ReviewManually)) result = true;
+		return result;
+	}
+
+	public String reportSummaryStatus(String status, List<String> sortedList, Map<String, Integer> itemCount, Map<String, String>appItemList) throws IOException {
+		StringBuilder lines = new StringBuilder();
 		StringBuilder prevGroup = new StringBuilder(uninitialized);
 		final String statsMarker = "~STATSHERE~";
-		final String CSVseparator = ",";
-			
-		boolean doCSV = false;
-		// rewritten and ignored items can be omitted fromthe .csv file as they don;t represent any realistic complexity
-		if (status.equals(NotSupported) || status.equals(ReviewSemantics) || status.equals(ReviewPerformance) || status.equals(ReviewManually)) doCSV = true;
-		if (!generateCSV) doCSV = false;
-		
-		StringBuilder linesCSV = new StringBuilder();				
+
+		boolean generateCSV = false;
+		// rewritten and ignored items can be omitted from the .csv file as they don't represent any realistic complexity
+		if (hasComplexityEffort(status)) generateCSV = true;
+
+		StringBuilder linesCSV = new StringBuilder();
 
 		//progress indicator
 		printProgress();
@@ -4404,84 +4445,76 @@ tooltipsHTMLPlaceholder +
 				}
 				if (sortStatus.toString().equals(lastItem)) break;
 				lines.append(group).append(" ("+statsMarker+")\n");
-				if (doCSV) linesCSV.append("\n").append(CSVseparator).append(group).append("\n");
+				if (generateCSV) linesCSV.append("\n").append(CSVseparator).append(group).append("\n");
 			}
 			grpCount += itemCount.get(s);
 			totalCnt += itemCount.get(s);
 			itemCnt.put(item.toString(),0);
-			StringBuilder thisItem = new StringBuilder(popupHint(item.toString(),status,group.toString()) + " : " + itemCount.get(s).toString());
+
+			String complexityLine = "";
+			
+			// generate CSV lines
+			if (generateCSV) {
+				String hint = "";
+				String itemHintKey = getItemHintKey(item.toString());
+				if (!itemHintKey.isEmpty()) {
+					hint = hintsTextMap.get(itemHintKey);
+					hint = hint.replaceAll(CSVseparator, "");
+				}
+				String itemCSV =  collapseWhitespace(item.toString().replaceAll(CSVseparator, " "));
+				String complexityDefined = getComplexityEffort(CompassConfig.complexityTag, item.toString(), group.toString());
+				String effortDefined     = getComplexityEffort(CompassConfig.effortTag, item.toString(), group.toString());
+				if (debugging) dbgOutput(thisProc()+"complexityDefined=["+complexityDefined+"]  effortDefined=["+effortDefined+"] ", debugReport);
+
+				String effortDefinedMinutes = " ";
+				if (!effortDefined.trim().isEmpty()) {
+					effortDefinedMinutes = CompassConfig.convertEffortValue(effortDefined).toString();
+					effortDefined = CompassConfig.formatEffort(effortDefined);
+				}
+
+				// include the 'review' categories in the .csv, but only add complexity scores for 'NotSupported'
+				if (status.equals(NotSupported)) {
+					if (reportComplexityScore) {
+						complexityLine = " ["+complexityDefined.toLowerCase()+"]";
+					}
+				}
+				else {
+					complexityDefined = "";
+					effortDefined = "";
+					effortDefinedMinutes = "";					
+				}
+				
+				linesCSV.append(CSVseparator).append(CSVseparator).append(itemCSV).append(CSVseparator).append(itemCount.get(s).toString()).append(CSVseparator).append(hint).append(CSVseparator).append(complexityDefined).append(CSVseparator).append(effortDefined).append(CSVseparator).append(effortDefinedMinutes).append(CSVseparator);
+				linesCSV.append("\n");
+
+				if (!complexityDefined.trim().isEmpty()) {
+					String c = status + "." + complexityDefined;
+					complexityScoreCount.put(c, complexityScoreCount.getOrDefault(c.toUpperCase(), 0) + itemCount.get(s));
+				}
+			}
+			
+			// compose the report line
+			//StringBuilder thisItem = new StringBuilder(popupHint(item.toString(),status,group.toString()) + " : " + itemCount.get(s).toString() + complexityLine);
+			StringBuilder thisItem = new StringBuilder(popupHint(item.toString(),status,group.toString()) + complexityLine + " : " + itemCount.get(s).toString());
 			lines.append(thisItem);
 			if (reportAppsCount) {
 				int minSpacer = 3;
 				int spacerTab = 8;
 				int spacerLen = spacerTab - (thisItem.length()%spacerTab);
 				if (spacerLen < minSpacer) spacerLen += spacerTab;
-				lines.append(stringRepeat(" ", spacerLen) + appItemList.get(s));					
+				lines.append(stringRepeat(" ", spacerLen) + appItemList.get(s));
 			}
-			lines.append("\n");
-			
-			// generate CSV lines
-			if (doCSV) {
-				String hint = "";
-				String itemHintKey = getItemHintKey(item.toString());	
-				String itemOrig = item.toString();	
-				String itemCSV =  collapseWhitespace(item.toString().replaceAll(CSVseparator, " "));			
-				if (!itemHintKey.isEmpty()) {
-					hint = hintsTextMap.get(itemHintKey);
-					hint = hint.replaceAll(CSVseparator, "");				
-				}	
-				
-				// Any complexity score or effort estimate defined for this reported item?
-				// This is not always straightforward to determine since we need to find the section name in the .cfg file
-				// for which this item was classified; but because we report some items in more user-friendly categories, that 
-				// relation is not always there. So we need to try a few things.
-				// The steps below will work for almost all caes. One exception is the cae where a proc has > #max parameters
-				// for those cases the user must specify an effort estimate in the .csv file themselves
-				String itemUserCfgCheck = itemCSV;
-				itemUserCfgCheck = applyPatternFirst(itemUserCfgCheck, "\\(\\)$", "");
-				if (debugging) dbgOutput(thisProc()+"itemUserCfgCheck=["+itemUserCfgCheck+"] itemCSV=["+itemCSV+"] itemOrig=["+itemOrig+"]", debugReport);				
-				// is this a SET option?
-				if (itemUserCfgCheck.startsWith("SET ")) {
-					if (!getPatternGroup(itemUserCfgCheck, "^(SET [\\w ]+?) (\\w+)$", 1).isEmpty()) {
-						String setValue = getPatternGroup(itemUserCfgCheck, "^(SET .*?) (\\w+)$", 2);
-						String setStmt = getPatternGroup(itemUserCfgCheck, "^(SET .*?) (\\w+)$", 1);
-						group = new StringBuilder(setStmt);
-						itemUserCfgCheck = setValue;
-					}
-				}
-				else {
-					// some mappings must be specified explicitly
-					if (itemUserCfgCheck.equalsIgnoreCase("CREATE TABLE " + CompassAnalyze.GlobalTmpTableFmt)) itemUserCfgCheck = CompassAnalyze.GlobalTmpTable;
-				}
-				
-				String complexityDefined = getUserDefinedProperty(CompassConfig.complexityTag, group.toString(), itemUserCfgCheck, itemOrig);
-				String effortDefined =     getUserDefinedProperty(CompassConfig.effortTag, group.toString(), itemUserCfgCheck, itemOrig);
-				if (debugging) dbgOutput(thisProc()+"complexityDefined=["+complexityDefined+"]  effortDefined=["+effortDefined+"] ", debugReport);						
-
-				if (complexityDefined.equals(CompassConfig.complexityUndefined)) complexityDefined = " ";
-		    									
-				String effortDefinedMinutes = " ";
-				if (effortDefined.equalsIgnoreCase(CompassConfig.effortUndefined)) {
-					effortDefined = " ";
-				}
-				else {
-					effortDefinedMinutes = CompassConfig.convertEffortValue(effortDefined).toString();
-					effortDefined = CompassConfig.formatEffort(effortDefined);
-				}
-								
-				linesCSV.append(CSVseparator).append(CSVseparator).append(itemCSV).append(CSVseparator).append(itemCount.get(s).toString()).append(CSVseparator).append(hint).append(CSVseparator).append(complexityDefined).append(CSVseparator).append(effortDefined).append(CSVseparator).append(effortDefinedMinutes).append(CSVseparator);	
-				linesCSV.append("\n");
-			}
+			lines.append("\n");			
 		}
 
 		// write CSV file
-		if (doCSV) {	
+		if (generateCSV) {
 			if (linesCSV.length() > 0) {
 				writeCSVFile("Status: " + supportOptionsDisplay.get(supportOptions.indexOf(status)));
 				writeCSVFile(linesCSV);
 			}
 		}
-		
+
 		// align datatype lengths
 		lines = new StringBuilder(alignDataTypeLength(lines.toString()));
 
@@ -4491,17 +4524,24 @@ tooltipsHTMLPlaceholder +
 			writeNote = false;
 		}
 
+		StringBuilder finalLines = new StringBuilder();
 		if (lines.toString().length() > 0) {
-			writeReportFile();
+			finalLines.append("\n");
 			String totalCntStr = "";
 			if (totalCnt > 0) totalCntStr = " --- (total="+totalCnt.toString() + ")";
 			String hdrText = "SQL features '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' in " + babelfishProg +" v." + targetBabelfishVersion + totalCntStr;
 			if (status.equals(Rewritten)) hdrText = "SQL features '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"'" + totalCntStr;
-			writeReportFile(composeSeparatorBar(hdrText, tagSummary+status));
+			finalLines.append(composeSeparatorBar(hdrText, tagSummary+status)+"\n");
 
-			if (status.equals(ReviewManually) && writeNote) {
-				writeReportFile("Note: Items in this section could not be assessed by " + thisProgName);
+			if (status.equals(NotSupported) && writeNote) {
+				if (reportComplexityScore) {
+					finalLines.append("Note: the estimated complexity of a not-supported feature (low/medium/high) is indicated in square brackets\n");
+					//finalLines.append("- for complexity details, see "+ CSVFilePathName+"\n");
+				}
 			}
+			if (status.equals(ReviewManually) && writeNote) {
+				finalLines.append("Note: Items in this section could not be assessed by " + thisProgName+"\n");
+			}			
 			if (status.equals(Rewritten) && writeNote) {
 				rewriteNotes = "Notes:\n";
 				rewriteNotes += "  * non-supported SQL features were rewritten by "+thisProgName+" v."+ thisProgVersion+ " for " + babelfishProg + " v." + targetBabelfishVersion + "\n";
@@ -4509,78 +4549,117 @@ tooltipsHTMLPlaceholder +
 				if (rewrittenOppties.containsKey(CompassAnalyze.MergeStmt)) {
 				rewriteNotes += "  * rewritten MERGE statements should be reviewed manually" + "\n";
 				}
-				writeReportFile(rewriteNotes);
+				finalLines.append(rewriteNotes+"\n");
 			}
-			writeReportFile();
-			writeReportFile(lines);
+			finalLines.append("\n");
+			finalLines.append(lines);
 		}
+
+		return finalLines.toString();
 	}
 
-	private String getUserDefinedProperty(String property, String group, String itemUserCfgCheck, String itemOrig) {	
+	private String getComplexityEffort (String tag, String item, String group) {
+		// Any complexity score or effort estimate defined for this reported item?
+		// This is not always straightforward to determine since we need to find the section name in the .cfg file
+		// for which this item was classified; but because we report some items in more user-friendly categories, that
+		// relation is not always there. So we need to try a few things.
+		// The steps below will work for almost all cases. One exception is the case where a proc has > #max parameters
+		// for those cases the user must specify an effort estimate in the .csv file themselves
+		String itemUserCfgCheck =  collapseWhitespace(item.replaceAll(CSVseparator, " "));		
+		itemUserCfgCheck = applyPatternFirst(itemUserCfgCheck, "\\(\\)$", "");
+		if (debugging) dbgOutput(thisProc()+"tag=["+tag+"] itemUserCfgCheck=["+itemUserCfgCheck+"] item=["+item+"]  group=["+group+"] ", debugReport);
+		// is this a SET option?
+		if (itemUserCfgCheck.startsWith("SET ")) {
+			if (!getPatternGroup(itemUserCfgCheck, "^(SET [\\w ]+?) (\\w+)$", 1).isEmpty()) {
+				String setValue = getPatternGroup(itemUserCfgCheck, "^(SET .*?) (\\w+)$", 2);
+				String setStmt  = getPatternGroup(itemUserCfgCheck, "^(SET .*?) (\\w+)$", 1);
+				group = setStmt;
+				itemUserCfgCheck = setValue;
+			}
+		}
+		else {
+			// some mappings must be specified explicitly
+			if (itemUserCfgCheck.equalsIgnoreCase("CREATE TABLE " + CompassAnalyze.GlobalTmpTableFmt)) itemUserCfgCheck = CompassAnalyze.GlobalTmpTable;
+			if (itemUserCfgCheck.startsWith("UPDATE ")) itemUserCfgCheck = CompassAnalyze.UpdateStmt;
+		}
+
+		String result = getUserDefinedProperty(tag, group, itemUserCfgCheck, item);
+		if (debugging) dbgOutput(thisProc()+"itemUserCfgCheck=["+itemUserCfgCheck+"] getUserDefinedProperty=["+result+"]", debugReport);
+
+		if (tag.equals(CompassConfig.complexityTag))
+			if (result.equals(CompassConfig.complexityUndefined)) result = " ";
+
+		if (tag.equals(CompassConfig.effortTag))
+			if (result.equals(CompassConfig.effortUndefined)) result = " ";
+
+		return result;
+	}
+
+	private String getUserDefinedProperty(String property, String group, String itemUserCfgCheck, String item) {
 		assert (property.equals(CompassConfig.complexityTag) || property.equals(CompassConfig.effortTag)) : "invalid property=["+property+"] ";
 		assert (!group.isEmpty()) : "group should not be empty";
-					
+
 		String result = "";
-		
+
 		if (property.equals(CompassConfig.complexityTag))
 			result = CompassConfig.featureComplexityDefined(group, itemUserCfgCheck);
 		else
-			result = CompassConfig.featureEffortDefined(group, itemUserCfgCheck);	
+			result = CompassConfig.featureEffortDefined(group, itemUserCfgCheck);
 		if (debugging) dbgOutput(thisProc()+"property=["+property+"] group/item: group=["+group+"] item=["+itemUserCfgCheck+"] result=["+result+"]   ", debugReport);
 
-		if ((result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) || 
-		    (result.equals(CompassConfig.effortUndefined) && property.equals(CompassConfig.effortTag))) {			
+		if ((result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) ||
+		    (result.equals(CompassConfig.effortUndefined) && property.equals(CompassConfig.effortTag))) {
 			// if not found, this could be because the report group is different from the original cfg section name
 			// try to dig up the original section name based on what we recorded at capture time
-			String xrefMapKey = (group +captureFileSeparator+ itemOrig).toUpperCase();
+			String xrefMapKey = (group +captureFileSeparator+ item).toUpperCase();
 			if (xrefMap.containsKey(xrefMapKey)) {
 				String origMapStr = xrefMap.get(xrefMapKey) ;
 				List<String> origMap = new ArrayList<String>(Arrays.asList(origMapStr.split(captureFileSeparator)));
-				if (debugging) dbgOutput(thisProc()+"xref map found: xrefMapKey=["+xrefMapKey+"] origMap=["+origMap+"] origMapStr=["+origMapStr+"] ", debugReport);	
+				if (debugging) dbgOutput(thisProc()+"xref map found: xrefMapKey=["+xrefMapKey+"] origMap=["+origMap+"] origMapStr=["+origMapStr+"] ", debugReport);
 				if (property.equals(CompassConfig.complexityTag))
 					result = CompassConfig.featureComplexityDefined(origMap.get(0), origMap.get(1));
 				else
 					result = CompassConfig.featureEffortDefined(origMap.get(0), origMap.get(1));
-				if (debugging) dbgOutput(thisProc()+"property=["+property+"] xref result without default: result=["+result+"] ", debugReport);	
-					
-				if ((result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) || 
-				    (result.equals(CompassConfig.effortUndefined) && property.equals(CompassConfig.effortTag))) {		
+				if (debugging) dbgOutput(thisProc()+"property=["+property+"] xref result without default: result=["+result+"] ", debugReport);
+
+				if ((result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) ||
+				    (result.equals(CompassConfig.effortUndefined) && property.equals(CompassConfig.effortTag))) {
 					if (property.equals(CompassConfig.complexityTag))
 						result = CompassConfig.featureComplexityDefined(origMap.get(0), origMap.get(1), true);
 					else
-						result = CompassConfig.featureEffortDefined(origMap.get(0), origMap.get(1), true);				    	
-					if (debugging) dbgOutput(thisProc()+"property=["+property+"] xref result with default: result=["+result+"] ", debugReport);	
-				}						
-			}	
-			if (debugging) dbgOutput(thisProc()+"property=["+property+"] item from capture xref: result=["+result+"] ", debugReport);	
-		}		
-				
-		if ((result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) || 
+						result = CompassConfig.featureEffortDefined(origMap.get(0), origMap.get(1), true);
+					if (debugging) dbgOutput(thisProc()+"property=["+property+"] xref result with default: result=["+result+"] ", debugReport);
+				}
+			}
+			if (debugging) dbgOutput(thisProc()+"property=["+property+"] item from capture xref: result=["+result+"] ", debugReport);
+		}
+
+		if ((result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) ||
 		    (result.equals(CompassConfig.effortUndefined) && property.equals(CompassConfig.effortTag))) {
 			if (property.equals(CompassConfig.complexityTag))
-				result = CompassConfig.featureComplexityDefined(group);	
+				result = CompassConfig.featureComplexityDefined(group);
 			else
-				result = CompassConfig.featureEffortDefined(group);	
+				result = CompassConfig.featureEffortDefined(group);
 			if (debugging) dbgOutput(thisProc()+"property=["+property+"] group only: result=["+result+"]  ", debugReport);
 		}
-		
-		if ((result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) || 
+
+		if ((result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) ||
 		    (result.equals(CompassConfig.effortUndefined) && property.equals(CompassConfig.effortTag))) {
-			if (property.equals(CompassConfig.complexityTag))	    	
-				result = CompassConfig.featureComplexityDefined(itemUserCfgCheck);	
+			if (property.equals(CompassConfig.complexityTag))
+				result = CompassConfig.featureComplexityDefined(itemUserCfgCheck);
 			else
-				result = CompassConfig.featureEffortDefined(itemUserCfgCheck);	
-			if (debugging) dbgOutput(thisProc()+"property=["+property+"] item as group only: result=["+result+"] ", debugReport);										
+				result = CompassConfig.featureEffortDefined(itemUserCfgCheck);
+			if (debugging) dbgOutput(thisProc()+"property=["+property+"] item as group only: result=["+result+"] ", debugReport);
 		}
-		
+
 		if (result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) {
 			result = "MEDIUM";
-		}	
-		
-		if (debugging) dbgOutput(thisProc()+"final: property=["+property+"] result=["+result+"] ", debugReport);	
-		return result;	
+		}
+
+		if (debugging) dbgOutput(thisProc()+"final: property=["+property+"] result=["+result+"] ", debugReport);
+		return result;
 	}
-	
+
 	public void reportXrefByFeature(String status, List<String> sortedList) throws IOException {
 		StringBuilder lines = new StringBuilder(doXrefMsg(status, "feature"));
 		Integer skippedFilter = 0;
@@ -4669,9 +4748,13 @@ tooltipsHTMLPlaceholder +
 
 				if (!itemSort.toString().equalsIgnoreCase(prevItemSort.toString())) {
 					if (itemCount > 0) {
+						String itemComplexity = "";
+						if (reportComplexityScore) {
+							if (status.equals(NotSupported)) itemComplexity = "["+ getComplexityEffort(CompassConfig.complexityTag, prevItem.toString(), prevGroup.toString()).toLowerCase() + "]";
+						}
 						hdr.append(prevItem);
 						hdr.append(" (").append(prevGroup).append(", ");
-						lines.append(hdr).append(itemCount.toString()).append(")\n");
+						lines.append(hdr).append(itemCount.toString()).append(") "+itemComplexity+"\n");
 
 						// complete current line
 						linesTmp.append(completeLineByFeature(status, linesTmp, lineNrs, lineNrsBatch, prevContext, prevBatchNr, prevLineNrInFile, prevSrcFile, prevAppName));
@@ -4909,8 +4992,11 @@ tooltipsHTMLPlaceholder +
 						lineNrs.clear();
 						lineNrsBatch.clear();
 					}
-
-					lines.append(lineIndent+item.toString()+" ("+group.toString()+") : line ");
+					String itemComplexity = "";
+					if (reportComplexityScore) {
+						if (status.equals(NotSupported)) itemComplexity = "["+ getComplexityEffort(CompassConfig.complexityTag, item.toString(), group.toString()).toLowerCase() + "]";
+					}
+					lines.append(lineIndent+item.toString()+" ("+group.toString()+") "+itemComplexity+" : line ");
 				}
 				if (!s.startsWith(lastItem)) {
 					lineNrs.add(lineNr.toString());
@@ -5035,7 +5121,7 @@ tooltipsHTMLPlaceholder +
 		String itemHintKey = "";
 		String itemOrig = item;
 		item = makeItemHintKey(item);
-		//appOutput(thisProc()+"item=["+item+"]");
+		//appOutput(thisProc()+"item=["+item+"] itemOrig=["+itemOrig+"] ");
 
 		if (toolTipsKeys.containsKey(item)) {
 			itemHintKey = item;
@@ -5177,21 +5263,22 @@ tooltipsHTMLPlaceholder +
 	}
 
 	private String getObjectAnchorKey(String context, String appName) {
-		String anchorKey = context;	
+		String anchorKey = context;
 		if (anchorKey.indexOf(sortKeySeparator) == -1) {
-			anchorKey = context + sortKeySeparator + appName;	
-		}	
+			anchorKey = context + sortKeySeparator + appName;
+		}
 		return anchorKey.toUpperCase();
 	}
 
+	// will generate same anchor for same object in different status sections. The link will always take us to the top one, which is the 'Not Supported' category (if it exists)
 	private String makeObjectAnchor(String context, String appName) {
 		String anchorKey = getObjectAnchorKey(context, appName);
 		String anchor = objectAnchorsMap.get(anchorKey);
 		if (anchor == null) { // don't overwrite an existing entry
 			anchor = "obj" + (objectAnchorsMap.size()+1);
 			objectAnchorsMap.put(anchorKey, anchor);
-			anchor = "<a name=\"" + "obj" + anchor + "\"></a>";
 		}
+		anchor = "<a name=\"" + "obj" + anchor + "\"></a>";
 		return anchor;
 	}
 
@@ -5287,12 +5374,26 @@ tooltipsHTMLPlaceholder +
 		appOutput( ".", false, true);
 	}
 
+	private String formatComplexityList(List<Integer> cnt) {
+		String s = "";
+		if (cnt.get(complexityCntTypeLo) > 0)     s += " low:" + cnt.get(complexityCntTypeLo);
+		if (cnt.get(complexityCntTypeMed) > 0)    s += " medium:" + cnt.get(complexityCntTypeMed);
+		if (cnt.get(complexityCntTypeHi) > 0)     s += " high:" + cnt.get(complexityCntTypeHi);
+		if (cnt.get(complexityCntTypeCustom) > 0) s += " custom:" + cnt.get(complexityCntTypeCustom);
+		s = s.trim();		
+		return s;
+	}
+
 	public boolean createReport(String reportName) throws IOException {
 		if (debugging) dbgOutput(thisProc()+"reportOptionXref=["+reportOptionXref+"] ", debugReport);
 		if (debugging) dbgOutput(thisProc()+"reportOptionStatus=["+reportOptionStatus+"] ", debugReport);
 		if (debugging) dbgOutput(thisProc()+"reportOptionDetail=["+reportOptionDetail+"] ", debugReport);
 		if (debugging) dbgOutput(thisProc()+"reportOptionApps=["+reportOptionApps+"] ", debugReport);
 		if (debugging) dbgOutput(thisProc()+"reportOptionFilter=["+reportOptionFilter+"] ", debugReport);
+
+		String complexityReportPlaceholder = "BBF_COMPLEXITYREPORTPLACEHOLDER";
+		String execSummaryPlaceholder = "BBF_EXECSUMMARYPLACEHOLDER";
+		String execSummaryObjCountPlaceholder = "BBF_EXECSUMMARYOBJCOUNTPLACEHOLDER";	
 
 		// upgrade check for Compass 1.0/1.1 reports
 		if (!reportOptionXref.isEmpty()) {
@@ -5334,7 +5435,6 @@ tooltipsHTMLPlaceholder +
 			appOutput(cfv);
 			errorExit();
 		}
-		
 
 		// generic init
 		Date now = new Date();
@@ -5379,6 +5479,9 @@ tooltipsHTMLPlaceholder +
 		Map<String, String>  objTypeMapCase = new HashMap<>();
 		Map<String, Integer> objTypeMapCount = new HashMap<>();
 		Map<String, Integer> objIssueCount = new HashMap<>();
+		List<String> objComplexityCountTmp = new ArrayList<String>();
+		Map<String, List<Integer>> objComplexityCount = new HashMap<>();
+		Map<String, List<Integer>> objTypeComplexityCount = new HashMap<>();
 		int linesSQLInObjects = 0;
 		boolean showObjectIssuesList = false;
 		Map<String, Long> statusCount = new HashMap<>();
@@ -5406,7 +5509,9 @@ tooltipsHTMLPlaceholder +
 		// set up arrays for processing groups of statuses
 		String fmtBatches = "batches";
 		String fmtLinesSQL = "linesSQL";
-		List<String> fmtStatus = new ArrayList<String>(Arrays.asList("apps", "inputfiles", fmtBatches, "linesDDL", fmtLinesSQL, "constructs"));
+		String fmtLinesTotal = "linesDDL";
+		String fmtLinesTotalFeatures = "totalFeatures";
+		List<String> fmtStatus = new ArrayList<String>(Arrays.asList("apps", "inputfiles", fmtBatches, fmtLinesTotal, fmtLinesSQL, fmtLinesTotalFeatures));
 		List<String> fmtStatusDisplay = new ArrayList<String>(Arrays.asList("#applications", "#input files", "#SQL batches", "#lines SQL/DDL processed", "#lines SQL in objects", "total #SQL features"));
 		for (int i = 0; i < supportOptions.size(); i++) {
 			fmtStatus.add(supportOptions.get(i));
@@ -5528,7 +5633,7 @@ tooltipsHTMLPlaceholder +
 				String lineNr = itemList.get(capPosLineNr);
 				String context = itemList.get(capPosContext).replaceAll(captureFileSeparatorMarker, captureFileSeparator);
 				String subContext = itemList.get(capPosSubContext).replaceAll(captureFileSeparatorMarker, captureFileSeparator);
-				String appName = itemList.get(capPosappName);
+				String appName = itemList.get(capPosAppName);
 				String batchNr = itemList.get(capPosBatchNr);
 				String lineNrInFile = itemList.get(capPosLineNrInFile);
 				String srcFile = itemList.get(capPosSrcFile);
@@ -5551,7 +5656,7 @@ tooltipsHTMLPlaceholder +
 				}
 
 				if (!objType.isEmpty()) {
-					if (!status.equals(Ignored)) {
+					if (!status.equals(Ignored) && (!status.equals(XRefOnly))) {
 						// massage the object type strings to the format we need for the object count output section
 						if ((!objType.equals("constraint column DEFAULT")) && (!objType.equals("constraint PRIMARY KEY/UNIQUE"))) {
 							objType = applyPatternFirst(objType, "^(.*?,.*?),.*$", "$1");
@@ -5581,7 +5686,7 @@ tooltipsHTMLPlaceholder +
 
 							if (item.startsWith("CREATE ")) {
 								if (objType.startsWith("PROCEDURE") || objType.startsWith("FUNCTION") || objType.startsWith("TRIGGER") || objType.startsWith("TABLE") || objType.startsWith("VIEW")) {
-									if (!objType.startsWith("TABLE ")) {  // skip table type
+									if (!objType.startsWith("TABLE ")) {  // skip table type -- note the space!
 										String key = (itemDetail + sortKeySeparator + appName).toUpperCase();
 										if (!objTypeMap.containsKey(key)) {
 											if (showObjectIssuesList) {
@@ -5590,6 +5695,7 @@ tooltipsHTMLPlaceholder +
 										}
 										objTypeMap.put(key, objType);
 										objTypeMapCount.put(itemDetail.toUpperCase(), objTypeMapCount.getOrDefault(itemDetail.toUpperCase(), 0)+1);
+										if (debugging) dbgOutput(thisProc() + "objType=[" + objType + "] for key=["+key+"] ", debugReport);										
 									}
 								}
 							}
@@ -5621,18 +5727,7 @@ tooltipsHTMLPlaceholder +
 				// for items logged only to xref the report to the original cfg sections, put 'm in a buffer and discard
 				if (status.equals(XRefOnly)) {
 					//appOutput(thisProc()+"XRefOnly line=["+capLine+"] ");
-					String xrefLineKey = item +captureFileSeparator+ itemGroup +captureFileSeparator+ CompassConfig.lastCfgCheckSection +captureFileSeparator+ CompassConfig.lastCfgCheckName+captureFileSeparator;
-					xrefLineKey = xrefLineKey.toUpperCase();
-					if (!xrefLineFilter.containsKey(xrefLineKey)) {		
-						xrefLineFilter.put(xrefLineKey, 1);	
-						
-						String xrefMapKey = itemGroup +captureFileSeparator+ item;
-						String xrefMapValue = lineNr +captureFileSeparator+ appName + captureFileSeparator + "~" + captureFileSeparator;
-						xrefMap.put(xrefMapKey.toUpperCase(), xrefMapValue.toUpperCase());				
-						for (String k : xrefMap.keySet()) {
-							if (debugging) dbgOutput(thisProc() + "xrefMap read: k=["+k+"]  v=["+xrefMap.get(k)+"]  ", debugReport);
-						}
-					}			
+					getXrefOnlyMappings(item, itemGroup, lineNr, appName);
 					continue;
 				}
 
@@ -5640,7 +5735,7 @@ tooltipsHTMLPlaceholder +
 
 				if (!reportOptionXref.isEmpty()) {
 					// collect info for links to object definitions
-					if (!misc.isEmpty() && capLine.startsWith("CREATE ")) {
+					if (!misc.isEmpty() && (capLine.startsWith("CREATE ") || capLine.startsWith("ALTER "))) {
 						String contextKey = context;
 						if (context.equals(BatchContext)) {
 							if (capLine.startsWith("CREATE VIEW")) {
@@ -5679,13 +5774,21 @@ tooltipsHTMLPlaceholder +
 					// skip ALTER TABLE..[NO]CHECK CONSTRAINT, it does not affect the CREATE TABLE
 					skipItemIssue = true;
 				}
-				if (!skipItemIssue) {	
-					String k = context;
-					if (k.contains(" ")) {
-						k = k.substring(k.lastIndexOf(" ")+1);
+				if (!skipItemIssue) {
+					String c = context;
+					String k = c;
+					if (c.contains(" ")) {
+						k = c.substring(c.lastIndexOf(" ")+1);
 					}
 					k = (k + sortKeySeparator + appName).toUpperCase();
 					objIssueCount.put(k, objIssueCount.getOrDefault(k,0)+1);
+					
+					if (!context.equals(BatchContext)) {
+						if (hasComplexityEffort(status)) {
+							String objK = (context + sortKeySeparator + appName+ sortKeySeparator + itemGroup + sortKeySeparator + item).toUpperCase();	
+							objComplexityCountTmp.add(objK);
+						}
+					}
 				}
 
 				// apply weight factors
@@ -5755,7 +5858,47 @@ tooltipsHTMLPlaceholder +
 			if (debugging) dbgOutput(thisProc()+"capCount=["+capCount+"] sortCnt="+xRefByFeature.size()+" sortSizeXRefByFeature KB=["+sortSizeXRefByFeature/1024+"]", debugReport);
 			if (debugging) dbgOutput(thisProc()+"capCount=["+capCount+"] sortCnt="+xRefByObject.size()+" sortSizeXRefByObject KB=["+sortSizeXRefByObject/1024+"]", debugReport);
 		}
-
+		
+		// get complexity per object
+		
+		for (String k : objComplexityCountTmp) {
+			List<String> kTmp = new ArrayList<>(Arrays.asList(k.split(sortKeySeparator)));
+			String item = kTmp.get(3);
+			String itemGroup = kTmp.get(2);
+			String complexityDefined = getComplexityEffort(CompassConfig.complexityTag, item, itemGroup);
+			
+			String context = kTmp.get(0);
+			String appName = kTmp.get(1);
+			String oName = context.substring(context.indexOf(" ")+1);
+			String key = (oName + sortKeySeparator + appName).toUpperCase();
+			String oType = objTypeMap.get(key);
+									
+			String oNew = context + sortKeySeparator + appName;
+			if (!objComplexityCount.containsKey(oNew)) objComplexityCount.put(oNew, Arrays.asList(0,0,0,0));			
+			List<Integer> cnt = objComplexityCount.get(oNew);
+			if (complexityDefined.equalsIgnoreCase("LOW")) cnt.set(complexityCntTypeLo, cnt.get(complexityCntTypeLo)+1);
+			else if (complexityDefined.equalsIgnoreCase("MEDIUM")) cnt.set(complexityCntTypeMed, cnt.get(complexityCntTypeMed)+1);
+			else if (complexityDefined.equalsIgnoreCase("HIGH")) cnt.set(complexityCntTypeHi, cnt.get(complexityCntTypeHi)+1);
+			else cnt.set(complexityCntTypeCustom, cnt.get(complexityCntTypeCustom)+1);		
+			
+			if (!objTypeComplexityCount.containsKey(oType)) objTypeComplexityCount.put(oType, Arrays.asList(0,0,0,0));			
+			List<Integer> cntType = objTypeComplexityCount.get(oType);
+			if (complexityDefined.equalsIgnoreCase("LOW")) cntType.set(complexityCntTypeLo, cntType.get(complexityCntTypeLo)+1);
+			else if (complexityDefined.equalsIgnoreCase("MEDIUM")) cntType.set(complexityCntTypeMed, cntType.get(complexityCntTypeMed)+1);
+			else if (complexityDefined.equalsIgnoreCase("HIGH")) cntType.set(complexityCntTypeHi, cntType.get(complexityCntTypeHi)+1);
+			else cntType.set(complexityCntTypeCustom, cntType.get(complexityCntTypeCustom)+1);	
+		}	
+		objComplexityCountTmp.clear();	
+	
+							
+		// DEBUG
+//		for (String k : objComplexityCount.keySet()) {
+//			appOutput(thisProc()+"k=["+k+"] cnt=["+objComplexityCount.get(k)+"] ");
+//		}
+//		for (String k : objTypeComplexityCount.keySet()) {
+//			appOutput(thisProc()+"k=["+k+"] cnt=["+objTypeComplexityCount.get(k)+"] ");
+//		}
+	
 		// calc #objects without issues for main object types
 		Map<String,Integer> objTypeIssueCount = new HashMap<>();
 		Map<String,Integer> objTypeNoIssueCount = new HashMap<>();
@@ -5809,8 +5952,15 @@ tooltipsHTMLPlaceholder +
 
 		StringBuilder summarySection = new StringBuilder();
 
+		summarySection.append(composeSeparatorBar("Executive Summary for " + babelfishProg +" v." + targetBabelfishVersion, tagExecSummary, false));
+		
+		StringBuilder execSummary = new StringBuilder();
+		
+		summarySection.append(execSummaryPlaceholder);
+		
 		summarySection.append(composeSeparatorBar("Table Of Contents", "toc", false));
 
+		summarySection.append(tocLink(tagExecSummary, "Executive Summary", "", ""));
 		summarySection.append(tocLink(tagApps, "Applications Analyzed", "", ""));
 		summarySection.append(tocLink(tagSummaryTop, "Assessment Summary", "", ""));
 		if (showPercentage) {
@@ -5865,13 +6015,13 @@ tooltipsHTMLPlaceholder +
 
 		summarySection.append(composeSeparatorBar("Assessment Summary", tagSummaryTop));
 		summarySection.append("\n");
-		statusCount.put("linesDDL", Long.valueOf(totalLinesDDL));
+		statusCount.put(fmtLinesTotal, Long.valueOf(totalLinesDDL));
 		statusCount.put(fmtLinesSQL, Long.valueOf(linesSQLInObjects));
 		statusCount.put(fmtBatches, Long.valueOf(totalBatches));
 		statusCount.put("inputfiles", Long.valueOf(srcFileCount.size()));
 		statusCount.put("apps", Long.valueOf(appCount.size()));
 		statusCount.put("invalid syntax", Long.valueOf(totalErrorBatches)); // #batches with parse errors
-		statusCount.put("constructs", Long.valueOf(constructsFound));
+		statusCount.put(fmtLinesTotalFeatures, Long.valueOf(constructsFound));
 
 		StringBuilder summaryTmp2 = new StringBuilder();
 		for (int i = 0; i < fmtStatus.size(); i++) {
@@ -5883,9 +6033,21 @@ tooltipsHTMLPlaceholder +
 				if (errs > 0) {
 					xtra = lineIndent + "(with syntax error: " + errs + ")";
 				}
-			}
+			} 		
+			else if (reportItem.equals(fmtLinesTotal)) {
+				execSummary.append("Total #lines of SQL/DDL: " +statusCount.get(fmtLinesTotal)).append("\n"+execSummaryObjCountPlaceholder+"\n\n");
+			}			
 			else if (reportItem.equals(fmtLinesSQL)) {
 				xtra = lineIndent + "(procedures/functions/triggers/views)";
+			}
+			else if (reportItem.equalsIgnoreCase(NotSupported)) {
+				execSummary.append("SQL features not supported by Babelfish       : " +statusCount.get(NotSupported));				
+				if (reportComplexityScore) {
+					xtra = lineIndent + complexityReportPlaceholder+"."+reportItem;
+				}
+				else {
+					execSummary.append("\n");
+				}
 			}
 			if (statusCount.containsKey(reportItem + WeightedStr)) {
 				int w = supportOptionsWeightDefault.get(supportOptions.indexOf(reportItem));
@@ -5911,6 +6073,7 @@ tooltipsHTMLPlaceholder +
 				}
 			}
 		}
+
 		summaryTmp2 = new StringBuilder(alignColumn(summaryTmp2, " : ", "before", "left"));
 		summaryTmp2 = new StringBuilder(alignColumn(summaryTmp2, " : ", "after", "right"));
 		summarySection.append(summaryTmp2);
@@ -5961,7 +6124,7 @@ tooltipsHTMLPlaceholder +
 		}
 		//--- end debug -------
 		long compatPct = 0;
-		if (statusCount.getOrDefault("constructs", 0L) == 0) {
+		if (statusCount.getOrDefault(fmtLinesTotalFeatures, 0L) == 0) {
 			compatPctStr = "Not Applicable";
 		}
 		else {
@@ -5971,9 +6134,9 @@ tooltipsHTMLPlaceholder +
 					statusCount.getOrDefault(ReviewManually + WeightedStr, 0L) +
 					statusCount.getOrDefault(ReviewPerformance + WeightedStr, 0L)
 			);
-			Long baseTotal = (statusCount.get("constructs") * 100) - statusCount.getOrDefault(Ignored + WeightedStr, 0L);
+			Long baseTotal = (statusCount.get(fmtLinesTotalFeatures) * 100) - statusCount.getOrDefault(Ignored + WeightedStr, 0L);
 			compatPct = ((baseTotal - subtract) * 100) / (baseTotal);
-			if (debugging) dbgOutput(thisProc() + "compatPct calculation: constructs=[" + statusCount.get("constructs") * 100 + "]  subtract=[" + subtract + "]  baseTotal=[" + baseTotal + "] term1=[" + ((baseTotal - subtract) * 100) + "]  compatPct=[" + compatPct + "] ", debugCalc);
+			if (debugging) dbgOutput(thisProc() + "compatPct calculation: constructs=[" + statusCount.get(fmtLinesTotalFeatures) * 100 + "]  subtract=[" + subtract + "]  baseTotal=[" + baseTotal + "] term1=[" + ((baseTotal - subtract) * 100) + "]  compatPct=[" + compatPct + "] ", debugCalc);
 			compatPctStrRaw = Long.toString(compatPct);
 			if (compatPct < 0) compatPct = 0;
 			if (compatPct > 100) compatPct = 100;
@@ -6004,7 +6167,30 @@ tooltipsHTMLPlaceholder +
 		summarySection.append(composeSeparatorBar("Object Count", tagObjcount));
 		summarySection.append("\n");
 		StringBuilder summaryTmp = new StringBuilder();
+		int nrSQLObjects = 0;
+		int nrTables = 0;
+		String delim1 = "~~";
+		String delim2 = "!!";
+		String issueComplexityTxt = " (issue complexity: ";
 		for (String objType : objTypeCount.keySet().stream().sorted().collect(Collectors.toList())) { // sort case-SENsitive!
+			if (objType.startsWith("TABLE")) nrTables += objTypeCount.get(objType);
+			if (objType.startsWith("PROCEDURE") || objType.startsWith("FUNCTION") || objType.startsWith("TRIGGER") || objType.startsWith("VIEW")) nrSQLObjects += objTypeCount.get(objType);
+			
+			List<Integer> cntType = objTypeComplexityCount.get(objType);
+			String complexityTxt = "";
+			if (reportComplexityScore) {
+				if (cntType != null) complexityTxt = issueComplexityTxt + formatComplexityList(cntType) + ")";		
+			}
+			
+			// DDL triggers are a special case, take care of the numbers here
+			if (objType.equalsIgnoreCase("Trigger (DDL)")) {
+				String trigDDLstatus = CompassAnalyze.featureSupportedInVersion(CompassAnalyze.DDLTrigger);
+				if (trigDDLstatus.equals(NotSupported)) {
+					// since we report every DDL trigger once for every action, must mark 'm all as having issues		
+					objTypeNoIssueCount.put(objType,0);
+				}
+			}			
+			
 			int loc = objTypeLineCount.getOrDefault(objType, 0);
 			StringBuilder locStr = new StringBuilder();
 			if (loc > 0) {
@@ -6024,23 +6210,33 @@ tooltipsHTMLPlaceholder +
 				if (!showObjectIssuesList) {
 					linkStart = linkEnd = "";
 				}
-				noIssueCnt = "  ("+linkStart+"without issues: " + objTypeNoIssueCount.getOrDefault(objType,0) + " of " + objTypeCount.get(objType) + linkEnd +")";
+				noIssueCnt = " "+linkStart+"without issues: " + objTypeNoIssueCount.getOrDefault(objType,0) + " of " + objTypeCount.get(objType) + linkEnd;
 			}
-			summaryTmp.append(lineIndent).append(objType + " : " + objTypeCount.get(objType) + locStr.toString() + noIssueCnt + "\n");
+			summaryTmp.append(lineIndent).append(objType + " : " + objTypeCount.get(objType) + locStr.toString() + delim1 + noIssueCnt + delim2 + complexityTxt + "\n");
 		}
 		if (summaryTmp.length() > 0) {
 			summaryTmp = new StringBuilder(alignColumn(summaryTmp, " : ", "before", "left"));
 			summaryTmp = new StringBuilder(alignColumn(summaryTmp, " : ", "after", "right"));
+			summaryTmp = new StringBuilder(alignColumn(summaryTmp, delim1, "before", "left"));
+			summaryTmp = new StringBuilder(alignColumn(summaryTmp, delim1, "after", "left"));
+			summaryTmp = new StringBuilder(alignColumn(summaryTmp, delim2, "before", "left"));
+			summaryTmp = new StringBuilder(alignColumn(summaryTmp, delim2, "after", "left"));
+			summaryTmp = new StringBuilder(summaryTmp.toString().replaceAll(delim1,"").replaceAll(delim2,""));
+			if (!reportOptionXref.isEmpty()) {
+				// some quick alignement fixup, the HTML anchors may mess up the last column
+				summaryTmp = new StringBuilder(applyPatternAll(summaryTmp.toString(), "\\s*" + escapeRegexChars(issueComplexityTxt), issueComplexityTxt));
+			}
 		}
 		else {
 			summaryTmp = new StringBuilder("No objects were found.\n");
 		}
 		summarySection.append(summaryTmp);
 
-		writeReportFile(summarySection);
+		//writeReportFile(summarySection);
 
-		writeReportFile();
-		writeReportFile(composeOutputLine("=== SQL Features Report ", "="));
+		//writeReportFile();
+		StringBuilder SQLFeatures = new StringBuilder();
+		SQLFeatures.append(composeOutputLine("=== SQL Features Report ", "=")+"\n");
 
 		// sort for status summary
 		List<String> sortedList = itemCount.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList());
@@ -6050,16 +6246,16 @@ tooltipsHTMLPlaceholder +
 		String CSVhdr = "\n";
 		CSVhdr += "This .csv file is intended for import into a spreadsheet.\n";
 		CSVhdr += "It is aimed at assisting specialist "+thisProgName+" users in quantifying the amount of work required\n";
-		CSVhdr += "to address non-supported items in a "+babelfishProg+" migration -- based on the user's own estimates and experience.\n";		
+		CSVhdr += "to address non-supported items in a "+babelfishProg+" migration -- based on the user's own estimates and experience.\n";
 		CSVhdr += "The column for 'Complexity' (below) indicates an expected low/medium/high complexity for the item in question as defined\n";
 		CSVhdr += "by Compass but this can be overridden with user-specified values in config file " + CompassConfig.userConfigFilePathName + ".\n";
-		if (CompassConfig.effortEstimatesFound) {		
+		if (CompassConfig.effortEstimatesFound) {
 			CSVhdr += "The column for 'Effort' (below) is populated from user-specified values in config file\n";
 			CSVhdr += CompassConfig.userConfigFilePathName + " (a blank value means that no user-defined value was specified).\n";
 		}
 		CSVhdr += "The user should add their own formulas to the spreadsheet for performing calculations.\n";
 		CSVhdr += "\n";
-		
+
 		CSVhdr += String.join(",", "Status", "Category", "Issue", "Count", "Babelfish Compass Hint", "Complexity Score", " ");
 		if (CompassConfig.effortEstimatesFound) {
 			CSVhdr += String.join(",", "Effort/Occurrence", "Effort/Occurrence (minutes)", " ");
@@ -6070,15 +6266,48 @@ tooltipsHTMLPlaceholder +
 			}
 		}
 		writeCSVFile(CSVhdr+"\n");
-		
+
 		for (int i=0; i <supportOptionsIterate.size(); i++) {
-			reportSummaryStatus(supportOptionsIterate.get(i), sortedList, itemCount, appItemList);
+			SQLFeatures.append(reportSummaryStatus(supportOptionsIterate.get(i), sortedList, itemCount, appItemList));
 		}
 		sortedList.clear();
 		itemCount.clear();
 		appItemList.clear();
-		writeCSVFile("\n\n(end)\n");		
-		closeCSVFile();		
+		writeCSVFile("\n\n(end)\n");
+		closeCSVFile();
+
+		StringBuilder complexityTmp = new StringBuilder();
+		if (reportComplexityScore) {
+			List<String> cScores = Arrays.asList("LOW",  "MEDIUM",  "HIGH");
+			for (String k : validSupportOptionsCfgFileOrig) {	
+				if (!k.equalsIgnoreCase(NotSupported)) continue;	
+				String s = "";
+				for (String c : cScores) {
+					String kc = k+"."+c;
+					int z = complexityScoreCount.getOrDefault(kc.toUpperCase(), 0);
+					if (z == 0) continue;
+					s += c.toLowerCase()+ ":" +z + " ";
+				}
+				String s2 = "";
+				if (!s.isEmpty()) { 
+					s2 = "Estimated complexity of not-supported features: "+ s.trim();
+					s  = "(complexity: " + s.trim() + ")";
+				}
+				summarySection = new StringBuilder(summarySection.toString().replaceFirst(complexityReportPlaceholder+"."+k.toUpperCase(), s));		
+								
+				execSummary.append("\n").append(s2).append("\n\n");		
+			}		
+		}
+	
+		String objCountSummary = "#Procedures/functions/triggers/views: " + nrSQLObjects+"    #Tables: " + nrTables;
+		summarySection = new StringBuilder(summarySection.toString().replaceFirst(execSummaryPlaceholder, execSummary.toString()));				
+		summarySection = new StringBuilder(summarySection.toString().replaceFirst(execSummaryObjCountPlaceholder, objCountSummary));				
+
+		writeReportFile(summarySection);
+		summarySection = new StringBuilder();
+
+		writeReportFile(SQLFeatures);
+		SQLFeatures    = new StringBuilder();
 
 		if (!rewrite) {
 			if (rewriteOppties.containsKey(rewriteOpptiesTotal)) {
@@ -6118,7 +6347,7 @@ tooltipsHTMLPlaceholder +
 		sortedListXRefByObject.clear();
 
 		if (showObjectIssuesList) {
-			reportObjectsIssues(objTypeMapCase, objTypeMapCount, objIssueCount);
+			reportObjectsIssues(objTypeMapCase, objTypeMapCount, objIssueCount, objComplexityCount);
 		}
 
 		if (listHints) {
@@ -6132,6 +6361,21 @@ tooltipsHTMLPlaceholder +
 		appOutput("\n", false, true);
 
 		return true;
+	}
+
+	private void getXrefOnlyMappings(String item, String itemGroup, String lineNr, String appName) {
+		String xrefLineKey = item +captureFileSeparator+ itemGroup +captureFileSeparator+ CompassConfig.lastCfgCheckSection +captureFileSeparator+ CompassConfig.lastCfgCheckName+captureFileSeparator;
+		xrefLineKey = xrefLineKey.toUpperCase();
+		if (!xrefLineFilter.containsKey(xrefLineKey)) {
+			xrefLineFilter.put(xrefLineKey, 1);
+
+			String xrefMapKey = itemGroup +captureFileSeparator+ item;
+			String xrefMapValue = lineNr +captureFileSeparator+ appName + captureFileSeparator + "~" + captureFileSeparator;
+			xrefMap.put(xrefMapKey.toUpperCase(), xrefMapValue.toUpperCase());
+			for (String k : xrefMap.keySet()) {
+				if (debugging) dbgOutput(thisProc() + "xrefMap read: k=["+k+"]  v=["+xrefMap.get(k)+"]  ", debugReport);
+			}
+		}
 	}
 
 	private void reportHints() throws IOException {
@@ -6153,7 +6397,7 @@ tooltipsHTMLPlaceholder +
 		writeReportFile(lines);
 	}
 
-	private void reportObjectsIssues(Map<String, String> objTypeMap, Map<String,Integer> objTypeMapCount, Map<String,Integer> objIssueCount) throws IOException {
+	private void reportObjectsIssues(Map<String, String> objTypeMap, Map<String,Integer> objTypeMapCount, Map<String,Integer> objIssueCount, Map<String, List<Integer>> objComplexityCount) throws IOException {
 		Map<String, Integer> objTypes = new HashMap<>();
 		for (Map.Entry<String,String> e : objTypeMap.entrySet()) {
 			String c = e.getKey();
@@ -6165,15 +6409,26 @@ tooltipsHTMLPlaceholder +
 		writeReportFile("<a name=\""+tagIssueListTop+"\"></a>\n");
 
 		for (String type : objTypes.keySet().stream().sorted().collect(Collectors.toList())) {
-			reportObjectsIssuesList(type, objTypeMap, objTypeMapCount, objIssueCount);
+			reportObjectsIssuesList(type, objTypeMap, objTypeMapCount, objIssueCount, objComplexityCount);
 		}
 	}
 
-	private void reportObjectsIssuesList(String objType, Map<String, String> objTypeMap, Map<String,Integer> objTypeMapCount, Map<String,Integer> objIssueCount) throws IOException {
+	private void reportObjectsIssuesList(String objType, Map<String, String> objTypeMap, Map<String,Integer> objTypeMapCount, Map<String,Integer> objIssueCount, Map<String, List<Integer>> objComplexityCount) throws IOException {
 		String objTypeFmt = objType;
+		String objTypeFmt2 = objType;
 		if (objTypeFmt.contains(", ")) {
 			Integer i = objTypeFmt.indexOf(", ");
 			objTypeFmt = objTypeFmt.substring(i+2) + " " + objTypeFmt.substring(0,i);
+			objTypeFmt = capitalizeInitChar(objTypeFmt.toLowerCase());
+		}
+		if (objTypeFmt.equalsIgnoreCase("TRIGGER (DDL)")) {
+			objTypeFmt = "DDL Trigger";
+		}
+		else {
+			objTypeFmt = capitalizeInitChar(objTypeFmt.toLowerCase());
+		}
+		if (!getPatternGroup(objTypeFmt2, "^(.+?)(\\W)", 2).isEmpty()) {
+			objTypeFmt2 = getPatternGroup(objTypeFmt2, "^(.+?)(\\W)", 1);
 		}
 		StringBuilder lines = new StringBuilder();
 		boolean withIssues = true;
@@ -6219,12 +6474,17 @@ tooltipsHTMLPlaceholder +
 					cnt++;
 				}
 				else if (withIssues && (issues > 0)) {
-					line.append(lineIndent + objName+" ("+anchorLink+issues+" issues"+anchorLinkEnd+")"+appFmt+"\n");
+					String kc = objTypeFmt2 + " " + k;
+					String objComplexity = "";
+					if (reportComplexityScore) {
+						objComplexity = " [" + formatComplexityList(objComplexityCount.get(kc.toUpperCase())) + "]";
+					}
+					line.append(lineIndent + objName+" ("+anchorLink+issues+" issues"+objComplexity+anchorLinkEnd+")"+appFmt+"\n");
 					cnt++;
 				}
 			}
 			if (line.length() > 0) {
-				lines.append(cnt + " " + capitalizeInitChar(objTypeFmt.toLowerCase()) +"s "+withStr+"\n");
+				lines.append(cnt + " " + objTypeFmt +"s "+withStr+"\n");
 				lines.append(line);
 				lines.append("\n");
 			}
@@ -6235,7 +6495,7 @@ tooltipsHTMLPlaceholder +
 
 		if (lines.length() > 0) {
 			String tag = reportObjectsIssuesListTag(objType);
-			writeReportFile(composeSeparatorBar("List of "+capitalizeInitChar(objTypeFmt.toLowerCase())+"s with/without issues", tag)+"\n");
+			writeReportFile(composeSeparatorBar("List of "+objTypeFmt+"s with/without issues", tag)+"\n");
 			writeReportFile(lines);
 		}
 	}
@@ -6258,11 +6518,11 @@ tooltipsHTMLPlaceholder +
 			envvarPrefix = "\\$";
 			envvarSuffix = "";
 		}
-		
+
 		if (!checkReportExists(reportName)) {
-			appOutput("Report '"+reportName+"' does not exist");					
+			appOutput("Report '"+reportName+"' does not exist");
 			return;
-		}				
+		}
 
 		// Check for code injection risks - though it's difficult to see what could go wrong given that
 		// the current session as well as the PG session are owned by this user anyway.
@@ -6287,6 +6547,7 @@ tooltipsHTMLPlaceholder +
 			errorExit();
 		}
 		String cfVersion = captureFilesValid("tgtversion", captureFiles, true);
+		if (debugging) dbgOutput(thisProc() + "cfVersion=["+cfVersion+"] ", debugReport);
 
 		Date now = new Date();
 		String nowFmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now);
@@ -6298,7 +6559,9 @@ tooltipsHTMLPlaceholder +
 		PGImportFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(PGImportFilePathName), StandardCharsets.UTF_8)));
 		boolean containsDelimiter = false;
 
+		// first pass to pick up all XREFONLY records
 		for (Path cf : captureFiles) {
+			if (debugging) dbgOutput(thisProc() + "pass 1: cf=["+cf+"] ", debugReport);
 			String cfLine = captureFileFirstLine(cf.toString());   // read only first line
 			String cfReportName = captureFileAttribute(cfLine, 1);
 			if (cfReportName.isEmpty()) {
@@ -6329,48 +6592,100 @@ tooltipsHTMLPlaceholder +
 				if ((capLine.charAt(0) == '#') || (capLine.charAt(0) == '*')) {
 					continue;
 				}
+				// for items logged only to xref the report to the original cfg sections, put 'm in a buffer and discard
+				if (capLine.contains(captureFileSeparator+XRefOnly+captureFileSeparator)) {
+					List<String> capFields = new ArrayList<>(Arrays.asList(capLine.split(captureFileSeparator)));
+					String item = capFields.get(capPosItem);
+					String itemGroup = capFields.get(capPosItemGroup);
+					String lineNr = capFields.get(capPosLineNr);
+					String appName = capFields.get(capPosAppName);
+					//appOutput(thisProc()+"XRefOnly line=["+capLine+"] item=["+item+"] itemGroup=["+itemGroup+"] lineNr=["+lineNr+"] appName=["+appName+"] ");
+					getXrefOnlyMappings(item, itemGroup, lineNr, appName);
+				}
+			}
+			capFile.close();
+		}
+
+		for (Path cf : captureFiles) {
+			// validations already done on first pass
+			if (debugging) dbgOutput(thisProc() + "pass 2: cf=["+cf+"] ", debugReport);
+
+			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
+			InputStreamReader cfisr = new InputStreamReader(cfis, StandardCharsets.UTF_8);
+			BufferedReader capFile = new BufferedReader(cfisr);
+
+			String capLine = "";
+
+			while (true) {
+				capLine = capFile.readLine();
+				if (capLine == null) {
+					//EOF
+					break;
+				}
+				capLine = capLine.trim();
+				if (capLine.isEmpty()) continue;
+				if ((capLine.charAt(0) == '#') || (capLine.charAt(0) == '*')) {
+					continue;
+				}
 				if (capLine.contains(captureFileSeparator+ObjCountOnly+captureFileSeparator)) continue;
-				if (capLine.contains(captureFileSeparator+XRefOnly+captureFileSeparator)) continue;
 				if (capLine.contains(captureFileSeparator+RewriteOppty+captureFileSeparator)) continue;
+				if (capLine.contains(captureFileSeparator+XRefOnly+captureFileSeparator)) continue;
 
 				capCount++;
 
-				// strip off the last two semicolons
+				// strip off the last three semicolons, incl. the misc field (not needed here)
+				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
 				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
 				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
 
 				// max length check
 				List<String> capFields = new ArrayList<>(Arrays.asList(capLine.split(captureFileSeparator)));
+				String status = capFields.get(capPosStatus);
+				String complexityDefined = "";
+				if (hasComplexityEffort(status)) {
+					String item = capFields.get(capPosItem);
+					complexityDefined = getComplexityEffort(CompassConfig.complexityTag, item.toString(), capFields.get(capPosItemGroup));
+					//appOutput(thisProc()+"status=["+status+"] item=["+item+"] group=["+capFields.get(capPosItemGroup)+"] complexityDefined=["+complexityDefined+"] ");
+				}
+				else {
+					//appOutput(thisProc()+"status=["+status+"] complexityDefined=["+complexityDefined+"] ");
+				}
 
 				// assuming 'captureFileFormatVersion = 1' but this is not verified
 				// field positions in capLine, and total #fields, are hard-coded here
 				boolean fieldModified = false;
 				int numFields = 12;
 				if (capFields.get(capPosItemDetail).length() > pgImportItemDetailLength) {
-					capFields.set(capPosItemDetail, capFields.get(capPosItemDetail).substring(0,pgImportItemDetailLength));
+					// truncate field to column length, but take care not to cut through a marker
+					String s = capFields.get(capPosItemDetail);
+					int lenOrig = s.length();
+					s = s.replaceAll(captureFileSeparatorMarker, captureFileSeparator);
+					int lenShort = s.length();
+					s = s.substring(0,pgImportItemDetailLength-(lenOrig-lenShort)).replace(captureFileSeparator, captureFileSeparatorMarker);
+					capFields.set(capPosItemDetail, s);
 					fieldModified = true;
 				}
 				if (capFields.get(capPosSrcFile).length() > pgImportSrcFileLength) {
-					String tag = "(...)";					
+					String tag = "(...)";
 					int offset = (capFields.get(capPosSrcFile).length() - pgImportSrcFileLength) + tag.length();
 					capFields.set(capPosSrcFile, tag + capFields.get(capPosSrcFile).substring(offset));
 					fieldModified = true;
 				}
 				if (fieldModified) {
 					capLine = String.join(captureFileSeparator, capFields);
-					if (capFields.size() < numFields) {
-						capLine += stringRepeat(captureFileSeparator, (numFields-capFields.size()));
+					if (capFields.size() < numFields-1) {
+						capLine += stringRepeat(captureFileSeparator, (numFields-capFields.size()-1));
 					}
 				}
 
 				capLine = unEscapeHTMLChars(capLine);
 
 				// add date & babelfish version
-				capLine = cfVersion + captureFileSeparator + nowFmt + captureFileSeparator + capLine;
+				capLine = cfVersion + captureFileSeparator + nowFmt + captureFileSeparator + capLine + captureFileSeparator + complexityDefined;
 
 				PGImportFileWriter.write(capLine+"\n");
 				//appOutput(thisProc()+"writing line "+capCount+": capLine=["+capLine+"]  ");
-				
+
 				if (!containsDelimiter) if (capLine.contains(captureFileSeparatorMarker)) containsDelimiter = true;
 			}
 			capFile.close();
@@ -6437,7 +6752,7 @@ tooltipsHTMLPlaceholder +
 	public String openUserCfgFileNew(String fileName) throws IOException {
 		return openUserCfgFile(fileName, true);
 	}
-	
+
 	private String userCfgFileHeader() {
 		String hdr =
 "#------------------------------------------------------------------------------\n" +
@@ -6489,9 +6804,9 @@ userCfgComplexityHdrLine202209 + "\n" +
 "# NB: when the same key occurs twice in a section, the last one is kept and\n" +
 "# preceding entries will be discarded.\n" +
 "#------------------------------------------------------------------------------\n" +
-"#\n";		
+"#\n";
 		return hdr;
-	}	
+	}
 
 	public String openUserCfgFile(String fileName, boolean newFile) throws IOException {
 		checkDir(getDocDirPathname(), false, true);
@@ -6514,15 +6829,15 @@ userCfgComplexityHdrLine202209 + "\n" +
 	// upgrade file header with new text in 2022-09, if needed
 	public void upgradeUserCfgFile(String fileName) throws IOException {
 		checkDir(getDocDirPathname(), false, true);
-		String userCfgFilePathName = getUserCfgFilePathName(fileName);		
+		String userCfgFilePathName = getUserCfgFilePathName(fileName);
 		FileInputStream fis = new FileInputStream(userCfgFilePathName);
 		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
-		BufferedReader rewrittenInFileReader = new BufferedReader(isr);	
-		
+		BufferedReader rewrittenInFileReader = new BufferedReader(isr);
+
 		String body = "";
 		boolean hasNewHdr = false;
 		boolean bodyFound = false;
-		
+
 		while (true) {
 			String line = rewrittenInFileReader.readLine();
 			if (line == null) {
@@ -6534,16 +6849,16 @@ userCfgComplexityHdrLine202209 + "\n" +
 			if (bodyFound) {
 				body += line + "\n";
 			}
-		}		
+		}
 		rewrittenInFileReader.close();
 	    rewrittenInFileReader = null;
-	    	    
+
 	    if (hasNewHdr) return; // nothing to upgrade
 
 		// if we get here, then must upgrade file header
-		openUserCfgFileNew(CompassConfig.userConfigFileName);	
+		openUserCfgFileNew(CompassConfig.userConfigFileName);
 		writeUserCfgFile(body);
-		closeUserCfgFile(false);	  
+		closeUserCfgFile(false);
 	}
 
 	public void writeUserCfgFile(String line) throws IOException {

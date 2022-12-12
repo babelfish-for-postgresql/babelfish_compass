@@ -222,6 +222,7 @@ public class CompassAnalyze {
 	static final String LikeSquareBracketsCfg = "LIKE '[...";  // for checking against the cfg file; when reading it we lose the closing square bracket and  beyond
 	static final String StringAggWithinGroup  = "STRING_AGG() WITHIN GROUP";
 	static final String SyntaxIssues          = "Syntax Issues";
+	static final String FormatCulture         = "FORMAT() culture";
 
 	// matching special values in the .cfg file
 	static final String cfgNonZero            = "NONZERO";
@@ -350,7 +351,7 @@ public class CompassAnalyze {
 	private static String featureArgSupportedInVersion(String section, String arg, String argValue) {
 		return cfg.featureArgSupportedInVersion(u.targetBabelfishVersion, section, arg, argValue);
 	}
-	private static String featureSupportedInVersion(String section) {
+	public static String featureSupportedInVersion(String section) {
 		return cfg.featureSupportedInVersion(u.targetBabelfishVersion, section);
 	}
 	public static String featureSupportedInVersion(String section, String name) {
@@ -368,12 +369,18 @@ public class CompassAnalyze {
 	private static List<String> featureValueList(String section) {
 		return cfg.featureValueList(section);
 	}
-	private static String featureGroup(String section) {
+	public static String featureGroup(String section) {
 		return cfg.featureGroup(section);
 	}
 	private static String featureGroup(String section, String name) {
 		return cfg.featureGroup(section, name);
 	}
+	private static String featureDefaultStatus(String section) {
+		return cfg.featureDefaultStatus(section);
+	}	
+	private static String featureDefaultStatus(String section, String name) {
+		return cfg.featureDefaultStatus(section, name);
+	}	
 
 	//--- debugging -----------------------------------------------------------
 	String dbgTraceBasicIndent = "    ";
@@ -910,13 +917,12 @@ public class CompassAnalyze {
 					xrefLine = item +separator+ "" +separator+ itemGroup +separator+ u.XRefOnly +separator+ CompassConfig.lastCfgCheckSection +separator+ CompassConfig.lastCfgCheckName +separator+ "" +separator+ "" +separator+ "" +separator+ "" +separator+ "" +separator+ "" + separator + "~" + separator;	
 				}		
 			}
-		}
-		// the RewriteOppty record is always captured just before the Not-Supported  record we are interested in, so don't wipe out
-		if (!status.equals(u.RewriteOppty)) {		
+		}		
+		// Only wipe out in case the current item is not supported since we do complexity scores only for NotSupported items
+		if (status.equals(u.NotSupported)) {		
 			CompassConfig.lastCfgCheckSection = "";		
 			CompassConfig.lastCfgCheckName = "";	
-		}	
-		
+		}
 		
 		// newlines are allowed in delimited identifiers (very rare, but possible). Remove 'm from itemDetail
 		// treat these chars the same as when writing to the symtab
@@ -929,7 +935,14 @@ public class CompassAnalyze {
 		// create the record
 		// NB: this format corresponds to 'captureFileFormatVersion = 1'
 		// if this format is ever changed, we need to provide backward compatibility to avoid breaking apps relying on the format; also potentially affects -pgimport upload file preparation
-		String itemLine = item +separator+ itemDetail.trim() +separator+ itemGroup +separator+ status +separator+ lineNr +separator+ u.currentAppName +separator+ u.currentSrcFile  +separator+ u.batchNrInFile +separator+ u.lineNrInFile +separator+ currentContext.trim() +separator+ subContext.trim() +separator+ misc + separator + "~" + separator;
+		String currentContext_copy = currentContext;
+		String subContext_copy = subContext;
+		if (Compass.analyzingDynamicSQL) {
+			lineNr = Compass.dynamicSQLLineNr + lineNr - 1;
+			currentContext_copy = Compass.dynamicSQLContext;
+			subContext_copy = Compass.dynamicSQLSubContext;
+		}
+		String itemLine = item +separator+ itemDetail.trim() +separator+ itemGroup +separator+ status +separator+ lineNr +separator+ u.currentAppName +separator+ u.currentSrcFile  +separator+ u.batchNrInFile +separator+ u.lineNrInFile +separator+ currentContext_copy.trim() +separator+ subContext_copy.trim() +separator+ misc + separator + "~" + separator;
 
 		// check for newlines -- these will mess everything up (could still occur due to identifiers containing a newline)
 		// printing a warning so that any cases that may results from bugs, are not being lost and may be reported back
@@ -1944,21 +1957,21 @@ public class CompassAnalyze {
 					if (!argN.isEmpty()) {
 						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"validating arg=["+argN+"] for BIF=["+funcName+"()]", u.debugPtree);
 						argNum = Integer.parseInt(argN.substring(3));
-						assert (argNum <= argListText.size()) : CompassUtilities.thisProc()+"argN argNum out of range: "+argNum+", should be <="+argListText.size();
+						if (argNum <= argListText.size()) {
+							String argStr = argListText.get(argNum-1);
+							if (argStr.startsWith("N'")) argStr = argStr.substring(1);
+							if (dateBIFs.contains(funcName)) {
+								if (argNum == 1) {
+									argStr = u.normalizeName(argStr);
+								}								
+							}
+							String argStrValidate = mapBIFArgStrValidate(funcName, nrArgs, argStr);
+							String argStrReport = mapBIFArgStrReport(funcName, argStr, argStrValidate);
+							statusArgN = status = featureArgSupportedInVersion(funcName, argN, argStrValidate);
+							funcNameReport = funcName + "("+ argStrReport.toLowerCase()+")";
 
-						String argStr = argListText.get(argNum-1);
-						if (argStr.startsWith("N'")) argStr = argStr.substring(1);
-						if (dateBIFs.contains(funcName)) {
-							if (argNum == 1) {
-								argStr = u.normalizeName(argStr);
-							}								
+							if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"funcName=["+funcName+"] funcNameReport=["+funcNameReport+"] argStr=["+argStr+"] argStrValidate=["+argStrValidate+"] argStrReport=["+argStrReport+"] argN=["+argN+"] nrArgs=["+nrArgs+"] status=["+status+"] ", u.debugPtree);
 						}
-						String argStrValidate = mapBIFArgStrValidate(funcName, nrArgs, argStr);
-						String argStrReport = mapBIFArgStrReport(funcName, argStr, argStrValidate);
-						statusArgN = status = featureArgSupportedInVersion(funcName, argN, argStrValidate);
-						funcNameReport = funcName + "("+ argStrReport.toLowerCase()+")";
-
-						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"funcName=["+funcName+"] funcNameReport=["+funcNameReport+"] argStr=["+argStr+"] argStrValidate=["+argStrValidate+"] argStrReport=["+argStrReport+"] argN=["+argN+"] nrArgs=["+nrArgs+"] status=["+status+"] ", u.debugPtree);
 					}
 
 					// check for cases where #arguments matters
@@ -2037,8 +2050,6 @@ public class CompassAnalyze {
 					}
 				}
 
-				// experimental: FORMAT() 2nd arg
-				// also FORMATMESSAGE?
 				if (funcName.equals("FORMAT")) {
 					String fmtArg = argListText.get(1);
 					if (fmtArg.startsWith("N'")) fmtArg = fmtArg.substring(1);
@@ -2051,7 +2062,34 @@ public class CompassAnalyze {
 					else {
 						fmtArg = "expression"; // could be a column or function call
 					}
-					funcNameReport = "FORMAT("+fmtArg+")";
+					funcNameReport = "FORMAT("+fmtArg+ ")";
+					
+					if (argListText.size() == 3) {
+						// report culture param if present						
+						String culture = argListText.get(2);
+						String statusCulture = u.NotSupported;				
+						if (culture.charAt(0) == '@') {
+							culture = "@var";
+							statusCulture = u.ReviewManually;		
+						}
+						else if (!u.isQuotedString(culture)) {
+							culture = "expression";
+							statusCulture = u.ReviewManually;											
+						}
+						else {
+							culture = u.stripStringQuotes(culture);
+							statusCulture = featureSupportedInVersion(FormatCulture, culture);	
+							//format culture arg
+							culture = culture.toLowerCase();
+							int rix = culture.lastIndexOf("-");
+							if (rix != -1) {
+								culture = culture.substring(0,rix) + culture.substring(rix).toUpperCase();
+							}
+							culture = "'" + culture + "'";		
+						}
+						String cultureReport = "FORMAT() culture "+culture;						
+						captureItem(cultureReport, funcDetail, BuiltInFunctions, funcName, statusCulture, lineNr);
+					}
 				}
 
 				// some rewrites
@@ -2534,6 +2572,17 @@ public class CompassAnalyze {
 					for (String opt : opts) {
 						opt = opt.trim();
 						String forJSONtest = "SELECT FOR JSON "+forJSONType + " " + opt;
+						
+						// for some ad-hoc diagnostics
+//						u.appOutput(u.thisProc()+"SELECT FOR JSON: ["+getTextSpaced(ctx)+"] ");
+//						ParserRuleContext parentRule = ctx.getParent();
+//						if (parentRule instanceof TSQLParser.Select_statementContext) {
+//							u.appOutput(u.thisProc()+"SELECT FOR JSON: ["+getTextSpaced(parentRule)+"] ");
+//						}
+//						else{
+//							u.appOutput(u.thisProc()+"not SELECT_STATEMENT with FOR JSON");
+//						}
+											
 						forJSONtest = forJSONtest.replaceAll(forJSONType + " " + forJSONType, forJSONType);
 						forJSONtest = forJSONtest.trim();
 						forJSONreport += opt + ",";
@@ -3021,7 +3070,22 @@ public class CompassAnalyze {
 				if (tableType.equals(GlobalTmpTableFmt)) {
 					status = featureSupportedInVersion(GlobalTmpTable);
 				}
-
+				
+				// ToDo: check for multiple constraints in a column if there's one FK involved
+				// ToDo: could this also occur for table types?			
+//				if (ctx.column_def_table_constraints() != null) {
+//					u.appOutput(u.thisProc()+"column_def_table_constraints found, ctx.column_def_table_constraint.size()=["+ctx.column_def_table_constraints().column_def_table_constraint().size()+"]  ");
+//					if (ctx.column_def_table_constraints().column_def_table_constraint() != null) {  // should always be true
+//						if (ctx.column_def_table_constraints().column_def_table_constraint().size() > 0) {
+//							u.appOutput(u.thisProc()+"getTextSpaced(ctx=["+getTextSpaced(ctx.column_def_table_constraints())+"] ");
+//							for (TSQLParser.Column_def_table_constraintContext cdtc : ctx.column_def_table_constraints().column_def_table_constraint()) {
+//								u.appOutput(u.thisProc()+"iter: ["+getTextSpaced(cdtc)+"] ");
+//							}
+//							 
+//						}
+//					}
+//				}
+				
 				// ptns
 				List<TSQLParser.Create_table_optionsContext> options = ctx.create_table_options();
 				if (options.size() > 0) {
@@ -3646,7 +3710,9 @@ public class CompassAnalyze {
 						else if (featureExists(IndexOptions,option)) {
 							String type2 = u.applyPatternFirst(type, "^index, UNIQUE\\b", "index");
 							String status = featureSupportedInVersion(IndexOptions,option);
-							captureItem("Option "+option+"="+optVal+", "+type2+context, name, DDLReportGroup, IndexOptions, status, ixOp.start.getLine());
+							String optionFmt = option;
+							if (!optVal.isEmpty()) optionFmt += "="+optVal;
+							captureItem("Option "+optionFmt+", "+type2+context, name, DDLReportGroup, IndexOptions, status, ixOp.start.getLine());
 						}
 						else {
 							// if we get here, something is missing from the .cfg file
@@ -3753,6 +3819,11 @@ public class CompassAnalyze {
 	            	}
 
 	            	if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"column: colName=["+colName+"] dataType=["+dataType+"]", u.debugPtree);
+	            	
+	            	if (dataType.equals("XML COLUMN_SET FOR ALL_SPARSE_COLUMNS")) {
+						captureXMLFeature("", "XML COLUMN_SET FOR ALL_SPARSE_COLUMNS", "", ctx.start.getLine());	 
+						dataType = "XML";           		
+	            	}	            	
 			        
 			        if (!u.buildColSymTab) {
 			        	// record columns defined in current batch, also when no permanent symtab is built: needed for unique-on-nullable check
@@ -3805,7 +3876,8 @@ public class CompassAnalyze {
 									maxIdPrec = featureIntValueSupportedInVersion(MaxIdentityPrecision);
 								}
 								if (idPrec > maxIdPrec) {
-									captureItem("Precision of IDENTITY column ("+idPrec+") exceeds "+maxIdPrec, maxIdPrec.toString(), Datatypes, maxIdPrec.toString(), u.NotSupported, 0, 0);
+									String statusPrecision = featureDefaultStatus(MaxIdentityPrecision);
+									captureItem("Precision of IDENTITY column ("+idPrec+") exceeds "+maxIdPrec, maxIdPrec.toString(), Datatypes, maxIdPrec.toString(), statusPrecision, 0, 0);
 								}
 							}
 						}
@@ -4526,8 +4598,9 @@ public class CompassAnalyze {
 		        	maxParSection = MaxFuncParameters;
 		        }
 				Integer maxPars = featureIntValueSupportedInVersion(maxParSection);
+				String statusMaxParams = featureDefaultStatus(maxParSection);	
 				if (params.size() > maxPars) {
-					captureItem("Number of "+objType+" parameters ("+params.size()+") exceeds "+maxPars, maxPars.toString(), maxParSection, maxPars.toString(), u.NotSupported, 0, 0);
+					captureItem("Number of "+objType+" parameters ("+params.size()+") exceeds "+maxPars, maxPars.toString(), maxParSection, maxPars.toString(), statusMaxParams, 0, 0);
 				}
 		    }
 
@@ -5398,26 +5471,29 @@ public class CompassAnalyze {
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"skipping INSERT collist - not a table hint", u.debugPtree);
 				}
 				else {
-					boolean isHint = true;
 					String hint = u.encodeIdentifier(ctx.getText().toUpperCase());
+					//u.appOutput(u.thisProc()+"hint=["+hint+"] ");
 					//column names in a table alias may be parsed as a table hint
 					if (! CompassUtilities.getPatternGroup(hint, "^(NOEXPAND|INDEX|NOEXPANDINDEX|FORCESEEK|SERIALIZABLE|SNAPSHOT|SPATIAL_WINDOW_MAX_CELLS|FORCESCAN|HOLDLOCK|NOLOCK|NOWAIT|PAGLOCK|READCOMMITTED|READCOMMITTEDLOCK|READPAST|READUNCOMMITTED|REPEATABLEREAD|ROWLOCK|TABLOCK|TABLOCKX|UPDLOCK|XLOCK)\\b", 1).isEmpty()) {
-						String w = CompassUtilities.getPatternGroup(hint, "^([A-Z ]+)", 1);
+						String w = CompassUtilities.getPatternGroup(hint, "^([A-Z ]+)", 1).trim();
 						String w2 = u.stripEnclosingBrackets(hint.substring(w.length()));
+						String hintChk = w;
 						if (hint.startsWith("INDEX") || hint.startsWith("NOEXPANDINDEX")) {
 							hint = u.collapseWhitespace(u.applyPatternAll(hint, "INDEX\\(\\d+\\)", "INDEX(index id)"));
 							hint = u.collapseWhitespace(u.applyPatternAll(hint, "INDEX\\(\\D["+u.identifierChars+"]*\\)", "INDEX(index name)"));
+							hint = u.collapseWhitespace(u.applyPatternAll(hint, "INDEX\\(\\D.*\\)", "INDEX(index name)"));
 							hint = u.collapseWhitespace(u.applyPatternAll(hint, "INDEX\\=\\D["+u.identifierChars+"]*", "INDEX=index name"));
+							hint = u.collapseWhitespace(u.applyPatternAll(hint, "INDEX\\=\\D.*", "INDEX=index name"));
 							w = hint;
+							hintChk = hint;							
 
 							// use the following special values for testing against the .cfg file (no values listed there at this time)
-							hint = u.applyPatternAll(hint, "INDEX\\(index id\\)", "INDEX_ID");
-							hint = u.applyPatternAll(hint, "INDEX\\(index name\\)", "INDEX_NAME");
-							hint = u.applyPatternAll(hint, "INDEX=index name", "INDEX_NAME");
+							if (hint.equalsIgnoreCase("INDEX(index id)")) hintChk = "INDEX_ID";
+							else if (hint.equalsIgnoreCase("INDEX(index name)")) hintChk = "INDEX_NAME";
+							else if (hint.equalsIgnoreCase("INDEX=index name")) hintChk = "INDEX_NAME";
 						}
-						w = u.collapseWhitespace(u.applyPatternAll(w, "(FORCE|DISABLE|HINT|PLAN|GROUP|UNION|JOIN|NOEXPAND|VIEWS|FOR|PARAMETERIZATION)", " $1 "));
-						String status = featureSupportedInVersion(TableHint, hint);
-
+						//w = u.collapseWhitespace(u.applyPatternAll(w, "(FORCE|DISABLE|HINT|PLAN|GROUP|UNION|JOIN|NOEXPAND|VIEWS|FOR|PARAMETERIZATION)", " $1 "));
+						String status = featureSupportedInVersion(TableHint, hintChk);
 						captureItem(TableHint+ " " + w, w2, TableHint, u.decodeIdentifier(hint), status, ctx.start.getLine());
 					}
 					else {
@@ -5431,16 +5507,14 @@ public class CompassAnalyze {
 
 			@Override public String visitOption(TSQLParser.OptionContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
-				String hint = ctx.getText().toUpperCase();
-				String w = CompassUtilities.getPatternGroup(hint, "^([A-Z ]+)", 1);
-				if (w.startsWith("TABLEHINT")) {
+				String hint = getTextSpaced(ctx).toUpperCase().trim();
+				hint = CompassUtilities.getPatternGroup(hint, "^([A-Z ]+)", 1).trim();
+				if (hint.startsWith("TABLE HINT")) {
 					// already handled elsewhere
 				}
 				else {
-					String w2 = hint.substring(w.length());
-					w = u.collapseWhitespace(u.applyPatternAll(w, "(FORCE|DISABLE|HINT|PLAN|GROUP|UNION|JOIN|EXPAND|FOR|PARAMETERIZATION)", " $1 "));
 					String status = featureSupportedInVersion(QueryHint, hint);
-					captureItem(QueryHint+ " " + w, w2, QueryHint, hint, status, ctx.start.getLine());
+					captureItem(QueryHint+ " " + hint, "", QueryHint, hint, status, ctx.start.getLine());
 				}
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -5508,7 +5582,9 @@ public class CompassAnalyze {
 
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"EXECUTE: "+ ctx.getText()+", procName=["+procName+"] return_status=["+return_status+"] proc_var=["+proc_var+"] execImm=["+execImm+"] ", u.debugPtree);
 
-				captureSystemproc(procName, return_status, u.grammarRuleNames[ctx.getRuleIndex()], ctx.proc_version, ctx.start.getLine());
+				if (!procName.isEmpty()) {
+					captureSystemproc(procName, return_status, u.grammarRuleNames[ctx.getRuleIndex()], ctx.proc_version, ctx.start.getLine(), ctx.execute_statement_arg());
+				}
 
 				if (!proc_var.isEmpty()) {
 					String procStatus = featureSupportedInVersion(ProcExecAsVariable);
@@ -5517,8 +5593,34 @@ public class CompassAnalyze {
 
 				if (!execImm.isEmpty()) {
 					captureItem("EXECUTE(string)", "", DynamicSQL, "", u.Supported, ctx.start.getLine());
-					String DynamicSQLStatus = featureSupportedInVersion(DynamicSQL);
-					captureItem(DynamicSQLEXECStringReview, "", DynamicSQL, "", DynamicSQLStatus, ctx.start.getLine());					
+					
+					List<TSQLParser.Execute_var_stringContext> arg = ctx.execute_var_string();
+					String stringArg = "";
+					boolean stringArgFound = true;
+					for (int i=0; i<arg.size(); i++) {
+						String a = arg.get(i).getText();
+						if (a.charAt(0) == '@') {
+							stringArgFound = false;
+							break;
+						}
+						String quote = u.getPatternGroup(a, "(['\"])", 1);
+						a = u.stripStringQuotes(a);
+						a = u.applyPatternAll(a, quote+quote, quote);	
+						stringArg += a;				
+					}
+					if (stringArgFound && (!stringArg.trim().isEmpty())) {
+						//u.appOutput("capturing dynamic SQL query: EXECUTE(): stringArg=["+stringArg+"] ");	
+						if (u.debugging) u.dbgOutput("capturing dynamic SQL query: EXECUTE(): stringArg=["+stringArg+"] ", u.debugDynamicSQL);	
+						u.dynamicSQLBuffer.add(u.dynamicSQLBatchLine+arg.get(0).start.getLine()+","+u.batchNrInFile+","+u.lineNrInFile+","+(u.currentObjectType + " " + u.currentObjectName).trim()+",EXECUTE()");
+						u.dynamicSQLBuffer.add(stringArg);
+						u.dynamicSQLBuffer.add("go");
+						u.dynamicSQLNrStmts++;
+					}	
+					else {					
+						// if we cannot figure out the query in the argument, mark as review manually	
+						String DynamicSQLStatus = featureSupportedInVersion(DynamicSQL);	
+						captureItem(DynamicSQLEXECStringReview, "", DynamicSQL, "", DynamicSQLStatus, ctx.start.getLine());
+					}
 				}
 
 				// process any options
@@ -5573,7 +5675,10 @@ public class CompassAnalyze {
 					procName = ctx.func_proc_name_server_database_schema().getText();
 					execute_statement_procName = procName;
 				}
-				captureSystemproc(procName, return_status, u.grammarRuleNames[ctx.getRuleIndex()], null, ctx.start.getLine());
+				
+				TSQLParser.Execute_statement_argContext arg0 = null;
+				if (ctx.execute_statement_arg().size() > 0) arg0 = ctx.execute_statement_arg(0);
+				captureSystemproc(procName, return_status, u.grammarRuleNames[ctx.getRuleIndex()], null, ctx.start.getLine(), arg0);
 
 				captureExecOptions(procName, ctx.execute_option(), ctx.start.getLine());
 
@@ -5582,7 +5687,7 @@ public class CompassAnalyze {
 				return null;
 			}
 
-			private void captureSystemproc(String procName, String return_status, String rule, Token proc_version, int lineNr) {
+			private void captureSystemproc(String procName, String return_status, String rule, Token proc_version, int lineNr, TSQLParser.Execute_statement_argContext arg) {
 				String section = ProceduresReportGroup;
 				String sysProcName = "";
 				String firstStmt = "";
@@ -5591,12 +5696,51 @@ public class CompassAnalyze {
 				CaptureIdentifier(procName, procName, "EXECUTE procedure", lineNr);
 
 				procName = u.getObjectNameFromID(procName).toLowerCase();
-				if (procName.equals("sp_executesql"))  {
+				if (procName.equals("sp_executesql") || 
+				    procName.equals("sp_prepare") || 
+				    procName.equals("sp_prepexec") || 
+				    procName.equals("sp_cursorprepare") || 
+				    procName.equals("sp_cursorprepexec"))  {
 					// todo: also report OUTPUT parameters for sp_executesql?
-					sysProcName = " sp_executesql";
+					//sysProcName = " sp_executesql";
+					sysProcName = " " + procName;
 					section = DynamicSQL;
-					captureItem(DynamicSQLEXECSPReview, "", DynamicSQL, "", u.ReviewManually, lineNr);
-					captureItem("EXECUTE"+sysProcName+firstStmt+return_status, "", DynamicSQL, "", u.Supported, lineNr);
+					captureItem("EXECUTE"+sysProcName+firstStmt+return_status, "", DynamicSQL, "", u.Supported, lineNr);		
+											
+					// see if the dynamic SQL argument is a string literal so that we can analyze it
+					boolean stringArgFound = false;
+					String stringArg = "";
+					
+					int argNo = 0;
+					if (procName.equals("sp_executesql")) argNo = 1;
+					if (procName.equals("sp_prepare")||procName.equals("sp_prepexec")||procName.equals("sp_cursorprepare")) argNo = 3;
+					if (procName.equals("sp_cursorprepexec")) argNo = 4;
+					assert (argNo > 0) : "argNo must be > 0; procName=["+procName+"] ";
+					
+					String a = getArgProcExec(argNo, procName, arg);
+					if (!a.isEmpty()){
+						if (a.charAt(0) != '@') {
+							stringArgFound = true;
+							stringArg = a;
+						}
+					}
+								
+					if (stringArgFound) {
+						String quote = u.getPatternGroup(stringArg, "(['\"])", 1);
+						stringArg = u.stripStringQuotes(stringArg);
+						stringArg = u.applyPatternAll(stringArg, quote+quote, quote);		
+						//u.appOutput("capturing dynamic SQL query: "+procName+": stringArg=["+stringArg+"] ");												
+						if (u.debugging) u.dbgOutput("capturing dynamic SQL query: "+procName+": stringArg=["+stringArg+"] ", u.debugDynamicSQL);	
+						u.dynamicSQLBuffer.add(u.dynamicSQLBatchLine+arg.start.getLine()+","+u.batchNrInFile+","+u.lineNrInFile+","+(u.currentObjectType + " " + u.currentObjectName).trim()+","+procName);
+						u.dynamicSQLBuffer.add(stringArg);
+						u.dynamicSQLBuffer.add("go");
+						u.dynamicSQLNrStmts++;
+					}	
+					else {					
+						// if we cannot figure out the query in the argument, mark as review manually	
+						String DynamicSQLStatus = featureSupportedInVersion(DynamicSQL);	
+						captureItem(DynamicSQLEXECSPReview, "", DynamicSQL, "", DynamicSQLStatus, lineNr);
+					}
 				}
 				else {
 					if ((procName.startsWith("sp_")) || (procName.startsWith("xp_")))  {
@@ -5630,6 +5774,37 @@ public class CompassAnalyze {
 				}
 			}
 
+			private String getArgProcExec(int argNo, String procName, TSQLParser.Execute_statement_argContext arg) {
+				String result = "";
+				if (u.debugging) u.dbgOutput("argNo=["+argNo+"] procName=["+procName+"] ", u.debugDynamicSQL);	
+				if (arg != null) {
+					if (u.debugging) u.dbgOutput("arg=["+arg.getText()+"] ", u.debugDynamicSQL);
+						
+					if (arg.execute_statement_arg_unnamed() != null) {
+						//u.appOutput(u.thisProc()+"arg unnamed=["+arg.execute_statement_arg_unnamed().getText()+"]");
+						if (argNo == 1) result = arg.execute_statement_arg_unnamed().getText();
+						else {
+							if (u.debugging) u.dbgOutput("recursive call with argNo-1=["+(argNo-1)+"] ", u.debugDynamicSQL);
+							result = getArgProcExec(argNo-1, procName, arg.execute_statement_arg());
+						}
+					}
+					else if (arg.execute_statement_arg_named().size() > 0) {
+						//u.appOutput(u.thisProc()+"arg named=["+arg.execute_statement_arg_named(0).getText()+"] ");
+						if (arg.execute_statement_arg_named().size() > argNo-1) {
+							if (arg.execute_statement_arg_named(argNo-1).execute_parameter() != null) {  // cannot be null, but anyway...
+								result = arg.execute_statement_arg_named(argNo-1).execute_parameter().getText();							
+							}
+						}
+					}
+					else {
+						// something's wrong
+						assert false : "unexpected branch";
+					}	
+				}
+				if (u.debugging) u.dbgOutput("result=["+result+"] ", u.debugDynamicSQL);	
+				return result;
+			}
+						
 			private void captureExecOptions(String procName, List<TSQLParser.Execute_optionContext> execOptions, int lineNr) {
 				for (int i = 0; i <execOptions.size(); i++) {
 					String optionRaw = execOptions.get(i).getText().toUpperCase();
@@ -5693,12 +5868,14 @@ public class CompassAnalyze {
 					String setValueOrig = ctx.DECIMAL().getText();
 					captureSEToption("SET TEXTSIZE", setValueOrig, setValueFmt, ctx.start.getLine(), setValueOrig);
 				}
-				else if (ctx.STATISTICS() != null) {
+				//else if ((ctx.STATISTICS() != null) || (ctx.BABELFISH_STATISTICS() != null)) {
+				else if ((ctx.stats != null)) {
+					String stats = ctx.stats.getText().toUpperCase();
 					List<TSQLParser.Set_statistics_keywordContext> options = ctx.set_statistics_keyword();
 					String setValue = ctx.on_off().getText().toUpperCase();
 					if (options.size() > 0) {
 						for (TSQLParser.Set_statistics_keywordContext optionX : options) {
-							captureSEToption("SET STATISTICS", optionX.getText().toUpperCase() + " " + setValue, "", ctx.start.getLine());
+							captureSEToption("SET "+stats, optionX.getText().toUpperCase() + " " + setValue, "", ctx.start.getLine());
 						}
 						if (options.size() > 1) {
 							String status = featureSupportedInVersion(SetMultipleOptions);
@@ -5766,6 +5943,15 @@ public class CompassAnalyze {
 					setValue = setValue.substring(setValue.indexOf("LEVEL")+5);
 					setValue = setValue.replaceFirst("READ", " READ ").trim();
 					captureSEToption(feature, setValue, "", ctx.start.getLine());
+				}
+				else if (ctx.xml_modify_method() != null) {
+					// do nothing
+				}											
+				else {					
+					if (u.devOptions) {
+						u.appOutput(u.thisProc()+"unexpected branch: ctx=["+ctx.getText()+"] ");
+						u.printStackTrace();
+					}
 				}
 
 				visitChildren(ctx);
@@ -6233,11 +6419,13 @@ public class CompassAnalyze {
 				List<TSQLParser.Create_database_optionContext> options = ctx.create_database_option();
 				for (int i=0; i<options.size(); i++) {
 					String option = options.get(i).getText().toUpperCase();
+					String optionChk = option;
 					//if (option.equals("CATALOG_COLLATION=DATABASE_DEFAULT")) continue;
 
-					String status = u.NotSupported;
+					String status = u.uninitialized;
 					boolean captured = false;
 					if (option.startsWith("CATALOG_COLLATION=")) {
+						optionChk = optionChk.replaceFirst("=", " ");
 						String catalogCollation = getOptionValue(option);
 						if (catalogCollation.toUpperCase().contains("_CS_")) {
 							status = featureSupportedInVersion(CaseSensitiveCollation,"CATALOG_COLLATION");
@@ -6247,8 +6435,8 @@ public class CompassAnalyze {
 							}
 						}
 					}
-					if (status.equals(u.Supported)) {
-						status = featureSupportedInVersion(CreateDatabaseOptions,option);
+					if (status.equals(u.uninitialized) && !captured) {
+						status = featureSupportedInVersion(CreateDatabaseOptions,optionChk);
 					}
 					if (!captured) {
 						captureItem("Option "+option+", in CREATE DATABASE", option, CreateDatabaseOptions, option, status, options.get(i).start.getLine());
@@ -6386,7 +6574,7 @@ public class CompassAnalyze {
 
 			public void CaptureSpecialCharIdentifier (String id, String SpecialChar, String section, int lineNr) {
 				if (SpecialChar.isEmpty()) return;
-				if (id.startsWith("[")) return;
+				if (id.startsWith("[") && !id.contains("]]")) return;  // ]] not handled inside a delimited identifier
 				if (id.startsWith("\"")) return;
 				if (id.startsWith("@")) id = id.substring(1);
 				if (id.startsWith("@")) id = id.substring(1); // for @@ variables
@@ -6538,11 +6726,19 @@ public class CompassAnalyze {
 				String tableName = "";
 				String type = "VALUES()";
 				String typeFmt = "";
+				String updateTVFStatus = u.Supported;
+				String functionCall = "";
 				if (ctx.ddl_object() != null) {
 					String tableNameRaw = ctx.ddl_object().getText();
 					tableName = u.normalizeName(tableNameRaw);
 					CaptureIdentifier(tableNameRaw, tableName, "INSERT(target)", ctx.start.getLine());
 				}
+				else if (ctx.function_call() != null) {
+					String tableNameRaw = ctx.function_call().func_proc_name_server_database_schema().getText().toUpperCase();
+					tableName = u.normalizeName(tableNameRaw);
+					updateTVFStatus = featureSupportedInVersion(InsertStmt,"TABLE FUNCTION");
+					functionCall = ", on table function";	
+				}				
 				else {
 					tableName = ctx.rowset_function().getText().toUpperCase();
 					type = tableName.substring(0,tableName.indexOf("("));
@@ -6605,9 +6801,14 @@ public class CompassAnalyze {
 					}
 				}
 
+				if (!updateTVFStatus.equals(u.Supported)) {
+					if (updateTVFStatus.equals(u.NotSupported)) status = u.NotSupported;
+					else if (!status.equals(u.Supported)) status = updateTVFStatus;
+				}
+				
 				if (typeFmt.isEmpty()) typeFmt = type;
 				if (!captureTableSrcDML(ctx.parent, tableName, "INSERT", ctx.start.getLine())) {
-					captureItem("INSERT"+top+".."+typeFmt+CTE+outputClause, itemDetail, InsertStmt, "", status, ctx.start.getLine());
+					captureItem("INSERT"+top+".."+typeFmt+CTE+outputClause+functionCall, itemDetail, InsertStmt, "", status, ctx.start.getLine());
 					CaptureXMLNameSpaces(ctx.parent, "INSERT", ctx.start.getLine());
 				}
 
@@ -6794,17 +6995,24 @@ public class CompassAnalyze {
 				String status = u.Supported;
 				String tableName = "";
 				String tableNameRaw = "";
-				String openXXXfunction = "";
+				String functionCall = "";
+				String updateTVFStatus = u.Supported;
 				if (ctx.ddl_object() != null) {
 					tableNameRaw = ctx.ddl_object().getText().toUpperCase();
 					tableName = u.normalizeName(tableNameRaw);
 					CaptureIdentifier(tableNameRaw, tableName, "UPDATE(target)", ctx.start.getLine());
 				}
+				else if (ctx.function_call() != null) {
+					tableNameRaw = ctx.function_call().func_proc_name_server_database_schema().getText().toUpperCase();
+					tableName = u.normalizeName(tableNameRaw);
+					updateTVFStatus = featureSupportedInVersion(UpdateStmt,"TABLE FUNCTION");
+					functionCall = ", on table function";	
+				}
 				else {
 					tableName = ctx.rowset_function().getText().toUpperCase();
 					tableName = tableName.substring(0,tableName.indexOf("("));
 					status = featureSupportedInVersion(UpdateStmt,tableName);
-					openXXXfunction = ", " + tableName + "()";			
+					functionCall = ", " + tableName + "()";			
 				}
 
 				String top = "";
@@ -6840,9 +7048,14 @@ public class CompassAnalyze {
 				updVarAssign = "";
 
 				visitChildren(ctx);
+				
+				if (!updateTVFStatus.equals(u.Supported)) {
+					if (updateTVFStatus.equals(u.NotSupported)) status = u.NotSupported;
+					else if (!status.equals(u.Supported)) status = updateTVFStatus;
+				}
 
 				if (!captureTableSrcDML(ctx.parent, tableName, "UPDATE", ctx.start.getLine())) {
-					captureItem("UPDATE"+top+updVarAssign+CTE+outputClause+whereCurrentOf+openXXXfunction, tableName, UpdateStmt, "UPDATE", status, ctx.start.getLine());
+					captureItem("UPDATE"+top+updVarAssign+CTE+outputClause+whereCurrentOf+functionCall, tableName, UpdateStmt, "UPDATE", status, ctx.start.getLine());
 					captureVariableAssignDepends("UPDATE", ctx.start.getLine(), true);
 					
 					CaptureXMLNameSpaces(ctx.parent, "UPDATE", ctx.start.getLine());					
@@ -7015,13 +7228,20 @@ public class CompassAnalyze {
 				String status = u.Supported;
 				String tableName = "";
 				String tableNameRaw = "";
-				String openXXXfunction = "";
+				String functionCall = "";
+				String updateTVFStatus = u.Supported;
 				if (ctx.delete_statement_from().rowset_function() != null) {
 					tableName = ctx.delete_statement_from().rowset_function().getText().toUpperCase();
 					tableName = tableName.substring(0,tableName.indexOf("("));
 					status = featureSupportedInVersion(DeleteStmt,tableName);
-					openXXXfunction = ", " + tableName + "()";
+					functionCall = ", " + tableName + "()";
 				}
+				else if (ctx.delete_statement_from().function_call() != null) {
+					tableNameRaw = ctx.delete_statement_from().function_call().func_proc_name_server_database_schema().getText().toUpperCase();
+					tableName = u.normalizeName(tableNameRaw);
+					updateTVFStatus = featureSupportedInVersion(DeleteStmt,"TABLE FUNCTION");
+					functionCall = ", on table function";	
+				}				
 				else {
 					tableNameRaw = ctx.delete_statement_from().getText().toUpperCase();
 					tableName = u.normalizeName(tableNameRaw);
@@ -7055,8 +7275,13 @@ public class CompassAnalyze {
 					}
 				}
 
+				if (!updateTVFStatus.equals(u.Supported)) {
+					if (updateTVFStatus.equals(u.NotSupported)) status = u.NotSupported;
+					else if (!status.equals(u.Supported)) status = updateTVFStatus;
+				}
+				
 				if (!captureTableSrcDML(ctx.parent, tableName, "DELETE", ctx.start.getLine())) {
-					captureItem("DELETE"+top+CTE+outputClause+whereCurrentOf+openXXXfunction, tableName, DeleteStmt, "DELETE", status, ctx.start.getLine());
+					captureItem("DELETE"+top+CTE+outputClause+whereCurrentOf+functionCall, tableName, DeleteStmt, "DELETE", status, ctx.start.getLine());
 					CaptureXMLNameSpaces(ctx.parent, "DELETE", ctx.start.getLine());
 				}
 
@@ -7287,11 +7512,19 @@ public class CompassAnalyze {
 				status = featureSupportedInVersion(MergeStmt, "MERGE");  // the MERGE stmt is not supported in v.1.0
 
 				String tableName = "";
+				String updateTVFStatus = u.Supported;
+				String functionCall = "";
 				if (ctx.ddl_object() != null) {
 					String tableNameRaw = ctx.ddl_object().getText().toUpperCase();
 					tableName = u.normalizeName(tableNameRaw);
 					CaptureIdentifier(tableNameRaw, tableName, "MERGE(target)", ctx.start.getLine());
 				}
+				else if (ctx.function_call() != null) {
+					String tableNameRaw = ctx.function_call().func_proc_name_server_database_schema().getText().toUpperCase();
+					tableName = u.normalizeName(tableNameRaw);
+					updateTVFStatus = featureSupportedInVersion(MergeStmt,"TABLE FUNCTION");
+					functionCall = ", on table function";	
+				}					
 
 				String top = "";
 				if (ctx.TOP() != null) {
@@ -7311,9 +7544,14 @@ public class CompassAnalyze {
 						status = featureSupportedInVersion(MergeStmt,"CTE");
 					}
 				}
+				
+				if (!updateTVFStatus.equals(u.Supported)) {
+					if (updateTVFStatus.equals(u.NotSupported)) status = u.NotSupported;
+					else if (!status.equals(u.Supported)) status = updateTVFStatus;
+				}				
 
 				if (!captureTableSrcDML(ctx.parent, tableName, "MERGE", ctx.start.getLine())) {
-					if (!status.equals(u.Supported)) {
+					if ((!status.equals(u.Supported)) && (ctx.function_call() == null)) {
 						if (u.rewrite) {
 							String rewriteText = "";
 							Integer rwrID = rewriteMerge(ctx);
@@ -7326,7 +7564,7 @@ public class CompassAnalyze {
 						}
 					}
 
-					captureItem("MERGE"+top+CTE+outputClause, tableName, MergeStmt, "MERGE", status, ctx.start.getLine());
+					captureItem("MERGE"+top+CTE+outputClause+functionCall, tableName, MergeStmt, "MERGE", status, ctx.start.getLine());
 
 					CaptureXMLNameSpaces(ctx.parent, "MERGE", ctx.start.getLine());
 				}
@@ -8631,6 +8869,15 @@ public class CompassAnalyze {
 			@Override public String visitDrop_credential(TSQLParser.Drop_credentialContext ctx) {
 				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
+			@Override public String visitCreate_database_scoped_credential(TSQLParser.Create_database_scoped_credentialContext ctx) {
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
+			}
+			@Override public String visitAlter_database_scoped_credential(TSQLParser.Alter_database_scoped_credentialContext ctx) {
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
+			}
+			@Override public String visitDrop_database_scoped_credential(TSQLParser.Drop_database_scoped_credentialContext ctx) {
+				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
+			}
 			@Override public String visitCreate_cryptographic_provider(TSQLParser.Create_cryptographic_providerContext ctx) {
 				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
@@ -8847,7 +9094,6 @@ public class CompassAnalyze {
 
 		};
 
-		// this assert does not work?
 		assert (tree != null) : "parse tree is null";
 
 		//report setting at start of batch
