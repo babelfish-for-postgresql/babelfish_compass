@@ -103,6 +103,26 @@ public class CompassConfig {
 		u.appOutput(cfgFileName+": "+s);
 	}
 
+	private static void setLastCfgCheck(String section, String name, String status) {
+		if (status.equals(u.Supported)) {
+			// do not wipe out a previous call by this one; it's supprored so no need ot keep it
+			return;
+		}
+		if (section.equalsIgnoreCase(CompassAnalyze.MaxIdentifierLength)) {
+			// do not keep track of this one, it serves no purpose in this context
+			return;
+		}
+		
+		// this could be improved further if necessary: if first a not-supported item is found with high complexity , and then one with low complexity, 
+		// and then the capture happens, we'll end up with low. So could do this differently by only overwriting if the complexty is higher. 
+		// issues: custom values; and if we're going to retrieve the complexity here, why keep track of the section/name anyway and not just the complexity itself?
+		lastCfgCheckSection = section.trim();
+		lastCfgCheckName    = name.trim();		
+		lastCfgCheckName    = u.applyPatternFirst(lastCfgCheckName, "^[,]", "");
+		lastCfgCheckName	= lastCfgCheckName.trim();
+		//u.appOutput(u.thisProc()+"setting lastCfgCheckSection=["+lastCfgCheckSection+"] lastCfgCheckName=["+lastCfgCheckName+"] ");
+	}
+		
 	public static boolean isValidBabelfishVersion(String version) {
 		return isValidBabelfishVersion(version, false);
 	}
@@ -351,8 +371,7 @@ public class CompassConfig {
 				status = featureDefaultStatus(section);				
 			}					
 		}
-		lastCfgCheckSection = section;
-		lastCfgCheckName    = "";
+		setLastCfgCheck(section, "", status);
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: status=[" + status + "] ", u.debugCfg);
 		return status;
 	}
@@ -376,7 +395,7 @@ public class CompassConfig {
 		if (result < 0) {
 			u.appOutput("Value in [" + section + "]  must be a number: [" + s + "]");
 			u.errorExit();
-		}
+		}	
 		return result;
 	}
 
@@ -404,6 +423,7 @@ public class CompassConfig {
 			}
 		}
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: value=[" + value + "]  ", u.debugCfg);
+		setLastCfgCheck(section, "", "");		
 		return value;
 	}
 	
@@ -425,7 +445,7 @@ public class CompassConfig {
 		return null;
 	}
 
-	// is this feature (section, name) supported in the specificed version?
+	// is this feature (section, name) supported in the specified version?
 	public static String featureSupportedInVersion(String requestVersion, String section, String name) {
 		String status = u.NotSupported;
 		name = name.toUpperCase();
@@ -457,8 +477,7 @@ public class CompassConfig {
 				status = featureDefaultStatus(section, name);				
 			}
 		}
-		lastCfgCheckSection = section;
-		lastCfgCheckName    = name;
+		setLastCfgCheck(section, name, status);
 		return status;
 	}
 

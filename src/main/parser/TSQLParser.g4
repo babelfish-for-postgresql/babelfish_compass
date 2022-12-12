@@ -87,6 +87,7 @@ ddl_statement
     | alter_certificate
     | alter_column_encryption_key
     | alter_credential
+    | alter_database_scoped_credential    
     | alter_cryptographic_provider
     | alter_database
     | alter_database_scoped_configuration
@@ -129,6 +130,7 @@ ddl_statement
     | create_column_master_key
     | create_contract    
     | create_credential
+    | create_database_scoped_credential
     | create_cryptographic_provider
     | create_database
     | create_default
@@ -617,7 +619,7 @@ drop_contract
 drop_credential
     : DROP CREDENTIAL credential_name=id
     ;
-
+    
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/drop-cryptographic-provider-transact-sql
 drop_cryptographic_provider
     : DROP CRYPTOGRAPHIC PROVIDER provider_name=id
@@ -901,6 +903,18 @@ create_credential
          ( COMMA SECRET EQUAL secret=char_string )?
          (  FOR CRYPTOGRAPHIC PROVIDER cryptographic_provider_name=id )?
     ;
+    
+create_database_scoped_credential
+    : CREATE DATABASE SCOPED CREDENTIAL credential_name=id
+        WITH IDENTITY EQUAL identity_name=char_string
+         ( COMMA SECRET EQUAL secret=char_string )?
+    ;
+
+alter_database_scoped_credential
+    : ALTER DATABASE SCOPED CREDENTIAL credential_name=id
+        WITH IDENTITY EQUAL identity_name=char_string
+         ( COMMA SECRET EQUAL secret=char_string )?
+    ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-cryptographic-provider-transact-sql
 alter_cryptographic_provider
@@ -972,17 +986,18 @@ event_session_predicate_leaf
 alter_external_data_source
     : ALTER EXTERNAL DATA SOURCE data_source_name=id  SET
     ( external_data_source_attribute |  CREDENTIAL EQUAL credential_name=id )+
-    | ALTER EXTERNAL DATA SOURCE data_source_name=id WITH LR_BRACKET TYPE EQUAL BLOB_STORAGE COMMA LOCATION EQUAL location=char_string (COMMA CREDENTIAL EQUAL credential_name=id )? RR_BRACKET
+    | ALTER EXTERNAL DATA SOURCE data_source_name=id WITH LR_BRACKET external_data_source_attribute* RR_BRACKET
     ;
 
 create_external_data_source
     : CREATE EXTERNAL DATA SOURCE data_source_name=id WITH LR_BRACKET external_data_source_attribute* RR_BRACKET
     ;
- 
+
 external_data_source_attribute
     : LOCATION EQUAL location=char_string COMMA?
     | RESOURCE_MANAGER_LOCATION EQUAL resource_manager_location=char_string COMMA?
     | TYPE EQUAL ID COMMA?
+    | CREDENTIAL EQUAL credential_name=id COMMA?
     ;
     
 create_external_file_format
@@ -1659,7 +1674,7 @@ create_message_type
 merge_statement
     : with_expression?
       MERGE (TOP LR_BRACKET expression RR_BRACKET PERCENT?)?
-      INTO? ddl_object with_table_hints? as_table_alias?
+      INTO? ( ddl_object | function_call ) with_table_hints? as_table_alias?
       USING table_sources
       ON search_condition
       when_matches+
@@ -1704,13 +1719,14 @@ delete_statement_from
     | table_alias
     | rowset_function
     | table_var=LOCAL_ID
+    | function_call
     ;
 
 // https://msdn.microsoft.com/en-us/library/ms174335.aspx
 insert_statement
     : with_expression?
       INSERT (TOP LR_BRACKET expression RR_BRACKET PERCENT?)?
-      INTO? (ddl_object | rowset_function)
+      INTO? (ddl_object | rowset_function | function_call )
       with_table_hints?
       ( LR_BRACKET insert_column_name_list RR_BRACKET )?
       output_clause?
@@ -1760,7 +1776,7 @@ time
 update_statement
     : with_expression?
       UPDATE (TOP LR_BRACKET expression RR_BRACKET PERCENT?)?
-      (ddl_object | rowset_function)
+      (ddl_object | rowset_function | function_call )
       with_table_hints?
       SET update_elem (COMMA update_elem)*
       output_clause?
@@ -2581,7 +2597,7 @@ open_datasource
 // https://msdn.microsoft.com/en-us/library/ms190312.aspx
 open_rowset
     :  OPENROWSET LR_BRACKET provider_name = char_string COMMA connectionString = char_string COMMA sql = char_string RR_BRACKET
-     | OPENROWSET LR_BRACKET BULK data_file=char_string COMMA (bulk_option (COMMA bulk_option)* | id) RR_BRACKET
+    | OPENROWSET LR_BRACKET BULK (data_file=char_string | LR_BRACKET char_string (COMMA char_string)* RR_BRACKET ) COMMA (bulk_option (COMMA bulk_option)* | id) RR_BRACKET
     ;
 
 change_table
@@ -2816,6 +2832,7 @@ execute_parameter
     | LOCAL_ID (OUTPUT | OUT)?
     | id
     | DEFAULT    
+    | odbc_literal
     ;    
 
 execute_var_string
@@ -3116,7 +3133,7 @@ table_type_indices
 
 xml_type_definition
     : id LR_BRACKET ( CONTENT | DOCUMENT )? xml_schema_collection RR_BRACKET
-    | XML COLUMN_SET FOR ALL_SPARSE_COLUMNS
+    | simple_name COLUMN_SET FOR ALL_SPARSE_COLUMNS     // hack: simple_name covers 'xml' and '[xml]'; other datatypes are not valid, but are accepted by this rule
     ;
 
 xml_schema_collection
@@ -3129,7 +3146,7 @@ column_def_table_constraints
 
 column_def_table_constraint
     : column_definition
-    | table_constraint
+    | table_constraint null_notnull?
     | period_for_system_time
     ;
 
@@ -3228,7 +3245,7 @@ column_constraint
 // https://msdn.microsoft.com/en-us/library/ms188066.aspx
 table_constraint
     : (CONSTRAINT constraint=id)?
-       ((PRIMARY KEY | UNIQUE) clustered? LR_BRACKET column_name_list_with_order RR_BRACKET with_index_options? (ON storage_partition_clause)?
+       ((PRIMARY KEY | UNIQUE) clustered? (LR_BRACKET column_name_list_with_order RR_BRACKET)? with_index_options? (ON storage_partition_clause)?
          | CHECK for_replication? LR_BRACKET search_condition RR_BRACKET
          | DEFAULT expression (FOR id)?  
          | FOREIGN KEY LR_BRACKET fk = column_name_list RR_BRACKET REFERENCES table_name (LR_BRACKET pk = column_name_list RR_BRACKET)? (on_update | on_delete)* ) for_replication?
@@ -3289,7 +3306,7 @@ fetch_cursor
 // https://msdn.microsoft.com/en-us/library/ms190356.aspx
 set_special
     : SET set_on_off_option (COMMA set_on_off_option)* on_off 
-    | SET STATISTICS set_statistics_keyword (COMMA set_statistics_keyword)* on_off
+    | SET stats=(BABELFISH_STATISTICS | STATISTICS) set_statistics_keyword (COMMA set_statistics_keyword)* on_off
     | SET OFFSETS set_offsets_keyword (COMMA set_offsets_keyword)* on_off
     | SET id_set=id (id_val=id | constant_LOCAL_ID | on_off) 
     | SET ROWCOUNT (LOCAL_ID | MINUS? DECIMAL) 
@@ -3675,6 +3692,9 @@ table_name_with_hint
 
 bulk_option
     : id  EQUAL (bulk_option_nr=DECIMAL | bulk_option_str=char_string)
+    | SINGLE_BLOB 
+    | SINGLE_CLOB 
+    | SINGLE_NCLOB 
     ;
 
 derived_table
@@ -3875,7 +3895,7 @@ table_hint
     : NOEXPAND? ( INDEX (LR_BRACKET index_value (COMMA index_value)* RR_BRACKET | index_value (COMMA index_value)*) )
     | INDEX  EQUAL  index_value
     | NOEXPAND
-    | FORCESEEK ( LR_BRACKET index_value LR_BRACKET ID  (COMMA ID)* RR_BRACKET RR_BRACKET )?
+    | FORCESEEK ( LR_BRACKET index_value LR_BRACKET id (COMMA id)* RR_BRACKET RR_BRACKET )?
     | SERIALIZABLE
     | SNAPSHOT
     | SPATIAL_WINDOW_MAX_CELLS  EQUAL  DECIMAL
@@ -4440,6 +4460,7 @@ keyword
     | INFINITE
     | INIT
     | INITIATOR
+    | INLINE
     | INPUT
     | INSENSITIVE
     | INSERTED
