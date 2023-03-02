@@ -105,7 +105,7 @@ public class CompassTest {
         assertThrows(NullPointerException.class, () -> new Compass(null));
 
         new Compass(new String[]{});
-        String output = new String(stdErr.toByteArray());
+        String output = new String(stdOut.toByteArray());
         assertTrue(output.contains("Must specify arguments. Try -help"));
     }
 
