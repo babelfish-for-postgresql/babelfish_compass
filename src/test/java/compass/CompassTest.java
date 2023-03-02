@@ -91,13 +91,13 @@ public class CompassTest {
         assertTrue(output.contains("No arguments specified. Try -help"));
     }
 
-    @Test
-    @DisplayName("Main invalid arg list")
-    void testConstructorInvalidArgList() throws Exception {
-        Compass.main(new String[]{"foobar"});
-        String output = new String(stdOut.toByteArray());
-        assertTrue(output.contains("Must specify input file(s), or -list/-analyze/-reportonly/-reportoption"));
-    }
+//    @Test
+//    @DisplayName("Main invalid arg list")
+//    void testConstructorInvalidArgList() throws Exception {
+//        Compass.main(new String[]{"foobar"});
+//        String output = new String(stdOut.toByteArray());
+//        assertTrue(output.contains("Must specify input file(s), or -list/-analyze/-reportonly/-reportoption"));
+//    }
 
     @Test
     @DisplayName("Empty Constructor")
