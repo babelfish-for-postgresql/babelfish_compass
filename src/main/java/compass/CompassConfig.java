@@ -31,6 +31,7 @@ public class CompassConfig {
 	static Map<String, Map<String, List<String>>> sectionOverrideList = new LinkedHashMap<>();
 	static Map<String, Map<String, List<String>>> sectionEffortList = new LinkedHashMap<>();
 	static Map<String, Map<String, List<String>>> sectionComplexityList = new LinkedHashMap<>();
+	static Map<String, String> versionAliasList = new LinkedHashMap<>();
 	static Map<String, String> featureArgOptions = new LinkedHashMap<>();  // assuming only one argument per feature. If more, the value needs to become a List
     static boolean versionInvalid = false;
     static int overrideCount = 0;
@@ -46,7 +47,9 @@ public class CompassConfig {
     static final String defaultStatusTag      = "DEFAULT_CLASSIFICATION";
     static final String reportGroupTag        = "REPORT_GROUP";
     static final String supportedTag          = "SUPPORTED";
+    static final String ignoredTag            = "IGNORED";
     static final String ruleTag               = "RULE";
+    static final String versionAliasTag       = "VERSION_ALIAS";
     static final String complexityTag         = "COMPLEXITY_SCORE";  
     static final String complexityUndefined   = "";  
     static final String complexityPattern     = "^((low|medium|high)|((\\-|\\+)?(\\d+)))$";
@@ -164,6 +167,14 @@ public class CompassConfig {
 	public static String normalizedBabelfishVersion(String version) {
 		// for comparing versions, use a normalized internal representation. Assumption: external format is \d+(\.\d+)* or \d+\.\*
 		StringBuilder internalVers = new StringBuilder();
+		
+		// replace by alias if defined
+		if (versionAliasList.containsKey(version)) {
+			String alias = versionAliasList.get(version);
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "alias found for version=["+version+"] = ["+alias+"] ", u.debugCfg);			
+			version = alias;						
+		}
+		
 		String[] vParts = version.split("\\.");
 		for(int i=0; i < vParts.length; i++) {
 			if (vParts[i].equals("*")) {
@@ -459,7 +470,7 @@ public class CompassConfig {
 			for (String key : featureList.keySet()) {
 				if (key.startsWith(supportedTag + "/")) {
 					String foundVersion = key.substring(supportedTag.length() + 1);
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() +"key=[" + key + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() +"supported key=[" + key + "] ", u.debugCfg);
 					if (foundVersion.isEmpty()) continue;
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "foundVersion=[" + foundVersion + "] ", u.debugCfg);
 
@@ -472,12 +483,28 @@ public class CompassConfig {
 						}
 					}
 				}
+				if (key.startsWith(ignoredTag + "/")) {
+					String foundVersion = key.substring(ignoredTag.length() + 1);
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() +"ignored key=[" + key + "] ", u.debugCfg);
+					if (foundVersion.isEmpty()) continue;
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "foundVersion=[" + foundVersion + "] ", u.debugCfg);
+
+					List<String> thisList = featureList.get(key);
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() +"featureList Key=[" + key + "] (" + thisList.size() + ") --> " + thisList, u.debugCfg);
+					if (thisList.contains(name) || thisList.contains("*")) {
+						if (isVersionSupported(requestVersion, foundVersion)) {
+							status = u.Ignored;
+							break;
+						}
+					}
+				}				
 			}
-			if (!status.equals(u.Supported)) {
+			if (!status.equals(u.Supported) && !status.equals(u.Ignored) ) {
 				status = featureDefaultStatus(section, name);				
 			}
 		}
 		setLastCfgCheck(section, name, status);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "return status=["+status+"] ", u.debugCfg);				
 		return status;
 	}
 
@@ -1280,6 +1307,50 @@ public class CompassConfig {
 						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "adding featureArgOptions for argKey=[" + sectionName + "] argN=[" + argN + "]", u.debugCfg);
 					}
 				}
+				// key: 'ignored' values
+				else if (optionKey.startsWith(ignoredTag)) {
+					String vRaw = optionKey.substring(ignoredTag.length() + 1);
+					String v = "", vMax = "";
+					Matcher matcher = u.getMatcher(vRaw, "^([\\d]+(\\.([\\d]+|\\*))+)(" + cRangeSeparator + "([\\d]+(\\.([\\d]+|\\*))+))?$");
+					if (matcher != null && matcher.find()) {
+						v = matcher.group(1);
+						vMax = matcher.group(5);
+						if (vMax == null) {
+							vMax = "";
+						}
+					}
+					if (u.debugging) u.dbgOutput(ignoredTag + "-version key: optionKey=[" + optionKey + "] vRaw=[" + vRaw + "] version=[" + v + "] vMax=[" + vMax + "] ", u.debugCfg);
+
+					if (v.isEmpty()) {
+						cfgFileValid = false;
+						cfgOutput("Invalid version (empty) in [" + sectionName + "/" + optionKey + "]");
+						continue;
+					}
+
+					if (!isValidBabelfishVersion(v)) {
+						cfgFileValid = false;
+						versionInvalid = true;
+						cfgOutput("Invalid version '" + v + "' in [" + sectionName + "/" + optionKey + "]");
+						continue;
+					}
+
+					if (!vMax.isEmpty()) {
+						if (!isValidBabelfishVersionWithStar(vMax)) {
+							cfgFileValid = false;
+							versionInvalid = true;
+							cfgOutput("Invalid version '" + vMax + "' in [" + sectionName + "/" + optionKey + "]");
+							continue;
+						}
+						if (!isLowerOrEqualBabelfishVersion(v, vMax)) {
+							cfgFileValid = false;
+							cfgOutput("Version " + vMax + " cannot be lower than " + v + " in [" + sectionName + "/" + optionKey + "]");
+							continue;
+						}
+						v = v + ("-") + (vMax);
+					}
+
+					thisKey = createKey(ignoredTag, v);
+				}				
 				// key: 'default_classification' items
 				else if (optionKey.startsWith(defaultStatusTag)) {
 					// values in supportOptionsCfgFile have been converted to uppercase
@@ -1399,6 +1470,31 @@ public class CompassConfig {
 					}		
 					thisKey = thisKey.toUpperCase();
 				}					
+				// key: 'version_alias'
+				else if (optionKey.equals(versionAliasTag)) {
+					// ignored by Compass
+					optionVal = optionVal.replaceAll(" ", "");
+					List<String> aliasTmp = new ArrayList<>(Arrays.asList(optionVal.split(",")));
+					String aliasVersionLow = aliasTmp.get(1);
+					String aliasVersionHigh = aliasTmp.get(0);
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "aliasTmp=["+aliasTmp+"] aliasVersionLow=["+aliasVersionLow+"]  aliasVersionHigh=["+aliasVersionHigh+"] ]", u.debugCfg);
+					if (!isValidBabelfishVersion(aliasVersionLow)) {
+						cfgFileValid = false;
+						cfgOutput("Invalid version '" + aliasVersionLow + "' in [" + sectionName + "/" + optionKey + "]");
+						continue;
+					}
+					if (!isValidBabelfishVersion(aliasVersionHigh)) {
+						cfgFileValid = false;
+						cfgOutput("Invalid version '" + aliasVersionHigh + "' in [" + sectionName + "/" + optionKey + "]");
+						continue;
+					}
+					if (! isHigherBabelfishVersion(aliasVersionHigh,aliasVersionLow)) {
+						cfgFileValid = false;
+						cfgOutput("Alias version '" + aliasVersionHigh + "' must be > '" + aliasVersionLow + "' in [" + sectionName + "/" + optionKey + "]");
+						continue;
+					}							
+					versionAliasList.put(aliasVersionHigh,aliasVersionLow);
+				} 
 				// key: 'rule'
 				else if (optionKey.equals(ruleTag)) {
 					// ignored by Compass
@@ -1452,7 +1548,7 @@ public class CompassConfig {
 									
 				featureList.put(thisKey, theseItems);
 
-					// check items in 'supported-XXX', 'report_group-xxx', default_classification-XXX'  are in the listValues key (if a list exists)
+				// check items in 'supported-XXX', 'report_group-xxx', default_classification-XXX'  are in the listValues key (if a list exists)
 				if (optionKey.startsWith(supportedTag+subKeySeparator) || 
 				    optionKey.startsWith(reportGroupTag+subKeySeparator) ||
 				    optionKey.startsWith(defaultStatusTag+subKeySeparator)
@@ -1523,6 +1619,10 @@ public class CompassConfig {
 			u.errorExit();
 		}
 		cfgOutput("Latest "+u.babelfishProg+" version supported: "+latestBabelfishVersion());
+						
+		// check for optimistic cfg file in distro
+		u.installOptimisticCfgFile();	
+				
 		// user .cfg file
 		boolean userCfgFileValid = validateUserCfgFile(pUserCfgFileName); 
 		if (u.debugCfg) {
@@ -1536,7 +1636,7 @@ public class CompassConfig {
 			u.errorExit();	
 		}			
 	}
-
+	
 	// validate/update the user's .cfg file; create if not existing
 	private static boolean validateUserCfgFile(String pUserCfgFileName) throws IOException {
 		boolean cfgFileValid = true;

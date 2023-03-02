@@ -19,6 +19,8 @@ For the compatibility matrix between Babelfish Compass and Babelfish, see the Us
 
 The User Guide is here: https://raw.githubusercontent.com/babelfish-for-postgresql/babelfish_compass/main/BabelfishCompass_UserGuide.pdf
 
+Various videos on Babelfish and Compass are here: https://www.youtube.com/playlist?list=PLhr1KZpdzukf3A1hxxlwMdDD-0WTWJR-v
+
 
 ## Security
 

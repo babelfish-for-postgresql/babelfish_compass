@@ -112,6 +112,8 @@ public class Compass {
 	protected static boolean anonymizedReport = false;
 	protected static boolean importFormatArg = false;	
 	protected static String mergeReport = "";
+	protected static String userCfgFile = "";		
+	protected static boolean optimisticFlag = false;		
 
 	protected static boolean antlrSLL = true;
 	protected static boolean antlrShowTokens = false;
@@ -136,7 +138,11 @@ public class Compass {
 	public static List<String> cmdFlags = new ArrayList<>();
 	public static List<String> pgImportFlags = new ArrayList<>();
 	
-
+	// auto-generating DDL script
+	public static String  sqlEndpoint = CompassUtilities.uninitialized;
+	public static String  sqlLogin  = CompassUtilities.uninitialized;
+	public static String  sqlPasswd = CompassUtilities.uninitialized;
+	public static String  sqlDBList = CompassUtilities.uninitialized;
 
 	protected static TSQLParser.Tsql_fileContext exportedParseTree;
 
@@ -148,7 +154,7 @@ public class Compass {
 		u.setPlatformAndOptions(System.getProperty("os.name"));		
 			
 		if (args.length < 1) {
-			System.err.println("Must specify arguments. Try -help");
+			System.out.println("Must specify arguments. Try -help");
 			return;
 		}
 
@@ -242,6 +248,7 @@ public class Compass {
 				u.appOutput("   -list                        : display imported files/applications for a report");				
 				u.appOutput("   -analyze                     : (re-)run analysis on imported files, and generate report");					
 				u.appOutput("   -userconfigfile <filename>   : specifies user-defined .cfg file (default= " + CompassUtilities.defaultUserCfgFileName+")");	
+				u.appOutput("   -optimistic                  : use predefined " + CompassUtilities.optimisticUserCfgFileName+")");	
 				u.appOutput("   -nooverride                  : do not use overrides from user-defined .cfg file");												
 				u.appOutput("   -babelfish-version <version> : specify target Babelfish version (default=latest)");
 				u.appOutput("   -encoding <encoding>         : input file encoding, e.g. '-encoding UTF16'. Default="+Charset.defaultCharset());
@@ -347,8 +354,9 @@ public class Compass {
 				continue;
 			}			
 			if (arg.equals("-userconfigfile") || arg.equals("-usercfgfile") || arg.equals("-userconfig") || arg.equals("-usercfg")) { 
+				userCfgFile = arg;				
 				if (i >= args.length) {
-					System.err.println("Must specify value with -userconfigfile");
+					System.out.println("Must specify value with -userconfigfile");
 					u.errorExit();
 				}
 				u.userCfgFileName = args[i];
@@ -368,13 +376,44 @@ public class Compass {
 					} catch (Exception e) {}													
 					File f = new File(userConfigFilePathName);
 					if (!f.exists()) {
-						System.err.println("User config file ["+userConfigFilePathName+"] not found");
+						System.out.println("User config file ["+userConfigFilePathName+"] not found");
 						u.errorExit();	
 					}
 				}
 				i++;
 				continue;
 			}				
+			if (arg.equals("-optimistic") || arg.equals("-optimist")) { 
+				optimisticFlag = true;
+				u.userCfgFileName = u.optimisticUserCfgFileName;
+				
+				// does file exist?	
+				boolean hasNoOverride = false;			
+				for (int j = 0; j < args.length; j++) {
+					if (args[j].equals("-nooverride")) {
+						hasNoOverride = true;
+						break;
+					}
+				}				
+				if (!hasNoOverride) {	
+					String userConfigFilePathName = "";				
+					try { 
+						userConfigFilePathName = u.getUserCfgFilePathName(u.userCfgFileName);
+					} catch (Exception e) {}													
+					File f = new File(userConfigFilePathName);
+					if (!f.exists()) {
+						System.out.println("User config file ["+userConfigFilePathName+"] not found");
+						u.errorExit();	
+					}
+					u.appOutput("Using predefined user config file '"+userConfigFilePathName+"'");
+				}
+				
+				// also enable rewrite
+				u.rewrite = true;
+				
+				continue;
+			}				
+			
 			if (arg.equals("-importfmt") || arg.equals("-importformat")) {
 				if (i == args.length) {
 					u.appOutput("Must specify argument for -importfmt. Valid values are: "+u.importFormatSupportedDisplay);
@@ -440,7 +479,7 @@ public class Compass {
 			}				
 			if (arg.equals("-encoding")) {
 				if (i >= args.length) {
-					System.err.println("missing encoding on -encoding");
+					System.out.println("missing encoding on -encoding");
 					return;
 				}
 				userEncoding = args[i];
@@ -541,7 +580,7 @@ public class Compass {
 			if (arg.equals("-pgimporttable")) {	
 				pgImportTable = true;					
 				if (i >= args.length) {
-					System.err.println("Must specify table name with -pgimporttable");
+					System.out.println("Must specify table name with -pgimporttable");
 					u.errorExit();
 				}
 				u.psqlImportTableName = args[i];
@@ -578,7 +617,7 @@ public class Compass {
 			}		
 			if (arg.equals("-mergereport")) { // special purposes only			
 				if (i >= args.length) {
-					System.err.println("Must specify target report name with -mergereport");
+					System.out.println("Must specify target report name with -mergereport");
 					u.errorExit();
 				}
 				mergeReport = args[i];
@@ -608,12 +647,12 @@ public class Compass {
 			}
 			if (arg.equals("-include")) {
 				if (i >= args.length) {
-					System.err.println("missing include file name pattern on -include");
+					System.out.println("missing include file name pattern on -include");
 					u.errorExit();
 				}
 				if (includePattern != null) {
 					// Can only specify -include once per invocation
-					System.err.println("Only one -include flag allowed. Separate multiple file name patterns with a comma.");
+					System.out.println("Only one -include flag allowed. Separate multiple file name patterns with a comma.");
 					u.errorExit();
 				}
 				includePattern = parseInputPattern(args[i]);
@@ -622,18 +661,19 @@ public class Compass {
 			}
 			if (arg.equals("-exclude")) {
 				if (i >= args.length) {
-					System.err.println("missing exclude file name pattern on -exclude");
+					System.out.println("missing exclude file name pattern on -exclude");
 					u.errorExit();
 				}
 				if (excludePattern != null) {
 					// Can only specify -exclude once per invocation
-					System.err.println("Only one -exclude flag allowed. Separate multiple file name patterns with a comma.");
+					System.out.println("Only one -exclude flag allowed. Separate multiple file name patterns with a comma.");
 					u.errorExit();
 				}
 				excludePattern = parseInputPattern(args[i]);
 				i++;
 				continue;
-			}																									
+			}						
+						
 			if (CompassUtilities.devOptions) {
 				if (arg.equals("-debug")) {   // development only
 					if (i == args.length) {
@@ -713,11 +753,11 @@ public class Compass {
 				if (arg.equals("-anon")) { // development only
 					anonymizedReport = true;
 					continue;
-				}
+				}			
 			}
 			// arguments must start with [A-Za-z0-9 _-./] : anything else is invalid
 			if (CompassUtilities.getPatternGroup(arg.substring(0,1), "^([\\w\\-\\.\\/])$", 1).isEmpty()) {
-				System.err.println("Invalid option ["+arg+"]. Try -help");
+				System.out.println("Invalid option ["+arg+"]. Try -help");
 				u.errorExit();
 			}
 							
@@ -761,7 +801,7 @@ public class Compass {
 			}
 			
 			// exit on invalid argument
-			System.err.println("Invalid option ["+arg+"]. Try -help");
+			System.out.println("Invalid option ["+arg+"]. Try -help");
 			u.errorExit();
 		}
 
@@ -795,7 +835,7 @@ public class Compass {
 
  		if (quitNow) {
 			return;
- 		} 		
+ 		}
 		 	
  		// read config file
  		u.cfgFileName = u.defaultCfgFileName; // todo: make configurable?
@@ -841,6 +881,10 @@ public class Compass {
 		// init Babelfish target version at latest version, unless user specified a version
 		if (userSpecifiedBabelfishVersion) {
 			// validate user-specified version
+			if (!CompassUtilities.getPatternGroup(u.targetBabelfishVersion, "^(\\d+\\.\\d+)(\\.)?$", 1).isEmpty()) {
+				u.targetBabelfishVersion += ".0";
+				u.targetBabelfishVersion = u.applyPatternFirst(u.targetBabelfishVersion, "\\.\\.", ".");				
+			}
 			if (!cfg.isValidBabelfishVersion(u.targetBabelfishVersion)) {
 				u.appOutput("Invalid target Babelfish version specified: [" + u.targetBabelfishVersion + "].\nValid Babelfish versions: " + cfg.validBabelfishVersions());
 				return;
@@ -913,6 +957,7 @@ public class Compass {
 			String reportDirName = u.getReportDirPathname(reportName);
 			sessionLog = u.openSessionLogFile(reportName, startRunDate);
 			//sessionLog = sessionLog.substring(reportDirName.length()+1);		
+			if (u.execTest) u.openExecTestFile(reportName);
 					
 			if (listContents) {
 				u.appOutput("Report name               : " + reportName);
@@ -923,7 +968,10 @@ public class Compass {
 				return;
 			}
 			
-			cmdFlags.removeAll(inputFilesOrig);			
+			cmdFlags.removeAll(inputFilesOrig);	
+			
+			//format PG version
+			u.targetBabelfishPGVersionFmt = u.formatPGversion(u.targetBabelfishVersion);		
 
 			// write Compass version to log file now that we have it opened
 			u.reportOutputOnly(CompassUtilities.thisProgName + " v." + CompassUtilities.thisProgVersion + ", " + CompassUtilities.thisProgVersionDate);
@@ -937,7 +985,7 @@ public class Compass {
 			tmp = u.cfgFileName + " file : v." + cfg.latestBabelfishVersion() + ", " + u.cfgFileTimestamp;
 			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
-			tmp = u.targetBabelfishVersionReportLine + u.targetBabelfishVersion;
+			tmp = u.targetBabelfishVersionReportLine + u.targetBabelfishVersion + u.targetBabelfishPGVersionFmt;
 			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
 			tmp = "Command line arguments     : " + String.join(" ", cmdFlags);
@@ -948,6 +996,11 @@ public class Compass {
 			
 			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
+			
+			tmp = "no";
+			if (u.rewrite) tmp = "yes";
+		    u.appOutput("Rewriting enabled          : " + tmp);			
+		    
 			tmp = "User .cfg file (overrides) : " + CompassConfig.userConfigFilePathName;
 			if (!u.userConfig) {
 				tmp += " (ignored)";
@@ -1049,12 +1102,15 @@ public class Compass {
 			}
 		}
 		
+		if (u.execTest) u.closeExecTestFile();
+		
+		
 		if (!mergeReport.isEmpty()) {
 			// copy all files into the target report (performance optimization for very large operations only)		
 			String src = CompassUtilities.getReportDirPathname(reportName);	
 			String tgt = CompassUtilities.getReportDirPathname(mergeReport);	
 			if (CompassUtilities.onWindows) {
-				String cmd = "robocopy "+src+" "+tgt+" *.* /E /R:1 /W:1 > NUL";
+				String cmd = "robocopy "+src+" "+tgt+" *.* /E /R:1 /W:1 /XX > NUL 2>&1";
 				u.appOutput("Copying details into '"+mergeReport+"' :  ["+cmd+"] ");
 				u.runOScmd(cmd);
 			}
@@ -1087,6 +1143,8 @@ public class Compass {
 				}
 			}
 		}
+		
+		u.closeSessionLogFile();		
 	}
 	
 	protected void encodingHelp() {			
@@ -1544,8 +1602,8 @@ public class Compass {
 		
 		// when only specifying the report name, must at least specify -list or -analyze or -reportonly/-reportoption
 		if (!reportName.isEmpty()) {
-			if ((inputFiles.size()==0) && (!readStdin) && (!deleteReport)) {
-				if (!(listContents || (reportOnly || reportOption) || reAnalyze)) {
+			if ((inputFiles.size()==0) && (!readStdin) && (!deleteReport) ) {
+				if (!(listContents || (reportOnly || reportOption) || reAnalyze )) {
 	 				u.appOutput("Must specify input file(s), or -list/-analyze/-reportonly/-reportoption");
 	 				return false;
 				}
@@ -1556,6 +1614,13 @@ public class Compass {
 			u.appOutput("Cannot combine -reportonly and input files");
 			return false;
 		}
+		
+		if ((!userCfgFile.isEmpty()) && (optimisticFlag)) {
+			String flag = "-userconfigfile";  // show flag that was actually used
+			if (!userCfgFile.equals(flag)) flag += "/"+userCfgFile;
+			u.appOutput("Cannot combine "+flag+" and -optimistic");
+			return false;	
+		}				
 		
 		// validate reportoptions
 		if (!CompassUtilities.reportOptionStatus.isEmpty() || !CompassUtilities.reportOptionDetail.isEmpty() || !CompassUtilities.reportOptionFilter.isEmpty() || CompassUtilities.reportOptionNotabs || CompassUtilities.reportOptionLineNrs) {
@@ -1588,6 +1653,7 @@ public class Compass {
 				return false;				
 			}			
 		}
+		
 		
 		if (!u.userConfig) {  
 			if (!u.userCfgFileName.equals(u.uninitialized)) {
@@ -2762,7 +2828,7 @@ public class Compass {
 
 			// return parse tree as string, if required
 			if (dumpParseTree) {
-				//treeString = tree.toStringTree(parser);
+				treeString = tree.toStringTree(parser);
 			}
 
 		} catch (Exception e) {
@@ -2774,6 +2840,7 @@ public class Compass {
 				parseErrorMsg = new StringBuilder();
 				hasParseError = false;
 				// retry with SLL = false
+				//u.appOutput("retrying w/o SLL: batchNr=["+batchNr+"] batchTextCopy=["+batchTextCopy+"] ");
 				return parseBatch(CharStreams.fromString(batchTextCopy), fileName, batchNr, batchLines, false);
 			}
 

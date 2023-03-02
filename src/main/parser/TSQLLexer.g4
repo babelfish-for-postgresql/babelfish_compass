@@ -85,6 +85,8 @@ APPEND:                                          A P P E N D;
 APPLICATION:                                     A P P L I C A T I O N;
 APPLICATION_LOG:                                 A P P L I C A T I O N  UNDERLINE  L O G;
 APPLY:                                           A P P L Y;
+APPROX_PERCENTILE_CONT:                          A P P R O X  UNDERLINE  P E R C E N T I L E  UNDERLINE  C O N T;
+APPROX_PERCENTILE_DISC:                          A P P R O X  UNDERLINE  P E R C E N T I L E  UNDERLINE  D I S C;
 ARITHABORT:                                      A R I T H A B O R T;
 ARITHIGNORE:                                     A R I T H I G N O R E;
 AS:                                              A S;
@@ -108,6 +110,7 @@ AUTOMATIC:                                       A U T O M A T I C;
 AUTO_CLEANUP:                                    A U T O  UNDERLINE  C L E A N U P;
 AUTO_CLOSE:                                      A U T O  UNDERLINE  C L O S E;
 AUTO_CREATE_STATISTICS:                          A U T O  UNDERLINE  C R E A T E  UNDERLINE  S T A T I S T I C S;
+AUTO_DROP:                                       A U T O  UNDERLINE  D R O P;
 AUTO_SHRINK:                                     A U T O  UNDERLINE  S H R I N K;
 AUTO_UPDATE_STATISTICS:                          A U T O  UNDERLINE  U P D A T E  UNDERLINE  S T A T I S T I C S;
 AUTO_UPDATE_STATISTICS_ASYNC:                    A U T O  UNDERLINE  U P D A T E  UNDERLINE  S T A T I S T I C S  UNDERLINE  A S Y N C;
@@ -239,6 +242,7 @@ DATA_SOURCE:                                     D A T A  UNDERLINE  S O U R C E
 DATASPACE:                                       D A T A S P A C E;
 DATEADD:                                         D A T E A D D;
 DATEDIFF:                                        D A T E D I F F;
+DATEDIFF_BIG:                                    D A T E D I F F UNDERLINE B I G;
 DATEFIRST:                                       D A T E F I R S T;
 DATEFORMAT:                                      D A T E F O R M A T;
 DATE_FORMAT:                                     D A T E  UNDERLINE  F O R M A T;
@@ -324,6 +328,7 @@ ESCAPE:                                          E S C A P E;
 EVENT:                                           E V E N T;
 EVENTDATA:                                       E V E N T D A T A;
 EVENT_RETENTION_MODE:                            E V E N T  UNDERLINE  R E T E N T I O N  UNDERLINE  M O D E;
+ENVIRONMENT_VARIABLES:                           E N V I R O N M E N T  UNDERLINE  V A R I A B L E S;
 EXCEPT:                                          E X C E P T;
 EXCLUSIVE:                                       E X C L U S I V E;
 EXEC:                                            E X E C;
@@ -360,6 +365,7 @@ FILE:                                            F I L E;
 FILEGROUP:                                       F I L E G R O U P;
 FILEGROWTH:                                      F I L E G R O W T H;
 FILENAME:                                        F I L E N A M E;
+FILE_NAME:                                       F I L E  UNDERLINE  N A M E;
 FILEPATH:                                        F I L E P A T H;
 FILESTREAM:                                      F I L E S T R E A M;
 FILESTREAM_ON:                                   F I L E S T R E A M  UNDERLINE  O N;
@@ -473,6 +479,8 @@ ISOLATION:                                       I S O L A T I O N;
 JOB:                                             J O B;
 JOIN:                                            J O I N;
 JSON:                                            J S O N;
+JSON_ARRAY:                                      J S O N  UNDERLINE  A R R A Y;
+JSON_OBJECT:                                     J S O N  UNDERLINE  O B J E C T;
 KB:                                              K B;
 KEEP:                                            K E E P;
 KEEPFIXED:                                       K E E P F I X E D;
@@ -558,6 +566,7 @@ MERGE:                                           M E R G E;
 MESSAGE:                                         M E S S A G E;
 MESSAGE_FORWARDING:                              M E S S A G E  UNDERLINE  F O R W A R D I N G;
 MESSAGE_FORWARD_SIZE:                            M E S S A G E  UNDERLINE  F O R W A R D  UNDERLINE  S I Z E;
+METADATA_ONLY:                                   M E T A D A T A  UNDERLINE  O N L Y;
 MIN:                                             M I N;
 MINUTE:                                          M I N U T E;
 MINUTES:                                         M I N U T E S;
@@ -662,6 +671,7 @@ PAGECOUNT:                                       P A G E C O U N T;
 PAGE_VERIFY:                                     P A G E  UNDERLINE  V E R I F Y;
 PARAM:                                           P A R A M;
 PARAMETERIZATION:                                P A R A M E T E R I Z A T I O N;
+PARAMETERS:                                      P A R A M E T E R S;
 PARAM_NODE:                                      P A R A M  UNDERLINE  N O D E;
 PARSE:                                           P A R S E;
 PARSEONLY:                                       P A R S E O N L Y;
@@ -1320,7 +1330,7 @@ fragment LETTER
     | '\uffca'..'\uffcf'
     | '\uffd2'..'\uffd7'
     | '\uffda'..'\uffdc'
-    | '\u{10000}'..'\u{1F9FF}'
+    | '\u{10000}'..'\u{1F9FF}'   
     | '\u{20000}'..'\u{2FA1F}'
     ;
 

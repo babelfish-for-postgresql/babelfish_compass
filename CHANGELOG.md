@@ -1,3 +1,9 @@
+# 2023-03
+- Support for Babelfish v.2.4.0 and v.3.1.0.
+- Detect and report SQL2022 features.
+- Added predefined 'optimistic' user-defined .cfg file and -optimistic option (see user guide).
+- Minor grammar fixes.
+
 # 2022-12
 - Support for Babelfish v.2.3.0.
 - Include condensed 'Executive Summary' section at top of the report.
