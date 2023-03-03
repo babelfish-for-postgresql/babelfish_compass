@@ -42,6 +42,7 @@ jobs:
         mkdir BabelfishCompass
         cp BabelfishCompass.bat BabelfishCompass/
         cp BabelfishFeatures.cfg BabelfishCompass/
+        cp BabelfishCompassUser.Optimistic.cfg BabelfishCompass/
         cp THIRD-PARTY-LICENSES.txt BabelfishCompass/
         cp target/compass-*-jar-with-dependencies.jar BabelfishCompass/
         cp LICENSE BabelfishCompass/
