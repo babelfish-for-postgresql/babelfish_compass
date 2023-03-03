@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2022-12";
-	public static final String thisProgVersionDate  = "December 2022";
+	public static final String thisProgVersion      = "2023-03";
+	public static final String thisProgVersionDate  = "March 2023";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -55,7 +55,9 @@ public class CompassUtilities {
 
 	// user docs
 	public static final String userDocText          = thisProgName + " User Guide";
-	public static final String userDocURL           = "https://github.com/babelfish-for-postgresql/babelfish_compass/blob/main/BabelfishCompass_UserGuide.pdf";
+	// top-level PDF link no longer works as PDF doc has exceeded max size rendered by Github, so use raw doc link
+	//public static final String userDocURL           = "https://github.com/babelfish-for-postgresql/babelfish_compass/blob/main/BabelfishCompass_UserGuide.pdf";
+	public static final String userDocURL           = "https://raw.githubusercontent.com/babelfish-for-postgresql/babelfish_compass/main/BabelfishCompass_UserGuide.pdf";
 	public static final String compassLatestURL     = "https://github.com/babelfish-for-postgresql/babelfish_compass/releases/latest";
 	public static String newVersionAvailable        = "";
 
@@ -79,15 +81,16 @@ public class CompassUtilities {
 	// user .cfg file is in a fixed place, under document folder
 	public static String userCfgFileName = uninitialized;
 	public static final String defaultUserCfgFileName  = "BabelfishCompassUser.cfg";
+	public static final String optimisticUserCfgFileName  = "BabelfishCompassUser.Optimistic.cfg";
 	public static boolean userConfig = true;
 
 	// this string is tested for to see if the header needs to be upgraded
 	private String userCfgComplexityHdrLine202209 = "# Complexity_score overrides values defined by Compass in "+defaultCfgFileName+".";
 
 	// .cfg file format version as found in the .cfg file; this is validated
-	public Integer cfgFileFormatVersionRead = 0;
+	public static Integer cfgFileFormatVersionRead = 0;
 	// .cfg file format version supported by this version of the Babelfish Compass tool
-	public Integer cfgFileFormatVersionSupported = 1;
+	public static Integer cfgFileFormatVersionSupported = 1;
 
 	// .cfg file timestamp
 	public String cfgFileTimestamp = uninitialized;
@@ -101,14 +104,19 @@ public class CompassUtilities {
 	// user-specified
 	public static final String fileNameCharsAllowed = "[^\\w\\_\\.\\-\\/\\(\\)]";
 	public String targetBabelfishVersion = ""; // Babelfish version for which we're doing the analysis
+	public String targetBabelfishPGVersion = ""; // PG version for Babelfish version 
+	public String targetBabelfishPGVersionFmt = ""; // formatted string
 	public String targetBabelfishVersionReportLine = "Target Babelfish version   : v."; // line in report listing the target version
 	public boolean stdReport = false;	// development only
+	
+	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0");
+	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2");   
 
 	// minimum Babelfish version; this is fixed
 	public static final String baseBabelfishVersion = "1.0.0";
 
-	// standard line length
-	public final int reportLineLength = 80;
+	// standard line length 
+	public final int reportLineLength = 80; 
 	public final String lineIndent = "    ";
 
 	// file handling
@@ -143,6 +151,7 @@ public class CompassUtilities {
 	public final static String PGImportFileName = "pg_import";
 	public final static String extractedDirName = "extractedSQL";
 	public final static String extractedFileSuffix = "extracted.sql";
+	public final static String execTestFileName = "exectest.sql";
 
 
 	public final String getAnonymizedItemsFilename = "anonymizedBabelfishItems.dat";
@@ -173,6 +182,7 @@ public class CompassUtilities {
 	public BufferedWriter extractedFileWriter;
 	public BufferedReader rewrittenInFileReader;
 	public BufferedWriter rewrittenFileWriter;
+	public BufferedWriter execTestWriter;
 	public Map<String, Integer> complexityScoreCount = new HashMap<>();
 	private static final int complexityCntTypeLo = 0; 
 	private static final int complexityCntTypeMed = 1; 
@@ -459,7 +469,7 @@ tooltipsHTMLPlaceholder +
 		"SQUARE("+tttSeparator+"SQUARE() is not currently supported; rewrite with POWER()",
 		"UNICODE("+tttSeparator+"UNICODE() returns the Unicode code point for the first character in a string; this is not currently supported",
 		"HASHBYTES("+tttSeparator+"HASHBYTES() currently does not support this algorithm (MD5, SHA1, SHA2_256, SHA2_512 are supported)",
-		"IDENTITY("+tttSeparator+"The IDENTITY() function in SELECT-INTO is not currently supported; rewrite with ALTER TABLE to add an identity column following the SELECT-INTO",
+		"IDENTITY("+tttSeparator+"The IDENTITY() function in SELECT-INTO is not currently supported; rewrite with ALTER TABLE to add an identity column following the SELECT-INTO, or with the ROW_NUMBER() function",
 		"Precision of IDENTITY column "+tttSeparator+"The maximum supported precision of a NUMERIC/DECIMAL type for an IDENTITY column is exceeded; change the precision to stay within the supported limit",
 		"CHOOSE("+tttSeparator+"CHOOSE(): Rewrite as a CASE expression",
 		"OBJECT_SCHEMA_NAME()"+tttSeparator+"OBJECT_SCHEMA_NAME(): Rewrite as catalog query",
@@ -490,7 +500,8 @@ tooltipsHTMLPlaceholder +
 		"FILEGROUP_NAME("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"FILEPROPERTY("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"NEWSEQUENTIALID()"+tttSeparator+"NEWSEQUENTIALID() is implemented as NEWID(); the sequential nature of the generated values is however not guaranteed, as is the case in SQL Server",
-		"DIFFERENCE()"+tttSeparator+"DIFFERENCE() is not currently supported; this is a soundex-related function",
+		"SOUNDEX()"+tttSeparator+"SOUNDEX() is not currently supported. But you can 'CREATE EXTENSION fuzzstrmatch' in PG and then call [public].SOUNDEX() in T-SQL",
+		"DIFFERENCE()"+tttSeparator+"DIFFERENCE() is not currently supported; this is a soundex-related function. But you can 'CREATE EXTENSION fuzzstrmatch' in PG and then call [public].DIFFERENCE() in T-SQL",
 		"SUSER_SNAME()"+tttSeparator+"SUSER_SNAME() is not currently supported; rewrite as SUSER_NAME()",
 		"SUSER_SID()"+tttSeparator+"SUSER_SID() is not currently supported; rewrite as SUSER_ID()",
 		"STDEV()"+tttSeparator+"STDEV() is not currently supported; rewrite as SQRT(SUM(SQUARE(c-AVG(c))))/COUNT(c)-1)",
@@ -503,10 +514,18 @@ tooltipsHTMLPlaceholder +
 		"CONTAINSTABLE("+tttSeparator+"Fulltext search is not currently supported",
 		"FREETEXTTABLE("+tttSeparator+"Fulltext search is not currently supported",
 		"\\w+ FULLTEXT "+tttSeparator+"Fulltext search is not currently supported",
-		"\\s*INSERT.*, on table function"+tttSeparator+"INSERT on a table-valued function is not currently supported. Rewrite as an update directly against the underlying table or view",
-		"\\s*UPDATE.*, on table function"+tttSeparator+"UPDATE on a table-valued function is not currently supported. Rewrite as an update directly against the underlying table or view",
-		"\\s*DELETE.*, on table function"+tttSeparator+"DELETE on a table-valued function is not currently supported. Rewrite as an update directly against the underlying table or view",
-		"\\s*MERGE.*, on table function"+tttSeparator+"MERGE on a table-valued function is not currently supported. Rewrite as an update directly against the underlying table or view",
+		"\\s*INSERT.*, on table function"+tttSeparator+"INSERT on a table-valued function is not currently supported. Rewrite as an INSERT directly against the underlying table or view",
+		"\\s*UPDATE.*, on table function"+tttSeparator+"UPDATE on a table-valued function is not currently supported. Rewrite as an UPDATE directly against the underlying table or view",
+		"\\s*DELETE.*, on table function"+tttSeparator+"DELETE on a table-valued function is not currently supported. Rewrite as an DELETE directly against the underlying table or view",
+		"\\s*MERGE.*, on table function"+tttSeparator+"MERGE on a table-valued function is not currently supported. Rewrite as an MERGE directly against the underlying table or view",
+		"INSERT..VALUES, WITH (Common Table Expression) as target"+tttSeparator+"INSERT with a CTE as the table being modified, is not currently supported. Rewrite as an INSERT directly against underlying table",
+		"INSERT..SELECT, WITH (Common Table Expression) as target"+tttSeparator+"INSERT with a CTE as the table being modified, is not currently supported. Rewrite as an INSERT directly against underlying table",
+		"UPDATE, WITH (Common Table Expression) as target"+tttSeparator+"UPDATE with a CTE as the table being modified, is not currently supported. Rewrite as an UPDATE directly against underlying table",
+		"DELETE, WITH (Common Table Expression) as target"+tttSeparator+"DELETE with a CTE as the table being modified, is not currently supported. Rewrite as a DELETE directly against underlying table",
+		"MERGE, WITH (Common Table Expression) as target"+tttSeparator+"MERGE with a CTE as the table being modified, is not currently supported. Rewrite as a MERGE directly against underlying table",
+		"DELETE, OPENQUERY()"+tttSeparator+"Passthru DELETE via OPENQUERY() is not currently supported",
+		"UPDATE, OPENQUERY()"+tttSeparator+"Passthru UPDATE via OPENQUERY() is not currently supported",
+		"INSERT..VALUES, OPENQUERY()"+tttSeparator+"Passthru INSERT via OPENQUERY() is not currently supported",
 		"expression AT TIME ZONE"+tttSeparator+"A date/time expression with the AT TIME ZONE syntax is not currently supported; rewrite the expression with time zone offset syntax '+/-hh:mm', e.g. '01-Jan-2022 11:12:13 +02:00' ",
 		"Sequence option CACHE" +tttSeparator+"For a sequence, the CACHE option without a number is not currently supported; add a number",
 		"Sequence option NO CACHE" +tttSeparator+"For a sequence, the NO CACHE option without a number is not currently supported; remove NO CACHE " + rewriteOption,
@@ -536,8 +555,8 @@ tooltipsHTMLPlaceholder +
 		"EXECUTE procedure xp_"+tttSeparator+"This system stored procedure is not currently supported",
 		"EXECUTE procedure, name in variable"+tttSeparator+"Executing a stored procedure whose name is in a variable (i.e. EXECUTE @p) is not currently supported. Rewrite with dynamic SQL (i.e. EXECUTE(...) or sp_executesql)",
 		"CREATE SYNONYM"+tttSeparator+"Synonyms are not currently supported; try to rewrite with views (for tables) or procedures/functions (for procedures/functions)",
-		"BACKUP"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
-		"RESTORE"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
+		"BACKUP DATABASE/LOG"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
+		"RESTORE DATABASE/LOG"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
 		CompassAnalyze.CheckpointStmt+tttSeparator+"CHECKPOINT is not currently supported; in Babelfish for Aurora PostgreSQL, CHECKPOINT is meaningless due to Aurora's internal optimizations",
 		"GRANT"+tttSeparator+"This variation of GRANT is not currently supported",
 		"REVOKE"+tttSeparator+"This variation of REVOKE is not currently supported",
@@ -639,10 +658,10 @@ tooltipsHTMLPlaceholder +
 		"CHANGE_TRACKING_IS_COLUMN_IN_MASK"+tttSeparator+"Change tracking is not currently supported",
 		"CHANGE_TRACKING_CONTEXT"+tttSeparator+"Change tracking is not currently supported",
 		"PREDICT("+tttSeparator+"PREDICT() is not currently supported",
-		"OPENJSON("+tttSeparator+"JSON-related functionality is not currently supported",
-		"ISJSON("+tttSeparator+"JSON-related functionality is not currently supported",
-		"JSON_\\w+\\("+tttSeparator+"JSON-related functionality is not currently supported",
-		"SELECT FOR JSON"+tttSeparator+"SELECT FOR JSON is not currently supported",
+		"OPENJSON("+tttSeparator+"This JSON-related function is not currently supported",
+		"ISJSON("+tttSeparator+"This JSON-related function is not currently supported",
+		"JSON_\\w+\\("+tttSeparator+"This JSON-related function is not currently supported",
+		"SELECT FOR JSON"+tttSeparator+"This variant of SELECT FOR JSON is not currently supported",
 		CompassAnalyze.ReadText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
 		CompassAnalyze.WriteText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
 		CompassAnalyze.UpdateText+tttSeparator+"READTEXT/WRITETEXT/UPDATETEXT are not currently supported",
@@ -692,8 +711,8 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.RemoteObjectReference+tttSeparator+"Remote object references with 4-part object names (e.g. SELECT * FROM REMOTESRVR.somedb.dbo.sometable) are not currently supported",
 		"EXECUTE proc;version"+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
 		"CREATE PROCEDURE proc;version"+tttSeparator+"Procedure versioning, whereby multiple identically named procedures are distinguished by a number (myproc;1 and myproc;2), is not currently supported",
-		"Number of procedure parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the procedure to use less parameters (for example, by using a table variable as parameter)",
-		"Number of function parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the function to use less parameters (for example, by using a table variable as parameter)",
+		"Number of procedure parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the procedure to use less parameters (for example, by using a table variable as parameter, or by passing the parameters in JSON format)",
+		"Number of function parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the function to use less parameters (for example, by using a table variable as parameter, or by passing the parameters in JSON format)",
 		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action, in case the trigger body references the transition tables INSERTED or DELETED",
 		"SET FMTONLY"+tttSeparator+"SET FMTONLY applies only to SELECT * in v.1.2.0 or later; otherwise it is ignored",
 		"SET PARSEONLY"+tttSeparator+"SET PARSEONLY is not currently supported. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
@@ -744,8 +763,8 @@ tooltipsHTMLPlaceholder +
 		"REVERT"+tttSeparator+"The REVERT statement is not currently supported",
 		"LIKE '[...]'"+tttSeparator+"Square brackets [...] for pattern matching are not currently supported with LIKE. It may be possible to achieve similar results by rewriting the LIKE predicate as a call to PATINDEX(), although PATINDEX may match a substring where LIKE must match the entire source string",
 
-		"\\w+, option WITH EXECUTE AS CALLER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers maps to SECURITY INVOKER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
-		"\\w+, option WITH EXECUTE AS OWNER"+tttSeparator+"The clause WITH EXECUTE AS OWNER for procedures, functions and triggers maps to SECURITY DEFINER in PostgreSQL. It affects only permissions in Babelfish; the name resolution aspect (as in SQL Server) does not apply in Babelfish/PostgreSQL",
+		"\\w+, option WITH EXECUTE AS CALLER"+tttSeparator+"The clause WITH EXECUTE AS CALLER for procedures, functions and triggers (maps to SECURITY INVOKER in PostgreSQL) is not currently supported",
+		"\\w+, option WITH EXECUTE AS OWNER"+tttSeparator+"The clause WITH EXECUTE AS OWNER for procedures, functions and triggers (maps to SECURITY DEFINER in PostgreSQL) is not currently supported",
 		"\\w+, option WITH EXECUTE AS SELF"+tttSeparator+"The clause WITH EXECUTE AS SELF for procedures, functions and triggers is not currently supported",
 		"\\w+, option WITH EXECUTE AS USER"+tttSeparator+"The clause WITH EXECUTE AS <user> for procedures, functions and triggers is not currently supported",
 		"Index exceeds \\d+ columns"+tttSeparator+"For the maximum number of columns per index, 'included' columns do not count in SQL Server, but they do count in PostgreSQL",
@@ -1113,6 +1132,7 @@ tooltipsHTMLPlaceholder +
 
 	// flags
 	public static boolean devOptions = false;
+	public static boolean execTest = false;
 	public static boolean updateCheck = true;
 	public static boolean symTabAll = false;
 	public static boolean caching = false;
@@ -1184,6 +1204,17 @@ tooltipsHTMLPlaceholder +
 	    	importFormatSupportedDisplay.remove(sqlcmdFmt);
 		}
 	    listToLowerCase(importFormatSupported);
+	    
+	    // check file format: using '2' as of 2023-02: supports 'ignored-version=list'
+	    String versionChk = getPatternGroup(thisProgVersion, "^(20\\d\\d)", 1);
+	    if (!versionChk.isEmpty()) {
+		    if (Integer.parseInt(versionChk) >= 2023) {
+		    	cfgFileFormatVersionSupported = 2;  // earlier versions use 1
+		    }
+		}
+		else {
+			assert false : thisProc()+"Unexpected program version ["+thisProgVersion+"], expected numeric year at start";
+		}	
     }
 
 	/*
@@ -1228,6 +1259,11 @@ tooltipsHTMLPlaceholder +
 		if (System.getenv().containsKey("COMPASS_NOUPDATECHK") || System.getenv().containsKey("compass_noupdatechk")) {
 			// useful for demos
 			updateCheck = false;
+		}
+
+		if (System.getenv().containsKey("COMPASS_EXECTEST") || System.getenv().containsKey("compass_exectest")) {
+			// useful for demos
+			execTest = true;
 		}
 
 		if (System.getenv().containsKey("COMPASS_HINT_ICON") || System.getenv().containsKey("compass_hint_icon")) {
@@ -2523,6 +2559,22 @@ tooltipsHTMLPlaceholder +
 
 		renamedFile = renameRewrittenFile(appName, renamedFile);
 		return renamedFile;
+	}
+	
+	public void openExecTestFile(String reportName) throws IOException {
+		String ExecTestPathName = getFilePathname(getReportDirPathname(reportName, logDirName), execTestFileName);
+		checkDir(getReportDirPathname(reportName, logDirName), true);
+		execTestWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(ExecTestPathName), StandardCharsets.UTF_8)));
+		return;
+	}
+
+	public void writeExecTestFile(String line) throws IOException {
+		execTestWriter.write(line);
+		execTestWriter.flush();
+	}
+
+    public void closeExecTestFile() throws IOException {
+	    execTestWriter.close();
 	}
 
 	public String writePsqlFile(boolean append, String reportName, String cmd, boolean containsDelimiter) throws IOException {
@@ -5383,6 +5435,21 @@ tooltipsHTMLPlaceholder +
 		s = s.trim();		
 		return s;
 	}
+	
+	public String formatPGversion(String bbfVersion) {
+		String s = "";
+		for (int i = 0; i < BabelfishVersionList.size(); i++) {
+			String v1 = BabelfishVersionList.get(i);
+			if (bbfVersion.equals(v1)) {
+				s = BabelfishPGVersionList.get(i);
+				break;
+			}
+		}		
+		if (!s.isEmpty()) {
+			s = " (PG "+s+")";
+		}
+		return s;
+	}
 
 	public boolean createReport(String reportName) throws IOException {
 		if (debugging) dbgOutput(thisProc()+"reportOptionXref=["+reportOptionXref+"] ", debugReport);
@@ -5425,7 +5492,6 @@ tooltipsHTMLPlaceholder +
 			else {
 				String msg = "\nNo analysis results found. Use -analyze to perform analysis and generate a report.";
 				appOutput(msg);
-				writeReportFile("\n"+msg);
 			}
 			errorExit();
 		}
@@ -6880,6 +6946,36 @@ userCfgComplexityHdrLine202209 + "\n" +
 	    userCfgFileWriter = null;
 	}
 
+    public void installOptimisticCfgFile() throws IOException {
+    	// if installation directory (=current dir) contains the optimistic user .cfg file, move it to the reports root
+		File cfgFile = new File(optimisticUserCfgFileName);
+		if (cfgFile.exists()) {
+			String f = getUserCfgFilePathName(optimisticUserCfgFileName);
+			File fSrc  = new File(f);
+			String now_fname = new SimpleDateFormat("yyyy-MMM-dd-HH.mm.ss").format(new Date());
+			if (fSrc.exists()) {
+				// first save existing file				
+				String renamedTgt = f + "." + now_fname;				
+				File fDest = new File(renamedTgt);
+		    	Files.copy(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);			
+		    }
+			
+			fSrc  = new File(optimisticUserCfgFileName);
+			File fDest = new File(f);			
+			Files.copy(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);			
+			appOutput("Moved new file '"+optimisticUserCfgFileName+"' to\n'"+f+"'");			
+			
+			// rename original file
+			String renamedSrc = optimisticUserCfgFileName + "." + now_fname;
+			fDest = new File(renamedSrc);
+	    	Files.move(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+		}	    
+		else {
+			// nothing to do, no file found to copy
+			//appOutput(thisProc()+"["+optimisticUserCfgFileName+"] not found");
+		}
+	}
+	
 	public void logGroupOverride(String groupOrig, String group, String section) {
 		logGroupOverride(groupOrig, group, section, "");
 	}
