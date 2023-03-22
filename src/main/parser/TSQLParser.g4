@@ -3767,11 +3767,15 @@ function_call
     | func_proc_name_server_database_schema LR_BRACKET allOrDistinct=(DISTINCT|ALL)? function_arg_list? RR_BRACKET
     | built_in_functions
     | freetext_function
-    | NEXT VALUE FOR full_object_name
+    | next_value_for
     | odbc_scalar_function
     | partition_function_call
     ;
-
+    
+next_value_for
+    : NEXT VALUE FOR full_object_name over_clause?
+    ;
+    
 partition_function_call
     : (db_name=id DOT)? DOLLAR_PARTITION DOT func_name=id LR_BRACKET function_arg_list RR_BRACKET
     ;
@@ -3816,7 +3820,7 @@ bif_convert
 bif_other
       // https://docs.microsoft.com/en-us/sql/t-sql/functions/logical-functions-iif-transact-sql
     : IIF LR_BRACKET cond=search_condition COMMA left=expression COMMA right=expression RR_BRACKET   # IIF
-    | TRIM LR_BRACKET (expression trim_from)? expression RR_BRACKET #TRIM
+    | TRIM LR_BRACKET ( arg=(LEADING|TRAILING|BOTH)? expression trim_from)? expression RR_BRACKET #TRIM
     | STRING_AGG LR_BRACKET expr=expression COMMA separator=expression RR_BRACKET (WITHIN GROUP LR_BRACKET order_by_clause RR_BRACKET )?  #STRING_AGG
     ;
 
@@ -4299,6 +4303,7 @@ keyword
     | BLOCKING_HIERARCHY
     | BLOCKSIZE
     | BOUNDING_BOX
+    | BOTH
     | BROKER
     | BROKER_INSTANCE
     | BUFFER
@@ -4574,6 +4579,7 @@ keyword
     | LAST
     | LAST_VALUE
     | LEAD
+    | LEADING
     | LEDGER
     | LEFT
     | LEVEL
@@ -4966,6 +4972,7 @@ keyword
     | TRACKING
     | TRACK_CAUSALITY
     | TRACK_COLUMNS_UPDATED
+    | TRAILING
     | TRANSACTION_ID
     | TRANSFER
     | TRANSFORM_NOISE_WORDS

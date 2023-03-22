@@ -402,8 +402,16 @@ public class Compass {
 					} catch (Exception e) {}													
 					File f = new File(userConfigFilePathName);
 					if (!f.exists()) {
-						System.out.println("User config file ["+userConfigFilePathName+"] not found");
-						u.errorExit();	
+						// perhaps we need to install the optimistic.cfg file first
+						try {
+							u.installOptimisticCfgFile();
+						} catch (Exception e) { /* nothing*/ }
+						
+						// now check again
+						if (!f.exists()) {
+							System.out.println("User config file ["+userConfigFilePathName+"] not found");
+							u.errorExit();	
+						}
 					}
 					u.appOutput("Using predefined user config file '"+userConfigFilePathName+"'");
 				}
