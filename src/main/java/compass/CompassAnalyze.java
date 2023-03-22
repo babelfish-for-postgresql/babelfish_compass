@@ -101,6 +101,7 @@ public class CompassAnalyze {
 	static final String CursorOptions         = "Cursor options";
 	static final String CursorGlobal          = "GLOBAL cursor";
 	static final String CursorFetch           = "FETCH cursor";
+	static final String DynamicCreateCursor   = "Dynamically created cursor";
 	static final String NonPersistedCompCol   = "Non-PERSISTED computed columns";
 	static final String CompColFeatures       = "Features in computed columns";
 	static final String SUDFinTableDDL        = "Scalar UDF in table DDL";
@@ -183,6 +184,7 @@ public class CompassAnalyze {
 	static final String AddSignature          = "ADD SIGNATURE";
 	static final String ColonColonFunctionCall= "::function call (old syntax)";
 	static final String NextValueFor          = "NEXT VALUE FOR";
+	static final String NextValueForContext   = "NEXT VALUE FOR context";
 	static final String LoginOptions          = "Login options";
 	static final String UserOptions           = "User options";
 	static final String SchemaOptions         = "Schema options";
@@ -1459,6 +1461,7 @@ public class CompassAnalyze {
 			boolean inTUDFCall = false;
 			boolean inMultiStmtTUDF = false;  
 			boolean hasSystemVersioningColumn = false;
+			List<String> hasDeclareCursorName = new ArrayList<>();
 			boolean STRING_AGG_WITHIN_GROUP = false;
 			int execute_statement_argParamCount = 0;
 			String execute_statement_procName = "";
@@ -1976,7 +1979,7 @@ public class CompassAnalyze {
 					}
 
 					// check for cases where #arguments matters
-					if (featureExists(funcName+withNArgumentValidateStr)) {
+					if (featureExists(funcName+withNArgumentValidateStr)) {		
 						String statusNrArg = featureSupportedInVersion(funcName+withNArgumentValidateStr, nrArgs.toString());
 						if (!statusNrArg.equals(u.Supported)) {
 							if (nrArgs == 0) funcNameReport += "," + withoutArgumentValidateStr;
@@ -2854,6 +2857,7 @@ public class CompassAnalyze {
 					}
 
 					if (ctx.LIKE() != null) {
+						boolean captured = false;
 						String patt = ctx.expression().get(1).getText();
 						if ((patt.contains("[")) && (patt.contains("]"))) {   // quick first test
 							//u.appOutput(u.thisProc()+"LIKE found: patt=["+patt+"] ");
@@ -2878,11 +2882,17 @@ public class CompassAnalyze {
 									//u.appOutput(u.thisProc()+"LIKE [] found: x=["+ctx.expression().get(1).getText()+"] ");
 									String statusLike = featureSupportedInVersion(LikeSquareBracketsCfg);
 									captureItem(LikeSquareBrackets, "", "", "", statusLike, ctx.LIKE().getSymbol().getLine());
+									captured = true;
 								}
 							}
 						}
 						else {
 							// pattern may be in a variable, no action currently
+						}
+						
+						if (!captured) {
+							// report supported LIKE operator
+							captureItem("LIKE operator", "", OperatorsReportGroup, "", u.Supported, ctx.start.getLine());
 						}
 					}
 				}
@@ -4946,16 +4956,65 @@ public class CompassAnalyze {
 					String funcName = u.normalizeName(ctx.partition_function_call().func_name.getText());
 					capturePartitioning("$PARTITION", funcName, ctx.start.getLine());
 				}
-				else if (ctx.NEXT() != null) {
-					String seqName = u.normalizeName(ctx.full_object_name().getText());
-					String statusNVF = featureSupportedInVersion(NextValueFor);
-					captureItem(NextValueFor, seqName, NextValueFor, "", statusNVF, ctx.start.getLine());
-				}
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
 			}
 
+			@Override public String visitNext_value_for(TSQLParser.Next_value_forContext ctx) {
+				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
+
+				String seqName = u.normalizeName(ctx.full_object_name().getText());
+				String statusNVF = featureSupportedInVersion(NextValueFor);
+				captureItem(NextValueFor, seqName, NextValueFor, "", statusNVF, ctx.start.getLine());
+				
+				String nvfContext = "";
+				if (hasParent(ctx.parent, "declare_local")) {
+					//u.appOutput(u.thisProc()+"NEXT VALUE FOR in DECLARE @v, "+u.currentSrcFile+", "+u.currentObjectName+", line "+ctx.start.getLine());
+					nvfContext = "DECLARE @v";
+				}
+				else if (hasParent(ctx.parent, "set_statement")) {
+					//u.appOutput(u.thisProc()+"NEXT VALUE FOR in SET @v, "+u.currentSrcFile+", "+u.currentObjectName+", line "+ctx.start.getLine());
+					nvfContext = "SET @v";
+				}
+				else if (ctx.over_clause() != null) {
+					//u.appOutput(u.thisProc()+"NEXT VALUE FOR in OVER(), "+u.currentSrcFile+", "+u.currentObjectName+", line "+ctx.start.getLine());
+					nvfContext = "OVER()";
+				}
+				else if (hasParent(ctx.parent, "if_statement") || hasParent(ctx.parent, "while_statement")) {
+					if (hasParent(ctx.parent, "update_statement") ||
+			            hasParent(ctx.parent, "delete_statement") || 
+			            hasParent(ctx.parent, "insert_statement") || 
+			            hasParent(ctx.parent, "merge_statement")  || 
+			            hasParent(ctx.parent, "select_statement") ||
+			            hasParent(ctx.parent, "alter_table")      ||
+			            hasParent(ctx.parent, "create_table")) {
+			            	// ignore, it's OK
+			            }				
+			            else {
+							if (hasParent(ctx.parent, "if_statement")) {
+								//u.appOutput(u.thisProc()+"NEXT VALUE FOR in IF, "+u.currentSrcFile+", "+u.currentObjectName+", line "+ctx.start.getLine());
+								nvfContext = "IF";
+							}
+							else if (hasParent(ctx.parent, "while_statement")) {
+								//u.appOutput(u.thisProc()+"NEXT VALUE FOR in WHILE, "+u.currentSrcFile+", "+u.currentObjectName+", line "+ctx.start.getLine());
+								nvfContext = "WHILE";
+							}				            	
+			            }
+				}
+				if (!nvfContext.isEmpty()) {
+					String statusNVFC = featureSupportedInVersion(NextValueForContext, nvfContext);
+					if (!statusNVFC.equals(u.Supported)) {
+						String s = " in ";
+						if (nvfContext.startsWith("OVER")) s = " with ";
+						captureItem(NextValueFor + s + nvfContext, seqName, NextValueFor, "", statusNVFC, ctx.start.getLine());					
+					}	
+				}					
+
+				visitChildren(ctx);
+				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
+				return null;
+			}
 
 			private boolean udfIsBifMethod(String funcName, List<String>refMethodList,  Map<String, String>UDFListLikeMethod,  Map<String, String>UDFList) {
 				boolean isMethod = false;
@@ -5261,10 +5320,21 @@ public class CompassAnalyze {
 			}				
 
 			@Override public String visitTRIM(TSQLParser.TRIMContext ctx) {
-				captureBIF("TRIM", ctx.start.getLine());
+				boolean captured = false;
+				if (ctx.arg != null) { 
+					String arg = ctx.arg.getText().toUpperCase();
+					String status = featureSupportedInVersion("TRIM", arg);
+					if (!status.equals(u.Supported)) {
+						captureItem("TRIM("+arg+")", arg, BuiltInFunctions, "TRIM", status, ctx.start.getLine());
+						captured = true;
+					}
+				}			
+				if (!captured) {
+					captureBIF("TRIM", ctx.start.getLine());
+				}
 				visitChildren(ctx);
 				return null;
-			}
+			}				
 
 			@Override public String visitIIF(TSQLParser.IIFContext ctx) {
 				captureBIF("IIF", ctx.start.getLine());
@@ -5712,9 +5782,8 @@ public class CompassAnalyze {
 						a = u.applyPatternAll(a, quote+quote, quote);	
 						stringArg += a;				
 					}
+					if (u.debugging) u.dbgOutput("capturing dynamic SQL query: EXECUTE(): stringArgFound=["+stringArgFound+"]  stringArg=["+stringArg+"] ", u.debugDynamicSQL);						
 					if (stringArgFound && (!stringArg.trim().isEmpty())) {
-						//u.appOutput("capturing dynamic SQL query: EXECUTE(): stringArg=["+stringArg+"] ");	
-						if (u.debugging) u.dbgOutput("capturing dynamic SQL query: EXECUTE(): stringArg=["+stringArg+"] ", u.debugDynamicSQL);	
 						u.dynamicSQLBuffer.add(u.dynamicSQLBatchLine+arg.get(0).start.getLine()+","+u.batchNrInFile+","+u.lineNrInFile+","+(u.currentObjectType + " " + u.currentObjectName).trim()+",EXECUTE()");
 						u.dynamicSQLBuffer.add(stringArg);
 						u.dynamicSQLBuffer.add("go");
@@ -8118,6 +8187,9 @@ public class CompassAnalyze {
 
 			@Override public String visitDeclare_cursor(TSQLParser.Declare_cursorContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
+				String cursorName = u.normalizeName(ctx.cursor_name().getText().toUpperCase());
+				hasDeclareCursorName.add(cursorName);
+				//u.appOutput(u.thisProc()+"cursorName=["+cursorName+"] hasDeclareCursorName=["+hasDeclareCursorName+"] ");
 
 				if (ctx.INSENSITIVE() != null)
 					captureOption(CursorOptions, "INSENSITIVE", ctx.start.getLine());
@@ -8169,7 +8241,7 @@ public class CompassAnalyze {
 
 				if (ctx.GLOBAL() != null) {
 					String statusG = featureSupportedInVersion(CursorGlobal, stmt);
-					captureItem("GLOBAL option for " + stmt, stmt, CursorGlobal, stmt, statusG, ctx.start.getLine());
+					captureItem("GLOBAL option for " + stmt, stmt, CursorsReportGroup, stmt, statusG, ctx.start.getLine());
 				}
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -8178,7 +8250,7 @@ public class CompassAnalyze {
 
 			@Override public String visitCursor_statement(TSQLParser.Cursor_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
-				if ((ctx.declare_cursor() != null) && (ctx.fetch_cursor() != null)) {
+				if ((ctx.declare_cursor() == null) && (ctx.fetch_cursor() == null)) {
 	 				String stmt = "";
 					if (ctx.OPEN() != null) stmt = "OPEN";
 					if (ctx.CLOSE() != null) stmt = "CLOSE";
@@ -8186,9 +8258,35 @@ public class CompassAnalyze {
 					captureItem(stmt, "", CursorsReportGroup, "", u.Supported, ctx.start.getLine());
 
 					if (ctx.GLOBAL() != null) {
-						String status = featureSupportedInVersion(CursorGlobal, stmt);
-						captureItem("GLOBAL option for " + stmt, stmt, CursorGlobal, stmt, status, ctx.start.getLine());
+						String statusG = featureSupportedInVersion(CursorGlobal, stmt);
+						captureItem("GLOBAL option for " + stmt, stmt, CursorsReportGroup, stmt, statusG, ctx.start.getLine());
 					}
+					
+					// When OPEN is found, check if there is a declare_cursor before it in the same block
+					// This is only 99.9% accurate since theoretically there could be control flow that puts the DECLARE after the OPEN 
+					// but executes the DECLARE before the OPEN. We'll take that risk. 
+					if (ctx.OPEN() != null) {
+						String cursorName = u.normalizeName(ctx.cursor_name().getText());
+						boolean doCapture = false;
+						if (cursorName.charAt(0) != '@') {  // skip cursor variables for this test							
+							if (u.debugging) u.dbgOutput(u.thisProc()+"OPEN found for cursorName=["+cursorName+"]; hasDeclareCursorName.size()=["+hasDeclareCursorName.size()+"] hasDeclareCursorName=["+hasDeclareCursorName+"] ", u.debugPtree);
+							if (hasDeclareCursorName.size() == 0) {
+								// no DECLARE at all
+								doCapture = true;
+								if (u.debugging) u.dbgOutput(u.thisProc()+"OPEN found for cursorName=["+cursorName+"] without DECLARE CURSOR, u.currentObjectName=["+u.currentObjectName+"] ", u.debugPtree);
+							}
+							else if (!hasDeclareCursorName.contains(cursorName.toUpperCase())) {
+								// DECLARE is for a different cursor than OPEN
+								doCapture = true;
+								if (u.debugging) u.dbgOutput(u.thisProc()+"OPEN found for cursorName=["+cursorName+"] without DECLARE CURSOR for this cursor, u.currentObjectName=["+u.currentObjectName+"] ", u.debugPtree);
+							}
+							
+							if (doCapture) {
+								String status = featureSupportedInVersion(DynamicCreateCursor);
+								captureItem(DynamicCreateCursor, cursorName, CursorsReportGroup, cursorName, status, ctx.start.getLine());	
+							}						
+						}
+					} 					
 				}
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());

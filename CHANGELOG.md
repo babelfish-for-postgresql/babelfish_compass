@@ -1,3 +1,7 @@
+# 2023-03-a
+- Updated support for Babelfish v.2.4.0 and v.3.1.0.
+- Detect and report dynamically declared cursors.
+
 # 2023-03
 - Support for Babelfish v.2.4.0 and v.3.1.0.
 - Detect and report SQL2022 features.

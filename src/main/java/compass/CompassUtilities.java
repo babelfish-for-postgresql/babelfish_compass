@@ -40,7 +40,7 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2023-03";
+	public static final String thisProgVersion      = "2023-03-a";
 	public static final String thisProgVersionDate  = "March 2023";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
@@ -530,6 +530,10 @@ tooltipsHTMLPlaceholder +
 		"Sequence option CACHE" +tttSeparator+"For a sequence, the CACHE option without a number is not currently supported; add a number",
 		"Sequence option NO CACHE" +tttSeparator+"For a sequence, the NO CACHE option without a number is not currently supported; remove NO CACHE " + rewriteOption,
 		CompassAnalyze.CompoundOpWhitespaceFmt+tttSeparator+"Whitespace inside this compound operator is not currently supported; remove the whitespace " + rewriteOption,
+		CompassAnalyze.NextValueFor+" in SET"+tttSeparator+"The NEXT VALUE FOR function is supported, but not for variable assignement with SET. Rewrite as 'SELECT @v = NEXT VALUE FOR'",
+		CompassAnalyze.NextValueFor+" in DECLARE"+tttSeparator+"The NEXT VALUE FOR function is supported, but not in a DECLARE statement. Rewrite by splitting into separate DECLARE and 'SELECT @v = NEXT VALUE FOR' statements",
+		CompassAnalyze.NextValueFor+" in "+tttSeparator+"The NEXT VALUE FOR function is supported, but not in this specific context. Rewrite the SQL code, or call the PG function NEXTVAL() directly",
+		CompassAnalyze.NextValueFor+" with OVER"+tttSeparator+"The NEXT VALUE FOR function is supported, but not in combination with OVER(). Rewrite the SQL code",
 		CompassAnalyze.NextValueFor+tttSeparator+"The NEXT VALUE FOR function for sequence objects is not currently supported. Consider using identity columns instead, or as a workaround, call the PG function NEXTVAL() directly",
 		CompassAnalyze.ParamValueDEFAULT+tttSeparator+"Specifying DEFAULT as a parameter value in a procedure or function call is not currently supported; specify the actual default value instead " + rewriteOption + ". In case you still see this reported when using -rewrite, this probably means the declaration of the procedure or function was not found",
 		CompassAnalyze.UnQuotedString+tttSeparator+"Unquoted strings are not currently supported; enclose the string in quotes " + rewriteOption,
@@ -613,6 +617,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.AtAtErrorValueRef+", referenced value unclear"+tttSeparator+"The application references an @@ERROR value, but it is unclear exactly which error number is referenced.",
 		CompassAnalyze.AtAtErrorValueRef+tttSeparator+"The application references the @@ERROR value shown here, but this particular SQL Server error code is not currently supported by "+thisProgName+". Rewrite manually to check for the PostgreSQL error code",
 		CompassAnalyze.VarDeclareAtAt+tttSeparator+"Local variables or parameters starting with '@@' can be declared, but cannot currently be referenced",
+		CompassAnalyze.DynamicCreateCursor+tttSeparator+"Dynamically created cursors (with the DECLARE CURSOR statement in EXECUTE() or sp_executesql) are not currently supported. Rewrite DECLARE CURSOR, for example as described at https://babelfishpg.org/docs/workaround/dynamically_defined_cursor/",
 		"Cursor option "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
 		"FETCH  "+tttSeparator+"Currently only static, read-only, read-next-only cursors are supported",
 		"CURSOR variable"+tttSeparator+"CURSOR-typed variables/ are not currently supported; rewrite with table variables or #tmp tables",
@@ -620,9 +625,9 @@ tooltipsHTMLPlaceholder +
 		"GLOBAL cursor"+tttSeparator+"Currently only LOCAL cursors are supported",
 		"GLOBAL option for FETCH"+tttSeparator+"Currently only LOCAL cursors are supported",
 		"ALTER TABLE..DISABLE TRIGGER"+tttSeparator+"Disabling triggers is not currently supported; triggers are always enabled",
-		"DISABLE TRIGGER"+tttSeparator+"Disabling triggers is not currently supported; triggers are always enabled",
+		"DISABLE TRIGGER"+tttSeparator+"This syntax is not currently supported; use ALTER TABLE...DISABLE TRIGGER instead",
 		"ALTER TABLE..ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",
-		"ENABLE TRIGGER"+tttSeparator+"Enabling triggers is not currently supported; triggers are always enabled",
+		"ENABLE TRIGGER"+tttSeparator+"This syntax is not currently supported; use ALTER TABLE...ENABLE TRIGGER instead",
 		"CREATE TRIGGER, INSTEAD OF"+tttSeparator+"This type of INSTEAD-OF trigger is not currently supported. Rewrite as FOR trigger",
 		"CREATE TRIGGER (DDL"+tttSeparator+"DDL triggers are not currently supported",
 		CompassAnalyze.TriggerSchemaName+tttSeparator+"CREATE TRIGGER schemaname.triggername is not currently supported; Remove 'schemaname'",
@@ -714,7 +719,7 @@ tooltipsHTMLPlaceholder +
 		"Number of procedure parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the procedure to use less parameters (for example, by using a table variable as parameter, or by passing the parameters in JSON format)",
 		"Number of function parameters"+tttSeparator+"More parameters than the PG maximum is not currently supported; rewrite the function to use less parameters (for example, by using a table variable as parameter, or by passing the parameters in JSON format)",
 		CompassAnalyze.TransitionTableMultiDMLTrigFmt+tttSeparator+"Triggers for multiple trigger actions (e.g. FOR INSERT,UPDATE,DELETE) currently need to be split up into separate triggers for each action, in case the trigger body references the transition tables INSERTED or DELETED",
-		"SET FMTONLY"+tttSeparator+"SET FMTONLY applies only to SELECT * in v.1.2.0 or later; otherwise it is ignored",
+		"SET FMTONLY ON"+tttSeparator+"SET FMTONLY applies only to SELECT * in v.1.2.0 or later; otherwise it is ignored",
 		"SET PARSEONLY"+tttSeparator+"SET PARSEONLY is not currently supported. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
 		"SET ANSI_WARNINGS OFF"+tttSeparator+"SET ANSI_WARNINGS OFF is currently not supported due to PG limitations (PG cannot silently return NULL for arithmetic overflow or divide-by-zero, or silently truncate too-long strings). Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the error message from SET ANSI_WARNINGS OFF",
 		"SET ANSI_PADDING OFF"+tttSeparator+"Currently, only the semantics of ANSI_PADDING=ON are supported. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
@@ -1860,18 +1865,27 @@ tooltipsHTMLPlaceholder +
 			System.out.println(s);
 		}
 		if (sessionLogWriter != null) {
-			try { writeSessionLogFile(s + "\n"); } catch (Exception e) { System.out.println("Error writing to "+ sessionLogPathName); }
+			try { writeSessionLogFile(s + "\n"); } catch (Exception e) { 
+				System.out.println(e.getMessage());					
+				System.out.println("Error writing to "+ sessionLogPathName); 
+			}
 		}
 		if (inReport) {
 			if (reportFileWriter != null) {
-				try { writeReportFile(s); } catch (Exception e) { System.out.println("Error writing to "+ reportFileTextPathName); }
+				try { writeReportFile(s); } catch (Exception e) { 
+					System.out.println(e.getMessage());	
+					System.out.println("Error writing to "+ reportFileTextPathName); 
+				}
 			}
 		}
 	}
 
 	public void reportOutputOnly(String s) {
 		if (sessionLogWriter != null) {
-			try { writeSessionLogFile(s + "\n"); } catch (Exception e) { System.out.println("Error writing to "+ sessionLogPathName); }
+			try { writeSessionLogFile(s + "\n"); } catch (Exception e) { 
+				System.out.println(e.getMessage());	
+				System.out.println("Error writing to "+ sessionLogPathName); 
+			}
 		}
 	}
 
@@ -1925,7 +1939,10 @@ tooltipsHTMLPlaceholder +
 			if (dbgTimestamp) ts = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date()) + " ";
 			System.out.println(ts + "DEBUG: " + s);
 			if (sessionLogWriter != null) {
-				try { writeSessionLogFile(ts + "DEBUG: " + s +"\n"); } catch (Exception e) { System.out.println("Error writing to "+ sessionLogPathName); }
+				try { writeSessionLogFile(ts + "DEBUG: " + s +"\n"); } catch (Exception e) { 
+					System.out.println(e.getMessage());						
+					System.out.println("Error writing to "+ sessionLogPathName); 
+				}
 			}
 		}
 	}
@@ -6089,6 +6106,7 @@ tooltipsHTMLPlaceholder +
 		statusCount.put("invalid syntax", Long.valueOf(totalErrorBatches)); // #batches with parse errors
 		statusCount.put(fmtLinesTotalFeatures, Long.valueOf(constructsFound));
 
+		if (!statusCount.containsKey(NotSupported)) statusCount.put(NotSupported,Long.valueOf(0));
 		StringBuilder summaryTmp2 = new StringBuilder();
 		for (int i = 0; i < fmtStatus.size(); i++) {
 			String reportItem = fmtStatus.get(i);
@@ -6364,7 +6382,7 @@ tooltipsHTMLPlaceholder +
 				execSummary.append("\n").append(s2).append("\n\n");		
 			}		
 		}
-	
+		
 		String objCountSummary = "#Procedures/functions/triggers/views: " + nrSQLObjects+"    #Tables: " + nrTables;
 		summarySection = new StringBuilder(summarySection.toString().replaceFirst(execSummaryPlaceholder, execSummary.toString()));				
 		summarySection = new StringBuilder(summarySection.toString().replaceFirst(execSummaryObjCountPlaceholder, objCountSummary));				
@@ -6948,27 +6966,50 @@ userCfgComplexityHdrLine202209 + "\n" +
 
     public void installOptimisticCfgFile() throws IOException {
     	// if installation directory (=current dir) contains the optimistic user .cfg file, move it to the reports root
-		File cfgFile = new File(optimisticUserCfgFileName);
+    	// do not abort in case the operation somehow runs into an error
+		File cfgFile = new File(optimisticUserCfgFileName);  // this is the copy in the install directory
 		if (cfgFile.exists()) {
 			String f = getUserCfgFilePathName(optimisticUserCfgFileName);
 			File fSrc  = new File(f);
 			String now_fname = new SimpleDateFormat("yyyy-MMM-dd-HH.mm.ss").format(new Date());
 			if (fSrc.exists()) {
-				// first save existing file				
+				// first save existing file	before overwriting			 
 				String renamedTgt = f + "." + now_fname;				
 				File fDest = new File(renamedTgt);
-		    	Files.copy(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);			
+				try {
+		    		Files.copy(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);			
+//		    		if (fDest.exists()) {
+//		    			appOutput("Renamed '"+fSrc.toPath()+"' to\n'"+fDest.toPath()+"'");		
+//		    		}
+		    	} catch (Exception e) {		    		
+		    		appOutput(e.getMessage());		
+		    		appOutput("Error renaming '"+fSrc.toPath()+"' to\n'"+ fDest.toPath()+"'");		
+		    		return;
+		    	}
 		    }
 			
 			fSrc  = new File(optimisticUserCfgFileName);
-			File fDest = new File(f);			
-			Files.copy(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);			
-			appOutput("Moved new file '"+optimisticUserCfgFileName+"' to\n'"+f+"'");			
+			File fDest = new File(f);		
+			try {	
+				Files.copy(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);		
+				appOutput("Moved new file '"+optimisticUserCfgFileName+"' to\n'"+f+"'");					
+	    	} catch (Exception e) {		    		
+	    		appOutput(e.getMessage());		
+	    		appOutput("Error copying '"+fSrc.toPath()+"' to\n'"+ fDest.toPath()+"'");		
+	    		return;
+	    	}			
+		
 			
 			// rename original file
 			String renamedSrc = optimisticUserCfgFileName + "." + now_fname;
 			fDest = new File(renamedSrc);
-	    	Files.move(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			try {
+	    		Files.move(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+	    	} catch (Exception e) {		    		
+	    		appOutput(e.getMessage());		
+	    		appOutput("Error renaming '"+fSrc.toPath()+"' to\n'"+ fDest.toPath()+"'");		
+	    		return;
+	    	}				    	
 		}	    
 		else {
 			// nothing to do, no file found to copy
