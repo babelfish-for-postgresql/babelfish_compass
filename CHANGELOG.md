@@ -1,3 +1,11 @@
+# 2023-06
+- Updated support for Babelfish v.3.2.0.
+- Expanded scope of -optimistic flag.
+- New feature to generate DDL automatically.
+- Detect/rewrite !< and !> operators.
+- Suppress rewrite for dynamically composed SQL.
+- UPDATE/DELETE TOP are now supported but reclassified as "Review Semantics" due to inherent row order unpredictability.
+
 # 2023-03-a
 - Updated support for Babelfish v.2.4.0 and v.3.1.0.
 - Detect and report dynamically declared cursors.
