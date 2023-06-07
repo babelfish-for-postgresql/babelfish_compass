@@ -43,6 +43,7 @@ jobs:
         cp BabelfishCompass.bat BabelfishCompass/
         cp BabelfishFeatures.cfg BabelfishCompass/
         cp BabelfishCompassUser.Optimistic.cfg BabelfishCompass/
+        cp SMO_DDL.ps1 BabelfishCompass/
         cp THIRD-PARTY-LICENSES.txt BabelfishCompass/
         cp target/compass-*-jar-with-dependencies.jar BabelfishCompass/
         cp LICENSE BabelfishCompass/

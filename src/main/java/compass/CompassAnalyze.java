@@ -220,6 +220,7 @@ public class CompassAnalyze {
 	static final String TSQLOJ                = "T-SQL Outer Join operator";
 	static final String CompoundOpWhitespace  = "Compound operator containing whitespace";
 	static final String CompoundOpWhitespaceFmt = "Operator containing whitespace";
+	static final String ComparisonOperator    = "Comparison operator";
 	static final String LikeSquareBrackets    = "LIKE '[...]'";
 	static final String LikeSquareBracketsCfg = "LIKE '[...";  // for checking against the cfg file; when reading it we lose the closing square bracket and  beyond
 	static final String StringAggWithinGroup  = "STRING_AGG() WITHIN GROUP";
@@ -435,7 +436,28 @@ public class CompassAnalyze {
 		return hasParent(parent.parent, parentRuleName);
 	}
 
+	private RuleContext findParent(RuleContext parent, String parentRuleName) {
+		int ruleIxParent = parent.getRuleIndex();
+		if (CompassUtilities.grammarRuleNames[ruleIxParent].equals(CompassUtilities.startRuleName)) {
+			// top level reached
+			return null;
+		}
+		else if (CompassUtilities.grammarRuleNames[ruleIxParent].equals(parentRuleName)) {
+			// found it
+			return parent;
+		}
+		return findParent(parent.parent, parentRuleName);
+	}
 
+	// covnert a section of a parse tree to text
+	public String parseTreeToString(RuleContext ctx) {
+		String treeString = "";		
+		TSQLParser parser = new TSQLParser(null);			
+		treeString = ctx.toStringTree(parser);							
+		//u.appOutput(u.thisProc()+"treeString=["+treeString+"] ");						
+		return treeString;		
+	}
+	
 	//--- set QUOTED_IDENTIFIER -------------------------------------------------
 	public void setQuotedIdentifier (String on_off) {
 		assert CompassUtilities.OnOffOption.contains(on_off) : CompassUtilities.thisProc()+"parameter must be ON or OFF";
@@ -818,10 +840,15 @@ public class CompassAnalyze {
 		return u.stripStringQuotes(s);
 	}
 
-	public void addRewrite (String report, String origText, String rewriteType, String rewriteText, int startLine, int startCol, int endLine, int endCol, int startPos, int endPos) {
-		addRewrite(report, origText, rewriteType, rewriteText, startLine, startCol, endLine, endCol, startPos, endPos, null);
+	public boolean addRewrite (String report, String origText, String rewriteType, String rewriteText, int startLine, int startCol, int endLine, int endCol, int startPos, int endPos) {
+		return addRewrite(report, origText, rewriteType, rewriteText, startLine, startCol, endLine, endCol, startPos, endPos, null);
 	}
-	public void addRewrite (String report, String origText, String rewriteType, String rewriteText, int startLine, int startCol, int endLine, int endCol, int startPos, int endPos, Integer rewriteID) {
+	public boolean addRewrite (String report, String origText, String rewriteType, String rewriteText, int startLine, int startCol, int endLine, int endCol, int startPos, int endPos, Integer rewriteID) {
+		if (u.dynamicSQLFlag) {
+			// don't attempt to rewrite dynamic SQL; it's too complex to get right and it does not happen often enough to make the effort worthwhile
+			return false;
+		}
+		
 		String separator = CompassUtilities.captureFileSeparator;
 		int startLineInFile = u.lineNrInFile + startLine - 1;
 		int endLineInFile   = u.lineNrInFile + endLine - 1;
@@ -841,11 +868,13 @@ public class CompassAnalyze {
 		if (u.debugging) u.dbgOutput(u.thisProc()+"adding key(batch;startPos;endPos;startLineInFile;startCol;lineNrInFile;endLineInFile)=["+key+"] ", u.debugRewrite);
 		u.rewriteTextListKeys.add(key);
 		u.rewriteTextList.put(key, rewriteText);
+		return true;
 	}
 
 	// for reporting rewrite oppties
-	public void addRewrite (String report) {
-		captureItem(report, "", "", "", u.RewriteOppty, 0);		
+	public boolean addRewrite (String report) {
+		captureItem(report, "", "", "", u.RewriteOppty, 0);	
+		return true;	
 	}
 
 	//--- item capture entry point --------------------------------------------
@@ -1138,8 +1167,8 @@ public class CompassAnalyze {
 				s = s.replaceAll("\"\"", "\"");   // remove escaped double quotes
 				s = s.replaceAll("'", "''");      // escape single quotes
 				String rewriteText = "'" + s + "'";
-				addRewrite(item, DoubleQuotedString, u.rewriteTypeReplace, rewriteText, startLine, startPos, stopLine, stopPos, startIndex, stopIndex);
-				status = u.Rewritten;
+				if (addRewrite(item, DoubleQuotedString, u.rewriteTypeReplace, rewriteText, startLine, startPos, stopLine, stopPos, startIndex, stopIndex))
+					status = u.Rewritten;
 			}
 			else {
 				addRewrite(item);
@@ -1943,6 +1972,7 @@ public class CompassAnalyze {
 			private void captureBIF(String funcName, int lineNr, String options, Integer nrArgs, List<TSQLParser.ExpressionContext> argList, List<String> argListText, Integer startLine, Integer startCharPositionInLine, Integer stopLine, Integer stopCharPositionInLine, Integer startIndex, Integer stopIndex) {
 				String status = u.NotSupported;
 				String statusArgN = u.NotSupported;
+				String groupCapture = BuiltInFunctions;  // used only for STRING_AGG()
 				int argNum = 0;
 				funcName = funcName.toUpperCase();
 				String funcNameReport = funcName;
@@ -2041,14 +2071,16 @@ public class CompassAnalyze {
 						}
 					}
 				}
-
+				
 				boolean captured = false;
 				if (funcName.equals("STRING_AGG")) {
+					// the grammar finds this as a function call if invoked without the WITHIN GROUP clause, so correct that here
+					groupCapture = AggregateFunctions;
 					if (STRING_AGG_WITHIN_GROUP) { // true=WITHIN GROUP was specified
 						funcNameReport = StringAggWithinGroup;
 						String statusWG = featureSupportedInVersion(StringAggWithinGroup);
 						if (!statusWG.equals(u.Supported)) {
-							captureItem(StringAggWithinGroup, "", BuiltInFunctions, funcName, statusWG, lineNr);
+							captureItem(StringAggWithinGroup, "", AggregateFunctions, funcName, statusWG, lineNr);
 							captured = true;
 						}
 					}
@@ -2102,32 +2134,33 @@ public class CompassAnalyze {
 						if (!status.equals(u.Supported)) {
 							if (u.rewrite) {
 								String rewriteText = rewriteDirectReplace.get(rewriteDirectOrig.indexOf(funcName));
-								addRewrite(BuiltInFunctions, funcName, u.rewriteTypeReplace, rewriteText, startLine, startCharPositionInLine, stopLine, stopCharPositionInLine, startIndex, stopIndex);
-								status = u.Rewritten;
+								if (addRewrite(BuiltInFunctions, funcName, u.rewriteTypeReplace, rewriteText, startLine, startCharPositionInLine, stopLine, stopCharPositionInLine, startIndex, stopIndex))
+									status = u.Rewritten;
 							}
 							else {
-								String group = u.applyPatternFirst(BuiltInFunctions, "s$", "");
-								addRewrite(group + " " + funcNameReport);
+								String groupReport = u.applyPatternFirst(BuiltInFunctions, "s$", "");
+								addRewrite(groupReport + " " + funcNameReport);
 							}
 						}
 					}
 					else if (funcName.equals("EOMONTH") || funcName.equals("DATABASE_PRINCIPAL_ID")) {
-						if (u.rewrite) {
-							//String eomArg = argList.get(0).getText();
-							//String rewriteText = rewriteEOMonth.replaceAll(rewriteTag1, u.escapeRegexChars(eomArg));
-							//addRewrite(BuiltInFunctions, funcNameReport, u.rewriteTypeReplace, rewriteText, startLine, startCharPositionInLine, stopLine, stopCharPositionInLine, startIndex, stopIndex);
+						if (!status.equals(u.Supported)) {
+							if (u.rewrite) {
+								//String eomArg = argList.get(0).getText();
+								//String rewriteText = rewriteEOMonth.replaceAll(rewriteTag1, u.escapeRegexChars(eomArg));
+								//addRewrite(BuiltInFunctions, funcNameReport, u.rewriteTypeReplace, rewriteText, startLine, startCharPositionInLine, stopLine, stopCharPositionInLine, startIndex, stopIndex);
 
-							String rewriteText = rewriteEOMonth;
-							if (funcName.equals("DATABASE_PRINCIPAL_ID")) {
-								rewriteText = rewriteDbPrincipalID;
+								String rewriteText = rewriteEOMonth;
+								if (funcName.equals("DATABASE_PRINCIPAL_ID")) {
+									rewriteText = rewriteDbPrincipalID;
+								}
+								if (addRewrite(BuiltInFunctions, funcNameReport, u.rewriteTypeExpr2, rewriteText, startLine, startCharPositionInLine, stopLine, stopCharPositionInLine, startIndex, stopIndex))
+									status = u.Rewritten;
 							}
-							addRewrite(BuiltInFunctions, funcNameReport, u.rewriteTypeExpr2, rewriteText, startLine, startCharPositionInLine, stopLine, stopCharPositionInLine, startIndex, stopIndex);
-
-							status = u.Rewritten;
-						}
-						else {
-							String group = u.applyPatternFirst(BuiltInFunctions, "s$", "");
-							addRewrite(group + " " + funcNameReport);
+							else {
+								String groupReport = u.applyPatternFirst(BuiltInFunctions, "s$", "");
+								addRewrite(groupReport + " " + funcNameReport);
+							}
 						}
 					}
 					else if (dateBIFs.contains(funcName) && (argNum > 0) && (!statusArgN.equals(u.Supported))) {
@@ -2139,8 +2172,8 @@ public class CompassAnalyze {
 							if (rewriteDirectOrig.indexOf(mapStr.toUpperCase()) > -1) {
 								String rewriteText = rewriteDirectReplace.get(rewriteDirectOrig.indexOf(mapStr.toUpperCase()));
 								
-								addRewrite(BuiltInFunctions, funcName+"("+arg1Raw.getText()+")", u.rewriteTypeReplace, rewriteText, arg1Raw.start.getLine(), arg1Raw.start.getCharPositionInLine(), arg1Raw.stop.getLine(), arg1Raw.stop.getCharPositionInLine(), arg1Raw.start.getStartIndex(), arg1Raw.stop.getStopIndex());
-								status = u.Rewritten;				
+								if (addRewrite(BuiltInFunctions, funcName+"("+arg1Raw.getText()+")", u.rewriteTypeReplace, rewriteText, arg1Raw.start.getLine(), arg1Raw.start.getCharPositionInLine(), arg1Raw.stop.getLine(), arg1Raw.stop.getCharPositionInLine(), arg1Raw.start.getStartIndex(), arg1Raw.stop.getStopIndex()))
+									status = u.Rewritten;				
 							}				
 							else {
 								// unit is not supported, but no rewrite is available
@@ -2153,7 +2186,7 @@ public class CompassAnalyze {
 				}
 
 				if (!captured) {
-					captureItem(funcNameReport, funcDetail, BuiltInFunctions, funcName, status, lineNr);
+					captureItem(funcNameReport, funcDetail, groupCapture, funcName, status, lineNr);
 				}
 			}
 
@@ -2215,9 +2248,8 @@ public class CompassAnalyze {
 							if (u.rewrite) {
 								String rewriteText = rewriteNumericAsDate;
 								if (!CompassUtilities.getPatternGroup(expr.getText(), "(^[\\+\\-]*[0]+(\\.[0]*)?)$", 1).isEmpty()) rewriteText = rewriteNumericAsDateZero;
-								addRewrite(funcNameReportNumDate, expr.getText(), u.rewriteTypeExpr1, rewriteText, expr.start.getLine(), expr.start.getCharPositionInLine(), expr.stop.getLine(), expr.stop.getCharPositionInLine(),expr.start.getStartIndex(), expr.stop.getStopIndex());
-
-								statusNumDate = u.Rewritten;
+								if (addRewrite(funcNameReportNumDate, expr.getText(), u.rewriteTypeExpr1, rewriteText, expr.start.getLine(), expr.start.getCharPositionInLine(), expr.stop.getLine(), expr.stop.getCharPositionInLine(),expr.start.getStartIndex(), expr.stop.getStopIndex()))
+									statusNumDate = u.Rewritten;
 							}
 							else {
 								addRewrite(funcNameReportNumDate);
@@ -2247,9 +2279,8 @@ public class CompassAnalyze {
 							if (u.rewrite) {
 								String rewriteText = rewriteNumericAsDate;
 								if (!CompassUtilities.getPatternGroup(expr.getText(), "(^[\\+\\-]*[0]+(\\.[0]*)?)$", 1).isEmpty()) rewriteText = rewriteNumericAsDateZero;
-								addRewrite(NumericDateTimeVarAssign, expr.getText(), u.rewriteTypeExpr1, rewriteText, expr.start.getLine(), expr.start.getCharPositionInLine(), expr.stop.getLine(), expr.stop.getCharPositionInLine(), expr.start.getStartIndex(), expr.stop.getStopIndex());
-
-								statusNumDate = u.Rewritten;
+								if (addRewrite(NumericDateTimeVarAssign, expr.getText(), u.rewriteTypeExpr1, rewriteText, expr.start.getLine(), expr.start.getCharPositionInLine(), expr.stop.getLine(), expr.stop.getCharPositionInLine(), expr.start.getStartIndex(), expr.stop.getStopIndex()))
+									statusNumDate = u.Rewritten;
 							}
 							else {
 								addRewrite(NumericDateTimeVarAssign);
@@ -2444,7 +2475,7 @@ public class CompassAnalyze {
 				if (ctx.groupByAll != null) {
 					String status = featureSupportedInVersion(GroupByAll);
 					captureItem(GroupByAll, ctx.getText(), GroupByAll, "", status, ctx.start.getLine());
-				}
+				}			
 
 				CaptureXMLNameSpaces(ctx.parent, "SELECT", ctx.start.getLine());
 
@@ -2658,8 +2689,8 @@ public class CompassAnalyze {
 								if (u.rewrite) {
 									String rewriteText = parDft;
 									//u.appOutput(u.thisProc()+"param DEFAULT in procedure call procName=["+procName+"] parNo=["+parNo+"] parDft=["+parDft+"]");
-									addRewrite(itemTxt, procName, u.rewriteTypeReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.stop.getLine(), ctx.stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.stop.getStopIndex());
-									statusDft = u.Rewritten;	
+									if (addRewrite(itemTxt, procName, u.rewriteTypeReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.stop.getLine(), ctx.stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.stop.getStopIndex()))
+										statusDft = u.Rewritten;	
 								}	
 								else {
 									addRewrite(itemTxt);
@@ -2703,8 +2734,8 @@ public class CompassAnalyze {
 								if (!status.equals(u.Supported)) {
 									if (u.rewrite) {
 										String rewriteText = "'" + s + "'";
-										addRewrite(item, UnQuotedString, u.rewriteTypeReplace, rewriteText, startLine, startPos, stopLine, stopPos, startIndex, stopIndex);
-										status = u.Rewritten;
+										if (addRewrite(item, UnQuotedString, u.rewriteTypeReplace, rewriteText, startLine, startPos, stopLine, stopPos, startIndex, stopIndex))
+											status = u.Rewritten;
 									}
 									else {
 										addRewrite(item);
@@ -3216,6 +3247,7 @@ public class CompassAnalyze {
 				else if (hasParent(ctx.parent,"alter_table"))       riContext = "ALTER TABLE";
 				else if (hasParent(ctx.parent,"declare_statement")) riContext = "DECLARE @tableVariable";
 				else if (hasParent(ctx.parent,"create_type"))       riContext = "CREATE TYPE(table)";
+				else if (hasParent(ctx.parent,"create_or_alter_function")) riContext = "CREATE FUNCTION, table return type";	  // ToDo: could alo be ALTER FUNCTION
 
 				boolean desc = false;
 				if (ctx.column_name_list_with_order() != null) {
@@ -3408,9 +3440,11 @@ public class CompassAnalyze {
 				if (hasParent(ctx.parent,"declare_statement")) ixContext = "DECLARE @tableVariable";
 				else if (hasParent(ctx.parent,"create_type"))  ixContext = "CREATE TYPE(table)";
 
-				captureIndexOptions(ixName, ixType, ixContext, null);
+				if (!ixContext.equals(u.uninitialized)) {
+					captureIndexOptions(ixName, ixType, ixContext, null);
 
-				captureIndexConstraint(ixName, ixType, ixContext, ctx.clustered(), false, ctx.start.getLine());
+					captureIndexConstraint(ixName, ixType, ixContext, ctx.clustered(), false, ctx.start.getLine());
+				}
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -3489,9 +3523,8 @@ public class CompassAnalyze {
 									rewriteText += "("+col+")";
 								}
 
-								addRewrite(InlineIndex, ctx.getText(), u.rewriteTypeCommentAndAppend, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), tableCtx.stop.getLine(), tableCtx.stop.getCharPositionInLine(), ctx.start.getStartIndex(), tableCtx.stop.getStopIndex(), rwrID);
-
-								ixStatus = u.Rewritten;
+								if (addRewrite(InlineIndex, ctx.getText(), u.rewriteTypeCommentAndAppend, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), tableCtx.stop.getLine(), tableCtx.stop.getCharPositionInLine(), ctx.start.getStartIndex(), tableCtx.stop.getStopIndex(), rwrID))
+									ixStatus = u.Rewritten;
 							}
 							else {
 								addRewrite(InlineIndex+" in "+ixContext);
@@ -3589,8 +3622,8 @@ public class CompassAnalyze {
 								if (!status.equals(u.Supported)) {
 									if (u.rewrite) {
 										String rewriteText = rewriteDirectReplace.get(rewriteDirectOrig.indexOf(hash));
-										addRewrite(HashIndex, hash, u.rewriteTypeReplace, rewriteText, clustered.start.getLine(), clustered.start.getCharPositionInLine(), clustered.stop.getLine(), clustered.stop.getCharPositionInLine(), clustered.start.getStartIndex(), clustered.stop.getStopIndex());
-										status = u.Rewritten;
+										if (addRewrite(HashIndex, hash, u.rewriteTypeReplace, rewriteText, clustered.start.getLine(), clustered.start.getCharPositionInLine(), clustered.stop.getLine(), clustered.stop.getCharPositionInLine(), clustered.start.getStartIndex(), clustered.stop.getStopIndex()))
+											status = u.Rewritten;
 									}
 									else {
 										addRewrite(HashIndex);
@@ -3610,7 +3643,7 @@ public class CompassAnalyze {
 					}
 				}
 
-				if (type.startsWith("index")) { // lowercase i matters -- this is messy as we're callied with 'Index' as well as 'index'
+				if (type.startsWith("index")) { // lowercase i matters -- this is messy as we're called with 'Index' as well as 'index'
 					captureItem("CREATE " + type.toUpperCase(), "", u.ObjCountOnly, "", u.ObjCountOnly, 0, 0);
 					if (context.contains("CREATE TABLE") || context.contains("ALTER TABLE")) {
 						// table index
@@ -3791,7 +3824,8 @@ public class CompassAnalyze {
 	            	else if (ctx.IDENTITY() != null) {
 	            		String identityCol = "IDENTITY";
 	            		if (ctx.seed != null) {
-	            			identityCol = CompassUtilities.getPatternGroup(ctx.getText(), "^.*?(IDENTITY\\(.*?\\)).*$", 1);
+	            			identityCol = CompassUtilities.getPatternGroup(ctx.getText().toUpperCase(), "^.*?(IDENTITY\\(.*?\\)).*$", 1);
+	            			//u.appOutput(u.thisProc()+"seed identityCol=["+identityCol+"] ");
 	            		}
 	            		dataType += " " + identityCol;
 	            		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"IDENTITY in column_definition: colName=["+colName+"] dataType=["+dataType+"] identityCol=["+identityCol+"] ", u.debugPtree);
@@ -4017,9 +4051,11 @@ public class CompassAnalyze {
 					subcmd = "SET LOCK_ESCALATION";
 					status = featureSupportedInVersion(AlterTable, subcmd);
 				}
-				else if (ctx.file_table_option().size() >0) {
-					subcmd = u.escapeHTMLChars("SET <filetable>");
-					status = featureSupportedInVersion(AlterTable, "SET FILETABLE");
+				else if (ctx.file_table_option().size() > 0) {
+					// only taking the first option
+					String opt = ctx.file_table_option().get(0).id().keyword().getText().toUpperCase();
+					subcmd = u.escapeHTMLChars("SET "+opt);
+					status = featureSupportedInVersion(AlterTable, "SET "+opt);
 				}
 				else if (ctx.REBUILD() != null) {
 					subcmd = "REBUILD";
@@ -4058,8 +4094,8 @@ public class CompassAnalyze {
 								String rewriteText = "";
 								Integer rwrID = rewriteAlterTableAddMultiple(ctx);
 
-								addRewrite(AlterTableAddMultiple, ctx.getText(), u.rewriteTypeBlockReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.stop.getLine(), ctx.stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.stop.getStopIndex(), rwrID);
-								status = u.Rewritten;
+								if (addRewrite(AlterTableAddMultiple, ctx.getText(), u.rewriteTypeBlockReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.stop.getLine(), ctx.stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.stop.getStopIndex(), rwrID))
+									status = u.Rewritten;
 							}
 							else {
 								addRewrite(AlterTable+".."+AlterTableAddMultiple);
@@ -4864,8 +4900,8 @@ public class CompassAnalyze {
 												if (u.rewrite) {
 													String rewriteText = parDft;
 													//u.appOutput(u.thisProc()+"param DEFAULT in function call: funcName=["+funcName+"] parNo=["+parNo+"] parDft=["+parDft+"]");
-													addRewrite(itemTxt, funcName, u.rewriteTypeReplace, rewriteText, argList.get(i).start.getLine(), argList.get(i).start.getCharPositionInLine(), argList.get(i).stop.getLine(), argList.get(i).stop.getCharPositionInLine(), argList.get(i).start.getStartIndex(), argList.get(i).stop.getStopIndex());
-													statusDft = u.Rewritten;	
+													if (addRewrite(itemTxt, funcName, u.rewriteTypeReplace, rewriteText, argList.get(i).start.getLine(), argList.get(i).start.getCharPositionInLine(), argList.get(i).stop.getLine(), argList.get(i).stop.getCharPositionInLine(), argList.get(i).start.getStartIndex(), argList.get(i).stop.getStopIndex()))
+														statusDft = u.Rewritten;	
 												}						
 												else {
 													addRewrite(itemTxt);													
@@ -5600,8 +5636,8 @@ public class CompassAnalyze {
 					if (!status.equals(u.Supported)) {
 						if (u.rewrite) {													
 							String rewriteText = "";
-							addRewrite(ColonColonFunctionCall, funcName, u.rewriteTypeReplace, rewriteText, ctx.colon_colon().start.getLine(), ctx.colon_colon().start.getCharPositionInLine(), ctx.colon_colon().stop.getLine(), ctx.colon_colon().stop.getCharPositionInLine(), ctx.colon_colon().start.getStartIndex(), ctx.colon_colon().stop.getStopIndex());
-							status = u.Rewritten;
+							if (addRewrite(ColonColonFunctionCall, funcName, u.rewriteTypeReplace, rewriteText, ctx.colon_colon().start.getLine(), ctx.colon_colon().start.getCharPositionInLine(), ctx.colon_colon().stop.getLine(), ctx.colon_colon().stop.getCharPositionInLine(), ctx.colon_colon().start.getStartIndex(), ctx.colon_colon().stop.getStopIndex()))
+								status = u.Rewritten;
 						}
 						else {
 							addRewrite(ColonColonFunctionCall);
@@ -5802,23 +5838,43 @@ public class CompassAnalyze {
 				List<TSQLParser.Execute_var_string_optionContext> execVarOptions = ctx.execute_var_string_option();
 				for (int i = 0; i <execVarOptions.size(); i++) {
 					String optionRaw = execVarOptions.get(i).getText().toUpperCase();
+					String optionRawSpaced = getTextSpaced(execVarOptions.get(i)).toUpperCase().trim();
 					String option = optionRaw;
 					String optionValue = "";
 					String optionFmt = "";
-					if (optionRaw.startsWith("AT")) {
-						if (optionRaw.startsWith("ATDATA_SOURCE")) {
+					String execArg2 = "";
+					if (optionRawSpaced.startsWith("AT ")) {
+						if (optionRawSpaced.startsWith("AT DATA_SOURCE")) {
 							option = "AT DATA_SOURCE";
 							optionValue = optionRaw.substring("ATDATA_SOURCE".length());
 							optionFmt = u.escapeHTMLChars(" <data-source>");
 						}
 						else {
 							option = "AT";
-							optionValue = optionRaw.substring("AT".length());
+							optionValue = optionRawSpaced.substring("AT ".length());
 							optionFmt = u.escapeHTMLChars(" <linked-server>");
 						}
+						if (ctx.execarg2 != null) {
+							execArg2 = ", ";
+							String execArg2Str = ctx.execarg2.getText();
+							if (execArg2Str.charAt(0) == '@') {
+								execArg2 += "@var";
+								if (ctx.execarg2output != null) {
+									execArg2 += " OUTPUT";
+								}
+							}
+							else {
+								if (getIntegerConstant(execArg2Str) == null) {
+									execArg2 += "expression";
+								}
+								else {									
+									execArg2 += "number";
+								}
+							}
+						}
 					}
-					else if (optionRaw.startsWith("AS")) {
-						if (optionRaw.startsWith("ASLOGIN")) {
+					else if (optionRawSpaced.startsWith("AS ")) {
+						if (optionRawSpaced.startsWith("AS LOGIN")) {
 							option = "AS LOGIN";
 							optionValue = optionRaw.substring("ASLOGIN=".length());
 						}
@@ -5827,9 +5883,9 @@ public class CompassAnalyze {
 							optionValue = optionRaw.substring("ASUSER=".length());
 						}
 					}
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"execVarOptions i=["+i+"] option=["+option+"]  optionRaw=["+optionRaw+"]", u.debugPtree);
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"execVarOptions i=["+i+"] option=["+option+"]  optionRawSpaced=["+optionRawSpaced+"]", u.debugPtree);
 					String status = featureSupportedInVersion(ExecStringOptions,option);
-					captureItem("EXECUTE(string), "+option+optionFmt, optionValue, DynamicSQL, option, status, ctx.start.getLine());
+					captureItem("EXECUTE(string"+execArg2+"), "+option+optionFmt, optionValue, DynamicSQL, option, status, ctx.start.getLine());
 				}
 
 				visitChildren(ctx);
@@ -5863,6 +5919,7 @@ public class CompassAnalyze {
 			private void captureSystemproc(String procName, String return_status, String rule, Token proc_version, int lineNr, TSQLParser.Execute_statement_argContext arg) {
 				String section = ProceduresReportGroup;
 				String sysProcName = "";
+				String argMsg = "";
 				String firstStmt = "";
 				if (rule.equals("execute_body_batch")) firstStmt = " (without EXECUTE keyword)";
 
@@ -5924,9 +5981,32 @@ public class CompassAnalyze {
 							if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"featureExists: "+ " sysProcName=["+sysProcName+"]  ", u.debugPtree);
 							section = SystemStoredProcs;
 							String procStatus = featureSupportedInVersion(SystemStoredProcs, sysProcName);
-							if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"procStatus=["+procStatus+"]  sysProcName=["+sysProcName+"] ", u.debugPtree);
+							
+							if (procStatus.equals(u.Supported)) {
+								String argN = cfg.featureExistsArg(sysProcName);
+								if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"sysProcName=["+sysProcName+"] argN=["+argN+"] ", u.debugPtree);
+								
+								if (!argN.isEmpty()) {
+									String statusArgN = u.NotSupported;
+									int argNum = Integer.parseInt(argN.substring(3));
+									String argNValue = u.stripStringQuotes(getArgProcExec(argNum, procName, arg)).trim().toUpperCase();
+									if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"validating arg=["+argN+"] argNValue=["+argNValue+"] for system proc=["+sysProcName+"]", u.debugPtree);
+									if (!argNValue.isEmpty()) {
+										if (argNValue.charAt(0) != '@') {
+											statusArgN = featureArgSupportedInVersion(procName, argN, argNValue);
+											argMsg = ", '"+argNValue+"'";
+										}
+										else {
+											statusArgN = u.ReviewManually;
+											argMsg = ", @var";
+										}
+									}
+									procStatus = statusArgN;
+									if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"validating arg=["+argN+"] argNValue=["+argNValue+"] for system proc=["+sysProcName+"]: statusArgN=["+statusArgN+"] ", u.debugPtree);
+								}	
+							}
 
-							captureItem("EXECUTE procedure "+sysProcName+firstStmt+return_status, procName, SystemStoredProcs, sysProcName, procStatus, lineNr);
+							captureItem("EXECUTE procedure "+sysProcName+argMsg+firstStmt+return_status, procName, SystemStoredProcs, sysProcName, procStatus, lineNr);													
 						}
 						else {
 							//not found as a system proc, so it's a user-defined proc
@@ -6338,38 +6418,78 @@ public class CompassAnalyze {
 
 			@Override public String visitComparison_operator(TSQLParser.Comparison_operatorContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
-				// This is only for capturing compound operators containing whitespace
-				// NB: SQL Server does not allow whitespace inside compound assignment operators (+=, -=, etc.), so no need to test for those
+				
+				if ((ctx.MULT_ASSIGN() != null) || (ctx.EQUAL_STAR_OJ() != null)) {
+					// these are the *=, =*  TSQL OJ operators, they are reported elsewhere
+					return null; 
+				}
+
 				String op = ctx.getText();
 				// only for operators consisting of 2 chars:
-				if (op.length() < 2) return null;
+				if (op.length() < 2) {					
+					// these are all supported
+					String item = ComparisonOperator + " " + op;
+					captureItem(item, op, OperatorsReportGroup, "", u.Supported, ctx.start.getLine());	
+					return null;
+				}
 				
-				// is there any whitespace inside?
-				int ixStart = ctx.start.getStartIndex();
-				int ixStop = ctx.stop.getStopIndex();
-				if (ixStop - ixStart <= 1) return null;
-				
-				// is this operator listed? If not, whitespace inside is supported
-				if (featureExists(CompoundOpWhitespace,op)) {
-					String status = featureSupportedInVersion(CompoundOpWhitespace, op);
-					String item = CompoundOpWhitespaceFmt+"("+op+")";
-					if (!status.equals(u.Supported)) {
+				// check for unsupported operators
+				String opChk = op.replaceAll("\\s+", "");				
+				if (featureExists(ComparisonOperator,opChk)) {
+					String status = featureSupportedInVersion(ComparisonOperator, opChk);
+					String item = ComparisonOperator + " " + opChk;
+					if (!status.equals(u.Supported)) {						
 						if (u.rewrite) {
-							String rewriteText = op;
-							addRewrite(item, "", u.rewriteTypeReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.stop.getLine(), ctx.stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.stop.getStopIndex());
-							status = u.Rewritten;
+							String rewriteText = "";
+							if (opChk.equals("!<")) rewriteText = ">=";
+							if (opChk.equals("!>")) rewriteText = "<=";
+							if (!rewriteText.isEmpty()) {
+								if (addRewrite(item, "", u.rewriteTypeReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.stop.getLine(), ctx.stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.stop.getStopIndex()))
+									status = u.Rewritten;
+							}
+							else {
+								// somehow we're missing something here, so just report it								
+							}
 						}
 						else {
 							addRewrite(item);
 						}
-					}
+					}		
 					
-					captureItem(item, op, OperatorsReportGroup, "", status, ctx.start.getLine());
-				}
-				else {
-					// not listed, don't report
+					captureItem(item, op, OperatorsReportGroup, "", status, ctx.start.getLine());	
+					
+					// no children to visit															
+					return null;		
 				}
 				
+				// This is only for capturing compound operators containing whitespace
+				// NB: SQL Server does not allow whitespace inside compound assignment operators (+=, -=, etc.), so no need to test for those				
+				String status = featureSupportedInVersion(CompoundOpWhitespace, op);
+				String item = CompoundOpWhitespaceFmt+"("+op+")";				
+				int ixStart = ctx.start.getStartIndex();
+				int ixStop = ctx.stop.getStopIndex();
+				if (ixStop - ixStart <= 1) {
+					// these are all supported
+					item = ComparisonOperator + " " + op;
+					captureItem(item, op, OperatorsReportGroup, "", u.Supported, ctx.start.getLine());						
+					return null;
+				}
+				
+				// is this operator listed? If not, whitespace inside is supported
+				if (featureExists(CompoundOpWhitespace,op)) {
+					if (!status.equals(u.Supported)) {
+						if (u.rewrite) {
+							String rewriteText = op;
+							if (addRewrite(item, "", u.rewriteTypeReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.stop.getLine(), ctx.stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.stop.getStopIndex()))
+								status = u.Rewritten;
+						}
+						else {
+							addRewrite(item);
+						}
+					}					
+				}
+				captureItem(item, op, OperatorsReportGroup, "", status, ctx.start.getLine());
+									
 				// no children to visit
 				return null;
 			}		
@@ -6414,8 +6534,8 @@ public class CompassAnalyze {
 							}
 
 							if (!rewriteType.isEmpty()) {
-								addRewrite(ODBCScalarFunction, origText, rewriteType, rewriteText, ctx.L_CURLY().getSymbol().getLine(), ctx.L_CURLY().getSymbol().getCharPositionInLine(), ctx.R_CURLY().getSymbol().getLine(), ctx.R_CURLY().getSymbol().getCharPositionInLine(), ctx.L_CURLY().getSymbol().getStartIndex(), ctx.R_CURLY().getSymbol().getStopIndex());
-								status = u.Rewritten;
+								if (addRewrite(ODBCScalarFunction, origText, rewriteType, rewriteText, ctx.L_CURLY().getSymbol().getLine(), ctx.L_CURLY().getSymbol().getCharPositionInLine(), ctx.R_CURLY().getSymbol().getLine(), ctx.R_CURLY().getSymbol().getCharPositionInLine(), ctx.L_CURLY().getSymbol().getStartIndex(), ctx.R_CURLY().getSymbol().getStopIndex()))
+									status = u.Rewritten;
 							}
 						}
 						else {
@@ -6427,8 +6547,8 @@ public class CompassAnalyze {
 						if (rewriteDirectOrig.contains(f)) {
 							if (u.rewrite) {
 								String rewriteText = rewriteDirectReplace.get(rewriteDirectOrig.indexOf(f));
-								addRewrite(ODBCScalarFunction, origText, u.rewriteTypeReplace, rewriteText, ctx.L_CURLY().getSymbol().getLine(), ctx.L_CURLY().getSymbol().getCharPositionInLine(), ctx.R_CURLY().getSymbol().getLine(), ctx.R_CURLY().getSymbol().getCharPositionInLine(), ctx.L_CURLY().getSymbol().getStartIndex(), ctx.R_CURLY().getSymbol().getStopIndex());
-								status = u.Rewritten;
+								if (addRewrite(ODBCScalarFunction, origText, u.rewriteTypeReplace, rewriteText, ctx.L_CURLY().getSymbol().getLine(), ctx.L_CURLY().getSymbol().getCharPositionInLine(), ctx.R_CURLY().getSymbol().getLine(), ctx.R_CURLY().getSymbol().getCharPositionInLine(), ctx.L_CURLY().getSymbol().getStartIndex(), ctx.R_CURLY().getSymbol().getStopIndex()))
+									status = u.Rewritten;
 							}
 							else {
 								addRewrite(ODBCScalarFunction + " { fn " + funcName + "() }");
@@ -6456,8 +6576,8 @@ public class CompassAnalyze {
 							String rewriteText = rewriteDirectODBCfuncReplace.get(rewriteDirectODBCfuncOrig.indexOf(funcName));
 							String rewriteType = u.rewriteTypeODBClit1;  // only replace the function name, keep argumentS
 							if (!rewriteType.isEmpty()) {
-								addRewrite(ODBCLiterals, origText, rewriteType, rewriteText, ctx.L_CURLY().getSymbol().getLine(), ctx.L_CURLY().getSymbol().getCharPositionInLine(), ctx.R_CURLY().getSymbol().getLine(), ctx.R_CURLY().getSymbol().getCharPositionInLine(), ctx.L_CURLY().getSymbol().getStartIndex(), ctx.R_CURLY().getSymbol().getStopIndex());
-								status = u.Rewritten;
+								if (addRewrite(ODBCLiterals, origText, rewriteType, rewriteText, ctx.L_CURLY().getSymbol().getLine(), ctx.L_CURLY().getSymbol().getCharPositionInLine(), ctx.R_CURLY().getSymbol().getLine(), ctx.R_CURLY().getSymbol().getCharPositionInLine(), ctx.L_CURLY().getSymbol().getStartIndex(), ctx.R_CURLY().getSymbol().getStopIndex()))
+									status = u.Rewritten;
 							}
 						}
 						else {
@@ -7136,7 +7256,7 @@ public class CompassAnalyze {
 
 					if (parts.size() == 4) {
 						String serverName = u.getServerNameFromID(objName);
-						String status = featureSupportedInVersion(RemoteObjectReference);
+						String status = featureSupportedInVersion(RemoteObjectReference, stmt);
 						captureItem(RemoteObjectReference+" by "+stmt, objName+fmt, RemoteObjectReference, stmt, status, lineNr);
 					}
 				}
@@ -7796,8 +7916,8 @@ public class CompassAnalyze {
 							String rewriteText = "";
 							Integer rwrID = rewriteMerge(ctx);
 
-							addRewrite(MergeStmt, ctx.getText(), u.rewriteTypeBlockReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.final_char.getLine(), ctx.final_char.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.final_char.getStopIndex(), rwrID);
-							status = u.Rewritten;
+							if (addRewrite(MergeStmt, ctx.getText(), u.rewriteTypeBlockReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.final_char.getLine(), ctx.final_char.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.final_char.getStopIndex(), rwrID))
+								status = u.Rewritten;
 						}
 						else {
 							addRewrite(MergeStmt);
@@ -7913,7 +8033,7 @@ public class CompassAnalyze {
 			}
 
 			@Override public String visitAlter_partition_scheme(TSQLParser.Alter_partition_schemeContext ctx) {
-				capturePartitioning("ALTER PARTITION SCHEME", u.normalizeName(ctx.partition_scheme_name.getText()), ctx.start.getLine());
+				capturePartitioning("ALTER PARTITION SCHEME, NEXT USED", u.normalizeName(ctx.partition_scheme_name.getText()), ctx.start.getLine());
 				visitChildren(ctx);	return null;
 			}
 
@@ -7923,12 +8043,25 @@ public class CompassAnalyze {
 			}
 
 			@Override public String visitCreate_partition_function(TSQLParser.Create_partition_functionContext ctx) {
-				capturePartitioning("CREATE PARTITION FUNCTION", u.normalizeName(ctx.partition_function_name.getText()), ctx.start.getLine());
+				String rl = "RIGHT";
+				if (ctx.LEFT() != null) rl = "LEFT";	
+							
+				String pfValues = "";
+				if (ctx.expression_list() != null) {  // should never be null
+					String dt = ctx.data_type().getText().toUpperCase();
+					dt = u.normalizeName(dt, "datatype");
+					pfValues = ", for " + argListCount(ctx.expression_list()) + " " + dt + " values";
+				}
+				
+				capturePartitioning("CREATE PARTITION FUNCTION, RANGE "+rl+pfValues, u.normalizeName(ctx.partition_function_name.getText()), ctx.start.getLine());
 				visitChildren(ctx);	return null;
 			}
 
 			@Override public String visitAlter_partition_function(TSQLParser.Alter_partition_functionContext ctx) {
-				capturePartitioning("ALTER PARTITION FUNCTION", u.normalizeName(ctx.partition_function_name.getText()), ctx.start.getLine());
+				String sm = "SPLIT RANGE";
+				if (ctx.MERGE() != null) sm = "MERGE RANGE";	
+								
+				capturePartitioning("ALTER PARTITION FUNCTION, "+sm, u.normalizeName(ctx.partition_function_name.getText()), ctx.start.getLine());
 				visitChildren(ctx);	return null;
 			}
 
@@ -8002,8 +8135,8 @@ public class CompassAnalyze {
 							if (isString) rewriteText += nrSeconds;
 							else rewriteText += waitForDelayVar;
 							if (!isString) rewriteText += "\nEND\n";
-							addRewrite(WaitForStmt + " DELAY", ctx.getText(), u.rewriteTypeReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.expression().stop.getLine(), ctx.expression().stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.expression().stop.getStopIndex());
-							status = u.Rewritten;
+							if (addRewrite(WaitForStmt + " DELAY", ctx.getText(), u.rewriteTypeReplace, rewriteText, ctx.start.getLine(), ctx.start.getCharPositionInLine(), ctx.expression().stop.getLine(), ctx.expression().stop.getCharPositionInLine(), ctx.start.getStartIndex(), ctx.expression().stop.getStopIndex()))
+								status = u.Rewritten;
 						}
 						else {
 							addRewrite(WaitForStmt + " DELAY");
@@ -9020,8 +9153,8 @@ public class CompassAnalyze {
 						if (u.rewrite) {
 							String s = ctx.no_cache.getText() + " " + ctx.no_cache_kwd.getText();
 							String rewriteText = "";
-							addRewrite(DDLReportGroup, "NO CACHE", u.rewriteTypeReplace, rewriteText, ctx.no_cache.getLine(), ctx.no_cache.getCharPositionInLine(), ctx.no_cache_kwd.getLine(), ctx.no_cache_kwd.getCharPositionInLine(), ctx.no_cache.getStartIndex(), ctx.no_cache_kwd.getStopIndex());
-							status = u.Rewritten;
+							if (addRewrite(DDLReportGroup, "NO CACHE", u.rewriteTypeReplace, rewriteText, ctx.no_cache.getLine(), ctx.no_cache.getCharPositionInLine(), ctx.no_cache_kwd.getLine(), ctx.no_cache_kwd.getCharPositionInLine(), ctx.no_cache.getStartIndex(), ctx.no_cache_kwd.getStopIndex()))
+								status = u.Rewritten;
 							captureItem("Option NO CACHE in CREATE SEQUENCE", "", DDLReportGroup, "", status, ctx.start.getLine());
 							noCache = null;
 						}
@@ -9047,8 +9180,8 @@ public class CompassAnalyze {
 						if (u.rewrite) {
 							String s = ctx.no_cache.getText() + " " + ctx.no_cache_kwd.getText();
 							String rewriteText = "";
-							addRewrite(DDLReportGroup, "NO CACHE", u.rewriteTypeReplace, rewriteText, ctx.no_cache.getLine(), ctx.no_cache.getCharPositionInLine(), ctx.no_cache_kwd.getLine(), ctx.no_cache_kwd.getCharPositionInLine(), ctx.no_cache.getStartIndex(), ctx.no_cache_kwd.getStopIndex());
-							status = u.Rewritten;
+							if (addRewrite(DDLReportGroup, "NO CACHE", u.rewriteTypeReplace, rewriteText, ctx.no_cache.getLine(), ctx.no_cache.getCharPositionInLine(), ctx.no_cache_kwd.getLine(), ctx.no_cache_kwd.getCharPositionInLine(), ctx.no_cache.getStartIndex(), ctx.no_cache_kwd.getStopIndex()))
+								status = u.Rewritten;
 							captureItem("Option NO CACHE in ALTER SEQUENCE", "", DDLReportGroup, "", status, ctx.start.getLine());
 							noCache = null;
 						}

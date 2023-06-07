@@ -25,6 +25,9 @@ public class CompassConfig {
 
 	// must be the first section in the .cfg file:
 	static final String Babelfish_Compass_Name = "Babelfish for T-SQL";
+	
+	// section for effort estimate defaults
+	static final String EffortEstimateDefaultSection = "Effort Estimate Defaults";
 
 	static List<String> Babelfish_VersionList = new ArrayList<>();
 	static Map<String, Map<String, List<String>>> sectionList = new LinkedHashMap<>();
@@ -48,11 +51,12 @@ public class CompassConfig {
     static final String reportGroupTag        = "REPORT_GROUP";
     static final String supportedTag          = "SUPPORTED";
     static final String ignoredTag            = "IGNORED";
+    static final String reviewSemanticsTag    = "REVIEWSEMANTICS";
     static final String ruleTag               = "RULE";
     static final String versionAliasTag       = "VERSION_ALIAS";
     static final String complexityTag         = "COMPLEXITY_SCORE";  
     static final String complexityUndefined   = "";  
-    static final String complexityPattern     = "^((low|medium|high)|((\\-|\\+)?(\\d+)))$";
+    static final String complexityPattern     = "^((low|medium|high|refactor)|((\\-|\\+)?(\\d+)))$";
     static final int complexityPatternGrpCfg         = 2;
     static final int complexityPatternGrpUserCfg     = 1;
     static final int complexityPatternGrpUserCfgNum  = 3;
@@ -60,6 +64,12 @@ public class CompassConfig {
     static final String complexityPatternHelpUserCfg = "low/medium/high, or a number"; 
     static final int maxComplexityValue       = 100;         
     static final String effortTag             = "EFFORT_ESTIMATE";
+    static final String effortTagDftTag       = "EFFORT_ESTIMATE_DEFAULT_";
+    static final String effortTagDftRefactor  = effortTagDftTag + "REFACTOR";
+    static final String effortTagDftHigh      = effortTagDftTag + "HIGH";
+    static final String effortTagDftMedium    = effortTagDftTag + "MEDIUM";
+    static final String effortTagDftLow       = effortTagDftTag + "LOW";
+    static Map<String, String> effortEstimateDefault      = new LinkedHashMap<>();
     static final String effortPatternUnit     = "(d|day|days|h|hr|hrs|hour|hours|m|min|mins|minute|minutes)";
     static final String effortPattern         = "^(\\d+)"+effortPatternUnit+"$";
     static final String effortPatternHelp     = "<number>"+effortPatternUnit;
@@ -295,7 +305,9 @@ public class CompassConfig {
 			if (!status.equals(u.Supported)) {
 				status = featureDefaultStatus(section);				
 			}		
-		}
+		}		
+		setLastCfgCheck(section, arg+"="+argValue, status);
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " result: section=[" + section + "]  requestVersion=[" + requestVersion + "] arg=[" + arg + "] argValue=[" + argValue + "] status=["+status+"] ", u.debugCfg);
 		return status;
 	}
 
@@ -752,7 +764,7 @@ public class CompassConfig {
 
 	// convert effort to minutes; regex has already been verified
 	public static Integer convertEffortValue (String effortValue) {		
-		if (effortValue.equalsIgnoreCase(effortUndefined) || effortValue.isEmpty()) {
+		if (effortValue.equalsIgnoreCase(effortUndefined) || effortValue.trim().isEmpty()) {
 			return 0;
 		}		
 		int effortMinutes = 0;
@@ -1096,26 +1108,35 @@ public class CompassConfig {
 			u.errorExitStackTrace();
 		}
 		
-		if (u.debugging) u.dbgOutput(" ", u.debugCfg);
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "=== dumping "+ typeStr +" config ================= ", u.debugCfg);
-		if (u.debugging) u.dbgOutput("=== sections: ================= ", u.debugCfg);
-		for (String section : cfgSectionList.keySet()) {
-			if (u.debugging) u.dbgOutput("  section=[" + section + "] ", u.debugCfg);
-		}
-		if (u.debugging) u.dbgOutput("=== Nr. sections: " + cfgSectionList.size() + " ================= ", u.debugCfg);
-		if (u.debugging) u.dbgOutput("", u.debugCfg);
-		if (u.debugging) u.dbgOutput("=== keys: ================= ", u.debugCfg);
-		
-		for (String sectionName : cfgSectionList.keySet()) {
-			Map<String, List<String>> featureList = cfgSectionList.get(sectionName);
-			for (String key : featureList.keySet()) {
-				nrKeys++;
-				List<String> thisList = featureList.get(key);
-				if (u.debugging) u.dbgOutput("  key=[" + sectionName + "/" + key + "] item list=[" + thisList + "]  ", u.debugCfg);
+		if (u.debugging) {
+			u.dbgOutput(" ", u.debugCfg);
+			u.dbgOutput(CompassUtilities.thisProc() + "=== dumping "+ typeStr +" config ================= ", u.debugCfg);		
+			if (type.equals(effortTag)) {
+				u.dbgOutput("=== effort estimate defaults: ================= ", u.debugCfg);
+				for (String ek : effortEstimateDefault.keySet()) {
+					String ed = effortEstimateDefault.get(ek);
+					u.dbgOutput("  Effort Estimate default for complexity=" + ek + ": "+ed+"", u.debugCfg);
+				}				
 			}
+			u.dbgOutput("=== sections: ================= ", u.debugCfg);
+			for (String section : cfgSectionList.keySet()) {
+				u.dbgOutput("  section=[" + section + "] ", u.debugCfg);
+			}
+			u.dbgOutput("=== Nr. sections: " + cfgSectionList.size() + " ================= ", u.debugCfg);
+			u.dbgOutput("", u.debugCfg);
+		    u.dbgOutput("=== keys: ================= ", u.debugCfg);
+			
+			for (String sectionName : cfgSectionList.keySet()) {
+				Map<String, List<String>> featureList = cfgSectionList.get(sectionName);
+				for (String key : featureList.keySet()) {
+					nrKeys++;
+					List<String> thisList = featureList.get(key);
+					u.dbgOutput("  key=[" + sectionName + "/" + key + "] item list=[" + thisList + "]  ", u.debugCfg);
+				}
+			}
+			u.dbgOutput("=== Nr. keys: " + nrKeys + " ================= ", u.debugCfg);
+			u.dbgOutput(CompassUtilities.thisProc() + "======= end "+ typeStr +" config ================= ", u.debugCfg);
 		}
-		if (u.debugging) u.dbgOutput("=== Nr. keys: " + nrKeys + " ================= ", u.debugCfg);
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "======= end "+ typeStr +" config ================= ", u.debugCfg);
 	}
 
 	private static boolean matchWildcard(String sectionName, String s, List<String> allItems) {
@@ -1351,6 +1372,50 @@ public class CompassConfig {
 
 					thisKey = createKey(ignoredTag, v);
 				}				
+				// key: 'ReviewSemantics' values
+				else if (optionKey.startsWith(reviewSemanticsTag)) {
+					String vRaw = optionKey.substring(reviewSemanticsTag.length() + 1);
+					String v = "", vMax = "";
+					Matcher matcher = u.getMatcher(vRaw, "^([\\d]+(\\.([\\d]+|\\*))+)(" + cRangeSeparator + "([\\d]+(\\.([\\d]+|\\*))+))?$");
+					if (matcher != null && matcher.find()) {
+						v = matcher.group(1);
+						vMax = matcher.group(5);
+						if (vMax == null) {
+							vMax = "";
+						}
+					}
+					if (u.debugging) u.dbgOutput(reviewSemanticsTag + "-version key: optionKey=[" + optionKey + "] vRaw=[" + vRaw + "] version=[" + v + "] vMax=[" + vMax + "] ", u.debugCfg);
+
+					if (v.isEmpty()) {
+						cfgFileValid = false;
+						cfgOutput("Invalid version (empty) in [" + sectionName + "/" + optionKey + "]");
+						continue;
+					}
+
+					if (!isValidBabelfishVersion(v)) {
+						cfgFileValid = false;
+						versionInvalid = true;
+						cfgOutput("Invalid version '" + v + "' in [" + sectionName + "/" + optionKey + "]");
+						continue;
+					}
+
+					if (!vMax.isEmpty()) {
+						if (!isValidBabelfishVersionWithStar(vMax)) {
+							cfgFileValid = false;
+							versionInvalid = true;
+							cfgOutput("Invalid version '" + vMax + "' in [" + sectionName + "/" + optionKey + "]");
+							continue;
+						}
+						if (!isLowerOrEqualBabelfishVersion(v, vMax)) {
+							cfgFileValid = false;
+							cfgOutput("Version " + vMax + " cannot be lower than " + v + " in [" + sectionName + "/" + optionKey + "]");
+							continue;
+						}
+						v = v + ("-") + (vMax);
+					}
+
+					thisKey = createKey(reviewSemanticsTag, v);
+				}				
 				// key: 'default_classification' items
 				else if (optionKey.startsWith(defaultStatusTag)) {
 					// values in supportOptionsCfgFile have been converted to uppercase
@@ -1551,7 +1616,9 @@ public class CompassConfig {
 				// check items in 'supported-XXX', 'report_group-xxx', default_classification-XXX'  are in the listValues key (if a list exists)
 				if (optionKey.startsWith(supportedTag+subKeySeparator) || 
 				    optionKey.startsWith(reportGroupTag+subKeySeparator) ||
-				    optionKey.startsWith(defaultStatusTag+subKeySeparator)
+				    optionKey.startsWith(defaultStatusTag+subKeySeparator) ||
+				    optionKey.startsWith(ignoredTag+subKeySeparator) ||
+				    optionKey.startsWith(reviewSemanticsTag+subKeySeparator)
 				   ) {					
 					boolean itemValid = validateItemsListed("", optionKey, optionVal, thisKey, sectionName, featureList, theseItems);				
 					cfgFileValid = cfgFileValid & itemValid;
@@ -1625,6 +1692,7 @@ public class CompassConfig {
 				
 		// user .cfg file
 		boolean userCfgFileValid = validateUserCfgFile(pUserCfgFileName); 
+		
 		if (u.debugCfg) {
 			// this output may not get into the session log at that may nto be opened yet at this point
 			dumpCfg("user");
@@ -1653,26 +1721,34 @@ public class CompassConfig {
 	    }
                 
         if (!userCfgFile.exists()) {
-        	u.appOutput("Creating user configuration file "+userConfigFilePathName);
-        	
-			u.openUserCfgFileNew(userConfigFileName);	
-			for (String s : cfgSections) {
-				if (s.equals(Babelfish_Compass_Name)) continue;
-				u.writeUserCfgFile("["+s+"]\n\n");
-			}
-			u.closeUserCfgFile();	    			    	
+        	if (pUserCfgFileName.equals(u.optimisticUserCfgFileName)) {
+        		// don't create a new optimistic .cfg file, this should only come from the distributed copy
+        	}
+        	else {
+	        	u.appOutput("Creating user configuration file "+userConfigFilePathName);
+	        	
+				u.openUserCfgFileNew(userConfigFileName);	
+				for (String s : cfgSections) {
+					if (s.equals(Babelfish_Compass_Name)) continue;
+					u.writeUserCfgFile("["+s+"]\n\n");
+				}
+				u.closeUserCfgFile();
+			}	    			    	
         }
         else {
         	// read and validate contents of user .cfg file
         	u.appOutput("Reading "+userConfigFilePathName);
-			userCfg = getCfg(userConfigFilePathName, true);    
+			userCfg = getCfg(userConfigFilePathName, true);  			
 			for (String sectionName: userCfg.keySet()) {         
 				Map<String, String> section = userCfg.get(sectionName);
 				//u.appOutput("sectionName=[" + sectionName + "]");
 				if (!sectionList.containsKey(sectionName.toUpperCase())) {
-					cfgOutput(userConfigFilePathName, "section ["+sectionName+"] not found in " + configFilePathName);
-					cfgFileValid = false;
-					continue;
+					// the only section not in the main feature .cfg file is for default effort estimates
+					if (!sectionName.equalsIgnoreCase(EffortEstimateDefaultSection)) {
+						cfgOutput(userConfigFilePathName, "section ["+sectionName+"] not found in " + configFilePathName);
+						cfgFileValid = false;
+						continue;
+					}
 				}
 
 				for (String optionKey : section.keySet()) {
@@ -1733,6 +1809,32 @@ public class CompassConfig {
 						}
 					} 
 					// key: 'effort_estimate' items
+					else if (optionKey.equals(effortTagDftHigh) || optionKey.equals(effortTagDftMedium) || optionKey.equals(effortTagDftLow) || optionKey.equals(effortTagDftRefactor)) {
+						optionVal = optionVal.replaceAll(" ", "");
+						if (optionVal.isEmpty()) {
+							cfgOutput(userConfigFilePathName, "Invalid effort key '" + effortTag + "=': value cannot be blank");
+							cfgFileValid = false;
+						} 									
+						else if (!u.getPatternGroup(optionVal, effortPattern, 1).isEmpty()) {
+							if (!validateEffortValue(optionVal)) {
+								cfgFileValid = false;
+								continue;
+							}
+						}
+						else {
+							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + effortTag + "=': value [" + optionVal + "], must be " + effortPatternHelp);
+							cfgFileValid = false;
+							continue;
+						}					
+						
+						String tmpComplexity = "";
+						if (optionKey.equals(effortTagDftHigh))   tmpComplexity = "HIGH";
+						if (optionKey.equals(effortTagDftMedium)) tmpComplexity = "MEDIUM";
+						if (optionKey.equals(effortTagDftLow))    tmpComplexity = "LOW";
+						if (optionKey.equals(effortTagDftRefactor)) tmpComplexity = "REFACTOR";
+						effortEstimateDefault.put(tmpComplexity, optionVal);
+						continue;  // don't store in a key
+					}	
 					else if (optionKey.equals(effortTag)) {	
 						optionVal = optionVal.replaceAll(" ", "");
 						if (optionVal.isEmpty()) {
@@ -2021,7 +2123,16 @@ public class CompassConfig {
 				continue;
 			}
 			if (sectionName == null) {
-				printError(nrLine, line, "No section defined before key-value pairs");
+				boolean printed = false;
+				//u.appOutput(u.thisProc()+"sectionName=["+sectionName+"] isUserCfg=["+isUserCfg+"] line=["+line+"] ");
+				if (isUserCfg) {
+					if (line.toUpperCase().startsWith(effortTagDftTag.toUpperCase())) {
+						printError(nrLine, line, "Insert a section '["+EffortEstimateDefaultSection+"]' before effort estimate defaults");
+						printed = true;
+					}
+				}
+				
+				if (!printed) printError(nrLine, line, "No section defined before key-value pairs");
 			}
 			int equalSignIndex = line.indexOf('=');
 			if (equalSignIndex == -1) {

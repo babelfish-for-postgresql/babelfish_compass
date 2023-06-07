@@ -427,7 +427,7 @@ alter_assembly_client_file_clause
 
 assembly_option
     : PERMISSION_SET EQUAL (SAFE|EXTERNAL_ACCESS|UNSAFE)
-    | VISIBILITY EQUAL (ON | OFF)
+    | VISIBILITY EQUAL on_off
     | UNCHECKED DATA
     ;
 
@@ -451,7 +451,7 @@ local_drive
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/create-assembly-transact-sql
 create_assembly
     : CREATE ASSEMBLY assembly_name=id (AUTHORIZATION owner_name=id)?
-       FROM (COMMA? (char_string|hex_string) (AS id)? )+
+       FROM (COMMA? (expression) (AS id)? )+
        (WITH PERMISSION_SET EQUAL (SAFE|EXTERNAL_ACCESS|UNSAFE) )?
     ;
 
@@ -525,7 +525,7 @@ alter_availability_group
     ;
 
 alter_availability_group_options
-    : SET LR_BRACKET ( ( AUTOMATED_BACKUP_PREFERENCE EQUAL ( PRIMARY | SECONDARY_ONLY| SECONDARY | NONE )  | FAILURE_CONDITION_LEVEL  EQUAL DECIMAL   | HEALTH_CHECK_TIMEOUT EQUAL milliseconds=DECIMAL  | DB_FAILOVER  EQUAL ( ON | OFF )   | REQUIRED_SYNCHRONIZED_SECONDARIES_TO_COMMIT EQUAL DECIMAL ) RR_BRACKET )
+    : SET LR_BRACKET ( ( AUTOMATED_BACKUP_PREFERENCE EQUAL ( PRIMARY | SECONDARY_ONLY| SECONDARY | NONE )  | FAILURE_CONDITION_LEVEL  EQUAL DECIMAL   | HEALTH_CHECK_TIMEOUT EQUAL milliseconds=DECIMAL  | DB_FAILOVER  EQUAL on_off   | REQUIRED_SYNCHRONIZED_SECONDARIES_TO_COMMIT EQUAL DECIMAL ) RR_BRACKET )
     | ADD DATABASE database_name=id
     | REMOVE DATABASE database_name=id
     | ADD REPLICA ON server_instance=char_string (WITH LR_BRACKET ( (ENDPOINT_URL EQUAL char_string)?   (COMMA? AVAILABILITY_MODE EQUAL (SYNCHRONOUS_COMMIT| ASYNCHRONOUS_COMMIT))?    (COMMA? FAILOVER_MODE EQUAL (AUTOMATIC|MANUAL) )?  (COMMA?   SEEDING_MODE EQUAL (AUTOMATIC|MANUAL) )?  (COMMA?  BACKUP_PRIORITY EQUAL DECIMAL)?  ( COMMA? PRIMARY_ROLE LR_BRACKET ALLOW_CONNECTIONS EQUAL ( READ_WRITE | ALL ) RR_BRACKET)?   ( COMMA? SECONDARY_ROLE LR_BRACKET ALLOW_CONNECTIONS EQUAL ( READ_ONLY  ) RR_BRACKET )? )
@@ -582,7 +582,7 @@ drop_broker_priority
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-certificate-transact-sql
 alter_certificate
-    : ALTER CERTIFICATE certificate_name=id (REMOVE PRIVATE_KEY | WITH PRIVATE KEY LR_BRACKET ( FILE EQUAL char_string COMMA? | DECRYPTION BY PASSWORD EQUAL char_string COMMA?| ENCRYPTION BY PASSWORD EQUAL char_string  COMMA?)+ RR_BRACKET | WITH ACTIVE FOR BEGIN_DIALOG EQUAL ( ON | OFF ) )
+    : ALTER CERTIFICATE certificate_name=id (REMOVE PRIVATE_KEY | WITH PRIVATE KEY LR_BRACKET ( FILE EQUAL char_string COMMA? | DECRYPTION BY PASSWORD EQUAL char_string COMMA?| ENCRYPTION BY PASSWORD EQUAL char_string  COMMA?)+ RR_BRACKET | WITH ACTIVE FOR BEGIN_DIALOG EQUAL on_off )
     ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-column-encryption-key-transact-sql
@@ -982,7 +982,7 @@ event_session_predicate_factor
     ;
 
 event_session_predicate_leaf
-    : (event_field_name=id | (event_field_name=id |( ((event_module_guid=id DOT)?  event_package_name=id DOT)? predicate_source_name=id ) ) (EQUAL |(LESS GREATER) | (EXCLAMATION EQUAL) | GREATER  | (GREATER EQUAL)| LESS | LESS EQUAL) expression )
+    : (event_field_name=id | (event_field_name=id |( ((event_module_guid=id DOT)?  event_package_name=id DOT)? predicate_source_name=id ) ) (EQUAL | LIKE |(LESS GREATER) | (EXCLAMATION EQUAL) | GREATER  | (GREATER EQUAL)| LESS | LESS EQUAL) expression )
     | (event_module_guid=id DOT)?  event_package_name=id DOT predicate_compare_name=id LR_BRACKET (event_field_name=id |( ((event_module_guid=id DOT)?  event_package_name=id DOT)? predicate_source_name=id ) COMMA  expression ) RR_BRACKET
     ;
 
@@ -1320,6 +1320,8 @@ create_security_policy
              )?
              for_replication?
     ;
+    
+// ToDo: ALTER SECURITY POLICY
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-sequence-transact-sql
 alter_sequence
@@ -2061,12 +2063,13 @@ function_option
 // https://msdn.microsoft.com/en-us/library/ms188038.aspx
 create_statistics
     : CREATE STATISTICS id ON table_name LR_BRACKET column_name_list RR_BRACKET
+     (WHERE where=search_condition)?
      (WITH statistics_option (COMMA? statistics_option)*)? 
  SEMI?
     ;
 
 update_statistics
-    : UPDATE STATISTICS table_name (LR_BRACKET column_name_list RR_BRACKET)?
+    : UPDATE STATISTICS table_name (index_name=id | LR_BRACKET column_name_list RR_BRACKET)?
       (WITH statistics_option (COMMA? statistics_option)*)?
  SEMI?
     ;
@@ -2079,7 +2082,7 @@ statistics_option
     | (ALL|COLUMNS|INDEX)
     | NORECOMPUTE
     | INCREMENTAL EQUAL on_off
-    | AUTO_DROP	 EQUAL on_off
+    | AUTO_DROP	EQUAL on_off
     | maxdop_option
     ;
 
@@ -2156,7 +2159,7 @@ alter_table
 	    | SET LR_BRACKET FILESTREAM_ON EQUAL storage_partition_clause RR_BRACKET
 	    | SET LR_BRACKET file_table_option (COMMA file_table_option)* RR_BRACKET
 	    | SET LR_BRACKET LOCK_ESCALATION EQUAL (AUTO | TABLE | DISABLE) RR_BRACKET
-	    | REBUILD table_options?
+	    | REBUILD (PARTITION EQUAL (ALL|expression))? table_options?
        )
     ;
 
@@ -2250,10 +2253,10 @@ alter_database_scoped_configuration
 
 auto_option
     : AUTO_CLOSE on_off
-    | AUTO_CREATE_STATISTICS ( OFF | ON ( INCREMENTAL EQUAL ON | OFF )? )
+    | AUTO_CREATE_STATISTICS ( OFF | ON ( INCREMENTAL EQUAL on_off )? )
     | AUTO_SHRINK on_off
     | AUTO_UPDATE_STATISTICS on_off
-    | AUTO_UPDATE_STATISTICS_ASYNC  (ON | OFF )
+    | AUTO_UPDATE_STATISTICS_ASYNC on_off
     ;
 
 accelerated_database_recovery
@@ -2261,12 +2264,13 @@ accelerated_database_recovery
     ;
 
 change_tracking_option
-    : CHANGE_TRACKING  EQUAL ( OFF | ON (change_tracking_option_list (COMMA change_tracking_option_list)*)*  )
+    : CHANGE_TRACKING EQUAL OFF 
+    | CHANGE_TRACKING (EQUAL ON)?  LR_BRACKET change_tracking_option_list (COMMA change_tracking_option_list)* RR_BRACKET 
     ;
 
 change_tracking_option_list
     : AUTO_CLEANUP EQUAL on_off
-    | CHANGE_RETENTION EQUAL ( DAYS | HOURS | MINUTES )
+    | CHANGE_RETENTION EQUAL expression ( DAYS | HOURS | MINUTES )
     ;
 
 containment_option
@@ -2486,8 +2490,8 @@ service_broker_option:
 
 snapshot_option
     : ALLOW_SNAPSHOT_ISOLATION on_off
-    | READ_COMMITTED_SNAPSHOT (ON | OFF )
-    | MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT = (ON | OFF )
+    | READ_COMMITTED_SNAPSHOT on_off
+    | MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT EQUAL on_off
     ;
 
 sql_option
@@ -2565,6 +2569,7 @@ create_type
     : CREATE TYPE name=simple_name
       (FROM data_type null_notnull? default_value=expression?)?
       (AS TABLE LR_BRACKET column_def_table_constraints (COMMA? inline_index)* RR_BRACKET)?
+      table_options?
     ;
 
 drop_type:
@@ -2852,7 +2857,7 @@ execute_body_batch
 
 execute_body
     : (return_status=LOCAL_ID EQUAL)? (func_proc_name_server_database_schema (SEMI proc_version=DECIMAL)? | proc_var=LOCAL_ID)  execute_statement_arg? (WITH execute_option (COMMA execute_option)* )?
-    | LR_BRACKET execute_var_string (PLUS execute_var_string)* RR_BRACKET (execute_var_string_option (COMMA execute_var_string_option)* )?
+    | LR_BRACKET execute_var_string (PLUS execute_var_string)* (COMMA execarg2=expression execarg2output=(OUT | OUTPUT)? )? RR_BRACKET (execute_var_string_option (COMMA execute_var_string_option)* )?
     ;
 
 execute_var_string_option
@@ -3023,7 +3028,7 @@ principal_id
 create_certificate
     : CREATE CERTIFICATE certificate_name=id (AUTHORIZATION user_name=id)?
       (FROM existing_keys | generate_new_keys)
-      (ACTIVE FOR BEGIN DIALOG  EQUAL  (ON | OFF))?
+      (ACTIVE FOR BEGIN DIALOG EQUAL on_off)?
     ;
 
 existing_keys
@@ -3209,7 +3214,7 @@ column_definition
     ;
 
 inline_index
-    : INDEX id UNIQUE? clustered? COLUMNSTORE? (LR_BRACKET column_name_list_with_order RR_BRACKET)?
+    : INDEX id UNIQUE? clustered? HASH? COLUMNSTORE? (LR_BRACKET column_name_list_with_order RR_BRACKET)?
       (WHERE where=search_condition)?
       with_index_options?
       (ON storage_partition_clause)?
@@ -3254,8 +3259,9 @@ system_versioning_option
     | LEDGER EQUAL on_off sub_options?
     | DATA_CONSISTENCY_CHECK EQUAL on_off
     | HISTORY_RETENTION_PERIOD EQUAL ( INFINITE | DECIMAL (DAY|DAYS|WEEK|WEEKS|MONTH|MONTHS|YEAR|YEARS) )
+    | APPEND_ONLY EQUAL on_off
     | history_table_option
-    ;
+    ; 
 
 history_table_option
     : HISTORY_TABLE EQUAL table_name
@@ -3437,6 +3443,7 @@ expression
     | over_clause                                                               #over_clause_expr
     | odbc_literal                                                              #odbc_literal_expr
     | DOLLAR_ACTION                                                             #dollar_action_expr
+    | QUESTION_MARK                                                             #question_mark_expr   // is placeholder in some cases
     ;
 
 method_call
@@ -3641,6 +3648,7 @@ option
     | FAST number_rows=DECIMAL
     | FORCE ORDER
     | IGNORE_NONCLUSTERED_COLUMNSTORE_INDEX
+    | LABEL EQUAL expression
     | MAX_GRANT_PERCENT EQUAL expression
     | MIN_GRANT_PERCENT EQUAL expression
     | MAXDOP number_of_processors=DECIMAL
@@ -3788,7 +3796,7 @@ freetext_function
 
 freetext_predicate
     : CONTAINS LR_BRACKET (full_column_name | LR_BRACKET full_column_name (COMMA full_column_name)* RR_BRACKET | (table_name DOT)? STAR  | PROPERTY LR_BRACKET full_column_name COMMA expression RR_BRACKET ) COMMA expression RR_BRACKET
-    | FREETEXT LR_BRACKET table_name COMMA (full_column_name | LR_BRACKET full_column_name (COMMA full_column_name)* RR_BRACKET | (table_name DOT)? STAR  ) COMMA expression  (COMMA LANGUAGE expression)? RR_BRACKET
+    | FREETEXT LR_BRACKET (full_column_name | LR_BRACKET full_column_name (COMMA full_column_name)* RR_BRACKET | (table_name DOT)? STAR  ) COMMA expression  (COMMA LANGUAGE expression)? RR_BRACKET
     ;
 
 // these are functions with a different call syntax than regular functions;
@@ -4139,11 +4147,11 @@ begin_conversation_dialog
     : BEGIN DIALOG (CONVERSATION)? dialog_handle=LOCAL_ID
       FROM SERVICE initiator_service_name=service_name
       TO SERVICE target_service_name=service_name (COMMA service_broker_guid=char_string)?
-      ON CONTRACT contract_name
+      (ON CONTRACT contract_name)?
       (WITH
-        ((RELATED_CONVERSATION | RELATED_CONVERSATION_GROUP)  EQUAL  LOCAL_ID COMMA?)?
-        (LIFETIME  EQUAL  (DECIMAL | LOCAL_ID) COMMA?)?
-        (ENCRYPTION  EQUAL  (ON | OFF))? )?
+        ((RELATED_CONVERSATION | RELATED_CONVERSATION_GROUP) EQUAL LOCAL_ID COMMA?)?
+        (LIFETIME EQUAL (DECIMAL | LOCAL_ID) COMMA?)?
+        (ENCRYPTION EQUAL on_off)? )?
     SEMI?
     ;
 
@@ -4186,7 +4194,7 @@ queue_id
 
 send_conversation
     : SEND ON CONVERSATION (char_string | LOCAL_ID)
-      MESSAGE TYPE message_type_name=expression
+      (MESSAGE TYPE message_type_name=expression)?
       ( LR_BRACKET (message_body_s=char_string | message_body_v=LOCAL_ID) RR_BRACKET )?
     SEMI?
     ;
@@ -4261,12 +4269,14 @@ keyword
     | ANSI_PADDING
     | ANSI_WARNINGS
     | APPEND
+    | APPEND_ONLY
     | APPLICATION
     | APPLICATION_LOG
     | APPLY
     | APPROX_PERCENTILE_CONT
     | APPROX_PERCENTILE_DISC    
     | ARITHABORT
+    | ARITHIGNORE
     | ASSEMBLY
     | ASYMMETRIC
     | ASYNCHRONOUS_COMMIT
@@ -4538,6 +4548,7 @@ keyword
     | IIF
     | IMMEDIATE
     | IMPERSONATE
+    | IMPLICIT_TRANSACTIONS
     | IMPORTANCE
     | INCLUDE
     | INCLUDE_NULL_VALUES
@@ -4639,6 +4650,7 @@ keyword
     | MEDIUM
     | MEMBER
     | MEMORY_OPTIMIZED_DATA
+    | MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT
     | MEMORY_PARTITION_MODE
     | MESSAGE
     | MESSAGE_FORWARDING
@@ -5128,7 +5140,7 @@ id
 // https://msdn.microsoft.com/en-us/library/ms188074.aspx
 // Spaces are allowed for comparison operators.
 comparison_operator
-    : EQUAL | GREATER | LESS | LESS EQUAL | GREATER EQUAL | LESS GREATER | EXCLAMATION EQUAL | EXCLAMATION GREATER | EXCLAMATION LESS | MULT_ASSIGN | EQUAL_STAR_OJ
+    : EQUAL | GREATER | LESS | LESS EQUAL | GREATER EQUAL | LESS GREATER | EXCLAMATION EQUAL | EXCLAMATION GREATER | EXCLAMATION LESS | MULT_ASSIGN | EQUAL_STAR_OJ  // MULT_ASSIGN is '*='
     ;
 
 assignment_operator
