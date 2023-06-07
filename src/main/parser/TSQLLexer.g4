@@ -82,6 +82,7 @@ ANSI_PADDING:                                    A N S I  UNDERLINE  P A D D I N
 ANSI_WARNINGS:                                   A N S I  UNDERLINE  W A R N I N G S;
 ANY:                                             A N Y;
 APPEND:                                          A P P E N D;
+APPEND_ONLY:                                     A P P E N D  UNDERLINE  O N L Y;
 APPLICATION:                                     A P P L I C A T I O N;
 APPLICATION_LOG:                                 A P P L I C A T I O N  UNDERLINE  L O G;
 APPLY:                                           A P P L Y;
@@ -495,6 +496,7 @@ KEY_PATH:                                        K E Y  UNDERLINE  P A T H;
 KEY_SOURCE:                                      K E Y  UNDERLINE  S O U R C E;
 KEY_STORE_PROVIDER_NAME:                         K E Y  UNDERLINE  S T O R E  UNDERLINE  P R O V I D E R  UNDERLINE  N A M E;
 KILL:                                            K I L L;
+LABEL:                                           L A B E L;
 LAG:                                             L A G;
 LANGUAGE:                                        L A N G U A G E;
 LAST:                                            L A S T;
@@ -549,6 +551,7 @@ MAX_GRANT_PERCENT:                               M A X  UNDERLINE  G R A N T  UN
 MAX_IOPS_PER_VOLUME:                             M A X  UNDERLINE  I O P S  UNDERLINE  P E R  UNDERLINE  V O L U M E;
 MAX_MEMORY:                                      M A X  UNDERLINE  M E M O R Y;
 MAX_MEMORY_PERCENT:                              M A X  UNDERLINE  M E M O R Y  UNDERLINE  P E R C E N T;
+MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT:			 M E M O R Y  UNDERLINE  O P T I M I Z E D  UNDERLINE  E L E V A T E  UNDERLINE  T O  UNDERLINE  S N A P S H O T;
 MAX_OUTSTANDING_IO_PER_VOLUME:                   M A X  UNDERLINE  O U T S T A N D I N G  UNDERLINE  I O  UNDERLINE  P E R  UNDERLINE  V O L U M E;
 MAX_PLANS_PER_QUERY:                             M A X  UNDERLINE  P L A N S  UNDERLINE  P E R  UNDERLINE  Q U E R Y;
 MAX_PROCESSES:                                   M A X  UNDERLINE  P R O C E S S E S;
@@ -1121,6 +1124,7 @@ EQUAL:               '=';
 GREATER:             '>';
 LESS:                '<';
 EXCLAMATION:         '!';
+QUESTION_MARK:       '?';
 
 PLUS_ASSIGN:         '+=';
 MINUS_ASSIGN:        '-=';

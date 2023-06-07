@@ -139,10 +139,13 @@ public class Compass {
 	public static List<String> pgImportFlags = new ArrayList<>();
 	
 	// auto-generating DDL script
+	public static boolean autoDDL = false;
 	public static String  sqlEndpoint = CompassUtilities.uninitialized;
 	public static String  sqlLogin  = CompassUtilities.uninitialized;
 	public static String  sqlPasswd = CompassUtilities.uninitialized;
 	public static String  sqlDBList = CompassUtilities.uninitialized;
+	public static String  SMOOutputFolder = "";
+	public static String  SMODDLTag = "";
 
 	protected static TSQLParser.Tsql_fileContext exportedParseTree;
 
@@ -161,6 +164,13 @@ public class Compass {
 		u.targetBabelfishVersion = CompassUtilities.baseBabelfishVersion;  // init at 1.00
 
 		for (int i = 0; i < args.length; i++) {
+			// don't log these flags anywhere
+			if (args[i].equals("-sqlpasswd") || args[i].equals("-sqlpassword")) {
+				cmdFlags.add(args[i]);
+				cmdFlags.add("********");
+				i++;
+				continue;
+			}
 			cmdFlags.add(args[i]);
 		}					
 					
@@ -268,6 +278,10 @@ public class Compass {
 				u.appOutput("   -nodedup                     : with -importfmt, do not de-duplicate captured queries");
 				u.appOutput("   -noreportcomplexity          : do not include complexity scores in report");
 				u.appOutput("   -syntax_issues               : also report selected Babelfish syntax errors (experimental)");				
+				u.appOutput("   -sqlendpoint <host-or-IP>    : SQL Server host");				
+				u.appOutput("   -sqllogin <login-name>       : SQL Server login");				
+				u.appOutput("   -sqlpasswd <password>        : SQL Server password");				
+				u.appOutput("   -sqldblist <list>            : Comma-separated list of databases (default=blank-ALL)");				
 				u.appOutput("   -version                     : show version of this tool");
 				u.appOutput("   -help [ <helpoption> ]       : show help information. <helpoption> can be one of:");		
 				u.appOutput("                                  reportoption, encoding, importfmt, exclude");		
@@ -293,7 +307,7 @@ public class Compass {
 				return;
 			}
 			if (arg.equals("-explain")) {
-				u.appOutput("Babelfish Compass is currently a command-line-only tool, running on Windows only.\nIt takes one or more DDL/SQL scripts as input and generates a compatibility assessment report.\nBabelfish Compass does not connect directly to a SQL Server instance.\n\nThe purpose of Babelfish Compass is to analyze a SQL Server DDL/SQL script\nfor compatibility with Babelfish, to inform a decision about whether\nit is worth considering starting a migration project to Babelfish.\nTake the following steps:\n1. Reverse-engineer the SQL Server database(s) in question\n   with SSMS (right-click a database --> Tasks --> Generate Scripts.\n   Make sure to enable triggers, collations, logins, owners and permissions (disabled in SSMS by default).\n2. Use the resulting DDL/SQL script as input for Babelfish Compass to generate an assessment report\n3. Discuss the results of Babelfish Compass with the application owner and interpret the findings in the\n   context of the application to be migrated.\n4. Keep in mind that a Babelfish migration involves more than just the server-side DDL/SQL code\n   (e.g. data migration, client applications, external interfaces, etc.)\n\nRun "+CompassUtilities.thisProgExec+" -help for further usage info.\n\n");
+				u.appOutput("Babelfish Compass is currently a command-line-only tool, running on Windows, Linux and Mac.\nIt takes one or more DDL/SQL scripts as input and generates a compatibility assessment report.\nBabelfish Compass does not connect directly to a SQL Server instance.\n\nThe purpose of Babelfish Compass is to analyze a SQL Server DDL/SQL script\nfor compatibility with Babelfish, to inform a decision about whether\nit is worth considering starting a migration project to Babelfish.\nTake the following steps:\n1. Reverse-engineer the SQL Server database(s) in question\n   with SSMS (right-click a database --> Tasks --> Generate Scripts.\n   Make sure to enable triggers, collations, logins, owners and permissions (disabled in SSMS by default).\n2. Use the resulting DDL/SQL script as input for Babelfish Compass to generate an assessment report\n(NB: instead of steps 1 & 2 above, you can also use the -sqlendpoint -sqllogin -sqlpasswd flags to connect\nto the SQL Server and generate the DDL automatically)\n3. Discuss the results of Babelfish Compass with the application owner and interpret the findings in the\n   context of the application to be migrated.\n4. Keep in mind that a Babelfish migration involves more than just the server-side DDL/SQL code\n   (e.g. data migration, client applications, external interfaces, etc.)\n\nRun "+CompassUtilities.thisProgExec+" -help for further usage info.\n\nMore information about working with Babelfish is available at\nhttps://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/babelfish.html and https://babelfishpg.org/\n\n");
 				u.errorExit();
 			}
 			if ((arg.equals("-babelfish-version") || arg.equals("-babelfish_version"))) {
@@ -377,6 +391,9 @@ public class Compass {
 					File f = new File(userConfigFilePathName);
 					if (!f.exists()) {
 						System.out.println("User config file ["+userConfigFilePathName+"] not found");
+						if (u.userCfgFileName.toUpperCase().startsWith(u.getDocDirPathname().toUpperCase())) {
+							System.out.println("Specify only file name, not the pathname");							
+						}						
 						u.errorExit();	
 					}
 				}
@@ -585,6 +602,10 @@ public class Compass {
 				pgImportAppend = true;	
 				continue;
 			}
+			if (arg.equals("-pgimportnodoublequotes")) {	
+				u.pgImportNoDoubleQuotes = true;	
+				continue;
+			}						
 			if (arg.equals("-pgimporttable")) {	
 				pgImportTable = true;					
 				if (i >= args.length) {
@@ -623,7 +644,7 @@ public class Compass {
 				u.configOnly = true;
 				continue;
 			}		
-			if (arg.equals("-mergereport")) { // special purposes only			
+			if (arg.equals("-mergereport")) { // special purpose only, to process Very Large Numbers of SQL files		
 				if (i >= args.length) {
 					System.out.println("Must specify target report name with -mergereport");
 					u.errorExit();
@@ -633,8 +654,11 @@ public class Compass {
 								
 				try { 
 					if ((!u.checkReportExists(mergeReport))) {
-						u.appOutput("Target merge report '"+mergeReport+"' not found");
-						u.errorExit();
+						u.checkDir(u.getReportDirPathname(mergeReport), false, true);
+						if ((!u.checkReportExists(mergeReport))) {
+							u.appOutput("Target merge report '"+mergeReport+"' not found");
+							u.errorExit();							
+						}
 					}
 				}
 				catch (Exception e) {
@@ -682,6 +706,62 @@ public class Compass {
 				continue;
 			}						
 						
+			if (arg.equals("-sqlendpoint")) { 
+				if (i >= args.length) {
+					System.out.println("Must specify value with -sqlendpoint");
+					u.errorExit();
+				}
+				autoDDL = true;
+				sqlEndpoint = args[i];
+				sqlEndpoint = u.stripStringQuotes(sqlEndpoint).trim();		
+				CompassUtilities.reportOptionApps = "apps";					
+				i++;
+				continue;
+			}				
+			if (arg.equals("-sqllogin")) { 
+				if (i >= args.length) {
+					System.out.println("Must specify value with -sqllogin");
+					u.errorExit();
+				}
+				autoDDL = true;					
+				sqlLogin = args[i];	
+				sqlLogin = u.stripStringQuotes(sqlLogin).trim();							
+				i++;				
+				continue;
+			}		
+			// Note: all variations should be tested for when remove the password from the cmdline for the report header
+			if (arg.equals("-sqlpasswd") || arg.equals("-sqlpassword")) {   
+				if (i >= args.length) {
+					System.out.println("Must specify value with "+arg);
+					u.errorExit();
+				}
+				autoDDL = true;					
+				sqlPasswd = args[i];	
+				sqlPasswd = u.stripStringQuotes(sqlPasswd).trim();	
+				if (u.onWindows) {
+					// if the passwd contains a ^ char, double it -- it's a Windows batch escape char and it will be lost unless doubled up
+					if (sqlPasswd.contains("^")) {
+						sqlPasswd = sqlPasswd.replaceAll("\\^", "^^");	
+					}
+				}				
+				i++;					
+				continue;
+			}	
+			if (arg.equals("-sqldblist")) { 
+				if (i >= args.length) {
+					System.out.println("Must specify value with -sqldblist");
+					u.errorExit();
+				}				
+				sqlDBList = args[i].trim();	
+				String systemDB = CompassUtilities.getPatternGroup(sqlDBList, "^.*?\\b(master|tempdb|model|msdb)\\b.*$", 1); 
+				if (!systemDB.isEmpty()) {
+					System.out.println("Generating DDL for SQL Server system database '"+systemDB+"' not supported");
+					u.errorExit();					
+				}
+				sqlDBList = u.stripStringQuotes(sqlDBList).trim();					
+				i++;					
+				continue;
+			}																		
 			if (CompassUtilities.devOptions) {
 				if (arg.equals("-debug")) {   // development only
 					if (i == args.length) {
@@ -837,15 +917,39 @@ public class Compass {
 			u.appOutput("No arguments specified. Try -help");
 			return;
  		}
-
+ 		
+ 		// get timestamp
+		startRunDate = new Date();		
+		startRunFmt = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(startRunDate);		
+		
  		// validate arguments
 		Compass comp = new Compass(args);
 
+ 		// don't allow installation into reports root directory; this casues problems with the optimistic .cfg file for example
+ 		String cwd = FileSystems.getDefault().getPath("").toAbsolutePath().toString();
+ 		String dirPath = u.getDocDirPathname();
+ 		if (cwd.equalsIgnoreCase(dirPath)) {
+ 			u.appOutput("You cannot install/run Babelfish Compass in the reports root folder ("+dirPath+")");
+ 			String suggestedDir = "C:\\BabelfishCompass";
+ 			if (u.onLinux) suggestedDir = "/home/<your-username>/BabelfishCompass";
+ 			if (u.onMac) suggestedDir = "/Users/<your-username>/BabelfishCompass";
+ 			u.appOutput("Suggested install directory: "+suggestedDir);
+ 			quitNow = true;
+ 			return; 			
+ 		}
+ 		
  		if (quitNow) {
 			return;
  		}
+ 		
+		if (showVersion) {
+			return;
+		} 		
+		
+		// ensure report root dir exists
+		u.checkDir(u.getDocDirPathname(), false, true);
 		 	
- 		// read config file
+ 		// read config file; also creates user config file if it does not exist
  		u.cfgFileName = u.defaultCfgFileName; // todo: make configurable?
  		if (u.userCfgFileName.equals(u.uninitialized)) u.userCfgFileName = u.defaultUserCfgFileName;  // using default
 		cfg.validateCfgFile(u.cfgFileName, u.userCfgFileName);		
@@ -854,36 +958,36 @@ public class Compass {
 			u.appOutput("File format version number in " + u.cfgFileName + " is " + u.cfgFileFormatVersionRead+".");
 			u.appOutput("This version of " + CompassUtilities.thisProgName + " supports version " + u.cfgFileFormatVersionSupported + " or earlier.");
 			u.errorExit();			
-		}
+		}		
+		
+		// validate combinations of options specified		
+		if (!optionsValid()) {
+			return;
+		}		
 				 		
  		// perform PG import
 		if (pgImport) {
-			if (!optionsValid()) {
-				return;
-			}			
 			runPGImport();
 			return;
 		}
 		
+		// generate DDL through SMO
+		if (autoDDL) {
+			getAutoDDL();
+		}
+				
 		// generate anon report file
 		if (anonymizedReport) {
-			if (!optionsValid()) {
-				return;
-			}			
 			runAnonymizedReport();
 			return;			
-		}
-		
-		if (showVersion) {
-			return;
-		}
+		}		
 
 		// only for debugging the config class:
 //		if (u.debugCfg) {
 //			CompassTestConfig.testConfig();
 //		}
 
-		// cfg structure
+		// copy cfg structure
 		a.cfg = cfg;
 
 		// init Babelfish target version at latest version, unless user specified a version
@@ -899,11 +1003,6 @@ public class Compass {
 			}
 		} else {
 			u.targetBabelfishVersion = cfg.latestBabelfishVersion();
-		}
-
-		// validate combinations of options specified		
-		if (!optionsValid()) {
-			return;
 		}
 				
 		if (userEncoding != null) {
@@ -924,11 +1023,10 @@ public class Compass {
 			}			
 		}
 		
-		startRunDate = new Date();		
-		startRunFmt = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(startRunDate);		
 		if (readStdin) {
 			// only take stdin input, skip other steps
-		} else {
+		} 
+		else {
 			if (!reportOnly) {
 				if (!inputFilesValid()) {
 					u.appOutput("Input file(s) not found, aborting.");
@@ -946,7 +1044,6 @@ public class Compass {
 				}
 			}
 
-			u.checkDir(u.getDocDirPathname(), false, true);
 			if ((inputFiles.size() == 0)) {
 				if (nrFileNotFound > 0) {
 					u.appOutput("No input files to process");					
@@ -1000,7 +1097,14 @@ public class Compass {
 			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
 
-			tmp = "Command line input files   : " + String.join(" ", inputFilesOrig);
+			String inputFilesReport = String.join(" ", inputFilesOrig);
+			if (!autoDDL)
+			tmp = "Command line input files   : " + inputFilesReport;
+			else {
+				inputFilesReport = inputFilesReport.replaceAll(u.escapeRegexChars(SMOOutputFolder + File.separator), "");
+				tmp =  "DDL input files            : " + inputFilesReport + "\n";
+				tmp += "DDL input files location   : " + SMOOutputFolder;
+			}
 			
 			CompassUtilities.reportHdrLines += tmp + "\n";			
 			u.appOutput(tmp);
@@ -1075,7 +1179,7 @@ public class Compass {
 						// read symbol table from disk, for all apps -- should not be required but keeping just because
 						if (u.symTabAll) {
 							try { u.readSymTab(reportName, ""); }
-							catch (Exception e) {
+							catch (Exception e) {								
 								u.appOutput("Error reading symbol table " + u.symTabFilePathName);
 								throw e;
 							}
@@ -1172,7 +1276,7 @@ public class Compass {
 		u.errorExit();
 	}
 
-	protected void addInputFile(String file) throws InvalidPathException {
+	protected static void addInputFile(String file) throws InvalidPathException {
 		String fileOrig = file;
 		if (file == null) return;
 		
@@ -1391,7 +1495,6 @@ public class Compass {
  		if (reportName == null) {
  			reportName = "";
  		}
- 		
  		if (reportName.isEmpty()) {
  			if (!readStdin) {
 				u.appOutput("Report name must be specified");
@@ -1404,7 +1507,7 @@ public class Compass {
 				u.appOutput("-anon cannot be combined with other options");
 				return false;
 			}
- 			if (inputFiles.size() > 0) {
+ 			if ((inputFiles.size() > 0) || autoDDL) {
 				u.appOutput("-anon cannot be combined with input files");
 				return false;
 			}
@@ -1416,7 +1519,7 @@ public class Compass {
 				u.appOutput("-pgimport cannot be combined with other options");
 				return false;
 			}
- 			if (inputFiles.size() > 0) {
+ 			if ((inputFiles.size() > 0) || autoDDL) {
 				u.appOutput("-pgimport cannot be combined with input files");
 				return false;
 			}
@@ -1430,6 +1533,15 @@ public class Compass {
  			}
 			return true;
 		}	
+		
+		
+ 		if (u.pgImportNoDoubleQuotes) {
+ 			if (!pgImport) {
+				u.appOutput("-pgimportnodoublequotes requires -pgimport");
+				return false; 				
+ 			}
+			return true;
+		}					
 		
  		if (pgImportTable) {
  			if (!pgImport) {
@@ -1610,8 +1722,8 @@ public class Compass {
 		
 		// when only specifying the report name, must at least specify -list or -analyze or -reportonly/-reportoption
 		if (!reportName.isEmpty()) {
-			if ((inputFiles.size()==0) && (!readStdin) && (!deleteReport) ) {
-				if (!(listContents || (reportOnly || reportOption) || reAnalyze )) {
+			if ((inputFiles.size()==0) && (!readStdin) && (!deleteReport) && (!autoDDL)) {
+				if (!(listContents || (reportOnly || reportOption) || reAnalyze || autoDDL)) {
 	 				u.appOutput("Must specify input file(s), or -list/-analyze/-reportonly/-reportoption");
 	 				return false;
 				}
@@ -1644,7 +1756,7 @@ public class Compass {
 		}
 				
 		// some options can be used only when when doing actual analysis
-		if (((inputFiles.size() > 0) && (!(parseOnly || importOnly))) || reAnalyze) {
+		if ((((inputFiles.size() > 0) || autoDDL) && (!(parseOnly || importOnly))) || reAnalyze) {
 			// ok
 		}
 		else {
@@ -1662,10 +1774,71 @@ public class Compass {
 			}			
 		}
 		
+		// cannot specify input files when generating DDL script
+		if (autoDDL) {		
+//			if (!CompassUtilities.onWindows) {
+//				u.appOutput("Auto-generating DDL script is supported only on Windows");
+//				return false;			
+//			}
+			if (u.checkReportExists(reportName)) {
+				if (!deleteReport) {
+					u.appOutput("Report already exist. Must specify -delete when generating DDL");
+					return false;					
+				}
+			}			
+					
+			if (inputFiles.size() > 0) {
+				u.appOutput("Cannot specify input files when generating DDL");
+				return false;					
+			}
+			
+			// various other options wouldn't be valid either
+			if (recursiveInputFiles) { 
+				u.appOutput("Cannot specify -recusrsive when generating DDL");
+				return false;					
+			}		
+			if (addReport) { 
+				u.appOutput("Cannot specify -add when generating DDL");
+				return false;					
+			}		
+			if (replaceFiles) { 
+				u.appOutput("Cannot specify -replace when generating DDL");
+				return false;					
+			}						
+			if (listContents) { 
+				u.appOutput("Cannot specify -list when generating DDL");
+				return false;					
+			}				
+			if (importFormatArg) { 
+				u.appOutput("Cannot specify -importformat when generating DDL");
+				return false;					
+			}				
+			if (reAnalyze) { 
+				u.appOutput("Cannot specify -analyze when generating DDL");
+				return false;					
+			}			
+			if (readStdin) {
+				u.appOutput("Cannot specify -stdin when generating DDL");
+				return false;					
+			}			
+			
+			// validate endpoint inputs
+			if (sqlEndpoint.equals(u.uninitialized) || sqlLogin.equals(u.uninitialized) || sqlPasswd.equals(u.uninitialized)) {	
+				u.appOutput("Must specify endpoint, login and password when generating DDL");
+				return false;					
+			}			
+		}
 		
 		if (!u.userConfig) {  
 			if (!u.userCfgFileName.equals(u.uninitialized)) {
 				u.appOutput("Ignoring -userconfigfile since -nooverride was specified");					
+			}
+		}
+
+		if (!sqlDBList.equals(u.uninitialized)) {
+			if (!autoDDL) {
+				u.appOutput("Cannot specify -sqldblist when not generating DDL");
+				return false;					
 			}
 		}
 				
@@ -1673,7 +1846,7 @@ public class Compass {
 		
 		// ensure report-only case is reflected in the flag
 		if ((inputFiles.size() == 0) && (!reportOnly)) { 
-			if (!reAnalyze) {
+			if ((!reAnalyze) && (!autoDDL)) {
 				reportOnly = true;
 			}
 		}
@@ -1954,6 +2127,9 @@ public class Compass {
 						
 				// regular case
 				appName = forceAppName ? applicationName : u.getFileNameFromPathName(inFile);
+				if (autoDDL) {
+					appName = appName.replaceFirst(SMODDLTag, "");
+				}				
 				appName = u.fixNameChars("appname", appName);		
 				
 				if (recursiveInputFiles && (!forceAppName)) {
@@ -2164,6 +2340,7 @@ public class Compass {
 			dynamicSQLBatchLineNr = 0;
 			dynamicSQLContext = "";
 			dynamicSQLSubContext = "";
+			u.dynamicSQLFlag = false;
 
 			while (true) {
 				boolean somethingFoundOnLine = false;
@@ -2179,19 +2356,20 @@ public class Compass {
 						}
 						line = u.dynamicSQLBuffer.get(dynSQLCount);
 						dynSQLCount++;
-						if (u.debugging) u.dbgOutput("dynamic SQL: line=["+line+"] ", u.debugDynamicSQL);		
+						if (u.debugging) u.dbgOutput(u.thisProc()+"dynamic SQL: line=["+line+"] ", u.debugDynamicSQL);		
 						if (line.startsWith(u.dynamicSQLBatchLine)) {
 							List<String> tmpBatchLine = new ArrayList<>(Arrays.asList(line.substring(u.dynamicSQLBatchLine.length()).split(",")));
 							//u.appOutput(u.thisProc()+"tmpBatchLine=["+tmpBatchLine+"] ");
+							u.dynamicSQLFlag = true;
 							dynamicSQLLineNr = Integer.parseInt(tmpBatchLine.get(0));
 							dynamicSQLBatchNr = Integer.parseInt(tmpBatchLine.get(1));
 							dynamicSQLBatchLineNr = Integer.parseInt(tmpBatchLine.get(2));
 							dynamicSQLContext = tmpBatchLine.get(3);
 							dynamicSQLSubContext = tmpBatchLine.get(4);
-							if (u.debugging) u.dbgOutput("dynamic SQL: dynamicSQLLineNr=["+dynamicSQLLineNr+"] dynamicSQLBatchNr=["+dynamicSQLBatchNr+"] dynamicSQLBatchLineNr=["+dynamicSQLBatchLineNr+"] dynamicSQLContext=["+dynamicSQLContext+"] dynamicSQLSubContext=["+dynamicSQLSubContext+"] ", u.debugDynamicSQL);		
+							if (u.debugging) u.dbgOutput(u.thisProc()+"dynamic SQL: dynamicSQLLineNr=["+dynamicSQLLineNr+"] dynamicSQLBatchNr=["+dynamicSQLBatchNr+"] dynamicSQLBatchLineNr=["+dynamicSQLBatchLineNr+"] dynamicSQLContext=["+dynamicSQLContext+"] dynamicSQLSubContext=["+dynamicSQLSubContext+"] ", u.debugDynamicSQL);		
 							line = u.dynamicSQLBuffer.get(dynSQLCount);
 							dynSQLCount++;							
-							if (u.debugging) u.dbgOutput("dynamic SQL: line=["+line+"] ", u.debugDynamicSQL);		
+							if (u.debugging) u.dbgOutput(u.thisProc()+"dynamic SQL: line=["+line+"] ", u.debugDynamicSQL);		
 						}
 					}
 					else if (dynSQLCount == u.dynamicSQLBuffer.size()) {
@@ -2747,6 +2925,190 @@ public class Compass {
 				u.closeErrBatchFile();
 			}		
 		} //for inputfiles
+	}
+	
+	private static void getAutoDDL () throws Exception {
+		// auto-generate DDL script
+		String PScmd = "powershell";
+		if (!CompassUtilities.onWindows) {
+			PScmd = "pwsh";
+		}
+		String autoDDLTag = "BabelfishCompassAutoDDL";		
+		if (u.debugging) u.dbgOutput(autoDDLTag + ": start: Compass Powershell", u.debugAutoDDL);
+
+// uncomment these lines for testing without SMO invocation:
+//		SMODDLTag = "_DDL_2023-05-20";
+//		SMOOutputFolder = "C:\\Users\\rcv\\AppData\\Local\\Temp\\CompassAutoDDL-2023-May-20-12.40.25";
+//if (false) {				
+		// check if Powershell is installed
+		String PSCheckTag = "BabelfishCompassPowershellTest";	
+		String cmd = PScmd + " -Command \"Write-Output " + PSCheckTag + "\"";
+		String cmdOut = u.runOScmd(cmd, true);
+		if (u.debugging) u.dbgOutput("cmd=["+cmd+"] ", u.debugAutoDDL);
+		if (u.debugging) u.dbgOutput("cmdOut=["+cmdOut+"] ", u.debugAutoDDL);
+		if (!cmdOut.contains(PSCheckTag)) {
+			u.appOutput("\nERROR: Powershell is not available (expecting '"+PScmd.trim()+"' to be in the PATH)");
+			if (!u.onWindows) {
+				u.appOutput("\nTo install Powershell on Linux, see https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-linux");
+			}
+			u.errorExit();	
+		}
+		String autoDDLScript = "SMO_DDL.ps1"; 			
+		if (u.onWindows) autoDDLScript = ".\\" + autoDDLScript;
+		else autoDDLScript = "./" + autoDDLScript;
+		
+		// now spawn Powershell SMO script
+		String nowTS = new SimpleDateFormat("yyyy-MMM-dd-HH.mm.ss").format(startRunDate);		
+		String nowD = new SimpleDateFormat("yyyy-MMM-dd").format(startRunDate);
+		SMODDLTag = "_SMO_DDL_"+nowD;
+		
+		SMOOutputFolder = System.getenv().get("TEMP");
+		if (!u.onWindows) SMOOutputFolder = "/tmp";
+		SMOOutputFolder += File.separator + "CompassAutoDDL-" + nowTS;
+			
+		u.appOutput("\nRunning Powershell/SMO script to generate DDL for server '"+sqlEndpoint+"' into directory "+SMOOutputFolder+"...");
+		u.appOutput("Note: run times strongly depend on network proximity to the SQL Server. Alternatively, generate DDL manually\nthrough SQL Server Management Studio on the SQL Server host.\nYou can abort by hitting CTRL-C\n");
+		u.checkDir(SMOOutputFolder, false, false);
+		
+		sqlDBList = sqlDBList.trim();
+		if (sqlDBList.isEmpty()) {
+			sqlDBList = "ALL";
+		}
+		else if (sqlDBList.equals(u.uninitialized)) {
+			sqlDBList = "ALL";
+		}	
+		if (sqlDBList.isEmpty()) {
+			sqlDBList = "ALL";
+		}			
+
+		// check PS script is present
+		File f = new File(autoDDLScript);
+		if (!f.exists()) {
+			u.appOutput("\nERROR: Powershell SMO script '"+autoDDLScript+"' not found"); 
+			u.errorExit();					
+		}
+						
+		// In case of databases = ALL, show list of all DBs first, as it could potentially take long to process all
+		// In any case, find out the approx roundtrip time first so that we can issue a warnign if it may take a long time
+		int loopCnt = 0;
+		while (true) {
+			loopCnt++;
+			String DDLTagArg = SMODDLTag;
+			if (loopCnt == 1) {
+				DDLTagArg = "report-roundtrip"; // matches the string in the .ps script!
+			}
+			if (sqlDBList.equalsIgnoreCase("ALL") && (loopCnt == 1)) {
+				DDLTagArg = "report-all-dbs"; // matches the string in the .ps script!
+			}			
+					
+			// compose command line		
+			String runautoDDLScript = PScmd + " " + autoDDLScript; 		
+			runautoDDLScript += " -Databases '"+sqlDBList+"' -OutputFolder '"+SMOOutputFolder+"' -SMOOutputDir '' -DDLTag '"+DDLTagArg+"' -ServerName '"+sqlEndpoint+"' -Username '"+sqlLogin+"' -Password '"+sqlPasswd+"'";
+			cmd = runautoDDLScript;
+			if (u.debugging) u.dbgOutput("loopCnt=["+loopCnt+"] cmd=["+cmd+"] ", u.debugAutoDDL);			
+			cmdOut = u.runOScmd(cmd, true);
+			//u.appOutput(u.thisProc()+"loopCnt=["+loopCnt+"] cmdDuration=["+cmdDuration+"] ");
+			if (u.debugging) u.dbgOutput("loopCnt=["+loopCnt+"] cmdOut=["+cmdOut+"] ", u.debugAutoDDL);
+			
+			// Installing SMO may be tricky and may not always work 
+			// But if we see the message that the connection is successful, we should be good
+			if (!cmdOut.contains("Connected to SQL Server")) {			
+				if (cmdOut.contains("A positional parameter cannot be found")) {
+					u.appOutput("\nERROR: Error invoking Powershell SMO script"); 
+				    u.appOutput("Command line:" + cmd);		
+				    u.appOutput(cmdOut);					    				
+					u.errorExit();	
+				}			
+				if (cmdOut.contains("New-Object : Cannot find type [Microsoft.SqlServer.Management.Smo.Server]")) {
+					u.appOutput("\nERROR: SMO does not seem to be installed (New-Object SMO)"); 
+					u.errorExit();	
+				}
+				if (cmdOut.contains("New-Object : Could not load file or assembly 'System.Data.SqlClient")) {
+					u.appOutput("\nERROR: SMO does not seem to be installed (New-Object SqlClient)"); 
+					u.errorExit();	
+				}
+				if (cmdOut.contains("The property 'Login' cannot be found on this object")) {
+					u.appOutput("\nERROR: SMO does not seem to be installed (Login)"); 
+					u.errorExit();	
+				}
+				if (cmdOut.contains("specified output folder not found")) {
+					u.appOutput("\nERROR: Error while running Powershell SMO script\n");
+				    u.appOutput(cmdOut);				
+					u.errorExit();	
+				}			
+				// some other error			
+				u.appOutput("\nERROR: Unable to connect to SQL Server "+sqlEndpoint + " with login '"+sqlLogin+"' and password specified\n");
+				u.appOutput(cmdOut);
+				u.errorExit();									
+			}
+			
+			// if we get here, SMO seems to be working as we have connected to the DB
+			if (sqlDBList.equalsIgnoreCase("ALL") && (loopCnt == 1)) { 
+				// show list of DBs so that user knows what's going to happen
+				String sOut = CompassUtilities.getPatternGroup(cmdOut, "\\b(\\d+ user databases found in server.*?)\n", 1);
+				u.appOutput(sOut);
+			}
+						
+			if (loopCnt == 1) { 
+				// figure out round trip time
+				Integer trip = 0;
+				String tripStr = "";
+				try {
+					tripStr = CompassUtilities.getPatternGroup(cmdOut, "INFO: roundtrip millisec=(\\d+)\n", 1);
+					trip = Integer.parseInt(tripStr);
+				} catch (Exception e) { 
+					trip = -1;							
+				}		
+				
+				if (u.debugging) u.dbgOutput("Approximate client-server roundtrip time: "+ tripStr + " millisec.", u.debugAutoDDL);							
+				if (trip > 200) { // empirically determined: within an AWS region, a roundtrip tends to be < 100 millisec. 
+					String roundtripStr = "(approx. "+ tripStr +" millisec. roundtrip)";	
+					u.appOutput("Note: the connection to the SQL Server does not seem to be very fast "+roundtripStr+".\nGenerating DDL may take some time...");										
+				}		
+			}
+			
+			if (loopCnt == 1) { 
+				continue;
+			}			
+			
+			if (cmdOut.contains("No user databases found")) {
+				u.appOutput("\nERROR: No user databases found in SQL Server "+sqlEndpoint+"\n");
+				u.errorExit();				
+			}
+						
+			if (cmdOut.contains("Script transfer failed") || cmdOut.contains("Cannot find path")) {
+				// something went wrong though
+				u.appOutput("\nERROR: Error while running Powershell SMO script\n");
+				u.appOutput(cmdOut);			
+				u.errorExit();				
+			}				
+			if (cmdOut.contains("Specified database not found")) {			
+				String dbNotfound = CompassUtilities.getPatternGroup(cmdOut, "^.*?Specified database not found: ('.*?').*$", 1, "multiline");
+				u.appOutput("\nERROR: Specified database "+dbNotfound+ " not found in SQL Server "+sqlEndpoint+"\n");
+				u.errorExit();				
+			}
+			
+			// exit loop
+			if (loopCnt >= 2) { 
+				break;
+			}						
+		}
+//}// for testing without SMO invocation
+
+		// generated DDL, now proceed to run Compass analysis on the DDL
+		u.appOutput("DDL generated in "+SMOOutputFolder + " :");
+		String cmdDir = "dir ";
+		if (!u.onWindows) cmdDir = "ls -lh";
+		cmdDir += " " + SMOOutputFolder + File.separator;	
+		cmdOut = u.runOScmd(cmdDir, true);
+		u.appOutput(cmdOut);
+		
+		String ddlFiles = SMOOutputFolder + File.separator + "*.sql";		
+		inputFiles.clear();
+		addInputFile(ddlFiles);
+		inputFilesOrig = inputFiles;	
+	
+		if (u.debugging) u.dbgOutput(autoDDLTag + ": ready: Compass Powershell", u.debugAutoDDL);
 	}
 	
 	protected String parseBatch(CharStream batchText, String fileName, int batchNr, int batchLines, boolean useSLL)  {
