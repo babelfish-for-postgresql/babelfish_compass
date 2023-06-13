@@ -4585,6 +4585,7 @@ keyword
     | KEY_PATH
     | KEY_SOURCE
     | KEY_STORE_PROVIDER_NAME
+    | LABEL
     | LAG
     | LANGUAGE
     | LAST
