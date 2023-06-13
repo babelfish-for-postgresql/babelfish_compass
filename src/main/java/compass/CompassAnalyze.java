@@ -52,6 +52,7 @@ public class CompassAnalyze {
 	static final String ProcVersionExecute    = ProcVersionBase+"(execution)";
 	static final String NumericAsDateTime     = "Numeric representation of datetime";
 	static final String NumericDateTimeVarAssign = "Numeric assignment to datetime variable/parameter/column";
+	static final String DateTimeToNumeric     = "Datetime converted to numeric";	
 	static final String Datatypes             = "Datatypes";
 	static final String UDDatatypes           = "User-Defined Datatypes";
 	static final String DatatypeConversion    = "Datatype conversion";
@@ -65,6 +66,7 @@ public class CompassAnalyze {
 	static final String TemporaryProcedures   = "Temporary procedures";
 	static final String ExecuteSQLFunction    = "EXECUTE SQL function";
 	static final String FunctionOptions       = "Function options";
+	static final String ScalarUDFOptionalASKwd= "Missing AS keyword in scalar CREATE FUNCTION";
 	static final String TriggerOptions        = "Trigger options";
 	static final String TransitionTableMultiDMLTrig = "Transition table reference for multi-DML trigger";
 	static final String TriggerSchemaName     = "Trigger created with schema name";
@@ -183,6 +185,9 @@ public class CompassAnalyze {
 	static final String AlterServerConfig     = "ALTER SERVER CONFIGURATION";
 	static final String AddSignature          = "ADD SIGNATURE";
 	static final String ColonColonFunctionCall= "::function call (old syntax)";
+	static final String IFELSEblockDeclare    = "IF-ELSE-block containing only DECLARE";
+	static final String IFblockDeclare        = "IF-block containing only DECLARE";   // for reporting
+	static final String ELSEblockDeclare      = "IF-ELSE-block containing only DECLARE"; // for reporting
 	static final String NextValueFor          = "NEXT VALUE FOR";
 	static final String NextValueForContext   = "NEXT VALUE FOR context";
 	static final String LoginOptions          = "Login options";
@@ -248,6 +253,7 @@ public class CompassAnalyze {
 	static final String UpdateCorrColumnUnqualifiedErrorText = "UPDATE of correlation name with unqualified column name in SET expression may raise run-time error";
 	static final String cfgUpdateQualifiedSetColumnError     = "UPDATE QUALIFIED SET COLUMN";
 	static final String UpdateQualifiedSetColumnErrorText    = "UPDATE of qualified SET column name may raise run-time error";
+	static final String ScalarUDFOptionalAsKwdUDD            = "USER-DEFINED DATATYPE";
 
 	// misc strings
 	static final String TrigMultiDMLAttr      = "TRIGGER_MULTI_DML";
@@ -2218,10 +2224,10 @@ public class CompassAnalyze {
 			// check for numeric-as-date
 			private void checkNumericAsDate(String dataType, String funcName, String funcNameReport, TSQLParser.ExpressionContext expr, int argNum, int lineNr) {
 				// argNum indicates which argument it concerns
-				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"funcName=["+funcName+"] dataType=["+dataType+"] argNum=["+argNum+"] expr=["+expr.getText()+"]  start=["+expr.start.getLine()+"," +expr.start.getCharPositionInLine()+"] stop=["+expr.stop.getLine()+"," +expr.stop.getCharPositionInLine()+"] index=[" +expr.start.getStartIndex()+ ", " +expr.stop.getStopIndex()+"] ", u.debugPtree);
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"funcName=["+funcName+"] dataType=["+dataType+"] argNum=["+argNum+"] expr=["+expr.getText()+"]  start=["+expr.start.getLine()+"," +expr.start.getCharPositionInLine()+"] stop=["+expr.stop.getLine()+"," +expr.stop.getCharPositionInLine()+"] index=[" +expr.start.getStartIndex()+ ", " +expr.stop.getStopIndex()+"] ", u.debugPtree);			String exprType = expressionDataType(expr);			
 				if (dataType.equals("DATETIME") || dataType.equals("SMALLDATETIME")) {
-					boolean isANumber = false;
-					String exprType = expressionDataType(expr);
+					// check for converting numeric expressions to [SMALL]DATETIME
+					boolean isANumber = false;			
 					if (isNumeric(exprType)) {
 						isANumber = true;
 					}
@@ -2257,6 +2263,15 @@ public class CompassAnalyze {
 						}
 
 						captureItem(funcNameReportNumDate, "argument #"+argNum, NumericAsDateTime, "", statusNumDate, lineNr);
+					}
+				}
+				else if (isNumeric(dataType)) {
+					// check for converting [SMALL]DATETIME to a numeric types
+					// other date/time types are not valid in MSSQL to start with so no need to check for those
+					if (isDateTime(exprType)) {
+						String statusDateToNum = featureSupportedInVersion(DateTimeToNumeric, funcName);		
+						String funcNameReportDateNum = DateTimeToNumeric + " in " + funcNameReport;
+						captureItem(funcNameReportDateNum, "", DateTimeToNumeric, "", statusDateToNum, lineNr);				
 					}
 				}
 			}
@@ -4393,12 +4408,13 @@ public class CompassAnalyze {
 					}
 					if (ctx.func_body_returns_scalar().atomic_func_body() != null) {
 						udfType2 = "atomic natively compiled";
-					}
+					}				
 
+					String sudfDataTypeOrig = sudfDataType;
+					String sudfDataTypeReport = "";
 					String UDD = lookupUDD(sudfDataType);
-					String sudfDataTypeOrig = "";
 					if (!UDD.isEmpty()) {
-						sudfDataTypeOrig = " (UDD " + sudfDataType +")";
+						sudfDataTypeReport = " (UDD " + sudfDataType +")";
 						sudfDataType = UDD;
 					}
 					String statusDataType = u.Supported;
@@ -4409,8 +4425,40 @@ public class CompassAnalyze {
 						// datatype is not listed, means: supported
 					}
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"UDF "+ ctx.getText()+", funcName=["+funcName+"] sudfDataType=["+sudfDataType+"] ", u.debugPtree);
-					captureItem(sudfDataType + sudfDataTypeOrig + " scalar function result type", "", Datatypes, getBaseDataType(sudfDataType), statusDataType, ctx.start.getLine());
+					captureItem(sudfDataType + sudfDataTypeReport + " scalar function result type", "", Datatypes, getBaseDataType(sudfDataType), statusDataType, ctx.start.getLine());
 
+					
+					// for some datatypes, the AS keyword is not optional, though it should be
+					if (ctx.func_body_returns_scalar().AS() == null) {
+						if (ctx.func_body_returns_scalar().BEGIN() != null) {
+							String dataTypeChk = sudfDataTypeOrig;
+							if (!UDD.isEmpty()) {
+								if (!UDD.equalsIgnoreCase(sudfDataTypeOrig)) {
+									dataTypeChk = ScalarUDFOptionalAsKwdUDD; 
+								}
+							}																	
+							if (featureExists(ScalarUDFOptionalASKwd, dataTypeChk)) {		
+								String statusAs = featureSupportedInVersion(ScalarUDFOptionalASKwd, dataTypeChk); 
+								if (!statusAs.equals(u.Supported)) {	
+									if (u.rewrite) {
+										String rewriteText = "AS " + ctx.func_body_returns_scalar().BEGIN().getText();
+										int line = ctx.func_body_returns_scalar().BEGIN().getSymbol().getLine();
+										int startPos = ctx.func_body_returns_scalar().BEGIN().getSymbol().getCharPositionInLine();
+										int endPos = startPos + 4;  // 4 length(BEGIN) -1
+										int startIx = ctx.func_body_returns_scalar().BEGIN().getSymbol().getStartIndex();
+										int endIx = startIx + 4;
+										if (addRewrite(ScalarUDFOptionalASKwd, "", u.rewriteTypeReplace, rewriteText, line, startPos, line, endPos, startIx, endIx))
+											statusAs = u.Rewritten;
+									}
+									else {
+										addRewrite(ScalarUDFOptionalASKwd);
+									}											
+									captureItem(ScalarUDFOptionalASKwd, dataTypeChk, FunctionOptions, "", statusAs, ctx.start.getLine());		
+								}	
+							}				
+						}
+					}
+					
 //					if (ctx.func_body_returns_scalar().RETURN() != null) {
 						// this is captured as a RETURN statement now
 //						captureItem("RETURN"+" scalar, in function", "", ControlFlowReportGroup, "RETURN", u.Supported, ctx.func_body_returns_scalar().RETURN().getSymbol().getLine());
@@ -8208,6 +8256,28 @@ public class CompassAnalyze {
 
 			@Override public String visitIf_statement(TSQLParser.If_statementContext ctx) {
 				captureItem("IF", "", ControlFlowReportGroup, "", u.Supported, ctx.start.getLine());
+				
+				if (ctx.sql_clauses().get(0).another_statement() != null) {
+					if (ctx.sql_clauses().get(0).another_statement().declare_statement() != null) {
+						// an IF-block with only a DECLARE -- that's weird, but it happens: review semantics
+						String status = featureSupportedInVersion(IFELSEblockDeclare);
+						if (!status.equals(u.Supported)) {
+							captureItem(IFblockDeclare, "", ControlFlowReportGroup, "", status, ctx.sql_clauses().get(0).start.getLine());	
+						}						
+					}					
+				}
+				if (ctx.ELSE() != null) {
+					if (ctx.sql_clauses().get(1).another_statement() != null) {
+						if (ctx.sql_clauses().get(1).another_statement().declare_statement() != null) {
+							// an ELSE-block with only a DECLARE -- that's weird, but it happens: review semantics
+							String status = featureSupportedInVersion(IFELSEblockDeclare);
+							if (!status.equals(u.Supported)) {
+								captureItem(ELSEblockDeclare, "", ControlFlowReportGroup, "", status, ctx.sql_clauses().get(1).start.getLine());	
+							}						
+						}					
+					}
+				}
+				
 				visitChildren(ctx);
 				return null;
 			}

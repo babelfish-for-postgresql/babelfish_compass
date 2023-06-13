@@ -278,10 +278,10 @@ public class Compass {
 				u.appOutput("   -nodedup                     : with -importfmt, do not de-duplicate captured queries");
 				u.appOutput("   -noreportcomplexity          : do not include complexity scores in report");
 				u.appOutput("   -syntax_issues               : also report selected Babelfish syntax errors (experimental)");				
-				u.appOutput("   -sqlendpoint <host-or-IP>    : SQL Server host");				
+				u.appOutput("   -sqlendpoint <host-or-IP>[,port] : SQL Server host");				
 				u.appOutput("   -sqllogin <login-name>       : SQL Server login");				
 				u.appOutput("   -sqlpasswd <password>        : SQL Server password");				
-				u.appOutput("   -sqldblist <list>            : Comma-separated list of databases (default=blank-ALL)");				
+				u.appOutput("   -sqldblist <list>            : Comma-separated list of databases (default=blank=ALL)");				
 				u.appOutput("   -version                     : show version of this tool");
 				u.appOutput("   -help [ <helpoption> ]       : show help information. <helpoption> can be one of:");		
 				u.appOutput("                                  reportoption, encoding, importfmt, exclude");		
@@ -392,8 +392,8 @@ public class Compass {
 					if (!f.exists()) {
 						System.out.println("User config file ["+userConfigFilePathName+"] not found");
 						if (u.userCfgFileName.toUpperCase().startsWith(u.getDocDirPathname().toUpperCase())) {
-							System.out.println("Specify only file name, not the pathname");							
-						}						
+							System.out.println("Specify only the file name, not the pathname");							
+						}											
 						u.errorExit();	
 					}
 				}
@@ -429,6 +429,9 @@ public class Compass {
 							System.out.println("User config file ["+userConfigFilePathName+"] not found");
 							u.errorExit();	
 						}
+						if (userConfigFilePathName.equalsIgnoreCase(u.optimisticUserCfgFileName)) {
+							System.out.println("Restore the 'optimistic' .cfg file manually by picking it up from the Compass .zip file.");							
+						}							
 					}
 					u.appOutput("Using predefined user config file '"+userConfigFilePathName+"'");
 				}
@@ -1098,8 +1101,10 @@ public class Compass {
 			u.appOutput(tmp);
 
 			String inputFilesReport = String.join(" ", inputFilesOrig);
-			if (!autoDDL)
-			tmp = "Command line input files   : " + inputFilesReport;
+			if (!autoDDL) {
+				if (inputFilesReport.isEmpty() && reAnalyze) inputFilesReport = "(using previously imported files)";
+				tmp = "Command line input files   : " + inputFilesReport;
+			}
 			else {
 				inputFilesReport = inputFilesReport.replaceAll(u.escapeRegexChars(SMOOutputFolder + File.separator), "");
 				tmp =  "DDL input files            : " + inputFilesReport + "\n";

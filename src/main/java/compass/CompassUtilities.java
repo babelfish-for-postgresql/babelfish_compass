@@ -601,9 +601,12 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.DoubleQuotedString+", embedded double"+tttSeparator+"An embedded double quote in a double-quoted string is not currently supported, and will result in two double quotes in the string. Change the double-quote string delimiters to single quotes and un-escape the embedded double quote " + rewriteOption,
 		CompassAnalyze.ExecuteSQLFunction+tttSeparator+"Calling a SQL function with EXECUTE is not currently supported. Call the function in an expression instead",
 		CompassAnalyze.ColonColonFunctionCall+tttSeparator+"Old-style function call with :: syntax is not supported; rewrite without :: " + rewriteOption,
+		CompassAnalyze.IFblockDeclare+tttSeparator+"An IF-branch containing only a DECLARE statement, frankly, looks strange. It is recommended to review this IF-statement because its semantics might not be what the original coder expected. For example, perhaps there should have been an enclosing BEGIN-END block around multiple statements?",
+		CompassAnalyze.ELSEblockDeclare+tttSeparator+"An IF-ELSE-branch containing only a DECLARE statement, frankly, looks strange. It is recommended to review this IF-statement because its semantics might not be what the original coder expected. For example, perhaps there should have been an enclosing BEGIN-END block around multiple statements?",
 		CompassAnalyze.TemporaryProcedures+tttSeparator+"Temporary stored procedures (with a name starting with #) are created, but not dropped automatically at the end of a session",
 		CompassAnalyze.NumericAsDateTime+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 " + rewriteOption,
 		CompassAnalyze.NumericDateTimeVarAssign+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 " + rewriteOption,
+		CompassAnalyze.DateTimeToNumeric+tttSeparator+"Converting a datetime to a numeric value is not currently supported. Rewrite the conversion so that the resulting numeric value is an offset (in days) on top of 01-01-1900 00:00:00 ",
 		"EXECUTE procedure sp_db_vardecimal_storage_format"+tttSeparator+"This system stored procedure is not currently supported, but it may not have any function in Babelfish as it is usually part of a standard SSMS-generated DDL script",
 		"EXECUTE procedure sp_fulltext_database"+tttSeparator+"This system stored procedure is not currently supported, but it may not have any function in Babelfish as it is usually part of a standard SSMS-generated DDL script",
 		"EXECUTE procedure sp_oacreate"+tttSeparator+"This OLE system stored procedure is not currently supported",
@@ -642,6 +645,7 @@ tooltipsHTMLPlaceholder +
 		"CREATE OR ALTER PROCEDURE"+tttSeparator+"CREATE OR ALTER PROCEDURE is not currently supported; use DROP+CREATE",
 		"ALTER FUNCTION"+tttSeparator+"ALTER FUNCTION is not currently supported; use DROP+CREATE",
 		"CREATE OR ALTER FUNCTION"+tttSeparator+"CREATE OR ALTER FUNCTION is not currently supported; use DROP+CREATE",
+		CompassAnalyze.ScalarUDFOptionalASKwd+tttSeparator+"For some function result datatypes, the AS keyword in CREATE FUNCTION is currently required; insert AS prior to BEGIN " + rewriteOption,
 		"ALTER TRIGGER"+tttSeparator+"ALTER TRIGGER is not currently supported; use DROP+CREATE",
 		"CREATE OR ALTER TRIGGER"+tttSeparator+"CREATE OR ALTER TRIGGER is not currently supported; use DROP+CREATE",
 		"\\s*\\w+ DATABASE SCOPED"+tttSeparator+"This feature is not currently supported",
@@ -7052,6 +7056,12 @@ userCfgComplexityHdrLine202209 + "\n" +
 
 	// upgrade file header with new text in 2022-09, if needed
 	public void upgradeUserCfgFile(String fileName) throws IOException {
+		if (debugging) dbgOutput(thisProc() + "entry: fileName=["+fileName+"] ", debugDir);
+		if (fileName.equalsIgnoreCase(optimisticUserCfgFileName)) {
+			// don't touch the optimistic .cfg file; this upgrade is only for regular user .cfg file that are older			
+			if (debugging) dbgOutput(thisProc() + "optimistic .cfg file -- not upgrading", debugDir);
+			return;
+		}
 		checkDir(getDocDirPathname(), false, true);
 		String userCfgFilePathName = getUserCfgFilePathName(fileName);
 		FileInputStream fis = new FileInputStream(userCfgFilePathName);
@@ -7077,12 +7087,15 @@ userCfgComplexityHdrLine202209 + "\n" +
 		rewrittenInFileReader.close();
 	    rewrittenInFileReader = null;
 
+		if (debugging) dbgOutput(thisProc() + "hasNewHdr=["+hasNewHdr+"] fileName=["+fileName+"] ", debugDir);
 	    if (hasNewHdr) return; // nothing to upgrade
+	    appOutput("Upgrading user .cfg file");
 
 		// if we get here, then must upgrade file header
 		openUserCfgFileNew(CompassConfig.userConfigFileName);
 		writeUserCfgFile(body);
 		closeUserCfgFile(false);
+		if (debugging) dbgOutput(thisProc() + "exit: upgraded fileName=["+fileName+"] ", debugDir);
 	}
 
 	public void writeUserCfgFile(String line) throws IOException {
@@ -8056,7 +8069,7 @@ userCfgComplexityHdrLine202209 + "\n" +
 			}
 
 			String blankLine = "\n"+rewriteBlankLine+"\n";
-			String rwrSteps = "\n"+rwrTag+"\n/* --- start rewritten ALTER TABLE..ADD statement --- */\n";
+			String rwrSteps = "\n"+rwrTag+"\n/* --- start rewritten ALTER TABLE..ADD statement --- */\nBEGIN\n";
 
 			boolean addBlank = false;
 			for (String p : tmpRwr.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).collect(Collectors.toList())) {
@@ -8068,7 +8081,7 @@ userCfgComplexityHdrLine202209 + "\n" +
 				rwrSteps += s + "\n";
 			}
 
-			rwrSteps += "/* --- end rewritten ALTER TABLE..ADD statement --- */\n";
+			rwrSteps += "END\n/* --- end rewritten ALTER TABLE..ADD statement --- */\n";
 			rwrSteps = rewriteStmtPatchup(rwrSteps, origStrFull, indent);
 			rewriteText = rwrSteps;
 
@@ -8154,6 +8167,7 @@ userCfgComplexityHdrLine202209 + "\n" +
 
 			String mergeSteps = "\n"+rwrTag+"\n/* --- start rewritten MERGE statement #"+nrMergeRewrites+" --- */\n";
 			mergeSteps += "/* Note: please review/modify the rewritten SQL code below, especially for handling of ROLLBACK */\n";
+			mergeSteps += "BEGIN\n";
 			mergeSteps += "BEGIN TRANSACTION\n";
 			mergeSteps += "SAVE TRANSACTION "+savePt+"\n";
 			mergeSteps += "DECLARE "+rcVar+" INT = 0 /* use instead of original @@ROWCOUNT */\n";
@@ -8316,6 +8330,7 @@ userCfgComplexityHdrLine202209 + "\n" +
 			mergeSteps += "/* in case of an error, roll back to savepoint at the start but do no abort the transaction: there may be an outermost transaction active*/\n";
 			mergeSteps += "\n"+rollbkLbl+": ROLLBACK TRANSACTION "+savePt+"\n";
 			mergeSteps += "\n"+commitLbl+":   COMMIT\n";
+			mergeSteps += "\nEND";
 			mergeSteps += ";/* --- end rewritten MERGE statement #"+nrMergeRewrites+" --- */\n";
 			mergeSteps = rewriteStmtPatchup(mergeSteps, origStrFull, "USING");
 			rewriteText = mergeSteps;
