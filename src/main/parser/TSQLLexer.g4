@@ -288,7 +288,7 @@ DISABLE:                                         D I S A B L E;
 DISABLED:                                        D I S A B L E D;
 DISABLE_BROKER:                                  D I S A B L E  UNDERLINE  B R O K E R;
 DISK:                                            D I S K;
-DISK_DRIVE:                                      [A-Z][:];
+DISK_DRIVE:                                      [A-Za-z][:];
 DISTINCT:                                        D I S T I N C T;
 DISTRIBUTED:                                     D I S T R I B U T E D;
 DISTRIBUTED_AGG:                                 D I S T R I B U T E D  UNDERLINE  A G G;
@@ -307,6 +307,7 @@ DROP:                                            D R O P;
 DTC_SUPPORT:                                     D T C  UNDERLINE  S U P P O R T;
 DUMP:                                            D U M P;
 DYNAMIC:                                         D Y N A M I C;
+ED:                                              E D;
 EDGE:                                            E D G E;
 ELEMENTS:                                        E L E M E N T S;
 ELSE:                                            E L S E;
@@ -326,6 +327,7 @@ ENDPOINT_URL:                                    E N D P O I N T  UNDERLINE  U R
 ERRLVL:                                          E R R L V L;
 ERROR:                                           E R R O R;
 ERROR_BROKER_CONVERSATIONS:                      E R R O R  UNDERLINE  B R O K E R  UNDERLINE  C O N V E R S A T I O N S;
+ERRORDATA:                                       E R R O R D A T A;
 ESCAPE:                                          E S C A P E;
 EVENT:                                           E V E N T;
 EVENTDATA:                                       E V E N T D A T A;
@@ -431,6 +433,7 @@ HASHED:                                          H A S H E D;
 HAVING:                                          H A V I N G;
 HEALTHCHECKTIMEOUT:                              H E A L T H C H E C K T I M E O U T;
 HEALTH_CHECK_TIMEOUT:                            H E A L T H  UNDERLINE  C H E C K  UNDERLINE  T I M E O U T;
+HELP:                                            H E L P;
 HIDDEN_RENAMED:                                  H I D D E N;
 HIGH:                                            H I G H;
 HINT:                                            H I N T;
@@ -445,6 +448,7 @@ IDENTITYCOL:                                     I D E N T I T Y C O L;
 IDENTITY_INSERT:                                 I D E N T I T Y  UNDERLINE  I N S E R T;
 IDENTITY_VALUE:                                  I D E N T I T Y  UNDERLINE  V A L U E;
 IF:                                              I F;
+IGNORE:                                          I G N O R E;
 IGNORE_NONCLUSTERED_COLUMNSTORE_INDEX:           I G N O R E  UNDERLINE  N O N C L U S T E R E D  UNDERLINE  C O L U M N S T O R E  UNDERLINE  I N D E X;
 IIF:                                             I I F;
 IMMEDIATE:                                       I M M E D I A T E;
@@ -517,6 +521,7 @@ LISTENER:                                        L I S T E N E R;
 LISTENER_IP:                                     L I S T E N E R  UNDERLINE  I P;
 LISTENER_PORT:                                   L I S T E N E R  UNDERLINE  P O R T;
 LISTENER_URL:                                    L I S T E N E R  UNDERLINE  U R L;
+LISTVAR:                                         L I S T V A R;
 LOAD:                                            L O A D;
 LOB_COMPACTION:                                  L O B  UNDERLINE  C O M P A C T I O N;
 LOCAL:                                           L O C A L;
@@ -692,6 +697,7 @@ PERCENTILE_CONT:                                 P E R C E N T I L E  UNDERLINE 
 PERCENTILE_DISC:                                 P E R C E N T I L E  UNDERLINE  D I S C;
 PERCENT_RANK:                                    P E R C E N T  UNDERLINE  R A N K;
 PERIOD:                                          P E R I O D;
+PERFTRACE:                                       P E R F T R A C E;
 PERMISSION_SET:                                  P E R M I S S I O N  UNDERLINE  S E T;
 PERSISTED:                                       P E R S I S T E D;
 PERSIST_SAMPLE_PERCENT:                          P E R S I S T  UNDERLINE  S A M P L E  UNDERLINE  P E R C E N T;
@@ -740,6 +746,7 @@ QUERY_CAPTURE_POLICY:                            Q U E R Y  UNDERLINE  C A P T U
 QUERY_STORE:                                     Q U E R Y  UNDERLINE  S T O R E;
 QUEUE:                                           Q U E U E;
 QUEUE_DELAY:                                     Q U E U E  UNDERLINE  D E L A Y;
+QUIT:                                            Q U I T;
 QUOTED_IDENTIFIER:                               Q U O T E D  UNDERLINE  I D E N T I F I E R;
 R:                                               [Rr];
 RAISERROR:                                       R A I S E R R O R;
@@ -865,6 +872,7 @@ SEQUENCE:                                        S E Q U E N C E;
 SEQUENCE_NUMBER:                                 S E Q U E N C E  UNDERLINE  N U M B E R;
 SERIALIZABLE:                                    S E R I A L I Z A B L E;
 SERVER:                                          S E R V E R;
+SERVERLIST:                                      S E R V E R L I S T;
 SERVICE:                                         S E R V I C E;
 SERVICE_BROKER:                                  S E R V I C E  UNDERLINE  B R O K E R;
 SERVICE_NAME:                                    S E R V I C E  UNDERLINE  N A M E;
@@ -876,6 +884,7 @@ SETERROR:                                        S E T E R R O R;
 SETS:                                            S E T S;
 SETTINGS:                                        S E T T I N G S;
 SETUSER:                                         S E T U S E R;
+SETVAR:                                          S E T V A R;
 SHARE:                                           S H A R E;
 SHOWPLAN:                                        S H O W P L A N;
 SHOWPLAN_ALL:                                    S H O W P L A N  UNDERLINE  A L L;
@@ -925,6 +934,8 @@ STATS:                                           S T A T S;
 STATS_STREAM:                                    S T A T S  UNDERLINE  S T R E A M;
 STATUS:                                          S T A T U S;
 STATUSONLY:                                      S T A T U S O N L Y;
+STDERR:                                          S T D E R R;
+STDOUT:                                          S T D O U T;
 STDEV:                                           S T D E V;
 STDEVP:                                          S T D E V P;
 STOP:                                            S T O P;
@@ -1098,9 +1109,9 @@ LINE_COMMENT:       '--' ~[\r\n]* -> skip;
 //LINE_CONTINUATION:  '\\' \r? \n;
 
 // The next two rules are mutually exclusive - which rule we choose depends on the
-// value of QUOTED_IDENTIFIER_FLAG, which reflects the SET QUOTED_IDENTFIER statements encountered.
-// The first rule chooses to return a DOUBLE_QUOTE_ID if QUOTED_IDENTIFIER_FLAG is true.
-// The second rule chooses to return a STRING if QUOTED_IDENTIFIER_FLAG is false
+// value of QUOTED_IDENTIFIER_FLAG, which reflects the SET QUOTED_IDENTIFIER statements encountered.
+// The first rule returns DOUBLE_QUOTE_ID if QUOTED_IDENTIFIER_FLAG is true.
+// The second rule returns STRING if QUOTED_IDENTIFIER_FLAG is false
 // NB: for performance reasons, put the QUOTED_IDENTIFIER_FLAG condition at the end, not at the start.
 DOUBLE_QUOTE_ID:     '"' (~'"' | '""' )* '"' {QUOTED_IDENTIFIER_FLAG}?;
 STRING:              'N'? ('\'' (~'\'' | '\'\'')* '\'' | '"' (~'"' | '""')* '"'  {!QUOTED_IDENTIFIER_FLAG}? );

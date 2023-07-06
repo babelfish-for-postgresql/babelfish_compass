@@ -279,7 +279,8 @@ cfl_statement
     | waitfor_statement
     | while_statement
     | print_statement
-    | raiseerror_statement
+    | raiserror_statement
+    | raiserror_statement_sybase
     ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/language-elements/begin-end-transact-sql
@@ -351,18 +352,22 @@ print_statement
     ;
 
 // https://docs.microsoft.com/en-us/sql/t-sql/language-elements/raiserror-transact-sql
-raiseerror_statement
-    : RAISERROR LR_BRACKET msg=raiseerror_msg COMMA severity=constant_LOCAL_ID COMMA
-    state=constant_LOCAL_ID (COMMA constant_LOCAL_ID)* RR_BRACKET (WITH raiseerror_option (COMMA raiseerror_option)* )? SEMI?
+raiserror_statement
+    : RAISERROR LR_BRACKET msg=raiserror_msg COMMA severity=constant_LOCAL_ID COMMA
+    state=constant_LOCAL_ID (COMMA constant_LOCAL_ID)* RR_BRACKET (WITH raiserror_option (COMMA raiserror_option)* )? SEMI?
     ;
 
-raiseerror_msg
+raiserror_msg
     : DECIMAL | char_string | LOCAL_ID
     ;
 
-raiseerror_option
+raiserror_option
     : (LOG | SETERROR | NOWAIT)
     ;
+    
+raiserror_statement_sybase
+    : RAISERROR msg=raiserror_msg COMMA? expression_list ( WITH ERRORDATA expression_list )?
+    ;    
 
 another_statement
     : declare_statement
@@ -379,8 +384,29 @@ another_statement
     | setuser_statement
     | reconfigure_statement
     | shutdown_statement
+    | sqlcmd_command  
     ;
 
+sqlcmd_command
+// :EXIT, :QUIT, :RESET are handled in batch processing; :EXIT((query) is not detected
+    : COLON ( 
+           SETVAR id ( expression | local_file ) 
+         | ED 
+         | LIST 
+         | LISTVAR 
+         | SERVERLIST 
+         | HELP 
+         | XML on_off 
+         | ON ERROR ( EXIT | IGNORE )  
+         | ERROR ( local_file | STDOUT | STDERR )
+         | OUT ( local_file | STDOUT | STDERR )
+         | PERFTRACE ( local_file | STDOUT | STDERR )
+         | R local_file 
+         | EXCLAMATION EXCLAMATION ( expression | local_file | DOT | MINUS | STAR | id )+
+         | CONNECT id (BACKSLASH id)? ( MINUS id expression )*         
+      )
+    ;
+    
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-application-role-transact-sql
 alter_application_role
     : ALTER APPLICATION ROLE appliction_role=id WITH  (COMMA? NAME EQUAL new_application_role_name=id)? (COMMA? PASSWORD EQUAL application_role_password=char_string)? (COMMA? DEFAULT_SCHEMA EQUAL app_role_default_schema=id)?
@@ -435,18 +461,23 @@ network_file_share
     : DOUBLE_BACK_SLASH computer_name=id file_path
     ;
 
-file_path
-    : BACKSLASH file_path
-    | id
+local_drive
+    : DISK_DRIVE
     ;
 
 local_file
     : local_drive file_path
+    | file_path
     ;
-
-local_drive
-    : DISK_DRIVE
-    ;
+    
+file_path   
+    : (DIVIDE | DOUBLE_FORWARD_SLASH | BACKSLASH ) file_name_part    // DIVIDE = fwd slash     
+    | file_name_part file_path?
+    ;    
+    
+file_name_part
+   : ( id | DOT | MINUS | DIVIDE | DOUBLE_FORWARD_SLASH | BACKSLASH )+
+   ;    
 
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/create-assembly-transact-sql
 create_assembly
@@ -1727,7 +1758,7 @@ merge_not_matched
 // https://msdn.microsoft.com/en-us/library/ms189835.aspx
 delete_statement
     : with_expression?
-      DELETE (TOP LR_BRACKET expression RR_BRACKET PERCENT? | TOP DECIMAL)?
+      DELETE (TOP LR_BRACKET ( expression | select_statement ) RR_BRACKET PERCENT? | TOP DECIMAL)?
       FROM? delete_statement_from
       with_table_hints?
       output_clause?
@@ -1747,7 +1778,7 @@ delete_statement_from
 // https://msdn.microsoft.com/en-us/library/ms174335.aspx
 insert_statement
     : with_expression?
-      INSERT (TOP LR_BRACKET expression RR_BRACKET PERCENT?)?
+      INSERT (TOP LR_BRACKET ( expression | select_statement ) RR_BRACKET PERCENT?)?
       INTO? (ddl_object | rowset_function | function_call )
       with_table_hints?
       ( LR_BRACKET insert_column_name_list RR_BRACKET )?
@@ -1797,7 +1828,7 @@ time
 // https://msdn.microsoft.com/en-us/library/ms177523.aspx
 update_statement
     : with_expression?
-      UPDATE (TOP LR_BRACKET expression RR_BRACKET PERCENT?)?
+      UPDATE (TOP LR_BRACKET ( expression | select_statement ) RR_BRACKET PERCENT?)?
       (ddl_object | rowset_function | function_call )
       with_table_hints?
       SET update_elem (COMMA update_elem)*
@@ -1819,7 +1850,7 @@ output_dml_list_elem
     ;
 
 output_column_name
-    : (DELETED | INSERTED | table_name) DOT ( STAR  | id)
+    : (DELETED | INSERTED | table_name) DOT ( STAR  | id )
     | DOLLAR_ACTION
     ;
 
@@ -3501,15 +3532,20 @@ predicate
     : EXISTS subquery
     | freetext_predicate
     | expression comparison_operator expression
-    | expression comparison_operator (ALL | SOME | ANY)   subquery
+    | expression comparison_operator (ALL | SOME | ANY) subquery
     | expression NOT? IN  subquery
     | expression NOT? BETWEEN expression AND expression
     | expression NOT? IN LR_BRACKET expression_list RR_BRACKET
-    | expression NOT? LIKE expression (ESCAPE expression)?
+    | expression NOT? LIKE expression like_escape_clause?
     | expression IS null_notnull
     | expression IS NOT? distinct_from_operator expression  //SQL2022
     | trigger_column_updated
     ;
+    
+like_escape_clause
+    : ESCAPE expression
+    | L_CURLY ESCAPE expression R_CURLY
+    ;    
 
 //SQL2022
 distinct_from_operator
@@ -4357,6 +4393,7 @@ keyword
     | CONCAT
     | CONCAT_NULL_YIELDS_NULL
     | CONFIGURATION
+    | CONNECT
     | CONNECTION
     | CONTAINED
     | CONTAINMENT
@@ -4436,6 +4473,8 @@ keyword
     | DOCUMENT
     | DTC_SUPPORT
     | DYNAMIC
+    | ED
+    | EDGE
     | ELEMENTS
     | EMERGENCY
     | EMPTY
@@ -4478,6 +4517,7 @@ keyword
     | FAST
     | FAST_FORWARD
     | FIELD_TERMINATOR
+    | FILE
     | FILEGROUP
     | FILEGROWTH
     | FILENAME
@@ -4532,6 +4572,7 @@ keyword
     | HASHED
     | HEALTHCHECKTIMEOUT
     | HEALTH_CHECK_TIMEOUT
+    | HELP
     | HIDDEN_RENAMED
     | HIGH
     | HINT
@@ -4544,6 +4585,7 @@ keyword
     | IDENTITY
     | IDENTITYCOL
     | IDENTITY_VALUE
+    | IGNORE
     | IGNORE_NONCLUSTERED_COLUMNSTORE_INDEX
     | IIF
     | IMMEDIATE
@@ -4604,6 +4646,7 @@ keyword
     | LISTENER_IP
     | LISTENER_PORT
     | LISTENER_URL
+    | LISTVAR
     | LOB_COMPACTION
     | LOCAL
     | LOCAL_SERVICE_NAME
@@ -4752,6 +4795,7 @@ keyword
     | PERCENTILE_DISC
     | PERCENT_RANK
     | PERIOD
+    | PERFTRACE
     | PERMISSION_SET
     | PERSISTED
     | PERSIST_SAMPLE_PERCENT
@@ -4789,6 +4833,7 @@ keyword
     | QUERY_STORE
     | QUEUE
     | QUEUE_DELAY
+    | QUIT
     | QUOTED_IDENTIFIER
     | R
     | RANDOMIZED
@@ -4897,6 +4942,7 @@ keyword
     | SETERROR
     | SETS
     | SETTINGS
+    | SETVAR
     | SHARE
     | SHOWPLAN
     | SHOWPLAN_ALL
@@ -4937,6 +4983,8 @@ keyword
     | STATS_STREAM
     | STATUS
     | STATUSONLY
+    | STDERR
+    | STDOUT
     | STDEV
     | STDEVP
     | STOP
@@ -5136,8 +5184,13 @@ id
     | DOLLAR_IDENTITY
     | DOLLAR_ROWGUID
     | id colon_colon id
+    | sqlcmd_variable
     ;
 
+sqlcmd_variable
+    : DOLLAR LR_BRACKET ( ID | keyword ) RR_BRACKET
+    ;
+    
 // https://msdn.microsoft.com/en-us/library/ms188074.aspx
 // Spaces are allowed for comparison operators.
 comparison_operator

@@ -1001,7 +1001,7 @@ public class Compass {
 				u.targetBabelfishVersion = u.applyPatternFirst(u.targetBabelfishVersion, "\\.\\.", ".");				
 			}
 			if (!cfg.isValidBabelfishVersion(u.targetBabelfishVersion)) {
-				u.appOutput("Invalid target Babelfish version specified: [" + u.targetBabelfishVersion + "].\nValid Babelfish versions: " + cfg.validBabelfishVersions());
+				u.appOutput("Invalid target Babelfish version specified: [" + u.targetBabelfishVersion + "]\nValid Babelfish versions: " + cfg.validBabelfishVersions());
 				return;
 			}
 		} else {
@@ -1955,6 +1955,8 @@ public class Compass {
 		
 		if (u.rewrite) u.appOutput("SQL rewrites         : "+ u.nrRewritesDone, writeToReport);
 		else           u.appOutput("SQL rewrite oppties  : "+ u.rewriteOppties.getOrDefault(u.rewriteOpptiesTotal,0), writeToReport);
+		if (u.execTest)u.appOutput("ExecTest statements  : "+ u.execTestStatements, writeToReport);
+		
 		if (u.queriesExtractedAll > 0) {
 			           u.appOutput("Batches extracted    : "+ u.queriesExtractedAll, writeToReport);
 			           u.appOutput("Duplicates removed   : "+ u.deDupSkippedAll, writeToReport);
@@ -2039,7 +2041,7 @@ public class Compass {
 		}				
 
 		// remove duplicate input files
-		// sort files in app+ pathname order
+		// sort files in app+pathname order so that we always process them in the same order
 		List<String> tmpInputFiles = new ArrayList<>();
 		List<String> tmpInputFilesUpperCase = new ArrayList<>();
 		List<String> sortInputFiles = new ArrayList<>();
@@ -2119,6 +2121,7 @@ public class Compass {
 			FileInputStream fis = null;
 			InputStreamReader isr = null;
 			u.dynamicSQLBuffer.clear();
+			a.sqlcmdVars.clear();
 			retrySLLFile = 0;
 			if (u.rewrite) u.resetRewrites();
 			u.currentDatabase  = "";
@@ -2302,8 +2305,8 @@ public class Compass {
 
 			// process input file line by line, identifying batches to be parsed
 			// this follows the 'sqlcmd' utility which uses 'go' and 'reset' as batch terminators
-			// other sqlcmd commands/directives are not supported or detected except 'exit'/'quit'
-			// Todo: other sqlcmd commands/directives are not supported (e.g. :r), these should be detected.
+			// other sqlcmd commands/directives are not handled except 'exit'/'quit'; such sqlcmd 
+			// commands/directives can only be handled by sqlcmd itself
 
 			StringBuilder batchText = new StringBuilder();
 			int batchLines = 0;
@@ -2623,8 +2626,8 @@ public class Compass {
 						if ((!inString) && (inComment == 0)) {
 							// check line for batch terminator
 							line = u.applyPatternFirst(line, "^\\s*GO\\s*?(\\s\\d+\\s*|--.*)?$", "go");
-							line = u.applyPatternFirst(line, "^\\s*RESET\\s*(--.*)?$", "reset");
-							line = u.applyPatternFirst(line, "^\\s*(EXIT|QUIT)\\s*(--.*)?$", "exit");
+							line = u.applyPatternFirst(line, "^\\s*(:)?RESET\\s*(--.*)?$", "reset");
+							line = u.applyPatternFirst(line, "^\\s*(:)?(EXIT|QUIT)\\s*(--.*)?$", "exit");
 							if (u.debugging) u.dbgOutput("read2=[" + line + "]", u.debugBatch);
 							if (line.trim().equalsIgnoreCase("go")) {
 								if (u.debugging) u.dbgOutput("line is go=[" + line + "]", u.debugBatch);
