@@ -1,3 +1,12 @@
+# 2023-08
+- Fixed an issue with non-English locale causing aborting with error "Analysis was performed for a different Babelfish version (v.) than targeted by this run (v.3.2.0)".
+- Fixed a problem when using the -sqlendpoint flag, causing Compass to hang.
+- When using -sqlendpoint, include SQL Server license type and resource info in the Compass report. 
+- Support for new 'one-time learning curve' component in user-defined effort estimates.
+- New user-defined defaults for complexity scores and effort estimates, for categories of items.
+- New flag '-csvformat flat' to generate the .csv file in 'flat' format.
+- Small report enhancements.
+
 # 2023-06
 - Updated support for Babelfish v.3.2.0.
 - Expanded scope of -optimistic flag.

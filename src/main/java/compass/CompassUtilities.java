@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2023-06";
-	public static final String thisProgVersionDate  = "June 2023";
+	public static final String thisProgVersion      = "2023-08";
+	public static final String thisProgVersionDate  = "August 2023";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -86,6 +86,7 @@ public class CompassUtilities {
 
 	// this string is tested for to see if the header needs to be upgraded
 	private String userCfgComplexityHdrLine202209 = "# Complexity_score overrides values defined by Compass in "+defaultCfgFileName+".";
+	private String userCfgComplexityHdrLine202308 = "#    effort_estimate=15 mins : 1 h             # 15 minutes/1 hour for any other unsupported options";
 
 	// .cfg file format version as found in the .cfg file; this is validated
 	public static Integer cfgFileFormatVersionRead = 0;
@@ -109,8 +110,8 @@ public class CompassUtilities {
 	public String targetBabelfishVersionReportLine = "Target Babelfish version   : v."; // line in report listing the target version
 	public boolean stdReport = false;	// development only
 
-	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0", "3.2.0");
-	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2",  "15.3");
+	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0", "3.2.0", "3.3.0");
+	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2",  "15.3",  "15.4");
 
 	// minimum Babelfish version; this is fixed
 	public static final String baseBabelfishVersion = "1.0.0";
@@ -207,6 +208,7 @@ public class CompassUtilities {
 	public final static String extractedDirName = "extractedSQL";
 	public final static String extractedFileSuffix = "extracted.sql";
 	public final static String execTestFileName = "exectest.sql";
+	public final static String uniqueCntTag = "uniqueCntTag";
 
 
 	public final String getAnonymizedItemsFilename = "anonymizedBabelfishItems.dat";
@@ -239,10 +241,12 @@ public class CompassUtilities {
 	public BufferedWriter rewrittenFileWriter;
 	public BufferedWriter execTestWriter;
 	public Map<String, Integer> complexityScoreCount = new HashMap<>();
+	public Map<String, Integer> complexityScoreCountUnique = new HashMap<>();
 	private static final int complexityCntTypeLo = 0;
 	private static final int complexityCntTypeMed = 1;
 	private static final int complexityCntTypeHi = 2;
 	private static final int complexityCntTypeCustom = 3;
+	public static Map<String, String> SQLSrvResourcesDetail = new HashMap<>();
 
 	// importformat options
 	public static final String autoFmt = "auto"; // not currently supported
@@ -290,6 +294,7 @@ public class CompassUtilities {
 	public String tocHTMLPlaceholder       = "BBF_TOCHTMLPLACEHOLDER";
 	public String tooltipsHTMLPlaceholder  = "BBF_TOOLTIPSHTMLPLACEHOLDER";
 	public String tagExecSummary           = "execsumm";
+	public String tagSQLSrvSummary         = "sqlsrv";
 	public String tagApps                  = "apps";
 	public String tagEstimate              = "estimate";
 	public String tagObjcount              = "objcount";
@@ -622,10 +627,13 @@ tooltipsHTMLPlaceholder +
 		"EXECUTE procedure sp_droplogin"+tttSeparator+"System stored procedure sp_droplogin is not currently supported; rewrite as DROP LOGIN",
 		"EXECUTE procedure sp_adduser"+tttSeparator+"System stored procedure sp_adduser is not currently supported; rewrite as CREATE USER",
 		"EXECUTE procedure sp_dropuser"+tttSeparator+"System stored procedure sp_dropuser is not currently supported; rewrite as DROP USER",
+		"EXECUTE procedure sp_password"+tttSeparator+"System stored procedure sp_password is not currently supported; rewrite as ALTER LOGIN",
 		"EXECUTE procedure sp_addrolemember"+tttSeparator+"System stored procedure sp_addrolemember is not currently supported; rewrite as ALTER ROLE...ADD MEMBER",
 		"EXECUTE procedure sp_droprolemember"+tttSeparator+"System stored procedure sp_droprolemember is not currently supported; rewrite as ALTER ROLE...DROP MEMBER",
 		"EXECUTE procedure sp_addsrvrolemember"+tttSeparator+"System stored procedure sp_addsrvrolemember is not currently supported; rewrite as ALTER SERVER ROLE...ADD MEMBER",
 		"EXECUTE procedure sp_dropsrvrolemember"+tttSeparator+"System stored procedure sp_dropsrvrolemember is not currently supported; rewrite as ALTER SERVER ROLE...DROP MEMBER",
+		CompassAnalyze.ExtendedPropType+" in @var"+tttSeparator+"Manually review whether the extended property type in a variable is supported",
+		CompassAnalyze.ExtendedPropType+tttSeparator+"This extended property type is not currently supported",
 		"EXECUTE procedure sp_addextendedproperty"+tttSeparator+"System stored procedure sp_addextendedproperty is not currently supported; this is most often used to create metadata comments (e.g. COMMENT ON in PostgreSQL) and does not otherwise affect SQL functionality",
 		"EXECUTE procedure sp_"+tttSeparator+"This system stored procedure is not currently supported",
 		"EXECUTE procedure sp_"+tttSeparator+ReviewManually+tttSeparator+"This system stored procedure may be supported with this argument, but this cannot be determined by Compass",
@@ -672,6 +680,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.AlterTable+"..ALTER COLUMN NOT NULL"+tttSeparator+"NULL/NOT NULL is not currently supported with ALTER COLUMN. To change column nullability, use ALTER TABLE { SET | DROP } NOT NULL in PG",
 		CompassAnalyze.AlterTable+"..DROP <constraint"+tttSeparator+"Currently, the original constraint name cannot be used to drop a constraint. Instead, the Babelfish-internal constraint name should be used",
 		"DBCC "+tttSeparator+"DBCC statements are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
+		"KILL "+tttSeparator+"This variant of KILL is not currently supported; only KILL <spid> is supported",
 		CompassAnalyze.ODBCScalarFunction+tttSeparator+"ODBC scalar functions are not currently supported; rewrite with an equivalent built-in function (some cases can be handled automatically with the -rewrite option)",
 		CompassAnalyze.ODBCLiterals+tttSeparator+"ODBC literal expressions are not currently supported; rewrite with CAST() to the desired datatype (some cases can be handled automatically with the -rewrite option)",
 		CompassAnalyze.ODBCOJ+tttSeparator+"ODBC Outer Join syntax is not currently supported; rewrite with regular join syntax",
@@ -931,7 +940,8 @@ tooltipsHTMLPlaceholder +
 "	context VARCHAR("+pgImportContextLength+") NOT NULL,          -- name of object, or 'T-SQL batch'\n"+
 "	subcontext VARCHAR("+pgImportSubContextLength+") NOT NULL,       -- (optional) name of table in object \n"+
 "	misc VARCHAR(20) NOT NULL,              -- complexity score\n"+
-"	misc2 BIGINT NOT NULL                   -- effort estimate in minutes\n"+
+"	misc2 BIGINT NOT NULL,                  -- scaling effort estimate, in minutes\n"+
+"	misc3 BIGINT NOT NULL                   -- learning curve effort estimate, in minutes\n"+
 ");\n";
 
 	public String psqlImportCOPY =
@@ -1183,6 +1193,10 @@ tooltipsHTMLPlaceholder +
 	public static boolean listHints = false;
 	public static boolean reportSyntaxIssues = false;
 	public static boolean generateCSV = true;
+	public static final String CSVFormatDefault = "default";	
+	public static final String CSVFormatFlat = "flat";	
+	public static List<String> CSVFormats = Arrays.asList(CSVFormatDefault, CSVFormatFlat);				
+	public static String generateCSVFormat = CSVFormatDefault; 
 	public static boolean reportComplexityScore = true;
 	public static final String CSVseparator = ",";
 
@@ -2507,26 +2521,26 @@ tooltipsHTMLPlaceholder +
 			css += ".tooltip .tooltip-content[data-tooltip='"+key+"']::before { content: \""+tooltipText+"\"; }\n";
 		}
 		// put tooltips CSS lines in the HTML header
-		hdr = applyPatternFirst(hdr, tooltipsHTMLPlaceholder, css);
+		hdr = hdr.replaceFirst(tooltipsHTMLPlaceholder, css);
 		return hdr;
 	}
 
 	public String formatHeaderHTML(String hdr, String now, String reportName, String inputFileName, String appName, String inputfileTxt) {
 		String hdr1 = "Generated by " + thisProgName + " at " + now;
 		// fill in various parts in the HTML header
-		hdr = applyPatternAll(hdr, headerHTMLPlaceholder, hdr1);
+		hdr = hdr.replaceAll(headerHTMLPlaceholder, hdr1);
 		//String title = "Report " + reportName + ", file " + inputFileName + ", application " + appName;
-		hdr = applyPatternFirst(hdr, titleHTMLPlaceholder, inputFileName);
-		hdr = applyPatternFirst(hdr, reportHTMLPlaceholder, reportName);
-		hdr = applyPatternFirst(hdr, inputfileHTMLPlaceholder, escapeRegexChars(inputFileName));
-		hdr = applyPatternFirst(hdr, appnameHTMLPlaceholder, appName);
-		hdr = applyPatternFirst(hdr, inputfileTxtPlaceholder, inputfileTxt);
+		hdr = hdr.replaceFirst(titleHTMLPlaceholder, escapeRegexChars(inputFileName));
+		hdr = hdr.replaceFirst(reportHTMLPlaceholder, reportName);
+		hdr = hdr.replaceFirst(inputfileHTMLPlaceholder, escapeRegexChars(inputFileName));
+		hdr = hdr.replaceFirst(appnameHTMLPlaceholder, appName);
+		hdr = hdr.replaceFirst(inputfileTxtPlaceholder, inputfileTxt);
 
 		if (inputfileTxt.contains("Rewritten")) {
-			hdr = applyPatternFirst(hdr, tocHTMLPlaceholder, "<br>Note: see end of file (<a href=\"#"+anchorListOfRewrites+"\">here</a>) for list of rewritten sections.");
+			hdr = hdr.replaceFirst(tocHTMLPlaceholder, "<br>Note: see end of file (<a href=\"#"+anchorListOfRewrites+"\">here</a>) for list of rewritten sections.");
 		}
 		else {
-			hdr = applyPatternFirst(hdr, tocHTMLPlaceholder, " ");
+			hdr = hdr.replaceFirst(tocHTMLPlaceholder, " ");
 		}
 
 		return hdr;
@@ -2535,7 +2549,7 @@ tooltipsHTMLPlaceholder +
 	public void formatFooterHTML() {
 		String ftr = "Generated by " + thisProgName;
 		// fill in the HTML footer
-		footerHTML = applyPatternFirst(footerHTML, footerHTMLPlaceholder, ftr);
+		footerHTML = footerHTML.replaceFirst(footerHTMLPlaceholder, ftr);
 	}
 
 	public void writeImportFile(String line) throws IOException {
@@ -2830,6 +2844,11 @@ tooltipsHTMLPlaceholder +
 			String dt             = captureFileAttribute(line, 3);
 			String fmtVersion     = captureFileAttribute(line, 4);
 
+			if (reportName.isEmpty() || tgtVersion.isEmpty() || dt.isEmpty() || fmtVersion.isEmpty()) {
+				appOutput("Invalid format on line 1 of "+cf+":["+line+"]");
+				errorExit();
+			}
+			
 			if (targetVersionTest == null) {
 				targetVersionTest = tgtVersion;
 			}
@@ -3774,7 +3793,7 @@ tooltipsHTMLPlaceholder +
     	assert (part >= 1 && part <= captureFileAttributeMax): "invalid part value ["+part+"] ";
     	if (part == 4) part++;
     	else if (part == 5) part += 2;
-    	String patt = "^"+captureFileLinePart1+"[\\[](.*?)[\\]]"+captureFileLinePart2+"[\\[](.*?)[\\]]"+captureFileLinePart3+"(\\d\\d\\-\\w\\w\\w\\-\\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d)("+captureFileLinePart4+"[\\[](.*?)[\\]])?("+captureFileLinePart5+"[\\[](.*?)[\\]])?";
+    	String patt = "^"+captureFileLinePart1+"[\\[](.*?)[\\]]"+captureFileLinePart2+"[\\[](.*?)[\\]]"+captureFileLinePart3+"(\\d\\d\\-.+?-\\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d)("+captureFileLinePart4+"[\\[](.*?)[\\]])?("+captureFileLinePart5+"[\\[](.*?)[\\]])?";
     	String attrib = getPatternGroup(line, patt, part);
     	return attrib;
     }
@@ -4502,7 +4521,9 @@ tooltipsHTMLPlaceholder +
 	}
 
 	public void writeCSVFile() throws IOException {
-		CSVFileWriter.write("\n");
+		if (generateCSVFormat.equals(CSVFormatDefault)) {
+			CSVFileWriter.write("\n");
+		}
 		CSVFileWriter.flush();
 	}
 
@@ -4512,7 +4533,10 @@ tooltipsHTMLPlaceholder +
 
 	public void writeCSVFile(String line) throws IOException {
 		line = removeHTMLTags(line);
-		CSVFileWriter.write(unEscapeHTMLChars(line) + "\n");
+		CSVFileWriter.write(unEscapeHTMLChars(line));
+		if (generateCSVFormat.equals(CSVFormatDefault)) {
+			CSVFileWriter.write("\n");
+		}		
 		CSVFileWriter.flush();
 	}
 
@@ -4552,11 +4576,13 @@ tooltipsHTMLPlaceholder +
 	// whether a complexity is assigned to this status
 	public boolean hasComplexityEffort(String status) {
 		boolean result = false;
-		if (status.equals(NotSupported) || status.equals(ReviewSemantics) || status.equals(ReviewPerformance) || status.equals(ReviewManually)) result = true;
+		if (status.equals(NotSupported) || status.equals(ReviewSemantics) || status.equals(ReviewPerformance) || status.equals(ReviewManually) || status.equals(Ignored)) result = true;
 		return result;
 	}
 
 	public String reportSummaryStatus(String status, List<String> sortedList, Map<String, Integer> itemCount, Map<String, String>appItemList) throws IOException {
+		assert CSVFormats.contains(generateCSVFormat) : "Invalid CSV format value[" + generateCSVFormat + "]";
+				
 		StringBuilder lines = new StringBuilder();
 		StringBuilder prevGroup = new StringBuilder(uninitialized);
 		final String statsMarker = "~STATSHERE~";
@@ -4566,10 +4592,12 @@ tooltipsHTMLPlaceholder +
 		if (hasComplexityEffort(status)) generateCSV = true;
 
 		StringBuilder linesCSV = new StringBuilder();
+		String linesCSVGroup = "";
 
 		//progress indicator
 		printProgress();
 		Integer totalCnt = 0;
+		Integer totalCntDistinct = 0;
 		int grpCount = 0;
 		Map<String, Integer> itemCnt = new HashMap<>();
 		for (String s: sortedList) {
@@ -4584,13 +4612,22 @@ tooltipsHTMLPlaceholder +
 				prevGroup = group;
 				if (grpCount > 0) {
 					String stats = grpCount+"/"+itemCnt.size();
+					totalCntDistinct += itemCnt.size();
 					lines = applyPatternSBFirst(lines, statsMarker, stats);
 					grpCount = 0;
 					itemCnt.clear();
 				}
 				if (sortStatus.toString().equals(lastItem)) break;
 				lines.append(group).append(" ("+statsMarker+")\n");
-				if (generateCSV) linesCSV.append("\n").append(CSVseparator).append(group).append("\n");
+				if (generateCSV) {
+					if (generateCSVFormat.equals(CSVFormatDefault)) {
+						linesCSV.append("\n").append(CSVseparator).append(group).append("\n");
+					}
+					else {
+						// flat format
+						linesCSVGroup = group.toString();				
+					}
+				}
 			}
 			grpCount += itemCount.get(s);
 			totalCnt += itemCount.get(s);
@@ -4607,35 +4644,59 @@ tooltipsHTMLPlaceholder +
 					hint = hint.replaceAll(CSVseparator, "");
 				}
 				String itemCSV =  collapseWhitespace(item.toString().replaceAll(CSVseparator, " "));
-				String complexityDefined = getComplexityEffort(CompassConfig.complexityTag, item.toString(), group.toString());
-				String effortDefined     = getComplexityEffort(CompassConfig.effortTag, item.toString(), group.toString(), complexityDefined);
-				if (debugging) dbgOutput(thisProc()+"complexityDefined=["+complexityDefined+"]  effortDefined=["+effortDefined+"] ", debugReport);
+				String complexityDefined = getComplexityEffort(CompassConfig.complexityTag, item.toString(), group.toString(), status);
+				String effortDefined     = getComplexityEffort(CompassConfig.effortTag, item.toString(), group.toString(), status, complexityDefined);
 
-				String effortDefinedMinutes = " ";
-				if (!effortDefined.trim().isEmpty()) {
-					effortDefinedMinutes = CompassConfig.convertEffortValue(effortDefined).toString();
-					effortDefined = CompassConfig.formatEffort(effortDefined);
+				String effortDefinedScale          = CompassConfig.getEffortValue(effortDefined, CompassConfig.effortPartScale);
+				String effortDefinedLearningCurve  = CompassConfig.getEffortValue(effortDefined, CompassConfig.effortPartLearningCurve);			
+				if (debugging) dbgOutput(thisProc()+"item=["+item.toString()+"] group=["+group.toString()+"]  status=["+status+"] complexityDefined=["+complexityDefined+"]  effortDefined=["+effortDefined+"] effortDefinedScale=["+effortDefinedScale+"] effortDefinedLearningCurve=["+effortDefinedLearningCurve+"] ", debugReport);
+				
+				String effortDefinedScaleMinutes   = "0";
+				if (!effortDefinedScale.trim().isEmpty()) {
+					effortDefinedScaleMinutes = CompassConfig.convertEffortValue(effortDefinedScale).toString();
+					effortDefinedScale        = CompassConfig.formatEffort(effortDefinedScale);
 				}
 
+				String effortDefinedLearningCurveMinutes = "0";				
+				if (!effortDefinedLearningCurve.trim().isEmpty()) {
+					effortDefinedLearningCurveMinutes  = CompassConfig.convertEffortValue(effortDefinedLearningCurve).toString();
+					effortDefinedLearningCurve         = CompassConfig.formatEffort(effortDefinedLearningCurve);
+				}
+
+				if (debugging) dbgOutput(thisProc()+"complexityDefined=["+complexityDefined+"]  effortDefined=["+effortDefined+"] effortDefinedScale=["+effortDefinedScale+"] effortDefinedScaleMinutes=["+effortDefinedScaleMinutes+"] effortDefinedLearningCurve=["+effortDefinedLearningCurve+"] effortDefinedLearningCurveMinutes=["+effortDefinedLearningCurveMinutes+"] ", debugReport);
+				
 				// include the 'review' categories in the .csv, but only add complexity scores for 'NotSupported'
-				if (status.equals(NotSupported)) {
+				if (hasComplexityEffort(status)) {					
 					if (reportComplexityScore) {
-						complexityLine = " ["+complexityDefined.toLowerCase()+"]";
+						if (!status.equals(Ignored)) { // we include the complexity for Ignored in the .csv (for planning purposes), but not in the report 
+							                           // (it doesn't make much sense since we marked it as Ignored)
+							complexityLine = " ["+complexityDefined.toLowerCase()+"]";
+						}
 					}
 				}
 				else {
 					complexityDefined = "";
-					effortDefined = "";
-					effortDefinedMinutes = "";
+					effortDefinedScale = "";
+					effortDefinedScaleMinutes = "";					
+					effortDefinedLearningCurve = "";
+					effortDefinedLearningCurveMinutes = "";
 				}
 
-				linesCSV.append(CSVseparator).append(CSVseparator).append(itemCSV).append(CSVseparator).append(itemCount.get(s).toString()).append(CSVseparator).append(hint).append(CSVseparator).append(complexityDefined).append(CSVseparator).append(effortDefined).append(CSVseparator).append(effortDefinedMinutes).append(CSVseparator);
-				linesCSV.append("\n");
-
+				if (generateCSVFormat.equals(CSVFormatDefault)) {
+					linesCSV.append(CSVseparator).append(CSVseparator).append(itemCSV).append(CSVseparator).append(itemCount.get(s).toString()).append(CSVseparator).append(hint).append(CSVseparator).append(complexityDefined).append(CSVseparator).append(effortDefinedScale).append(CSVseparator).append(effortDefinedScaleMinutes).append(CSVseparator).append(effortDefinedLearningCurve).append(CSVseparator).append(effortDefinedLearningCurveMinutes).append(CSVseparator);
+					linesCSV.append("\n");
+				}
+				else {
+					// flat format	
+					linesCSV.append(supportOptionsDisplay.get(supportOptions.indexOf(status))).append(CSVseparator).append(linesCSVGroup).append(CSVseparator).append(itemCSV).append(CSVseparator).append(itemCount.get(s).toString()).append(CSVseparator).append(hint).append(CSVseparator).append(complexityDefined).append(CSVseparator).append(effortDefinedScale).append(CSVseparator).append(effortDefinedScaleMinutes).append(CSVseparator).append(effortDefinedLearningCurve).append(CSVseparator).append(effortDefinedLearningCurveMinutes).append(CSVseparator);
+					linesCSV.append("\n");					
+				}
+				
 				if (!complexityDefined.trim().isEmpty()) {
 					String c = status + "." + complexityDefined;
 					complexityScoreCount.put(c, complexityScoreCount.getOrDefault(c.toUpperCase(), 0) + itemCount.get(s));
-				}
+					complexityScoreCountUnique.put(c, complexityScoreCountUnique.getOrDefault(c.toUpperCase(), 0) + 1);
+				}				
 			}
 
 			// compose the report line
@@ -4655,8 +4716,14 @@ tooltipsHTMLPlaceholder +
 		// write CSV file
 		if (generateCSV) {
 			if (linesCSV.length() > 0) {
-				writeCSVFile("Status: " + supportOptionsDisplay.get(supportOptions.indexOf(status)));
-				writeCSVFile(linesCSV);
+				if (generateCSVFormat.equals(CSVFormatDefault)) {
+					writeCSVFile("Status: " + supportOptionsDisplay.get(supportOptions.indexOf(status)));
+					writeCSVFile(linesCSV);
+				}
+				else {
+					// flat format
+					writeCSVFile(linesCSV);					
+				}
 			}
 		}
 
@@ -4673,7 +4740,7 @@ tooltipsHTMLPlaceholder +
 		if (lines.toString().length() > 0) {
 			finalLines.append("\n");
 			String totalCntStr = "";
-			if (totalCnt > 0) totalCntStr = " --- (total="+totalCnt.toString() + ")";
+			if (totalCnt > 0) totalCntStr = " --- (total="+totalCnt.toString() + "/"+totalCntDistinct.toString()+")";
 			String hdrText = "SQL features '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"' in " + babelfishProg +" v." + targetBabelfishVersion + totalCntStr;
 			if (status.equals(Rewritten)) hdrText = "SQL features '"+supportOptionsDisplay.get(supportOptions.indexOf(status))+"'" + totalCntStr;
 			finalLines.append(composeSeparatorBar(hdrText, tagSummary+status)+"\n");
@@ -4703,10 +4770,10 @@ tooltipsHTMLPlaceholder +
 		return finalLines.toString();
 	}
 
-	private String getComplexityEffort (String tag, String item, String group) {
-		return getComplexityEffort(tag, item, group, null);
+	private String getComplexityEffort (String tag, String item, String group, String status) {
+		return getComplexityEffort(tag, item, group, status, null);
 	}
-	private String getComplexityEffort (String tag, String item, String group, String complexity) {
+	private String getComplexityEffort (String tag, String item, String group, String status, String complexity) {
 		// Is there a complexity score or effort estimate defined for this reported item?
 		// This is not always straightforward to determine since we need to find the section name in the .cfg file
 		// for which this item was classified; but because we report some items in more user-friendly categories, that
@@ -4734,15 +4801,34 @@ tooltipsHTMLPlaceholder +
 		String result = getUserDefinedProperty(tag, group, itemUserCfgCheck, item);
 		if (debugging) dbgOutput(thisProc()+"itemUserCfgCheck=["+itemUserCfgCheck+"] getUserDefinedProperty=["+result+"]", debugReport);
 
-		if (tag.equals(CompassConfig.complexityTag))
-			if (result.equals(CompassConfig.complexityUndefined)) result = " ";
+		if (tag.equals(CompassConfig.complexityTag)) {
+			if (result.equals(CompassConfig.complexityUndefined)) {
+				if (CompassConfig.complexityDefault.containsKey(status.toUpperCase())) {
+					result = CompassConfig.complexityDefault.get(status.toUpperCase());
+					if (debugging) dbgOutput(thisProc()+"using default complexity for status=["+status+"] : result=["+result+"] ", debugReport);
+				}		
+				else {
+					// if nothing else applies, when use MEDIUM
+					result = CompassConfig.complexityMedium;
+				}									
+			}
+		}
 
 		if (tag.equals(CompassConfig.effortTag)) {
 			if (result.equals(CompassConfig.effortUndefined)) {
-				result = " ";
+				// if nothing found, then use default effort estimates:
+				// - if it exists, use the effort estimate for the status of the item (NotSupported, Review..., etc.)
+				// - if nothing found then, it exists, use the effort estimate for the complexity of the item (low/medium/high)
+				result =" "; // if nothing found at all, then leave blank
+				if (debugging) dbgOutput(thisProc()+"effortUndefined: item=["+item+"] group=["+group+"] complexity=["+complexity+"] status=["+status+"] ", debugReport);
+				if (CompassConfig.effortEstimateDefault.containsKey(status.toUpperCase())) {
+					result = CompassConfig.effortEstimateDefault.get(status.toUpperCase());
+					if (debugging) dbgOutput(thisProc()+"using default effort for status=["+status+"] : result=["+result+"] ", debugReport);
+				}	
+				else 			
 				if (CompassConfig.effortEstimateDefault.containsKey(complexity.toUpperCase())) {
 					result = CompassConfig.effortEstimateDefault.get(complexity.toUpperCase());
-					//appOutput(thisProc()+"using default effort for complexity=["+complexity+"] : result=["+result+"] ");
+					if (debugging) dbgOutput(thisProc()+"using default effort for complexity=["+complexity+"] : result=["+result+"] ", debugReport);
 				}
 			}
 		}
@@ -4808,7 +4894,7 @@ tooltipsHTMLPlaceholder +
 		}
 
 		if (result.equals(CompassConfig.complexityUndefined) && property.equals(CompassConfig.complexityTag)) {
-			result = "MEDIUM";
+			// return Undefined						
 		}
 
 		if (debugging) dbgOutput(thisProc()+"final: property=["+property+"] result=["+result+"] ", debugReport);
@@ -4905,7 +4991,7 @@ tooltipsHTMLPlaceholder +
 					if (itemCount > 0) {
 						String itemComplexity = "";
 						if (reportComplexityScore) {
-							if (status.equals(NotSupported)) itemComplexity = "["+ getComplexityEffort(CompassConfig.complexityTag, prevItem.toString(), prevGroup.toString()).toLowerCase() + "]";
+							if (!status.equals(Supported)) itemComplexity = "["+ getComplexityEffort(CompassConfig.complexityTag, prevItem.toString(), prevGroup.toString(), status).toLowerCase() + "]";
 						}
 						hdr.append(prevItem);
 						hdr.append(" (").append(prevGroup).append(", ");
@@ -5149,7 +5235,7 @@ tooltipsHTMLPlaceholder +
 					}
 					String itemComplexity = "";
 					if (reportComplexityScore) {
-						if (status.equals(NotSupported)) itemComplexity = "["+ getComplexityEffort(CompassConfig.complexityTag, item.toString(), group.toString()).toLowerCase() + "]";
+						if (!status.equals(Supported)) itemComplexity = "["+ getComplexityEffort(CompassConfig.complexityTag, item.toString(), group.toString(), status).toLowerCase() + "]";
 					}
 					lines.append(lineIndent+item.toString()+" ("+group.toString()+") "+itemComplexity+" : line ");
 				}
@@ -5612,7 +5698,7 @@ tooltipsHTMLPlaceholder +
 		if (debugging) dbgOutput(thisProc()+"reportOptionStatus=["+reportOptionStatus+"] ", debugReport);
 		if (debugging) dbgOutput(thisProc()+"reportOptionDetail=["+reportOptionDetail+"] ", debugReport);
 		if (debugging) dbgOutput(thisProc()+"reportOptionApps=["+reportOptionApps+"] ", debugReport);
-		if (debugging) dbgOutput(thisProc()+"reportOptionFilter=["+reportOptionFilter+"] ", debugReport);
+		if (debugging) dbgOutput(thisProc()+"reportOptionFilter=["+reportOptionFilter+"] ", debugReport);	
 
 		String complexityReportPlaceholder = "BBF_COMPLEXITYREPORTPLACEHOLDER";
 		String execSummaryPlaceholder = "BBF_EXECSUMMARYPLACEHOLDER";
@@ -5755,17 +5841,17 @@ tooltipsHTMLPlaceholder +
 		for (Path cf : captureFiles) {
 			String cfLine = captureFileFirstLine(cf.toString());   // read only first line
 			String cfReportName = captureFileAttribute(cfLine, 1);
-			if (importFilePathName == null) importFilePathName = getImportFilePathNameFromCaptured(cf.toString());
 			if (cfReportName.isEmpty()) {
-				appOutput("Invalid format in "+cfReportName+"; run with -analyze to fix.");
+				appOutput("\nInvalid format on line 1 of "+cf+":["+cfLine+"]; run with -analyze to fix.");
 				errorExit();
 			}
 			if (!reportName.equalsIgnoreCase(cfReportName)) {
 				String cfFilename = cf.toString();
 				cfFilename = cfFilename.substring(cfFilename.lastIndexOf(File.separator)+1);
 				String rDir = getFilePathname(getDocDirPathname(), capDirName);
-				appOutput("Found analysis file '"+cfFilename+"' for report '" + cfReportName + "' in " + rDir + ": adding contents to report "+reportName);
+				appOutput("\nFound analysis file '"+cfFilename+"' for report '" + cfReportName + "' in " + rDir + ": adding contents to report "+reportName);
 			}
+			if (importFilePathName == null) importFilePathName = getImportFilePathNameFromCaptured(cf.toString());			
 
 			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
 			InputStreamReader cfisr = new InputStreamReader(cfis, StandardCharsets.UTF_8);
@@ -5954,6 +6040,13 @@ tooltipsHTMLPlaceholder +
 				}
 
 				statusCount.put(status, statusCount.getOrDefault(status, 0L) + 1);
+				String statusUnique = status+uniqueCntTag;
+				String itemUnique = status+miscDelimiter+item;
+				if (!statusCount.containsKey(itemUnique)) {
+					statusCount.put(itemUnique, 0L);
+					statusCount.put(statusUnique, statusCount.getOrDefault(statusUnique, 0L) + 1);
+				}
+				
 
 				if (!reportOptionXref.isEmpty()) {
 					// collect info for links to object definitions
@@ -6007,7 +6100,7 @@ tooltipsHTMLPlaceholder +
 
 					if (!context.equals(BatchContext)) {
 						if (hasComplexityEffort(status)) {
-							String objK = (context + sortKeySeparator + appName+ sortKeySeparator + itemGroup + sortKeySeparator + item).toUpperCase();
+							String objK = (context + sortKeySeparator + appName+ sortKeySeparator + itemGroup + sortKeySeparator + item + sortKeySeparator + status).toUpperCase();
 							objComplexityCountTmp.add(objK);
 						}
 					}
@@ -6082,12 +6175,12 @@ tooltipsHTMLPlaceholder +
 		}
 
 		// get complexity per object
-
 		for (String k : objComplexityCountTmp) {
 			List<String> kTmp = new ArrayList<>(Arrays.asList(k.split(sortKeySeparator)));
 			String item = kTmp.get(3);
 			String itemGroup = kTmp.get(2);
-			String complexityDefined = getComplexityEffort(CompassConfig.complexityTag, item, itemGroup);
+			String itemStatus = kTmp.get(4);
+			String complexityDefined = getComplexityEffort(CompassConfig.complexityTag, item, itemGroup, itemStatus);
 
 			String context = kTmp.get(0);
 			String appName = kTmp.get(1);
@@ -6098,20 +6191,19 @@ tooltipsHTMLPlaceholder +
 			String oNew = context + sortKeySeparator + appName;
 			if (!objComplexityCount.containsKey(oNew)) objComplexityCount.put(oNew, Arrays.asList(0,0,0,0));
 			List<Integer> cnt = objComplexityCount.get(oNew);
-			if (complexityDefined.equalsIgnoreCase("LOW")) cnt.set(complexityCntTypeLo, cnt.get(complexityCntTypeLo)+1);
-			else if (complexityDefined.equalsIgnoreCase("MEDIUM")) cnt.set(complexityCntTypeMed, cnt.get(complexityCntTypeMed)+1);
-			else if (complexityDefined.equalsIgnoreCase("HIGH")) cnt.set(complexityCntTypeHi, cnt.get(complexityCntTypeHi)+1);
+			if (complexityDefined.equalsIgnoreCase(CompassConfig.complexityLow)) cnt.set(complexityCntTypeLo, cnt.get(complexityCntTypeLo)+1);
+			else if (complexityDefined.equalsIgnoreCase(CompassConfig.complexityMedium)) cnt.set(complexityCntTypeMed, cnt.get(complexityCntTypeMed)+1);
+			else if (complexityDefined.equalsIgnoreCase(CompassConfig.complexityHigh)) cnt.set(complexityCntTypeHi, cnt.get(complexityCntTypeHi)+1);
 			else cnt.set(complexityCntTypeCustom, cnt.get(complexityCntTypeCustom)+1);
 
 			if (!objTypeComplexityCount.containsKey(oType)) objTypeComplexityCount.put(oType, Arrays.asList(0,0,0,0));
 			List<Integer> cntType = objTypeComplexityCount.get(oType);
-			if (complexityDefined.equalsIgnoreCase("LOW")) cntType.set(complexityCntTypeLo, cntType.get(complexityCntTypeLo)+1);
-			else if (complexityDefined.equalsIgnoreCase("MEDIUM")) cntType.set(complexityCntTypeMed, cntType.get(complexityCntTypeMed)+1);
-			else if (complexityDefined.equalsIgnoreCase("HIGH")) cntType.set(complexityCntTypeHi, cntType.get(complexityCntTypeHi)+1);
+			if (complexityDefined.equalsIgnoreCase(CompassConfig.complexityLow)) cntType.set(complexityCntTypeLo, cntType.get(complexityCntTypeLo)+1);
+			else if (complexityDefined.equalsIgnoreCase(CompassConfig.complexityMedium)) cntType.set(complexityCntTypeMed, cntType.get(complexityCntTypeMed)+1);
+			else if (complexityDefined.equalsIgnoreCase(CompassConfig.complexityHigh)) cntType.set(complexityCntTypeHi, cntType.get(complexityCntTypeHi)+1);
 			else cntType.set(complexityCntTypeCustom, cntType.get(complexityCntTypeCustom)+1);
 		}
 		objComplexityCountTmp.clear();
-
 
 		// DEBUG
 //		for (String k : objComplexityCount.keySet()) {
@@ -6183,6 +6275,9 @@ tooltipsHTMLPlaceholder +
 		summarySection.append(composeSeparatorBar("Table Of Contents", "toc", false));
 
 		summarySection.append(tocLink(tagExecSummary, "Executive Summary", "", ""));
+		if (SQLSrvResourcesDetail.size() > 0) {
+			summarySection.append(tocLink(tagSQLSrvSummary, "SQL Server Information", "", ""));
+		}
 		summarySection.append(tocLink(tagApps, "Applications Analyzed", "", ""));
 		summarySection.append(tocLink(tagSummaryTop, "Assessment Summary", "", ""));
 		if (showPercentage) {
@@ -6245,7 +6340,11 @@ tooltipsHTMLPlaceholder +
 		statusCount.put("invalid syntax", Long.valueOf(totalErrorBatches)); // #batches with parse errors
 		statusCount.put(fmtLinesTotalFeatures, Long.valueOf(constructsFound));
 
-		if (!statusCount.containsKey(NotSupported)) statusCount.put(NotSupported,Long.valueOf(0));
+		if (!statusCount.containsKey(NotSupported)) {
+			statusCount.put(NotSupported,Long.valueOf(0));
+			statusCount.put(NotSupported+uniqueCntTag,Long.valueOf(0));
+		}
+		
 		StringBuilder summaryTmp2 = new StringBuilder();
 		for (int i = 0; i < fmtStatus.size(); i++) {
 			String reportItem = fmtStatus.get(i);
@@ -6264,7 +6363,7 @@ tooltipsHTMLPlaceholder +
 				xtra = lineIndent + "(procedures/functions/triggers/views)";
 			}
 			else if (reportItem.equalsIgnoreCase(NotSupported)) {
-				execSummary.append("SQL features not supported by Babelfish       : " +statusCount.get(NotSupported));
+				execSummary.append("SQL features not supported by Babelfish (total/unique): " +statusCount.get(NotSupported) + "/" + statusCount.get(NotSupported+uniqueCntTag));
 				if (reportComplexityScore) {
 					xtra = lineIndent + complexityReportPlaceholder+"."+reportItem;
 				}
@@ -6287,7 +6386,16 @@ tooltipsHTMLPlaceholder +
 					hrefEnd = "</a>";
 				}
 			}
-			summaryTmp2.append(lineIndent).append(hrefStart+fmtStatusDisplay.get(i) + hrefEnd + " : " + statusCount.get(reportItem) + xtra + "\n");
+			String statusUnique = reportItem+uniqueCntTag;
+			String uqCnt = "";
+			String uqFmt = "";
+			if (validSupportOptionsCfgFile.contains(reportItem.toUpperCase())) {
+				if (statusCount.containsKey(statusUnique)) {
+					uqCnt = "/" + statusCount.get(statusUnique);
+					uqFmt = " (total/unique)";
+				}
+			}
+			summaryTmp2.append(lineIndent).append(hrefStart+fmtStatusDisplay.get(i) + hrefEnd + uqFmt + " : " + statusCount.get(reportItem) + uqCnt + xtra + " \n");
 		}
 		if (!rewrite) {
 			if (rewriteOppties.containsKey(rewriteOpptiesTotal)) {
@@ -6466,29 +6574,32 @@ tooltipsHTMLPlaceholder +
 		sortedList.add(stringRepeat(lastItem + sortKeySeparator, 5));
 
 		openCSVFile(CSVFilePathName);
-		String CSVhdr = "\n";
-		CSVhdr += "This .csv file is intended for import into a spreadsheet.\n";
-		CSVhdr += "It is aimed at assisting specialist "+thisProgName+" users in quantifying the amount of work required\n";
-		CSVhdr += "to address non-supported items in a "+babelfishProg+" migration -- based on the user's own estimates and experience.\n";
-		CSVhdr += "The column for 'Complexity' (below) indicates an expected low/medium/high complexity for the item in question as defined\n";
-		CSVhdr += "by Compass but this can be overridden with user-specified values in config file " + CompassConfig.userConfigFilePathName + ".\n";
-		if (CompassConfig.effortEstimatesFound) {
-			CSVhdr += "The column for 'Effort' (below) is populated from user-specified values in config file\n";
-			CSVhdr += CompassConfig.userConfigFilePathName + " (a blank value means that no user-defined value was specified).\n";
+		String CSVhdr = "";
+		if (generateCSVFormat.equals(CSVFormatDefault)) {
+			CSVhdr += "\n";
+			CSVhdr += "This .csv file is intended for import into a spreadsheet.\n";
+			CSVhdr += "It is aimed at assisting specialist "+thisProgName+" users in quantifying the amount of work required\n";
+			CSVhdr += "to address non-supported items in a "+babelfishProg+" migration -- based on the user's own estimates and experience.\n";
+			CSVhdr += "The column for 'Complexity' (below) indicates an expected low/medium/high complexity for the item in question as defined\n";
+			CSVhdr += "by Compass but this can be overridden with user-specified values in config file " + CompassConfig.userConfigFilePathName + ".\n";
+			if (CompassConfig.effortEstimatesFound) {
+				CSVhdr += "The column for 'Effort' (below) is populated from user-specified values in config file\n";
+				CSVhdr += CompassConfig.userConfigFilePathName + " (a blank value means that no user-defined value was specified).\n";
+			}
+			CSVhdr += "The user should add their own formulas to the spreadsheet for performing calculations for example in  the column marked 'Your-Calculation-Here'.\n";
+			CSVhdr += "\n";
 		}
-		CSVhdr += "The user should add their own formulas to the spreadsheet for performing calculations.\n";
-		CSVhdr += "\n";
 
 		CSVhdr += String.join(",", "Status", "Category", "Issue", "Count", "Babelfish Compass Hint", "Complexity Score", " ");
 		if (CompassConfig.effortEstimatesFound) {
-			CSVhdr += String.join(",", "Effort/Occurrence", "Effort/Occurrence (minutes)", " ");
+			CSVhdr += String.join(",", "Effort/Occurrence", "Effort/Occurrence (minutes)", "Effort/Learning Curve", "Effort/Learning Curve (minutes)", "Your-Calculation-Here");
 		}
 		if (!generateCSV) {
 			if (!reportOptionFilter.isEmpty()) {
 				CSVhdr = "\nThis .csv file is not generated when '-reportoption filter=' is specified.";
 			}
 		}
-		writeCSVFile(CSVhdr+"\n");
+		writeCSVFile(CSVhdr + "\n");
 
 		for (int i=0; i <supportOptionsIterate.size(); i++) {
 			SQLFeatures.append(reportSummaryStatus(supportOptionsIterate.get(i), sortedList, itemCount, appItemList));
@@ -6501,7 +6612,7 @@ tooltipsHTMLPlaceholder +
 
 		StringBuilder complexityTmp = new StringBuilder();
 		if (reportComplexityScore) {
-			List<String> cScores = Arrays.asList("LOW",  "MEDIUM",  "HIGH");
+			List<String> cScores = Arrays.asList(CompassConfig.complexityLow, CompassConfig.complexityMedium, CompassConfig.complexityHigh, CompassConfig.complexityRefactor);
 			for (String k : validSupportOptionsCfgFileOrig) {
 				if (!k.equalsIgnoreCase(NotSupported)) continue;
 				String s = "";
@@ -6509,11 +6620,11 @@ tooltipsHTMLPlaceholder +
 					String kc = k+"."+c;
 					int z = complexityScoreCount.getOrDefault(kc.toUpperCase(), 0);
 					if (z == 0) continue;
-					s += c.toLowerCase()+ ":" +z + " ";
+					s += c.toLowerCase()+ ":" +z + "/" + complexityScoreCountUnique.getOrDefault(kc.toUpperCase(), 0) + " ";
 				}
 				String s2 = "";
 				if (!s.isEmpty()) {
-					s2 = "Estimated complexity of not-supported features: "+ s.trim();
+					s2 = "Estimated complexity of not-supported features (total/unique): "+ s.trim();
 					s  = "(complexity: " + s.trim() + ")";
 				}
 				summarySection = new StringBuilder(summarySection.toString().replaceFirst(complexityReportPlaceholder+"."+k.toUpperCase(), s));
@@ -6521,7 +6632,50 @@ tooltipsHTMLPlaceholder +
 				execSummary.append("\n").append(s2).append("\n\n");
 			}
 		}
+		
+		// report SQL Server information obtained via SMO
+		if (SQLSrvResourcesDetail.size() > 0) {
+			String nStr = "";
+			// get list of servers - in case multiple SMO-generated scripts are processed
+			Map<String, String> srvNames =  new HashMap<>();
+			for (String s : SQLSrvResourcesDetail.keySet()) {
+				String srvName = "";		
+				if (s.indexOf(":") > -1) {
+					srvName = s.substring(0,s.indexOf(":"));
+					if (srvName.trim().isEmpty()) continue;
+					String appName = SQLSrvResourcesDetail.get(s);
+					appName = appName.substring(appName.indexOf(miscDelimiter)+miscDelimiter.length());
+					srvNames.put(srvName, appName);
+				}	
+			}	
 
+			int n = srvNames.size();
+			if (n > 1) nStr = " ("+ n +")";									
+			if (n == 0) {
+				srvNames.put("", null);                     
+			}
+			String srvInfo = ""; 			
+			for (String srvName : srvNames.keySet().stream().sorted().collect(Collectors.toList())) {
+				if (srvName.trim().isEmpty()) srvName = "-unknown-";
+				String appName = srvNames.get(srvName);				
+				if (!appName.isEmpty()) appName = " (app: "+appName+")";
+				if (n <= 1) appName = "";
+				srvInfo += lineIndent + "Servername" + " : " + srvName + appName + "\n";
+				String srvInfoTmp = ""; 		
+				for (String s : SQLSrvResourcesDetail.keySet().stream().sorted().collect(Collectors.toList())) {
+					if (n > 0) 
+						if (!s.startsWith(srvName + ":")) continue;
+					String prop = s.substring(s.indexOf(":")+1);
+					String propValue = SQLSrvResourcesDetail.get(s);
+					if (propValue.indexOf(miscDelimiter) > -1) propValue = propValue.substring(0,propValue.indexOf(miscDelimiter));
+					srvInfoTmp += lineIndent + lineIndent + prop + " : " + propValue + "\n";
+				}			
+				srvInfo += alignColumn(srvInfoTmp, " : ", "before", "left") + "\n";
+			}
+			srvInfo = composeSeparatorBar("SQL Server Information" + nStr, tagSQLSrvSummary, false) + removeLastChar(srvInfo);
+			execSummary.append(srvInfo).append("\n");			
+		}
+		
 		String objCountSummary = "#Procedures/functions/triggers/views: " + nrSQLObjects+"    #Tables: " + nrTables;
 		summarySection = new StringBuilder(summarySection.toString().replaceFirst(execSummaryPlaceholder, execSummary.toString()));
 		summarySection = new StringBuilder(summarySection.toString().replaceFirst(execSummaryObjCountPlaceholder, objCountSummary));
@@ -6898,13 +7052,30 @@ tooltipsHTMLPlaceholder +
 				String status = capFields.get(capPosStatus);
 				String complexityDefined = "";
 				String effortDefined = "";
-				String effortDefinedMinutes = "0";
+				String effortDefinedScale  = "";
+				String effortDefinedLearningCurve = "";
+				String effortDefinedScaleMinutes   = "0";	
+				String effortDefinedLearningCurveMinutes = "0";			
+														
 				if (hasComplexityEffort(status)) {
 					String item = capFields.get(capPosItem);
-					complexityDefined = getComplexityEffort(CompassConfig.complexityTag, item.toString(), capFields.get(capPosItemGroup));
-					effortDefined     = getComplexityEffort(CompassConfig.effortTag, item.toString(), capFields.get(capPosItemGroup), complexityDefined);
-					effortDefinedMinutes = CompassConfig.convertEffortValue(effortDefined).toString();
-					//appOutput(thisProc()+"status=["+status+"] item=["+item+"] group=["+capFields.get(capPosItemGroup)+"] complexityDefined=["+complexityDefined+"] effortDefined=["+effortDefined+"] effortDefinedMinutes=["+effortDefinedMinutes+"] ");
+					complexityDefined = getComplexityEffort(CompassConfig.complexityTag, item.toString(), capFields.get(capPosItemGroup), status);
+					effortDefined     = getComplexityEffort(CompassConfig.effortTag, item.toString(), capFields.get(capPosItemGroup), status, complexityDefined);
+
+				 	effortDefinedScale          = CompassConfig.getEffortValue(effortDefined, CompassConfig.effortPartScale);
+				 	effortDefinedLearningCurve  = CompassConfig.getEffortValue(effortDefined, CompassConfig.effortPartLearningCurve);					 			
+				
+					if (!effortDefinedScale.trim().isEmpty()) {
+						effortDefinedScaleMinutes = CompassConfig.convertEffortValue(effortDefinedScale).toString();
+						effortDefinedScale        = CompassConfig.formatEffort(effortDefinedScale);
+					}
+	
+					if (!effortDefinedLearningCurve.trim().isEmpty()) {
+						effortDefinedLearningCurveMinutes  = CompassConfig.convertEffortValue(effortDefinedLearningCurve).toString();
+						effortDefinedLearningCurve         = CompassConfig.formatEffort(effortDefinedLearningCurve);
+					}
+					
+					//appOutput(thisProc()+"status=["+status+"] item=["+item+"] group=["+capFields.get(capPosItemGroup)+"] complexityDefined=["+complexityDefined+"] effortDefined=["+effortDefined+"] effortDefinedScale=["+effortDefinedScale+"] effortDefinedLearningCurve=["+effortDefinedLearningCurve+"] ");
 				}
 				else {
 					//appOutput(thisProc()+"status=["+status+"] ");
@@ -6940,7 +7111,7 @@ tooltipsHTMLPlaceholder +
 				capLine = unEscapeHTMLChars(capLine);
 
 				// add date & babelfish version
-				capLine = cfVersion + captureFileSeparator + nowFmt + captureFileSeparator + capLine + captureFileSeparator + complexityDefined.trim() + captureFileSeparator + effortDefinedMinutes.trim();
+				capLine = cfVersion + captureFileSeparator + nowFmt + captureFileSeparator + capLine + captureFileSeparator + complexityDefined.trim() + captureFileSeparator + effortDefinedScaleMinutes.trim() + captureFileSeparator + effortDefinedLearningCurveMinutes.trim();
 
 				//remove double quotes for Redshift import
 				if (pgImportNoDoubleQuotes) {
@@ -6980,11 +7151,11 @@ tooltipsHTMLPlaceholder +
 
 		// compose the command line
 		String runCmd= "";
-		runCmd += envvarSet+PGUserEnvvar+"="+pgImportFlags.get(2)+cmdSeparator;
-		runCmd += envvarSet+PGPasswdEnvvar+"="+pgImportFlags.get(3)+cmdSeparator;
-		runCmd += envvarSet+PGHostEnvvar+"="+pgImportFlags.get(0)+cmdSeparator;
-		runCmd += envvarSet+PGPortEnvvar+"="+pgImportFlags.get(1)+cmdSeparator;
-		runCmd += envvarSet+PGDBnameEnvvar+"="+pgImportFlags.get(4)+cmdSeparator;
+		runCmd += envvarSet+PGUserEnvvar+"="+pgImportFlags.get(2).trim()+cmdSeparator;
+		runCmd += envvarSet+PGPasswdEnvvar+"="+pgImportFlags.get(3).trim()+cmdSeparator;
+		runCmd += envvarSet+PGHostEnvvar+"="+pgImportFlags.get(0).trim()+cmdSeparator;
+		runCmd += envvarSet+PGPortEnvvar+"="+pgImportFlags.get(1).trim()+cmdSeparator;
+		runCmd += envvarSet+PGDBnameEnvvar+"="+pgImportFlags.get(4).trim()+cmdSeparator;
 		if (onMac || onLinux) {
 			runCmd += "chmod +x "+cmdFile+cmdSeparator;
 		}
@@ -7055,6 +7226,11 @@ userCfgComplexityHdrLine202209 + "\n" +
 "#     it is up to the user to assign meaning to such numbers; presumably, higher=more complex\n" +
 "# For effort_estimate, <value> is a number of minutes, hours or days:\n" +
 "#     "+CompassConfig.effortPatternHelp+"\n" +
+"# If the unit is omitted, 'minutes' is assumed.\n" +
+"# An effort estimate can in fact be two values, separated by a colon. The value before the\n" +
+"# colon represents the effort per occurrence of an item; the value after the colon represents\n" +
+"# the one-time 'learning curve' time effort for the item type. One of the values may be omitted.\n" +
+"# If no colon is specified, the colon is assumed to be at the end. Spaces can be used.\n" +
 "#\n" +
 "# Examples:\n" +
 "#    [DESC constraint]\n" +
@@ -7068,13 +7244,45 @@ userCfgComplexityHdrLine202209 + "\n" +
 "#    complexity_score=MEDIUM             # complexity = MEDIUM for any other unsupported built-in function\n" +
 "#\n" +
 "#    [Cursor options]\n" +
-"#    effort_estimate-4hours=SCROLL,FOR_UPDATE  # 4 hours for these options, if unsupported\n" +
-"#    effort_estimate=1hour                     # 1 hour for any other unsupported options\n" +
+"#    effort_estimate-1hour=SCROLL,FOR_UPDATE   # 1 hours for these options, if unsupported\n" + 
+"#    effort_estimate-30 min:4 hrs=DYNAMIC      # 30 mins for each case of this option, if unsupported,\n" +
+"#                                              #    and 4 hours of one-time effort to determine a solution\n" +
+userCfgComplexityHdrLine202308 + "\n" +
 "#\n" +
 "# NB: when the same key occurs twice in a section, the last one is kept and\n" +
 "# preceding entries will be discarded.\n" +
 "#------------------------------------------------------------------------------\n" +
-"#\n";
+"#\n" +
+"# Uncomment this section to define a default complexity score for a status value;\n" +
+"# this default complexity is used when no other complexity score applies.\n" +
+"# if left commented, 'medium' is used.\n" +
+"#[Complexity Score Defaults]\n" +
+"#complexity_score_default_NotSupported=<see above: low/medium/high>\n" +
+"#complexity_score_default_ReviewPerformance=<see above>\n" +
+"#complexity_score_default_ReviewSemantics=<see above>\n" +
+"#complexity_score_default_ReviewManually=<see above>\n" +
+"#complexity_score_default_Ignored=<see above>\n" +
+"\n" +
+"# Uncomment this section to define a default effort estimate for a complexity\n" +
+"# category; this default estimate is used when no other estimate applies.\n" +
+"# if left commented, '0' (no effort) is used.\n" +
+"# Uncomment this section to define a default effort estimate for an item. This default is\n" +
+"# used when no estimate has been defined for an item:\n" +
+"# - if a default estimate is defined for the item's status (NotSupported, Ignored, etc.),\n" +
+"#   then use that estimate\n" +
+"# - otherwise, if a default estimate is defined for the complexity of the item (high/medium/low),\n" +
+"#   then use that estimate\n" +
+"# - if no default is defined, or nothing applies, '0 minutes' (no effort) is assumed.\n" +
+"#[Effort Estimate Defaults]\n" +
+"#effort_estimate_default_high=<see above, e.g.: 10 minutes:1hour>\n" +
+"#effort_estimate_default_medium=<see above>\n" +
+"#effort_estimate_default_low=<see above>\n" +  
+"#effort_estimate_default_NotSupported=<see above>\n" +
+"#effort_estimate_default_ReviewPerformance=<see above>\n" +
+"#effort_estimate_default_ReviewSemantics=<see above>\n" +
+"#effort_estimate_default_ReviewManually=<see above>\n" +
+"#effort_estimate_default_Ignored=<see above>\n" +
+"\n";
 		return hdr;
 	}
 
@@ -7120,7 +7328,8 @@ userCfgComplexityHdrLine202209 + "\n" +
 				//EOF
 				break;
 			}
-			if (line.startsWith(userCfgComplexityHdrLine202209)) hasNewHdr = true;
+			//if (line.startsWith(userCfgComplexityHdrLine202209)) hasNewHdr = true;
+			if (line.startsWith(userCfgComplexityHdrLine202308)) hasNewHdr = true;
 			if (line.length() > 0) if (line.charAt(0) == '[') bodyFound = true;
 			if (bodyFound) {
 				body += line + "\n";

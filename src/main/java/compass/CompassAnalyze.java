@@ -239,6 +239,7 @@ public class CompassAnalyze {
 	static final String sqlcmdCommand         = "sqlcmd command";
 	static final String sqlcmdVariable        = "sqlcmd variable";
 	static final String RaiserrorSybase       = "RAISERROR (Sybase syntax)";
+	static final String ExtendedPropType      = "Extended property type";
 
 	// matching special values in the .cfg file
 	static final String cfgNonZero            = "NONZERO";
@@ -1102,6 +1103,16 @@ public class CompassAnalyze {
 					captureItem(SelectTopWoOrderBy, "", DMLReportGroup, "", statusTOP, sel.getLineNr());
 				}
 			}
+			
+			// experimental
+//			if ((sel.getAttributes().contains("INTO ")) && (sel.getAttributes().contains(" ORDERBY "))) {
+//				// identify case of SELECT-INTO with ORDER-BY: in SQL Server, the order of inserted rows is not determined by ORDERBY; we could potentially flag such cases as 'ReviewSemantics'
+//				String ident = "";
+//				if (sel.getAttributes().contains(" IDENTITY ")) {
+//					ident = "with IDENTITY() ";
+//				}
+//				u.appOutput(u.thisProc()+"SELECT-INTO "+ident+"with ORDER BY: order of inserted rows is not defined; line "+ sel.getLineNr()+ ", " + u.currentObjectType + " " +u.currentObjectName );
+//			}
 
 			if ( !(sel.getAttributes().contains(" INTO ")) &&
 			    (!sel.getAttributes().contains(" SUBQUERY ")) &&
@@ -2119,7 +2130,8 @@ public class CompassAnalyze {
 					if (nrArgs > 0) { // must always the datatype as arg anyway
 						String idType = u.normalizeName(argListText.get(0)).toUpperCase();
 						funcNameReport = "IDENTITY("+idType+")";
-						// ToDO: if we don't supprot UDDs, detect that here; if so, also adjust the popup hint
+						// ToD0: if we don't support UDDs, detect that here; if so, also adjust the popup hint
+						addStmtAttribute("IDENTITY");
 					}				
 				}				
 
@@ -5090,19 +5102,49 @@ public class CompassAnalyze {
 
 				if (ctx.func_proc_name_server_database_schema() != null) {
 					String funcName = u.normalizeName(ctx.func_proc_name_server_database_schema().getText().toUpperCase());
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"scalar fname fulltxt=["+ ctx.getText()+"], funcName=["+funcName+"] ", u.debugPtree);
+					TSQLParser.Function_arg_listContext argListRaw = ctx.function_arg_list();
+					int nrArgs = argListCount( ctx.function_arg_list());					
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"scalar fname fulltxt=["+ ctx.getText()+"], funcName=["+funcName+"]nrArgs=["+nrArgs+"]  ", u.debugPtree);
+
+					List<TSQLParser.ExpressionContext> argList = new ArrayList<>();
+					List<String> argListText = new ArrayList<>();	
+					if (nrArgs > 0) {
+						argList = argListRaw.expression();
+					}									
 
 					boolean done = false;
 					String funcSchemaName = u.getSchemaNameFromID(funcName).toUpperCase();
 					String funcObjName = u.getObjectNameFromID(funcName).toUpperCase();
+											
 					if (funcSchemaName.equals("SYS") || funcSchemaName.isEmpty() || funcObjName.startsWith("FN_")) {
 						// is this a system function?
 						if (featureExists(SystemFunctions, funcObjName)) {
 							String status = featureSupportedInVersion(SystemFunctions, funcObjName);
 							String funcNameFmt = funcObjName.toLowerCase()+"()";
+							int lineNr = ctx.start.getLine();
 							if (funcNameFmt.startsWith("dm_")) funcNameFmt = "sys." + funcNameFmt;
-							captureItem(funcNameFmt, "", SystemFunctions, funcObjName, status, ctx.start.getLine());
+							captureItem(funcNameFmt, "", SystemFunctions, funcObjName, status, lineNr);
 							done = true;
+
+							if (funcObjName.equalsIgnoreCase("fn_listextendedproperty")) {
+								if (status.equals(u.Supported)) {		
+									if (nrArgs >= 2) {	// there should always be 7 arguments, but our input may not be valid		
+										int i = 2;	
+										String exProp = argList.get(i-1).getText();
+										captureExtendedPropertyType(exProp, funcNameFmt, SystemFunctions, status, lineNr);
+									}
+									if (nrArgs >= 4) {				
+										int i = 4;	
+										String exProp = argList.get(i-1).getText();
+										captureExtendedPropertyType(exProp, funcNameFmt, SystemFunctions, status, lineNr);
+									}
+									if (nrArgs >= 6) {	
+										int i = 6;	
+										String exProp = argList.get(i-1).getText();
+										captureExtendedPropertyType(exProp, funcNameFmt, SystemFunctions, status, lineNr);
+									}
+								}			
+							}				
 						}
 						else {
 							// it's a BIF or UDF
@@ -5111,8 +5153,6 @@ public class CompassAnalyze {
 
 					if (!done) {	
 						// it's a BIF or UDF												
-						TSQLParser.Function_arg_listContext argListRaw = ctx.function_arg_list();
-						int nrArgs = argListCount( ctx.function_arg_list());
 
 						//debug
 						if (u.debugging) {
@@ -5123,8 +5163,6 @@ public class CompassAnalyze {
 							}
 						}
 
-						List<TSQLParser.ExpressionContext> argList = new ArrayList<>();
-						List<String> argListText = new ArrayList<>();
 						if (nrArgs > 0) {
 							if (argListRaw.STAR() != null) nrArgs--;
 							if (argListRaw.STAR() != null) argListText.add(BIFArgStar);
@@ -6295,9 +6333,42 @@ public class CompassAnalyze {
 									procStatus = statusArgN;
 									if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"validating arg=["+argN+"] argNValue=["+argNValue+"] for system proc=["+sysProcName+"]: statusArgN=["+statusArgN+"] ", u.debugPtree);
 								}	
-							}
-
-							captureItem("EXECUTE procedure "+sysProcName+argMsg+firstStmt+return_status, procName, SystemStoredProcs, sysProcName, procStatus, lineNr);													
+							}							
+							captureItem("EXECUTE procedure "+sysProcName+argMsg+firstStmt+return_status, procName, SystemStoredProcs, sysProcName, procStatus, lineNr);				
+							
+							// check extended property object types
+							if (sysProcName.equals("sp_addextendedproperty") || sysProcName.equals("sp_updateextendedproperty") || sysProcName.equals("sp_dropextendedproperty")) {
+								if (procStatus.equals(u.Supported)) {
+									int nrArgs = getArgProcExec(sysProcName, arg);
+									if (nrArgs > 0) {
+										// named arguments
+										String exProp = getArgProcExec("@level0type", sysProcName, arg);
+										captureExtendedPropertyType(exProp, sysProcName, SystemStoredProcs, procStatus, lineNr);
+										
+										exProp = getArgProcExec("@level1type", sysProcName, arg);
+										captureExtendedPropertyType(exProp, sysProcName, SystemStoredProcs, procStatus, lineNr);
+										
+										exProp = getArgProcExec("@level2type", sysProcName, arg);
+										captureExtendedPropertyType(exProp, sysProcName, SystemStoredProcs, procStatus, lineNr);
+									}
+									else {
+										// unnamed arguments
+										int argNr = 3;
+										if (sysProcName.equalsIgnoreCase("sp_dropextendedproperty")) argNr--;
+										
+										String exProp = getArgProcExec(argNr, sysProcName, arg); 
+										captureExtendedPropertyType(exProp, sysProcName, SystemStoredProcs, procStatus, lineNr);
+										
+										argNr += 2;
+										exProp = getArgProcExec(argNr, sysProcName, arg); 
+										captureExtendedPropertyType(exProp, sysProcName, SystemStoredProcs, procStatus, lineNr);
+										
+										argNr += 2;
+										exProp = getArgProcExec(argNr, sysProcName, arg); 
+										captureExtendedPropertyType(exProp, sysProcName, SystemStoredProcs, procStatus, lineNr);
+									}
+								}
+							}																
 						}
 						else {
 							//not found as a system proc, so it's a user-defined proc
@@ -6317,10 +6388,42 @@ public class CompassAnalyze {
 					}
 				}
 			}
+			
+			private void captureExtendedPropertyType(String exProp, String procName, String group, String status, int lineNr) {
+				if (exProp.equalsIgnoreCase("DEFAULT")) return;	
+				if (exProp.equalsIgnoreCase("DEFAULT")) return;	
+				if (exProp.equalsIgnoreCase("NULL")) return;	
+				exProp = u.stripStringQuotes(exProp).toUpperCase();
+				if (exProp.isEmpty()) return;				
+				String varName = "";							
+				String typeStatus = featureSupportedInVersion(ExtendedPropType, exProp);
+				if (exProp.charAt(0) == '@') {
+					typeStatus = u.ReviewManually;
+					varName = exProp;
+					exProp = "in @var";
+				}
+				//u.appOutput(u.thisProc()+"exProp=["+exProp+"] procName=["+procName+"] typeStatus=["+typeStatus+"] ");	
+				if (!typeStatus.equals(u.Supported)) {
+					captureItem("Extended property type "+exProp+" in " + procName, varName, group, "", typeStatus, lineNr);
+				}
+				return;
+			}
 
+			private Integer getArgProcExec(String procName, TSQLParser.Execute_statement_argContext arg) {
+				// return the #args: >0 when using named args; 0 when using positional args or no args at all
+				// assuming either fully named or unnamed notation, but this is not verified
+				int nrArgs = 0;
+				if (arg.execute_statement_arg_named().size() > 0) {
+					nrArgs = arg.execute_statement_arg_named().size() ;
+				}			
+				return nrArgs;
+			}
 			private String getArgProcExec(int argNo, String procName, TSQLParser.Execute_statement_argContext arg) {
+				// if argNo is > #actual args, empty string is returned
+				assert (argNo > 0) : "argNo must be > 0";
+				
 				String result = "";
-				if (u.debugging) u.dbgOutput("argNo=["+argNo+"] procName=["+procName+"] ", u.debugDynamicSQL);	
+				if (u.debugging) u.dbgOutput("argNo=["+argNo+"] procName=["+procName+"] arg=["+arg+"] ", u.debugDynamicSQL||u.debugPtree);	
 				if (arg != null) {
 					if (u.debugging) u.dbgOutput("arg=["+arg.getText()+"] ", u.debugDynamicSQL);
 						
@@ -6328,7 +6431,7 @@ public class CompassAnalyze {
 						//u.appOutput(u.thisProc()+"arg unnamed=["+arg.execute_statement_arg_unnamed().getText()+"]");
 						if (argNo == 1) result = arg.execute_statement_arg_unnamed().getText();
 						else {
-							if (u.debugging) u.dbgOutput("recursive call with argNo-1=["+(argNo-1)+"] ", u.debugDynamicSQL);
+							if (u.debugging) u.dbgOutput("recursive call with argNo-1=["+(argNo-1)+"] ", u.debugDynamicSQL||u.debugPtree);
 							result = getArgProcExec(argNo-1, procName, arg.execute_statement_arg());
 						}
 					}
@@ -6337,6 +6440,32 @@ public class CompassAnalyze {
 						if (arg.execute_statement_arg_named().size() > argNo-1) {
 							if (arg.execute_statement_arg_named(argNo-1).execute_parameter() != null) {  // cannot be null, but anyway...
 								result = arg.execute_statement_arg_named(argNo-1).execute_parameter().getText();							
+							}
+						}
+					}
+					else {
+						// something's wrong
+						assert false : "unexpected branch";
+					}	
+				}
+				if (u.debugging) u.dbgOutput("result=["+result+"] ", u.debugDynamicSQL);	
+				return result;
+			}
+						
+			private String getArgProcExec(String argName, String procName, TSQLParser.Execute_statement_argContext arg) {
+				// get the value of a named argument; assuming all args in named notation but this is not verified			
+				String result = "";
+				if (u.debugging) u.dbgOutput("argName=["+argName+"] procName=["+procName+"] ", u.debugPtree);	
+				if (arg != null) {
+					if (u.debugging) u.dbgOutput("arg=["+arg.getText()+"] ", u.debugPtree);
+						
+					if (arg.execute_statement_arg_named().size() > 0) {
+						for (int i = 0; i <arg.execute_statement_arg_named().size(); i++) {
+							 String name  = arg.execute_statement_arg_named(i).name.getText();
+							 String value = arg.execute_statement_arg_named(i).execute_parameter().getText();
+							 if (u.debugging) u.dbgOutput(u.thisProc()+"name=["+name+"] value=["+value+"] ", u.debugPtree);
+							 if (name.equalsIgnoreCase(argName)) {
+							 	result = value;
 							}
 						}
 					}
@@ -6534,6 +6663,26 @@ public class CompassAnalyze {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 				if (ctx.LOCAL_ID() != null) {
 					String varName = ctx.LOCAL_ID().getText().toUpperCase();
+					
+					String SrvInfoTag = "SMO_DDL SQL Server info:";  // do not change this string: must match SMO_DDL.ps1 script				
+					String SrvInfoVarName = "@srvinfo";              // do not change this string: must match SMO_DDL.ps1 script						
+					if (varName.equalsIgnoreCase(SrvInfoVarName) && (ctx.EQUAL() != null) && (ctx.expression() != null)) {
+						// first, intercept SMO-generated resource info about the source SQL Server
+						String s = u.stripStringQuotes(ctx.expression().getText());						
+						if (s.startsWith(SrvInfoTag)) {
+							s = s.substring(SrvInfoTag.length());
+							List<String> parts = new ArrayList<>(Arrays.asList(s.split("=")));
+							if (parts.size() != 2) {
+								u.appOutput("Ignoring unexpected format for ["+SrvInfoTag+"] : ["+s+"]");						
+							}
+							else {
+								u.SQLSrvResourcesDetail.put(parts.get(0).trim(), parts.get(1).trim()+u.miscDelimiter+u.currentAppName);
+							}
+							// do not include these statements in the Compass report
+							return null;
+						}	
+					}
+					
 					if (ctx.CURSOR() != null) {
 						String status = featureSupportedInVersion(CursorVariables);
 						captureItem("CURSOR variable assignment", varName, CursorVariables, "SET", status, ctx.start.getLine());
@@ -8501,8 +8650,33 @@ public class CompassAnalyze {
 
 			@Override public String visitKill_statement(TSQLParser.Kill_statementContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
-				String status = featureSupportedInVersion(DBAStmts, "KILL");
-				captureItem("KILL", "", DBAStmts, "KILL", status, ctx.start.getLine());
+				String killType = "";
+				String killTypeFmt = "";
+				if (ctx.kill_process() != null) {
+					if (ctx.kill_process().DECIMAL() != null) {
+						killType += " SPID";
+					}
+					if (ctx.kill_process().UOW() != null) {
+						killType += " UOW";
+					}
+					if (ctx.kill_process().char_string() != null) {
+						killType += " SESSION-ID-STRING";
+					}		
+					if (ctx.kill_process().STATUSONLY() != null) {
+						killType += " WITH STATUSONLY";
+					}																		
+				}
+				else if (ctx.kill_query_notification() != null) {
+					killType += " QUERY NOTIFICATION";
+				}
+				else if (ctx.kill_stats_job() != null) {
+					killType += " STATS JOB";
+				}
+				killType = "KILL " + killType.trim();
+				killType = killType.trim();
+				killTypeFmt = u.escapeHTMLChars(killType.replace("SPID", "<spid>"));
+				String status = featureSupportedInVersion(DBAStmts, killType);
+				captureItem(killTypeFmt, "", DBAStmts, killTypeFmt, status, ctx.start.getLine());
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;

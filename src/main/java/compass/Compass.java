@@ -197,6 +197,7 @@ public class Compass {
 					if (args[i].equals("-exclude") || args[i].equals("exclude")) helpOption = "exclude";
 					if (args[i].equals("-encoding") || args[i].equals("encoding")) helpOption = "encoding";
 					if (args[i].equals("-importfmt") || args[i].equals("importfmt") || args[i].equals("-importformat") || args[i].equals("importformat")) helpOption = "importfmt";
+					if (args[i].equals("-csvfmt") || args[i].equals("csvfmt") || args[i].equals("-csvformat") || args[i].equals("csvformat")) helpOption = "csvfmt";
 				}
 				if (helpOption.equals("reportoption")) {
 					u.appOutput("-reportoption  [options] : additional reporting detail. ");
@@ -241,6 +242,11 @@ public class Compass {
 					u.appOutput("Valid values for -importfmt: "+u.importFormatSupportedDisplay);
 					quitNow = true;
 					return;					
+				}							
+				if (helpOption.equals("csvfmt")) {
+					u.appOutput("Valid values for -csvformat: "+u.CSVFormats);
+					quitNow = true;
+					return;					
 				}				
 				
 				u.appOutput("Usage: " + CompassUtilities.thisProgExec + "  <reportName>  [options] ");
@@ -274,9 +280,10 @@ public class Compass {
 				u.appOutput("   -exclude <list>              : pattern of input file types to exclude (e.g.: .pptx)");
   				u.appOutput("   -rewrite                     : rewrites selected unsupported SQL features");
   				u.appOutput("   -noupdatechk                 : do not check for " + CompassUtilities.thisProgName + " updates");
-				u.appOutput("   -importfmt <fmt>             : process special-format captured query files");
+				u.appOutput("   -importformat <fmt>          : process special-format captured query files");
 				u.appOutput("   -nodedup                     : with -importfmt, do not de-duplicate captured queries");
 				u.appOutput("   -noreportcomplexity          : do not include complexity scores in report");
+				u.appOutput("   -csvformat <fmt>             : format for generated .csv file");				
 				u.appOutput("   -syntax_issues               : also report selected Babelfish syntax errors (experimental)");				
 				u.appOutput("   -sqlendpoint <host-or-IP>[,port] : SQL Server host");				
 				u.appOutput("   -sqllogin <login-name>       : SQL Server login");				
@@ -307,8 +314,11 @@ public class Compass {
 				return;
 			}
 			if (arg.equals("-explain")) {
-				u.appOutput("Babelfish Compass is currently a command-line-only tool, running on Windows, Linux and Mac.\nIt takes one or more DDL/SQL scripts as input and generates a compatibility assessment report.\nBabelfish Compass does not connect directly to a SQL Server instance.\n\nThe purpose of Babelfish Compass is to analyze a SQL Server DDL/SQL script\nfor compatibility with Babelfish, to inform a decision about whether\nit is worth considering starting a migration project to Babelfish.\nTake the following steps:\n1. Reverse-engineer the SQL Server database(s) in question\n   with SSMS (right-click a database --> Tasks --> Generate Scripts.\n   Make sure to enable triggers, collations, logins, owners and permissions (disabled in SSMS by default).\n2. Use the resulting DDL/SQL script as input for Babelfish Compass to generate an assessment report\n(NB: instead of steps 1 & 2 above, you can also use the -sqlendpoint -sqllogin -sqlpasswd flags to connect\nto the SQL Server and generate the DDL automatically)\n3. Discuss the results of Babelfish Compass with the application owner and interpret the findings in the\n   context of the application to be migrated.\n4. Keep in mind that a Babelfish migration involves more than just the server-side DDL/SQL code\n   (e.g. data migration, client applications, external interfaces, etc.)\n\nRun "+CompassUtilities.thisProgExec+" -help for further usage info.\n\nMore information about working with Babelfish is available at\nhttps://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/babelfish.html and https://babelfishpg.org/\n\n");
-				u.errorExit();
+				u.appOutput("Babelfish Compass is a command-line-only tool, running on Windows, Linux and Mac.\nIt takes one or more DDL/SQL scripts as input and generates a compatibility assessment report.\nThe purpose of Babelfish Compass is to analyze a SQL Server DDL/SQL script for compatibility with Babelfish,\nto inform a decision about whether it is worth considering starting a migration project to Babelfish.\nBabelfish Compass can optionally connect directly to a SQL Server instance, by skipping steps 1 & 2 below.\n\nTake the following steps:\n1. Generate DDL for the SQL Server database(s) in question\n   with SSMS (right-click a database --> Tasks --> Generate Scripts.\n   Make sure to enable triggers, collations, logins, owners and permissions (disabled in SSMS by default).\n2. Use the resulting DDL/SQL script as input for Babelfish Compass to generate an assessment report\n(NB: instead of steps 1 & 2 above, you can also use the -sqlendpoint/-sqllogin/-sqlpasswd flags to connect\nto the SQL Server and generate the DDL automatically; make sure to read the corresponding\nsection in the Compass User Guide first)\n3. Discuss the contents of the Compass report with the application owner and interpret the findings in the\n   context of the application to be migrated. Try identifying parts of the application that can be excluded\n   from the migration, for example because it is no longer used.\n4. Keep in mind that a Babelfish migration involves more than just the server-side DDL/SQL code\n   (e.g. data migration, client applications, external interfaces, etc.)\n\nRun "+CompassUtilities.thisProgExec+" -help for further usage info.\n\nMore information about working with Babelfish is available at\nhttps://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/babelfish.html and https://babelfishpg.org/");
+				u.appOutput("");
+				u.appOutput(CompassUtilities.userDocText+": "+CompassUtilities.userDocURL);
+				quitNow = true;
+				return;				
 			}
 			if ((arg.equals("-babelfish-version") || arg.equals("-babelfish_version"))) {
 				if (i == args.length) {
@@ -764,6 +774,19 @@ public class Compass {
 				sqlDBList = u.stripStringQuotes(sqlDBList).trim();					
 				i++;					
 				continue;
+			}			
+			if (arg.equals("-csvformat") || arg.equals("-csvfmt")) {	
+				if (i == args.length) {
+					u.appOutput("Must specify value with -csvformat");
+					u.errorExit();
+				}
+				u.generateCSVFormat = args[i].toLowerCase();
+				if (!u.CSVFormats.contains(u.generateCSVFormat)) {
+					u.appOutput("Invalid value for -csformat. Valid options: "+ u.CSVFormats);
+					u.errorExit();
+				}
+				i++;
+				continue;
 			}																		
 			if (CompassUtilities.devOptions) {
 				if (arg.equals("-debug")) {   // development only
@@ -872,6 +895,18 @@ public class Compass {
 					String invalidMsg = CompassUtilities.nameFormatValid("report", reportName);
 					if (!invalidMsg.isEmpty()) {
 						u.appOutput("Report name '"+reportName+"' contains invalid character(s) "+invalidMsg);
+						boolean hint = false;
+						if (invalidMsg.equals("'"+File.separator+"'")) hint = true;
+						if (u.onWindows) {
+							if (!CompassUtilities.getPatternGroup(reportName, "^([a-z]:\\\\)", 1).isEmpty()) hint = true;
+						}
+						else {
+							if (reportName.startsWith(File.separator)) hint = true;
+						}
+
+						if (hint) {
+							u.appOutput("Did you forget to specify the report name? This must be the first argument (try -help)");							
+						}
 						u.errorExit();
 					}
 				} else {
@@ -2689,6 +2724,7 @@ public class Compass {
 				}
 
 				if (endBatchFound) {
+					if (u.debugging) u.dbgOutput("endBatchFound=["+endBatchFound+"] analyzingDynamicSQL=["+analyzingDynamicSQL+"] ", u.debugBatch);
 					// process the batch
 					if (!analyzingDynamicSQL) {
 						batchNr++;
@@ -2747,6 +2783,8 @@ public class Compass {
 							u.appOutput("\npass=[" + u.analysisPass + "] Batch " + batchNr + "=[" + batchText + "]");
 						}
 
+						if (u.debugging) u.dbgOutput("handing off to parser: u.analysisPass=["+u.analysisPass+"] batchNr=["+batchNr+"]  batchLines=["+batchLines+"]  ", u.debugBatch);
+						
 						charStream = CharStreams.fromString(batchText.toString());
 
 						// parse a batch and put the parse tree in the list for subsequent analysis
@@ -2756,6 +2794,8 @@ public class Compass {
 						duration = (endTime - startTime);
 						timeElapsed = duration / 1000;
 						timeCount.put("parseTime", timeCount.get("parseTime") + (int) duration);
+
+						if (u.debugging) u.dbgOutput("returning from parser", u.debugBatch);
 
 						if (dumpBatchFile) {
 							if (!hasParseError) {
@@ -2944,6 +2984,10 @@ public class Compass {
 		String autoDDLTag = "BabelfishCompassAutoDDL";		
 		if (u.debugging) u.dbgOutput(autoDDLTag + ": start: Compass Powershell", u.debugAutoDDL);
 
+		String autoDDLScript = "SMO_DDL.ps1"; 			
+		if (u.onWindows) autoDDLScript = ".\\" + autoDDLScript;
+		else autoDDLScript = "./" + autoDDLScript;		
+
 // uncomment these lines for testing without SMO invocation:
 //		SMODDLTag = "_DDL_2023-05-20";
 //		SMOOutputFolder = "C:\\Users\\rcv\\AppData\\Local\\Temp\\CompassAutoDDL-2023-May-20-12.40.25";
@@ -2961,11 +3005,31 @@ public class Compass {
 			}
 			u.errorExit();	
 		}
-		String autoDDLScript = "SMO_DDL.ps1"; 			
-		if (u.onWindows) autoDDLScript = ".\\" + autoDDLScript;
-		else autoDDLScript = "./" + autoDDLScript;
 		
-		// now spawn Powershell SMO script
+		// On Windows, check Powershell execution policy; on Linux/MacOS, it's always Unrestricted
+		if (u.onWindows) {
+			cmd = PScmd + " -Command Get-ExecutionPolicy ";
+			cmdOut = u.runOScmd(cmd, true);
+			if (u.debugging) u.dbgOutput("cmd=["+cmd+"] ", u.debugAutoDDL);
+			if (u.debugging) u.dbgOutput("cmdOut=["+cmdOut+"] ", u.debugAutoDDL);
+			cmdOut = cmdOut.trim();
+			if (!cmdOut.equals("Unrestricted")) {
+				u.appOutput("\nERROR: The Powershell execution policy must be set to 'Unrestricted' to run script "+autoDDLScript + ",\nwhich is required for the -sqlendpoint option.\nCurrent setting: " + cmdOut);
+				u.appOutput("Run 'Set-ExecutionPolicy -ExecutionPolicy Unrestricted' in Powershell to modify the\nexecution policy; run Get-ExecutionPolicy to verify.");
+				u.errorExit();	
+			}	
+		}	
+		
+		// On Windows, Unblock the PS script: as it is a downloaded file, PS will not execute without prompting unless unblocked first
+		if (u.onWindows) {
+			cmd = PScmd + " -Command Unblock-File -Path " + autoDDLScript;
+			cmdOut = u.runOScmd(cmd, true);
+			if (u.debugging) u.dbgOutput("cmd=["+cmd+"] ", u.debugAutoDDL);
+			if (u.debugging) u.dbgOutput("cmdOut=["+cmdOut+"] ", u.debugAutoDDL);
+			cmdOut = cmdOut.trim();  // we don't use the output
+		}	
+		
+		// now spawn Powershell SMO script	
 		String nowTS = new SimpleDateFormat("yyyy-MMM-dd-HH.mm.ss").format(startRunDate);		
 		String nowD = new SimpleDateFormat("yyyy-MMM-dd").format(startRunDate);
 		SMODDLTag = "_SMO_DDL_"+nowD;
@@ -3184,7 +3248,7 @@ public class Compass {
 		parser.setErrorHandler(new BailErrorStrategy());
 
 		if (useSLL) {
-			if (u.debugging) u.dbgOutput("useSLL=[" + useSLL + "] batchNr=[" + batchNr + "] batchLines=[" + batchLines + "]", u.debugBatch);
+			if (u.debugging) u.dbgOutput("useSLL=[" + useSLL + "] batchNr=[" + batchNr + "] batchLines=[" + batchLines + "]", u.debugBatch||u.debugPtree);
 			parser.getInterpreter().setPredictionMode(PredictionMode.SLL);
 		}
 
@@ -3211,7 +3275,7 @@ public class Compass {
 
 		} catch (Exception e) {
 			// we get here for parser errors
-			if (u.debugging) u.dbgOutput("syntax error in catch; pass=" + u.analysisPass + " useSLL=[" + useSLL + "] batchNr=[" + batchNr + "] ", u.debugPtree);
+			if (u.debugging) u.dbgOutput("syntax error in catch; pass=" + u.analysisPass + " useSLL=[" + useSLL + "] batchNr=[" + batchNr + "] ",  u.debugBatch||u.debugPtree);
 			if (useSLL) {
 				retrySLL++;
 				retrySLLFile++;
