@@ -25,9 +25,10 @@ public class CompassConfig {
 
 	// must be the first section in the .cfg file:
 	static final String Babelfish_Compass_Name = "Babelfish for T-SQL";
-	
-	// section for effort estimate defaults
-	static final String EffortEstimateDefaultSection = "Effort Estimate Defaults";
+
+	// sections for defaults
+	static final String EffortEstimateDefaultSection  = "Effort Estimate Defaults";
+	static final String ComplexityDefaultSection = "Complexity Score Defaults";
 
 	static List<String> Babelfish_VersionList = new ArrayList<>();
 	static Map<String, Map<String, List<String>>> sectionList = new LinkedHashMap<>();
@@ -54,32 +55,42 @@ public class CompassConfig {
     static final String reviewSemanticsTag    = "REVIEWSEMANTICS";
     static final String ruleTag               = "RULE";
     static final String versionAliasTag       = "VERSION_ALIAS";
-    static final String complexityTag         = "COMPLEXITY_SCORE";  
-    static final String complexityUndefined   = "";  
-    static final String complexityPattern     = "^((low|medium|high|refactor)|((\\-|\\+)?(\\d+)))$";
-    static final int complexityPatternGrpCfg         = 2;
-    static final int complexityPatternGrpUserCfg     = 1;
-    static final int complexityPatternGrpUserCfgNum  = 3;
-    static final String complexityPatternHelpCfg     = "low, medium, or high"; 
-    static final String complexityPatternHelpUserCfg = "low/medium/high, or a number"; 
-    static final int maxComplexityValue       = 100;         
+
+    static final String complexityTag         = "COMPLEXITY_SCORE";
+    static final String complexityTagDftTag   = "COMPLEXITY_SCORE_DEFAULT_";
+    static final String complexityUndefined   = "";
+    static final String complexityHigh        = "HIGH";
+    static final String complexityMedium      = "MEDIUM";
+    static final String complexityLow         = "LOW";
+    static final String complexityRefactor    = "REFACTOR";  // REFACTOR is experimental and not documented; intended as "extra high"
+    static List<String> complexityValues      = Arrays.asList(complexityLow, complexityMedium, complexityHigh, complexityRefactor);
+    static String complexityPattern           = "^((VALUES-GO-HERE)|((\\-|\\+)?(\\d+)))$";
+    static Map<String, String> complexityDefaultKeys  = new LinkedHashMap<>();
+    static Map<String, String> complexityDefault      = new LinkedHashMap<>();
+    static final int complexityPatternGrpCfg         = 2;  // applies to regex 'complexityPattern'
+    static final int complexityPatternGrpUserCfg     = 1;  // applies to regex 'complexityPattern'
+    static final int complexityPatternGrpUserCfgNum  = 3;  // applies to regex 'complexityPattern'
+    static final String complexityPatternHelpCfg     = "low, medium, or high";
+    static final String complexityPatternHelpUserCfg = "low/medium/high, or a number";
+    static final int maxComplexityValue       = 100;
+
     static final String effortTag             = "EFFORT_ESTIMATE";
     static final String effortTagDftTag       = "EFFORT_ESTIMATE_DEFAULT_";
-    static final String effortTagDftRefactor  = effortTagDftTag + "REFACTOR";
-    static final String effortTagDftHigh      = effortTagDftTag + "HIGH";
-    static final String effortTagDftMedium    = effortTagDftTag + "MEDIUM";
-    static final String effortTagDftLow       = effortTagDftTag + "LOW";
+    static Map<String, String> effortEstimateDefaultKeys  = new LinkedHashMap<>();
     static Map<String, String> effortEstimateDefault      = new LinkedHashMap<>();
     static final String effortPatternUnit     = "(d|day|days|h|hr|hrs|hour|hours|m|min|mins|minute|minutes)";
-    static final String effortPattern         = "^(\\d+)"+effortPatternUnit+"$";
-    static final String effortPatternHelp     = "<number>"+effortPatternUnit;
-    static final String effortUndefined       = "";    
+    static final String effortPatternValidate = "^((:)?(\\d+)"+effortPatternUnit+"?(:\\d+"+effortPatternUnit+"?)?)$";
+    static final String effortPatternSingle   = "^(\\d+)("+effortPatternUnit+")$";
+    static final String effortPatternHelp     = "'<number>unit:<number>unit' or [:]<number>unit, where unit="+effortPatternUnit;
+    static final String effortPartScale       = "scale";
+    static final String effortPartLearningCurve = "learningcurve";
+    static final String effortUndefined       = "";
     static final String maxEffortValue        = "'5days'";
     static final int maxEffortValueMins       = 7200;  // minutes in max value
-    
+
     // these are not used by Compass, but for generating documentation
-    static final String docURLTag             = "DOCURL";    
-    static final String docTxtTag             = "DOCTXT";    
+    static final String docURLTag             = "DOCURL";
+    static final String docTxtTag             = "DOCTXT";
 
 
 	static final String wildcardChar = "%"; // can be used in list key as a wildcard
@@ -91,9 +102,9 @@ public class CompassConfig {
 
     // separator for range of versions
 	static final String cRangeSeparator = "-";
-	
-	static List<String> supportOptionsCfgFileUpperCase = new ArrayList<>();	
-		
+
+	static List<String> supportOptionsCfgFileUpperCase = new ArrayList<>();
+
 	// user-defined cfg file; keep original .cfg file order
 	static List<String> cfgSections = new ArrayList<>();
 
@@ -105,9 +116,30 @@ public class CompassConfig {
 	private CompassConfig() {}
 
 	public static CompassConfig getInstance() {
+		initValues();
 		return instance;
 	}
-	
+
+    private static void initValues () {
+    	// set up effort/complexity defaults
+    	for (String c : complexityValues) {
+    		String ck = effortTagDftTag + c;
+    		effortEstimateDefaultKeys.put(ck.toUpperCase(), c.toUpperCase());
+    	}
+
+    	for (String c : CompassUtilities.validSupportOptionsCfgFileOrig) {
+    		String ck = effortTagDftTag + c;
+    		effortEstimateDefaultKeys.put(ck.toUpperCase(), c.toUpperCase());
+    	}
+    	
+    	for (String c : CompassUtilities.validSupportOptionsCfgFileOrig) {
+    		String ck = complexityTagDftTag + c;
+    		complexityDefaultKeys.put(ck.toUpperCase(), c.toUpperCase());
+    	}
+
+    	complexityPattern = complexityPattern.replace("VALUES-GO-HERE", String.join("|", complexityValues));
+	}
+
 	public static void cfgOutput(String s) {
 		cfgOutput(s, configFileName);
 	}
@@ -125,17 +157,17 @@ public class CompassConfig {
 			// do not keep track of this one, it serves no purpose in this context
 			return;
 		}
-		
-		// this could be improved further if necessary: if first a not-supported item is found with high complexity , and then one with low complexity, 
-		// and then the capture happens, we'll end up with low. So could do this differently by only overwriting if the complexty is higher. 
+
+		// this could be improved further if necessary: if first a not-supported item is found with high complexity , and then one with low complexity,
+		// and then the capture happens, we'll end up with low. So could do this differently by only overwriting if the complexty is higher.
 		// issues: custom values; and if we're going to retrieve the complexity here, why keep track of the section/name anyway and not just the complexity itself?
 		lastCfgCheckSection = section.trim();
-		lastCfgCheckName    = name.trim();		
+		lastCfgCheckName    = name.trim();
 		lastCfgCheckName    = u.applyPatternFirst(lastCfgCheckName, "^[,]", "");
 		lastCfgCheckName	= lastCfgCheckName.trim();
 		//u.appOutput(u.thisProc()+"setting lastCfgCheckSection=["+lastCfgCheckSection+"] lastCfgCheckName=["+lastCfgCheckName+"] ");
 	}
-		
+
 	public static boolean isValidBabelfishVersion(String version) {
 		return isValidBabelfishVersion(version, false);
 	}
@@ -149,7 +181,7 @@ public class CompassConfig {
 			if (!allowStar) { return false; }
 			// found 1.* or 1.2.* or similar: a version with a number instead of * must exist
 			String vStar = version.substring(0,version.indexOf("*")-1);
-			for (String v : Babelfish_VersionList) {				
+			for (String v : Babelfish_VersionList) {
 				if (v.startsWith(vStar)) {
 					return true;
 				}
@@ -177,14 +209,14 @@ public class CompassConfig {
 	public static String normalizedBabelfishVersion(String version) {
 		// for comparing versions, use a normalized internal representation. Assumption: external format is \d+(\.\d+)* or \d+\.\*
 		StringBuilder internalVers = new StringBuilder();
-		
+
 		// replace by alias if defined
 		if (versionAliasList.containsKey(version)) {
 			String alias = versionAliasList.get(version);
-			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "alias found for version=["+version+"] = ["+alias+"] ", u.debugCfg);			
-			version = alias;						
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "alias found for version=["+version+"] = ["+alias+"] ", u.debugCfg);
+			version = alias;
 		}
-		
+
 		String[] vParts = version.split("\\.");
 		for(int i=0; i < vParts.length; i++) {
 			if (vParts[i].equals("*")) {
@@ -281,7 +313,7 @@ public class CompassConfig {
 				// admittedly, this does not catch all expressions
 				return u.ReviewManually;
 			}
-			
+
 			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureArgOptions found: section=[" + section + "]  requestVersion=[" + requestVersion + "] arg=[" + arg + "] argValue=[" + argValue + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 
@@ -303,9 +335,9 @@ public class CompassConfig {
 				}
 			}
 			if (!status.equals(u.Supported)) {
-				status = featureDefaultStatus(section);				
-			}		
-		}		
+				status = featureDefaultStatus(section);
+			}
+		}
 		setLastCfgCheck(section, arg+"="+argValue, status);
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " result: section=[" + section + "]  requestVersion=[" + requestVersion + "] arg=[" + arg + "] argValue=[" + argValue + "] status=["+status+"] ", u.debugCfg);
 		return status;
@@ -391,8 +423,8 @@ public class CompassConfig {
 				}
 			}
 			if (!status.equals(u.Supported)) {
-				status = featureDefaultStatus(section);				
-			}					
+				status = featureDefaultStatus(section);
+			}
 		}
 		setLastCfgCheck(section, "", status);
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: status=[" + status + "] ", u.debugCfg);
@@ -418,7 +450,7 @@ public class CompassConfig {
 		if (result < 0) {
 			u.appOutput("Value in [" + section + "]  must be a number: [" + s + "]");
 			u.errorExit();
-		}	
+		}
 		return result;
 	}
 
@@ -446,10 +478,10 @@ public class CompassConfig {
 			}
 		}
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: value=[" + value + "]  ", u.debugCfg);
-		setLastCfgCheck(section, "", "");		
+		setLastCfgCheck(section, "", "");
 		return value;
 	}
-	
+
 	// get the list of items in the 'list=' key
 	public static List<String> featureValueList(String section) {
 		section = section.toUpperCase();
@@ -476,7 +508,7 @@ public class CompassConfig {
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " entry: section=[" + section + "] name=[" + name + "]  requestVersion=[" + requestVersion + "] ", u.debugCfg);
 		assert (!name.isEmpty()) : "name argument cannot be blank";
 
-		if (featureExists(section, name)) {			
+		if (featureExists(section, name)) {
 			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + section + "] name=[" + name + "]  requestVersion=[" + requestVersion + "]  featureDefault=[" + status + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
@@ -509,14 +541,14 @@ public class CompassConfig {
 							break;
 						}
 					}
-				}				
+				}
 			}
 			if (!status.equals(u.Supported) && !status.equals(u.Ignored) ) {
-				status = featureDefaultStatus(section, name);				
+				status = featureDefaultStatus(section, name);
 			}
 		}
 		setLastCfgCheck(section, name, status);
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "return status=["+status+"] ", u.debugCfg);				
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "return status=["+status+"] ", u.debugCfg);
 		return status;
 	}
 
@@ -529,19 +561,19 @@ public class CompassConfig {
 			String option = name+"="+optionValue;
 			if (featureExists(section, option)) {
 				status = featureSupportedInVersion(requestVersion, section, option);
-				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "option=value found: status=["+status+"] ", u.debugCfg);		
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "option=value found: status=["+status+"] ", u.debugCfg);
 			}
 		}
 		else if (featureExists(section, name)) {
 			status = featureSupportedInVersion(requestVersion, section, name);
-			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "option found: status=["+status+"] ", u.debugCfg);		
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "option found: status=["+status+"] ", u.debugCfg);
 		}
 		if (!status.equals(u.Supported)) {
-			status = featureDefaultStatus(section, name);				
-		}		
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "return status=["+status+"] ", u.debugCfg);		
+			status = featureDefaultStatus(section, name);
+		}
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "return status=["+status+"] ", u.debugCfg);
 		return status;
-	}	
+	}
 
 	public static boolean isVersionSupported(String requestVersion, String testVersion) {
 		boolean isSupported = false;
@@ -558,7 +590,7 @@ public class CompassConfig {
 			// yes, it is supported in the requested version
 			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "found lower/equal version: testVersion=[" + testVersion + "] requestVersion=[" + requestVersion + "] ", u.debugCfg);
 			isSupported = true;
-		} 
+		}
 		else {
 			if (!testVersionMax.isEmpty()) {
 				// does the requested version match the interval?
@@ -576,14 +608,14 @@ public class CompassConfig {
 	// not currently used
 	public static String findSectionForItem(String item) {
 		item = item.toUpperCase();
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: item=["+item+"] ", u.debugCfg);			
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: item=["+item+"] ", u.debugCfg);
 		String section = "";
 		boolean done = false;
 		for (String key : sectionList.keySet()) {
 			Map<String, List<String>> featureList = sectionList.get(key);
 			for (String key2 : featureList.keySet()) {
-				List<String> thisList = featureList.get(key2);	
-				if (thisList == null) continue;		
+				List<String> thisList = featureList.get(key2);
+				if (thisList == null) continue;
 				if (thisList.contains(item)) {
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " found key=[" + key + "] key2=["+key2+"] with item in thisList=[" + thisList + "] ", u.debugCfg);
 					section = key;
@@ -592,14 +624,14 @@ public class CompassConfig {
 				}
 			}
 			if (done) break;
-		}			
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: section=["+section+"] ", u.debugCfg);		
+		}
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: section=["+section+"] ", u.debugCfg);
 		return section;
 	}
 
 	// Is there a complexity score defined for this section?
 	public static String featureComplexityDefined(String section) {
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"]", u.debugCfg);			
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"]", u.debugCfg);
 		String complexityDef = complexityUndefined;
 		section = section.toUpperCase();
 		if (sectionComplexityList.containsKey(section)) {
@@ -608,47 +640,47 @@ public class CompassConfig {
 			List<String> thisComplexitytList = featureComplexitytList.get(complexityKey);
 			if (thisComplexitytList != null) {
 				complexityDef = thisComplexitytList.get(0);
-			}		
-		}				
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: complexityDef=["+complexityDef+"] section=["+section+"] ", u.debugCfg);		
+			}
+		}
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: complexityDef=["+complexityDef+"] section=["+section+"] ", u.debugCfg);
 		return complexityDef;
 	}
-	
+
 	// Is there a complexity score defined for this section + item ?
 	public static String featureComplexityDefined(String section, String name) {
 		return featureComplexityDefined(section, name, false);
 	}
 	public static String featureComplexityDefined(String section, String name, boolean getDefaultValue) {
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"] name=["+name+"] getDefaultValue=["+getDefaultValue+"] ", u.debugCfg);		
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"] name=["+name+"] getDefaultValue=["+getDefaultValue+"] ", u.debugCfg);
 		String complexityDef = complexityUndefined;
 		section = section.toUpperCase();
 		name = name.toUpperCase();
 		if (sectionComplexityList.containsKey(section)) {
 			Map<String, List<String>> featureComplexityList = sectionComplexityList.get(section);
-			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "section=["+section+"] name=["+name+"] featureComplexityList=["+featureComplexityList+"] ", u.debugCfg);	
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "section=["+section+"] name=["+name+"] featureComplexityList=["+featureComplexityList+"] ", u.debugCfg);
 			for (String key : featureComplexityList.keySet()) {
 				List<String> nameList = featureComplexityList.get(key);
-				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "key=["+key+"] nameList=["+nameList+"]  ", u.debugCfg);	
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "key=["+key+"] nameList=["+nameList+"]  ", u.debugCfg);
 				if (nameList.contains(name)) {
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "name found in list=["+name+"] ", u.debugCfg);	
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "name found in list=["+name+"] ", u.debugCfg);
 					// get complexity score from key
 					complexityDef = key.substring(complexityTag.length() + 1);
 					break;
 				}
-			}	
+			}
 			if (complexityDef.equalsIgnoreCase(complexityUndefined)) {
 				if (getDefaultValue) {
 					// check for default complexity score
 					if (featureComplexityList.containsKey(complexityTag)) {
 						complexityDef = featureComplexityList.get(complexityTag).get(0);
-						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "dft complexity score for section=["+section+"] complexityDef=["+complexityDef+"] ", u.debugCfg);	
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "dft complexity score for section=["+section+"] complexityDef=["+complexityDef+"] ", u.debugCfg);
 					}
 				}
 			}
-		}				
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: complexityDef=["+complexityDef+"] section=["+section+"] name=["+name+"] ", u.debugCfg);		
+		}
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: complexityDef=["+complexityDef+"] section=["+section+"] name=["+name+"] ", u.debugCfg);
 		return complexityDef;
-	}		
+	}
 
 	// validate complexity score value; regex has already been verified
 	// only called form user .cfg since main .cfg has no numeric values
@@ -660,18 +692,18 @@ public class CompassConfig {
 		if (m != null) {
 			if (!m.isEmpty()) {
 				int complexityValueNum = Integer.parseInt((u.getPatternGroup(complexityValue, complexityPattern, complexityPatternGrpUserCfg)));
-				if (Math.abs(complexityValueNum) > maxComplexityValue) {									
+				if (Math.abs(complexityValueNum) > maxComplexityValue) {
 					cfgOutput(userConfigFilePathName, "Complexity score value '"+complexityValue+"' must be between 0 and "+maxComplexityValue + " (inclusive)");
 					isValid = false;
-				}		
+				}
 			}
 		}
 		return isValid;
-	}	
+	}
 
 	// Is there an effort defined for this section?
 	public static String featureEffortDefined(String section) {
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"]", u.debugCfg);			
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"]", u.debugCfg);
 		String effortDef = effortUndefined;
 		section = section.toUpperCase();
 		if (sectionEffortList.containsKey(section)) {
@@ -680,9 +712,9 @@ public class CompassConfig {
 			List<String> thisEffortList = featureEffortList.get(effortKey);
 			if (thisEffortList != null) {
 				effortDef = thisEffortList.get(0);
-			}		
-		}				
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: effortDef=["+effortDef+"] section=["+section+"] ", u.debugCfg);		
+			}
+		}
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: effortDef=["+effortDef+"] section=["+section+"] ", u.debugCfg);
 		return effortDef;
 	}
 
@@ -691,47 +723,50 @@ public class CompassConfig {
 		return featureEffortDefined(section, name, false);
 	}
 	public static String featureEffortDefined(String section, String name, boolean getDefaultValue) {
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"] name=["+name+"] getDefaultValue=["+getDefaultValue+"] ", u.debugCfg);		
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"] name=["+name+"] getDefaultValue=["+getDefaultValue+"] ", u.debugCfg);
 		String effortDef = effortUndefined;
 		section = section.toUpperCase();
 		name = name.toUpperCase();
 		if (sectionEffortList.containsKey(section)) {
 			Map<String, List<String>> featureEffortList = sectionEffortList.get(section);
-			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "section=["+section+"] name=["+name+"] featureEffortList=["+featureEffortList+"] ", u.debugCfg);	
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "section=["+section+"] name=["+name+"] featureEffortList=["+featureEffortList+"] ", u.debugCfg);
 			for (String key : featureEffortList.keySet()) {
 				List<String> nameList = featureEffortList.get(key);
-				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "key=["+key+"] nameList=["+nameList+"]  ", u.debugCfg);	
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "key=["+key+"] nameList=["+nameList+"]  ", u.debugCfg);
 				if (nameList.contains(name)) {
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "name found in list=["+name+"] ", u.debugCfg);	
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "name found in list=["+name+"] ", u.debugCfg);
 					// get effort from key
 					effortDef = key.substring(effortTag.length() + 1);
 					break;
 				}
-			}	
+			}
 			if (effortDef.equalsIgnoreCase(effortUndefined)) {
 				if (getDefaultValue) {
 					// check for default effort
 					if (featureEffortList.containsKey(effortTag)) {
 						effortDef = featureEffortList.get(effortTag).get(0);
-						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "dft effort for section=["+section+"] effortDef=["+effortDef+"] ", u.debugCfg);	
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "dft effort for section=["+section+"] effortDef=["+effortDef+"] ", u.debugCfg);
 					}
 				}
 			}
-		}				
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: effortDef=["+effortDef+"] section=["+section+"] name=["+name+"] ", u.debugCfg);		
+		}
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: effortDef=["+effortDef+"] section=["+section+"] name=["+name+"] ", u.debugCfg);
 		return effortDef;
-	}	
+	}
 
 	public static String formatEffort(String effortValue) {
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: effortValue=["+effortValue+"] ", u.debugCfg);	
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: effortValue=["+effortValue+"] ", u.debugCfg);
 		if (effortValue.equalsIgnoreCase(effortUndefined)) {
 			return effortUndefined;
+		}
+		if (!u.getPatternGroup(effortValue.trim(), "^(\\d+)$", 1).isEmpty()) {
+			effortValue += "m";  // assume minutes
 		}		
-		String effortUnit = u.getPatternGroup(effortValue, effortPattern, 2);			
+		String effortUnit = u.getPatternGroup(effortValue, effortPatternSingle, 2);
 		char unit = effortUnit.toUpperCase().charAt(0);
 		assert ((unit == 'D') || (unit == 'H') || (unit == 'M')) : "Invalid unit=["+unit+"] effortValue=["+effortValue+"]";
-		
-		Integer effortValueNum = Integer.parseInt((u.getPatternGroup(effortValue, effortPattern, 1)));
+
+		Integer effortValueNum = Integer.parseInt((u.getPatternGroup(effortValue, effortPatternSingle, 1)));
 		String effortUnitFmt = "";
 		if (unit == 'D') {
 			effortUnitFmt = "day";
@@ -743,33 +778,88 @@ public class CompassConfig {
 			effortUnitFmt = "minute";
 		}
 		else {
-			// we cannot get here	
-		}	
-				
+			// we cannot get here
+		}
+
 		String effortFmt = effortValueNum.toString() + " " + effortUnitFmt;
 		if (effortValueNum != 1) effortFmt += "s";
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: effortValue=["+effortValue+"] ", u.debugCfg);		
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: effortValue=["+effortValue+"] ", u.debugCfg);
 		return effortFmt;
 	}
-	
+
 	// validate effort estimate value; regex has already been verified
 	private static boolean validateEffortValue (String effortValue) {
 		boolean isValid = true;
-		if (convertEffortValue(effortValue) > maxEffortValueMins) {									
-			cfgOutput(userConfigFilePathName, "Effort estimate value '"+effortValue+"' is unreasonably high; use max value accepted is " + maxEffortValue);
-			isValid = false;
-		}		
+		String effortValueScale   = getEffortValue(effortValue, effortPartScale); // effort per each occurrence of the item
+		String effortValueLearningCurve = getEffortValue(effortValue, effortPartLearningCurve); // 1-time effort for each item
+
+		//u.appOutput(u.thisProc()+"effortValue=["+effortValue+"]  effortValueScale=["+effortValueScale+"] effortValueLearningCurve=["+effortValueLearningCurve+"] ");
+		if (!effortValueScale.isEmpty()) {
+			if (convertEffortValue(effortValueScale) > maxEffortValueMins) {
+				cfgOutput(userConfigFilePathName, "Effort estimate value '"+effortValueScale+"' is unreasonably high; use max value accepted is " + maxEffortValue);
+				isValid = false;
+			}
+		}
+		if (!effortValueLearningCurve.isEmpty()) {
+			if (convertEffortValue(effortValueLearningCurve) > maxEffortValueMins) {
+				cfgOutput(userConfigFilePathName, "Effort estimate value '"+effortValueLearningCurve+"' is unreasonably high; use max value accepted is " + maxEffortValue);
+				isValid = false;
+			}
+		}
 		return isValid;
-	}	
+	}
 
 	// convert effort to minutes; regex has already been verified
-	public static Integer convertEffortValue (String effortValue) {		
+	public static String getEffortValue (String effortValue, String whichPart) {
+		assert (whichPart.equals(effortPartScale) || whichPart.equals(effortPartLearningCurve) ) :  CompassUtilities.thisProc()+"Invalid argument; must be '"+effortPartScale+"' or '"+effortPartLearningCurve+"'";
+
+		String effortValuePart = "";
+		if (effortValue.contains(":")) {
+			int ix = effortValue.indexOf(":");
+			if (whichPart.equals(effortPartScale)) {
+				effortValuePart = effortValue.substring(0,ix);
+			}
+			else {
+				// must be effortPartLearningCurve
+				effortValuePart = effortValue.substring(ix+1);
+			}
+		}
+		else {
+			// no ':', so there's only the 'scale' number
+			if (whichPart.equals(effortPartScale)) {
+				effortValuePart = effortValue;
+			}
+			else {
+				// 'learningcurve' part is not there
+				effortValuePart = "";
+			}
+		}
+		return effortValuePart.trim();
+	}
+
+	// convert effort to minutes; regex has already been verified
+	public static Integer convertEffortValue (String effortValue, String whichPart) {
+		assert (whichPart.equals(effortPartScale) || whichPart.equals(effortPartLearningCurve) ) :  CompassUtilities.thisProc()+"Invalid argument; must be '"+effortPartScale+"' or '"+effortPartLearningCurve+"'";
+
+		String effortValuePart = getEffortValue(effortValue, whichPart);
+		Integer effortValueLearningCurve = convertEffortValue(effortValuePart);
+		return effortValueLearningCurve;
+	}
+
+	public static Integer convertEffortValue (String effortValue) {
 		if (effortValue.equalsIgnoreCase(effortUndefined) || effortValue.trim().isEmpty()) {
 			return 0;
-		}		
-		int effortMinutes = 0;
-		int effortValueNum = Integer.parseInt((u.getPatternGroup(effortValue, effortPattern, 1)));
-		String effortUnit = u.getPatternGroup(effortValue, effortPattern, 2);	
+		}
+		
+		if (u.getPatternGroup(effortValue, effortPatternSingle, 1).isEmpty()) {
+			if (!u.getPatternGroup(effortValue.trim(), "^(\\d+)$", 1).isEmpty()) {
+				effortValue += "m";  // assume minutes
+			}			
+		}
+		
+		int effortMinutes = 0;		
+		int effortValueNum = Integer.parseInt((u.getPatternGroup(effortValue, effortPatternSingle, 1)));
+		String effortUnit = u.getPatternGroup(effortValue, effortPatternSingle, 2);
 		if (effortUnit.toUpperCase().charAt(0) == 'D') {
 			effortMinutes = effortValueNum * 1440;
 		}
@@ -781,15 +871,15 @@ public class CompassConfig {
 		}
 		else {
 			// we cannot get here
-			u.appOutput("Invalid effortUnit=["+effortUnit+"] effortValue=[$effortValue] ");
-			u.errorExitStackTrace();			
-		}		
+			u.appOutput("Invalid effortUnit=["+effortUnit+"] effortValue=["+effortValue+"] ");
+			u.errorExitStackTrace();
+		}
 		return effortMinutes;
-	}	
+	}
 
 	// TODO use section.toUpperCase() if called from outside (not by a Config method) -- but this is not currently the case
 	public static String featureDefaultStatus(String section) {
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"]", u.debugCfg);			
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"]", u.debugCfg);
 		String status = u.NotSupported;
 		section = section.toUpperCase();
 		Map<String, List<String>> featureList = sectionList.get(section);
@@ -798,7 +888,7 @@ public class CompassConfig {
 		if (thisList != null) {
 			status = thisList.get(0);
 		}
-		
+
 		// is there an override?
 		if (sectionOverrideList.containsKey(section)) {
 			String statusOrig = status;
@@ -808,16 +898,16 @@ public class CompassConfig {
 			if (thisOverrideList != null) {
 				status = thisOverrideList.get(0);
 				u.logStatusOverride(statusOrig, status, section);
-			}		
+			}
 		}
-				
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: status=["+status+"] section=["+section+"] ", u.debugCfg);		
+
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: status=["+status+"] section=["+section+"] ", u.debugCfg);
 		return status;
 	}
 
 	// TODO use section.toUpperCase() if called from outside (not by a Config method) -- but this is not currently the case
-	public static String featureDefaultStatus(String section, String name) {    
-		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"] name=["+name+"] ", u.debugCfg);		
+	public static String featureDefaultStatus(String section, String name) {
+		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "entry: section=["+section+"] name=["+name+"] ", u.debugCfg);
 		String status = u.NotSupported;
 		section = section.toUpperCase();
 		name = name.toUpperCase();
@@ -831,14 +921,14 @@ public class CompassConfig {
 				if (key.equals(defaultStatusTag)) {
 					status = thisList.get(0);
 					// keep searching for a more specific key
-				} 
+				}
 				else if (thisList.contains(name)) {
 					status = key.substring(defaultStatusTag.length() + 1);
 					break;
 				}
 			}
 		}
-		
+
 		// is there an override?
 		if (sectionOverrideList.containsKey(section)) {
 			String statusOrig = status;
@@ -854,7 +944,7 @@ public class CompassConfig {
 						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " section override found for key=[" + key + "] status=["+status+"]  ", u.debugCfg);
 						overrideStatus = status;
 						// keep searching for a more specific key
-					} 
+					}
 					else if (thisList.contains(name)) {
 						status = key.substring(defaultStatusTag.length() + 1);
 						overrideStatus = status;
@@ -865,9 +955,9 @@ public class CompassConfig {
 			}
 			if (!overrideStatus.isEmpty()) {
 				u.logStatusOverride(statusOrig, status, section, name);
-			}			
+			}
 		}
-		
+
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "result: status=["+status+"] section=["+section+"] name=["+name+"] ", u.debugCfg);
 		return status;
 	}
@@ -920,7 +1010,7 @@ public class CompassConfig {
 					if (allItems.contains(name)) {
 						result = true;
 						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "match found for name=[" + name + "] ", u.debugCfg);
-					} 
+					}
 					else {
 						// does this section have a wildcard?
 						if (featureList.containsKey(createKey(wildcardTag))) {
@@ -932,7 +1022,7 @@ public class CompassConfig {
 						}
 					}
 				}
-			} 
+			}
 			else {
 				// the feature exists, but has no list= key (not needed for many features)
 				result = true;
@@ -989,8 +1079,8 @@ public class CompassConfig {
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
 				if (!key.startsWith(reportGroupTag)) continue;
-				
-				String foundGroup = key.substring(reportGroupTag.length());				
+
+				String foundGroup = key.substring(reportGroupTag.length());
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " key=[" + key + "] foundGroup=[" + foundGroup + "] ", u.debugCfg);
 				if (foundGroup.isEmpty()) {
 					// e.g. 'report_group=Built-in functions', applies to all items
@@ -998,11 +1088,11 @@ public class CompassConfig {
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " generic: foundGroup=[" + foundGroup + "] thisList=[" + thisList + "] ", u.debugCfg);
 					group = thisList.get(0);
 					//keep searching if there is a more specific group
-				} 
+				}
 				else if (foundGroup.charAt(0) != subKeySeparator.charAt(0)) {
 					// should not happen
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " Unexpected branch, foundGroup=[" + foundGroup + "] ", u.debugCfg);
-				} 
+				}
 				else {
 					// 'report_group-Fulltext Search=CONTAINSTABLE,FREETEXTTABLE,SEMANTICKEYPHRASETABLE[,...]'
 					// applies only to the actual names listed
@@ -1018,16 +1108,16 @@ public class CompassConfig {
 				}
 			}
 		}
-		
+
 		// is there an override?
 		if (sectionOverrideList.containsKey(section)) {
 			String groupOrig = group;
-			String overrideGroup = "";			
+			String overrideGroup = "";
 			Map<String, List<String>> featureOverrideList = sectionOverrideList.get(section);
 			for (String key : featureOverrideList.keySet()) {
-				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " override key=[" + key + "]", u.debugCfg);				
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " override key=[" + key + "]", u.debugCfg);
 				if (!key.startsWith(reportGroupTag)) continue;
-			
+
 				List<String> thisList = featureOverrideList.get(key);
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " found override key=[" + key + "] thisList=[" + thisList + "] ", u.debugCfg);
 				if (key.equals(reportGroupTag)) {
@@ -1035,19 +1125,19 @@ public class CompassConfig {
 					overrideGroup = group;
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " section override found for key=[" + key + "] group=["+group+"]  ", u.debugCfg);
 					// keep searching for a more specific key
-				} 
+				}
 				else if (thisList.contains(name)) {
 					group = key.substring(reportGroupTag.length() + 1);
 					overrideGroup = group;
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " section+name override found for key=[" + key + "] sgroup=["+group+"]  ", u.debugCfg);
 					break;
 				}
-			}	
+			}
 			if (!overrideGroup.isEmpty()) {
 				u.logGroupOverride(groupOrig, group, section, name);
-			}						
+			}
 		}
-		
+
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: group=[" + group + "]  ", u.debugCfg);
 		return group;
 	}
@@ -1069,7 +1159,7 @@ public class CompassConfig {
 				group = thisList.get(0);
 			}
 		}
-		
+
 		// is there an override?
 		if (sectionOverrideList.containsKey(section)) {
 			String groupOrig = group;
@@ -1079,16 +1169,16 @@ public class CompassConfig {
 			if (thisOverrideList != null) {
 				group = thisOverrideList.get(0);
 				u.logGroupOverride(groupOrig, group, section);
-			}		
+			}
 		}
-				
+
 		if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " return: group=[" + group + "] ", u.debugCfg);
 		return group;
 	}
 
 	// debug: dump all config keys
 	public static void dumpCfg(String type) {
-		Map<String, Map<String, List<String>>> cfgSectionList = new LinkedHashMap<>();	
+		Map<String, Map<String, List<String>>> cfgSectionList = new LinkedHashMap<>();
 		int nrKeys = 0;
 		String typeStr = type;
 		if (type.equals("main")) {
@@ -1107,16 +1197,23 @@ public class CompassConfig {
 			u.appOutput("Invalid argument type=["+type+"]");
 			u.errorExitStackTrace();
 		}
-		
+
 		if (u.debugging) {
 			u.dbgOutput(" ", u.debugCfg);
-			u.dbgOutput(CompassUtilities.thisProc() + "=== dumping "+ typeStr +" config ================= ", u.debugCfg);		
+			u.dbgOutput(CompassUtilities.thisProc() + "=== dumping "+ typeStr +" config ================= ", u.debugCfg);
 			if (type.equals(effortTag)) {
 				u.dbgOutput("=== effort estimate defaults: ================= ", u.debugCfg);
 				for (String ek : effortEstimateDefault.keySet()) {
 					String ed = effortEstimateDefault.get(ek);
 					u.dbgOutput("  Effort Estimate default for complexity=" + ek + ": "+ed+"", u.debugCfg);
-				}				
+				}
+			}
+			if (type.equals(complexityTag)) {
+				u.dbgOutput("=== complexity score defaults: ================= ", u.debugCfg);
+				for (String ek : complexityDefault.keySet()) {
+					String ed = complexityDefault.get(ek);
+					u.dbgOutput("  Complexity Score default for status=" + ek + ": "+ed+"", u.debugCfg);
+				}
 			}
 			u.dbgOutput("=== sections: ================= ", u.debugCfg);
 			for (String section : cfgSectionList.keySet()) {
@@ -1125,7 +1222,7 @@ public class CompassConfig {
 			u.dbgOutput("=== Nr. sections: " + cfgSectionList.size() + " ================= ", u.debugCfg);
 			u.dbgOutput("", u.debugCfg);
 		    u.dbgOutput("=== keys: ================= ", u.debugCfg);
-			
+
 			for (String sectionName : cfgSectionList.keySet()) {
 				Map<String, List<String>> featureList = cfgSectionList.get(sectionName);
 				for (String key : featureList.keySet()) {
@@ -1214,17 +1311,17 @@ public class CompassConfig {
 					if (optionKey.equals(validVersionsTag)) {
 						Babelfish_VersionList = new ArrayList<>(Arrays.asList(optionVal.split(",")));
 						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "Valid versions (" + Babelfish_VersionList.size() + ") :" + Babelfish_VersionList, u.debugCfg);
-						
+
 						// strip off any spaces
 						for (int i = 0; i<Babelfish_VersionList.size(); i++) {
 							Babelfish_VersionList.set(i, Babelfish_VersionList.get(i).trim());
-						}						
-						
+						}
+
 						for (String v : Babelfish_VersionList) {
 							if (!u.PatternMatches(v, "\\d+(\\.\\d+)*")) {
 								cfgOutput("[" + Babelfish_Compass_Name + "]: Invalid version number found: [" + v + "]");
 								cfgFileValid = false;
-							} 
+							}
 							else {
 								if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "   version=[" + v + "] => [" + normalizedBabelfishVersion(v) + "]", u.debugCfg);
 							}
@@ -1253,7 +1350,7 @@ public class CompassConfig {
 						if (u.getPatternGroup(optionVal, "^((\\d+\\-)?"+monthList+"\\-20\\d\\d)$", 1).isEmpty()) {
 							cfgOutput(fileTimestampTag + " key has invalid format.");
 							cfgOutput("Format must be: "+monthList+"-20xx");
-							u.errorExit(); // no point in continuing							
+							u.errorExit(); // no point in continuing
 						}
 						continue;
 					}
@@ -1371,7 +1468,7 @@ public class CompassConfig {
 					}
 
 					thisKey = createKey(ignoredTag, v);
-				}				
+				}
 				// key: 'ReviewSemantics' values
 				else if (optionKey.startsWith(reviewSemanticsTag)) {
 					String vRaw = optionKey.substring(reviewSemanticsTag.length() + 1);
@@ -1415,19 +1512,19 @@ public class CompassConfig {
 					}
 
 					thisKey = createKey(reviewSemanticsTag, v);
-				}				
+				}
 				// key: 'default_classification' items
 				else if (optionKey.startsWith(defaultStatusTag)) {
 					// values in supportOptionsCfgFile have been converted to uppercase
 					if (optionKey.equals(defaultStatusTag)) {
 						if (u.validSupportOptionsCfgFile.contains(optionVal.toUpperCase())) {
 							optionVal = u.supportOptions.get(supportOptionsCfgFileUpperCase.indexOf(optionVal.toUpperCase()));
-						} 
+						}
 						else {
 							cfgOutput("Section [" + sectionName + "]: key " + defaultStatusTag + " has invalid value [" + optionVal + "]. Valid values are " + u.validSupportOptionsCfgFileOrig);
 							cfgFileValid = false;
 						}
-					} 
+					}
 					else if (!u.defaultClassificationsKeys.contains(optionKey)) {
 						cfgOutput("Section [" + sectionName + "]: key " + optionKey + " is invalid. Valid values are " + u.defaultClassificationsKeysOrig);
 						cfgFileValid = false;
@@ -1439,20 +1536,20 @@ public class CompassConfig {
 							optionKey = optionKey.substring(0,defaultStatusTag.length());
 							thisKey = createKey(optionKey);
 						}
-					}					
+					}
 				}
 				// key: 'report_group', 'report_group-XYZ'
-				else if (optionKey.startsWith(reportGroupTag)) {							
+				else if (optionKey.startsWith(reportGroupTag)) {
 					if (optionVal.isEmpty()) {
 						cfgOutput("["+sectionName+"]: Invalid key '" + reportGroupTag + "=': value cannot be blank");
 						cfgFileValid = false;
-					} 
+					}
 					else if (optionVal.equals("*")) {
 						if (optionKey.length() > reportGroupTag.length()) {
 							// report_group-xxx=* ==> change to: report_group=xxx
 							optionVal = optionKey.substring(reportGroupTag.length() + 1);
 							optionKey = optionKey.substring(0,reportGroupTag.length());
-							thisKey = createKey(optionKey);				
+							thisKey = createKey(optionKey);
 						}
 						else {
 							cfgOutput("["+sectionName+"]: Invalid key '" + reportGroupTag + "=': value must be a group name, not '*'");
@@ -1466,15 +1563,15 @@ public class CompassConfig {
 						thisKey = reportGroupTag + subKeySeparator + groupName; // TODO This probably works, but test this if there are still issues
 					}
 				}
-				// this code is (almost) duplicated for the user .cfg file					
+				// this code is (almost) duplicated for the user .cfg file
 				// key: 'complexity_score' items
-				else if (optionKey.equals(complexityTag)) {	
+				else if (optionKey.equals(complexityTag)) {
 					optionVal = optionVal.replaceAll(" ", "");
 					if (optionVal.isEmpty()) {
 						cfgOutput("Invalid complexity key '" + complexityTag + "=': value cannot be blank");
 						cfgFileValid = false;
 						continue;
-					} 									
+					}
 					else {
 						String m = u.getPatternGroup(optionVal, complexityPattern, complexityPatternGrpCfg);
 						if (m == null) m = "";
@@ -1489,18 +1586,18 @@ public class CompassConfig {
 							cfgOutput("["+sectionName+"]: Invalid key '" + complexityTag + "=': value [" + optionVal + "], must be " + complexityPatternHelpCfg);
 							cfgFileValid = false;
 							continue;
-						}	
-					}	
+						}
+					}
 				}
 				// this code is (almost) duplicated for the user .cfg file
-				else if (optionKey.startsWith(complexityTag)) {	
+				else if (optionKey.startsWith(complexityTag)) {
 					optionKey = optionKey.replaceAll(" ", "");
 					String complexityVal = optionVal;
 					if (optionVal.isEmpty()) {
 						cfgOutput("["+sectionName+"]: Invalid key '" + complexityTag + "=': value cannot be blank");
 						cfgFileValid = false;
 						continue;
-					} 
+					}
 					else if (optionVal.equals("*")) {
 						if (optionKey.length() > complexityTag.length()) {
 							// complexity-xxx=* ==> change to: complexity=xxx
@@ -1508,19 +1605,19 @@ public class CompassConfig {
 								cfgFileValid = false;
 								continue;
 							}
-							thisKey = createKey(optionKey);		
+							thisKey = createKey(optionKey);
 						}
 						else {
 							cfgOutput("["+sectionName+"]: Invalid key '" + complexityTag + "=': value must be " + complexityPatternHelpCfg + ", not '*'");
 							cfgFileValid = false;
 							continue;
-						}							
+						}
 					}
 					if (optionKey.length() > complexityTag.length()) {
 						complexityVal = optionKey.substring(complexityTag.length() + 1);
-						thisKey = complexityTag + subKeySeparator + complexityVal; 
-					}		
-									
+						thisKey = complexityTag + subKeySeparator + complexityVal;
+					}
+
 					if (!u.getPatternGroup(complexityVal, complexityPattern, complexityPatternGrpCfg).isEmpty()) {
 						if (!validateComplexityValue(complexityVal)) {
 							cfgFileValid = false;
@@ -1532,9 +1629,9 @@ public class CompassConfig {
 						cfgOutput("["+sectionName+"]: Invalid key '" + complexityTag + "=': value [" + complexityVal + "], must be " + complexityPatternHelpCfg);
 						cfgFileValid = false;
 						continue;
-					}		
+					}
 					thisKey = thisKey.toUpperCase();
-				}					
+				}
 				// key: 'version_alias'
 				else if (optionKey.equals(versionAliasTag)) {
 					// ignored by Compass
@@ -1557,77 +1654,77 @@ public class CompassConfig {
 						cfgFileValid = false;
 						cfgOutput("Alias version '" + aliasVersionHigh + "' must be > '" + aliasVersionLow + "' in [" + sectionName + "/" + optionKey + "]");
 						continue;
-					}							
+					}
 					versionAliasList.put(aliasVersionHigh,aliasVersionLow);
-				} 
+				}
 				// key: 'rule'
 				else if (optionKey.equals(ruleTag)) {
 					// ignored by Compass
-				} 
+				}
 				else if (optionKey.startsWith(docURLTag)) {
 					// ignored by Compass
-				} 
+				}
 				else if (optionKey.startsWith(docTxtTag)) {
 					// ignored by Compass
-				} 
+				}
 				else {
 					// catchall
 					cfgOutput("["+sectionName+"]: Invalid key '" + optionKey + "'");
 					cfgFileValid = false;
 					break;
 				}
-				
+
 				// record the keys
 				Map<String, List<String>> featureList;
-				
+
 				List<String> theseItems = new ArrayList<>(Arrays.asList(optionVal.split(",")));
 				if (!optionKey.equals(reportGroupTag)) {
 					u.listToUpperCase(theseItems);
 					u.listTrim(theseItems);
 				}
 
-				if (optionKey.startsWith(complexityTag)) {	
+				if (optionKey.startsWith(complexityTag)) {
 					if (!sectionComplexityList.containsKey(sectionName.toUpperCase())) {
 						sectionComplexityList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
 					}
-				}					
-				else {					
+				}
+				else {
 					if (!sectionList.containsKey(sectionName.toUpperCase())) {
 						sectionList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
 					}
 				}
-				
+
 				if (!sectionList.containsKey(sectionName.toUpperCase())) {
 					sectionList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
 				}
 				featureList = sectionList.get(sectionName.toUpperCase());
-				
-				if (optionKey.startsWith(complexityTag)) {	
-					featureList = sectionComplexityList.get(sectionName.toUpperCase());						
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added complexity key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);								
-				}					
-				else {
-					featureList = sectionList.get(sectionName.toUpperCase());					
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);		
+
+				if (optionKey.startsWith(complexityTag)) {
+					featureList = sectionComplexityList.get(sectionName.toUpperCase());
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added complexity key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);
 				}
-									
+				else {
+					featureList = sectionList.get(sectionName.toUpperCase());
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);
+				}
+
 				featureList.put(thisKey, theseItems);
 
 				// check items in 'supported-XXX', 'report_group-xxx', default_classification-XXX'  are in the listValues key (if a list exists)
-				if (optionKey.startsWith(supportedTag+subKeySeparator) || 
+				if (optionKey.startsWith(supportedTag+subKeySeparator) ||
 				    optionKey.startsWith(reportGroupTag+subKeySeparator) ||
 				    optionKey.startsWith(defaultStatusTag+subKeySeparator) ||
 				    optionKey.startsWith(ignoredTag+subKeySeparator) ||
 				    optionKey.startsWith(reviewSemanticsTag+subKeySeparator)
-				   ) {					
-					boolean itemValid = validateItemsListed("", optionKey, optionVal, thisKey, sectionName, featureList, theseItems);				
+				   ) {
+					boolean itemValid = validateItemsListed("", optionKey, optionVal, thisKey, sectionName, featureList, theseItems);
 					cfgFileValid = cfgFileValid & itemValid;
 				}
 			}
 		}
 		return cfgFileValid;
 	}
-	
+
 	// check items in a non-list key are in the listValues key (if a list exists)
 	private static boolean validateItemsListed (String cfgFileName, String optionKey, String optionVal, String thisKey, String sectionName, Map<String, List<String>> featureList, List<String> theseItems) {
 		boolean isValid = true;
@@ -1661,15 +1758,15 @@ public class CompassConfig {
 					}
 				}
 			}
-		}		
+		}
 		return isValid;
 	}
-	
 
-	// entry point for initializating the .cfg part
+
+	// entry point for initializing the .cfg part
 	public void validateCfgFile(String pCfgFileName, String pUserCfgFileName) throws Exception {
-		supportOptionsCfgFileUpperCase = new ArrayList<>(u.supportOptionsCfgFile);	
-		u.listToUpperCase(supportOptionsCfgFileUpperCase);	
+		supportOptionsCfgFileUpperCase = new ArrayList<>(u.supportOptionsCfgFile);
+		u.listToUpperCase(supportOptionsCfgFileUpperCase);
 		boolean cfgFileValid = readCfgFile(pCfgFileName);
 
 		if (u.debugCfg) {
@@ -1686,30 +1783,30 @@ public class CompassConfig {
 			u.errorExit();
 		}
 		cfgOutput("Latest "+u.babelfishProg+" version supported: "+latestBabelfishVersion());
-						
+
 		// check for optimistic cfg file in distro
-		u.installOptimisticCfgFile();	
-				
+		u.installOptimisticCfgFile();
+
 		// user .cfg file
-		boolean userCfgFileValid = validateUserCfgFile(pUserCfgFileName); 
-		
+		boolean userCfgFileValid = validateUserCfgFile(pUserCfgFileName);
+
 		if (u.debugCfg) {
 			// this output may not get into the session log at that may nto be opened yet at this point
 			dumpCfg("user");
 			dumpCfg(effortTag);
 			dumpCfg(complexityTag);
-		}		
+		}
 		if (!userCfgFileValid) {
-			cfgOutput(userConfigFilePathName, "User configuration file not valid. Delete file or remove/correct offending sections.");
-			u.errorExit();	
-		}			
+			cfgOutput(userConfigFilePathName, "User configuration file not valid. Remove/correct offending sections or use the -nooverride flag to avoid using the file.");
+			u.errorExit();
+		}
 	}
-	
+
 	// validate/update the user's .cfg file; create if not existing
 	private static boolean validateUserCfgFile(String pUserCfgFileName) throws IOException {
 		boolean cfgFileValid = true;
 		userConfigFileName = pUserCfgFileName;
-		userConfigFilePathName = u.getUserCfgFilePathName(userConfigFileName);		
+		userConfigFilePathName = u.getUserCfgFilePathName(userConfigFileName);
         userCfgFile = new File(userConfigFilePathName);
 		if (u.userConfig) {
 	       // nothing
@@ -1719,32 +1816,32 @@ public class CompassConfig {
 	        cfgFileValid = true;
 	        return cfgFileValid;
 	    }
-                
+
         if (!userCfgFile.exists()) {
         	if (pUserCfgFileName.equals(u.optimisticUserCfgFileName)) {
         		// don't create a new optimistic .cfg file, this should only come from the distributed copy
         	}
         	else {
 	        	u.appOutput("Creating user configuration file "+userConfigFilePathName);
-	        	
-				u.openUserCfgFileNew(userConfigFileName);	
+
+				u.openUserCfgFileNew(userConfigFileName);
 				for (String s : cfgSections) {
 					if (s.equals(Babelfish_Compass_Name)) continue;
 					u.writeUserCfgFile("["+s+"]\n\n");
 				}
 				u.closeUserCfgFile();
-			}	    			    	
+			}
         }
         else {
         	// read and validate contents of user .cfg file
         	u.appOutput("Reading "+userConfigFilePathName);
-			userCfg = getCfg(userConfigFilePathName, true);  			
-			for (String sectionName: userCfg.keySet()) {         
+			userCfg = getCfg(userConfigFilePathName, true);
+			for (String sectionName: userCfg.keySet()) {
 				Map<String, String> section = userCfg.get(sectionName);
 				//u.appOutput("sectionName=[" + sectionName + "]");
 				if (!sectionList.containsKey(sectionName.toUpperCase())) {
-					// the only section not in the main feature .cfg file is for default effort estimates
-					if (!sectionName.equalsIgnoreCase(EffortEstimateDefaultSection)) {
+					// the only sections not in the main feature .cfg file are for defaults
+					if (!sectionName.equalsIgnoreCase(EffortEstimateDefaultSection)&& !sectionName.equalsIgnoreCase(ComplexityDefaultSection)) {
 						cfgOutput(userConfigFilePathName, "section ["+sectionName+"] not found in " + configFilePathName);
 						cfgFileValid = false;
 						continue;
@@ -1756,19 +1853,19 @@ public class CompassConfig {
 					String optionKeyCopy = optionKey;
 					optionKey = optionKey.toUpperCase();
 					String thisKey = createKey(optionKey);
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() +"section=[" + sectionName + "] optionKey=[" + optionKey + "] thisKey=[" + thisKey + "]  val=[" + optionVal + "]", u.debugCfg);					
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() +"section=[" + sectionName + "] optionKey=[" + optionKey + "] thisKey=[" + thisKey + "]  val=[" + optionVal + "]", u.debugCfg);
 					// key: 'default_classification' items
 					if (optionKey.startsWith(defaultStatusTag)) {
-						overrideCount++;						
+						overrideCount++;
 						if (optionKey.equals(defaultStatusTag)) {
 							if (u.validSupportOptionsCfgFile.contains(optionVal.toUpperCase())) {
 								optionVal = u.supportOptions.get(supportOptionsCfgFileUpperCase.indexOf(optionVal.toUpperCase()));
-							} 
+							}
 							else {
 								cfgOutput(userConfigFilePathName, "Section [" + sectionName + "]: override key " + defaultStatusTag + " has invalid value [" + optionVal + "]. Valid values are " + u.validSupportOptionsCfgFileOrig);
 								cfgFileValid = false;
 							}
-						} 
+						}
 						else if (!u.overrideClassificationsKeys.contains(optionKey)) {
 							cfgOutput(userConfigFilePathName, "Section [" + sectionName + "]: override key " + optionKey + " is invalid. Valid values are " + u.overrideClassificationsKeysOrig);
 							cfgFileValid = false;
@@ -1784,64 +1881,72 @@ public class CompassConfig {
 					}
 					// key: 'report_group', 'report_group-XYZ'
 					else if (optionKey.startsWith(reportGroupTag)) {
-						overrideCount++;						
+						overrideCount++;
 						if (optionVal.isEmpty()) {
 							cfgOutput(userConfigFilePathName, "Invalid override key '" + reportGroupTag + "=': value cannot be blank");
 							cfgFileValid = false;
-						} 
+						}
 						else if (optionVal.equals("*")) {
 							if (optionKey.length() > reportGroupTag.length()) {
 								// report_group-xxx=* ==> change to: report_group=xxx
 								optionVal = optionKey.substring(reportGroupTag.length() + 1);
 								optionKey = optionKey.substring(0,reportGroupTag.length());
-								thisKey = createKey(optionKey);				
+								thisKey = createKey(optionKey);
 							}
 							else {
 								cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + reportGroupTag + "=': value must be a group name, not '*'");
 								cfgFileValid = false;
-							}							
+							}
 						}
 						// do not lowercase the group name when it is part of the key
 						if (optionKey.length() > reportGroupTag.length()) {
 							String groupName = optionKeyCopy.substring(reportGroupTag.length() + 1);
 							// the key is in uppercase, but we want the group name to preserve the case, so patch it in
-							thisKey = reportGroupTag + subKeySeparator + groupName; 
+							thisKey = reportGroupTag + subKeySeparator + groupName;
 						}
-					} 
-					// key: 'effort_estimate' items
-					else if (optionKey.equals(effortTagDftHigh) || optionKey.equals(effortTagDftMedium) || optionKey.equals(effortTagDftLow) || optionKey.equals(effortTagDftRefactor)) {
+					}
+					// key: 'effort_estimate_default' items
+					else if (optionKey.startsWith(effortTagDftTag)) {
+						if (!sectionName.equals(EffortEstimateDefaultSection)) {
+							cfgOutput(userConfigFilePathName, "'"+optionKey+"' must be in section '["+EffortEstimateDefaultSection+"]'" );
+							cfgFileValid = false;
+							continue;							
+						}
+						if (!effortEstimateDefaultKeys.containsKey(optionKey)) {
+							cfgOutput(userConfigFilePathName, "Invalid effort default key '"+optionKey+"'" );
+							cfgFileValid = false;
+							continue;
+						}
 						optionVal = optionVal.replaceAll(" ", "");
 						if (optionVal.isEmpty()) {
-							cfgOutput(userConfigFilePathName, "Invalid effort key '" + effortTag + "=': value cannot be blank");
+							cfgOutput(userConfigFilePathName, "Invalid effort default key '" + optionKey + "=': value cannot be blank");
 							cfgFileValid = false;
-						} 									
-						else if (!u.getPatternGroup(optionVal, effortPattern, 1).isEmpty()) {
+							continue;							
+						}
+						else if (!u.getPatternGroup(optionVal, effortPatternValidate, 1).isEmpty()) {
 							if (!validateEffortValue(optionVal)) {
 								cfgFileValid = false;
 								continue;
 							}
 						}
 						else {
-							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + effortTag + "=': value [" + optionVal + "], must be " + effortPatternHelp);
+							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid effort default key '" + optionKey + "=': value [" + optionVal + "], must be " + effortPatternHelp);
 							cfgFileValid = false;
 							continue;
-						}					
-						
-						String tmpComplexity = "";
-						if (optionKey.equals(effortTagDftHigh))   tmpComplexity = "HIGH";
-						if (optionKey.equals(effortTagDftMedium)) tmpComplexity = "MEDIUM";
-						if (optionKey.equals(effortTagDftLow))    tmpComplexity = "LOW";
-						if (optionKey.equals(effortTagDftRefactor)) tmpComplexity = "REFACTOR";
-						effortEstimateDefault.put(tmpComplexity, optionVal);
-						continue;  // don't store in a key
-					}	
-					else if (optionKey.equals(effortTag)) {	
+						}
+
+						// keep these defaults in a structure rather putting them in keys like the rest: the lookup logic is different
+						effortEstimateDefault.put(effortEstimateDefaultKeys.get(optionKey), optionVal);
+						continue;
+					}
+					// key: 'effort_estimate' items
+					else if (optionKey.equals(effortTag)) {
 						optionVal = optionVal.replaceAll(" ", "");
 						if (optionVal.isEmpty()) {
 							cfgOutput(userConfigFilePathName, "Invalid effort key '" + effortTag + "=': value cannot be blank");
 							cfgFileValid = false;
-						} 									
-						else if (!u.getPatternGroup(optionVal, effortPattern, 1).isEmpty()) {
+						}
+						else if (!u.getPatternGroup(optionVal, effortPatternValidate, 1).isEmpty()) {
 							if (!validateEffortValue(optionVal)) {
 								cfgFileValid = false;
 								continue;
@@ -1852,16 +1957,16 @@ public class CompassConfig {
 							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + effortTag + "=': value [" + optionVal + "], must be " + effortPatternHelp);
 							cfgFileValid = false;
 							continue;
-						}		
+						}
 					}
-					else if (optionKey.startsWith(effortTag)) {	
+					else if (optionKey.startsWith(effortTag)) {
 						optionKey = optionKey.replaceAll(" ", "");
 						String effortVal = optionVal;
 						if (optionVal.isEmpty()) {
 							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + effortTag + "=': value cannot be blank");
 							cfgFileValid = false;
 							continue;
-						} 
+						}
 						else if (optionVal.equals("*")) {
 							if (optionKey.length() > effortTag.length()) {
 								// effort-xxx=* ==> change to: effort=xxx
@@ -1869,20 +1974,20 @@ public class CompassConfig {
 									cfgFileValid = false;
 									continue;
 								}
-								thisKey = createKey(optionKey);		
+								thisKey = createKey(optionKey);
 							}
 							else {
 								cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + effortTag + "=': value must be " + effortPatternHelp + ", not '*'");
 								cfgFileValid = false;
 								continue;
-							}							
+							}
 						}
 						if (optionKey.length() > effortTag.length()) {
 							effortVal = optionKey.substring(effortTag.length() + 1);
-							thisKey = effortTag + subKeySeparator + effortVal; 
-						}		
-										
-						if (!u.getPatternGroup(effortVal, effortPattern, 1).isEmpty()) {
+							thisKey = effortTag + subKeySeparator + effortVal;
+						}
+
+						if (!u.getPatternGroup(effortVal, effortPatternValidate, 1).isEmpty()) {
 							if (!validateEffortValue(effortVal)) {
 								cfgFileValid = false;
 								continue;
@@ -1893,18 +1998,60 @@ public class CompassConfig {
 							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + effortTag + "=': value [" + effortVal + "], must be " + effortPatternHelp);
 							cfgFileValid = false;
 							continue;
-						}		
+						}
 						thisKey = thisKey.toUpperCase();
-					}					
-					// this code is (almost) duplicated for the main .cfg file					
+					}
+					// key: 'complexity_score_default' items
+					else if (optionKey.startsWith(complexityTagDftTag)) {
+						if (!sectionName.equals(ComplexityDefaultSection)) {
+							cfgOutput(userConfigFilePathName, "'"+optionKey+"' must be in section '["+ComplexityDefaultSection+"]'" );
+							cfgFileValid = false;
+							continue;							
+						}
+						if (!complexityDefaultKeys.containsKey(optionKey)) {
+							cfgOutput(userConfigFilePathName, "Invalid complexity default key '"+optionKey+"'" );
+							String st = optionKey.substring(complexityTagDftTag.length());
+							List<String> statuses = new ArrayList<>(CompassUtilities.validSupportOptionsCfgFileOrig);
+							statuses.add(CompassUtilities.Supported);
+							CompassUtilities.listToUpperCase(statuses);							
+							if (statuses.contains(st.toUpperCase())) {
+								cfgOutput(userConfigFilePathName, "Cannot define a default complexity for status '"+CompassUtilities.supportOptionsDisplay.get(CompassUtilities.supportOptions.indexOf(st))+"'" );
+							}
+							cfgFileValid = false;
+							continue;
+						}
+						optionVal = optionVal.replaceAll(" ", "");
+						if (optionVal.isEmpty()) {
+							cfgOutput(userConfigFilePathName, "Invalid complexity default key '" + optionKey + "=': value cannot be blank");
+							cfgFileValid = false;
+							continue;
+						}
+						else if (!u.getPatternGroup(optionVal, complexityPattern, complexityPatternGrpUserCfg).isEmpty()) {
+							if (!validateComplexityValue(optionVal)) {
+								cfgFileValid = false;
+								continue;
+							}
+						}
+						else {
+							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid complexity default key '" + optionKey + "=': value [" + optionVal + "], must be " + effortPatternHelp);
+							cfgFileValid = false;
+							continue;
+						}
+
+						// keep these defaults in a structure rather putting them in keys like the rest: the lookup logic is different
+						complexityDefault.put(complexityDefaultKeys.get(optionKey).toUpperCase(), optionVal.toUpperCase());
+						continue;
+					}
+
+					// this code is (almost) duplicated for the main .cfg file
 					// key: 'complexity_score' items
-					else if (optionKey.equals(complexityTag)) {	
+					else if (optionKey.equals(complexityTag)) {
 						optionVal = optionVal.replaceAll(" ", "");
 						if (optionVal.isEmpty()) {
 							cfgOutput(userConfigFilePathName, "Invalid complexity key '" + complexityTag + "=': value cannot be blank");
 							cfgFileValid = false;
 							continue;
-						} 									
+						}
 						else if (!u.getPatternGroup(optionVal, complexityPattern, complexityPatternGrpUserCfg).isEmpty()) {
 							if (!validateComplexityValue(optionVal)) {
 								cfgFileValid = false;
@@ -1916,17 +2063,17 @@ public class CompassConfig {
 							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + complexityTag + "=': value [" + optionVal + "], must be " + complexityPatternHelpUserCfg);
 							cfgFileValid = false;
 							continue;
-						}		
+						}
 					}
 					// this code is (almost) duplicated for the main .cfg file
-					else if (optionKey.startsWith(complexityTag)) {	
+					else if (optionKey.startsWith(complexityTag)) {
 						optionKey = optionKey.replaceAll(" ", "");
 						String complexityVal = optionVal;
 						if (optionVal.isEmpty()) {
 							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + complexityTag + "=': value cannot be blank");
 							cfgFileValid = false;
 							continue;
-						} 
+						}
 						else if (optionVal.equals("*")) {
 							if (optionKey.length() > complexityTag.length()) {
 								// complexity-xxx=* ==> change to: complexity=xxx
@@ -1934,19 +2081,19 @@ public class CompassConfig {
 									cfgFileValid = false;
 									continue;
 								}
-								thisKey = createKey(optionKey);		
+								thisKey = createKey(optionKey);
 							}
 							else {
 								cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + complexityTag + "=': value must be " + complexityPatternHelpUserCfg + ", not '*'");
 								cfgFileValid = false;
 								continue;
-							}							
+							}
 						}
 						if (optionKey.length() > complexityTag.length()) {
 							complexityVal = optionKey.substring(complexityTag.length() + 1);
-							thisKey = complexityTag + subKeySeparator + complexityVal; 
-						}		
-										
+							thisKey = complexityTag + subKeySeparator + complexityVal;
+						}
+
 						if (!u.getPatternGroup(complexityVal, complexityPattern, complexityPatternGrpUserCfg).isEmpty()) {
 							if (!validateComplexityValue(complexityVal)) {
 								cfgFileValid = false;
@@ -1958,76 +2105,76 @@ public class CompassConfig {
 							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid key '" + complexityTag + "=': value [" + complexityVal + "], must be " + complexityPatternHelpUserCfg);
 							cfgFileValid = false;
 							continue;
-						}		
+						}
 						thisKey = thisKey.toUpperCase();
-					}					
+					}
 					else {
 						// catchall
 						cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid override key '" + optionKey + "'");
 						cfgFileValid = false;
 						continue;
-					}						
-												
+					}
+
 					// record the overrides
 					Map<String, List<String>> featureList;
-					
+
 					List<String> theseItems = new ArrayList<>(Arrays.asList(optionVal.split(",")));
 					if (!optionKey.equals(reportGroupTag)) {
 						u.listToUpperCase(theseItems);
-					}									
-					
-					if (optionKey.startsWith(effortTag)) {	
+					}
+
+					if (optionKey.startsWith(effortTag)) {
 						if (!sectionEffortList.containsKey(sectionName.toUpperCase())) {
 							sectionEffortList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
 						}
 						effortEstimatesFound = true;
 					}
-					else if (optionKey.startsWith(complexityTag)) {	
+					else if (optionKey.startsWith(complexityTag)) {
 						if (!sectionComplexityList.containsKey(sectionName.toUpperCase())) {
 							sectionComplexityList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
 						}
-					}					
-					else {					
+					}
+					else {
 						if (!sectionOverrideList.containsKey(sectionName.toUpperCase())) {
 							sectionOverrideList.put(sectionName.toUpperCase(), new LinkedHashMap<>());
 						}
-					}					
-					
-					if (optionKey.startsWith(effortTag)) {	
-						featureList = sectionEffortList.get(sectionName.toUpperCase());						
-						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added effort key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);								
 					}
-					else if (optionKey.startsWith(complexityTag)) {	
-						featureList = sectionComplexityList.get(sectionName.toUpperCase());						
-						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added complexity key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);								
-					}					
+
+					if (optionKey.startsWith(effortTag)) {
+						featureList = sectionEffortList.get(sectionName.toUpperCase());
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added effort key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);
+					}
+					else if (optionKey.startsWith(complexityTag)) {
+						featureList = sectionComplexityList.get(sectionName.toUpperCase());
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added complexity key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);
+					}
 					else {
-						featureList = sectionOverrideList.get(sectionName.toUpperCase());					
-						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added override key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);		
+						featureList = sectionOverrideList.get(sectionName.toUpperCase());
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "added override key: [" + thisKey + "] optionKey=[" + optionKey + "] of section=[" + sectionName + "] = [" + optionVal + "] theseItems=["+theseItems+"] ", u.debugCfg);
 					}
-					
+
 					// do the actual add:
-					featureList.put(thisKey, theseItems);					
-					
+					featureList.put(thisKey, theseItems);
+
 					// check items in 'report_group-xxx', default_classification-XXX'  are in the listValues key (if a list exists)
 					if (optionKey.startsWith(reportGroupTag+subKeySeparator) ||
 					    optionKey.startsWith(defaultStatusTag+subKeySeparator)
-					   ) {					
-						boolean itemValid = validateItemsListed(userConfigFilePathName, optionKey, optionVal, thisKey, sectionName, sectionList.get(sectionName.toUpperCase()), theseItems);				
+					   ) {
+						boolean itemValid = validateItemsListed(userConfigFilePathName, optionKey, optionVal, thisKey, sectionName, sectionList.get(sectionName.toUpperCase()), theseItems);
 						cfgFileValid = cfgFileValid & itemValid;
-					}															
-				}				
+					}
+				}
 			}
 			if (!cfgFileValid) {
 				return cfgFileValid;
 			}
-			
+
 			// determine if header needs to be upgraded; new header lines were added in v.2022-09
-			u.upgradeUserCfgFile(userConfigFileName);	
-			
+			u.upgradeUserCfgFile(userConfigFileName);
+
 			// patch up .cfg file
 			// first determine if there are any keys missing compared to the main .cfg file
-			// if so, append the missing keys 
+			// if so, append the missing keys
 			StringBuilder addLines = new StringBuilder("");
 			for (String mainSection: cfg.keySet()) {
 				if (mainSection.equals(Babelfish_Compass_Name)) continue;
@@ -2035,19 +2182,19 @@ public class CompassConfig {
 				u.appOutput("Appending section ["+mainSection+"] to "+ userConfigFilePathName);
 				addLines.append("["+mainSection+"]\n\n");
 			}
-			
+
 			// add missing sections
 			if (addLines.length() > 0) {
-				u.openUserCfgFileAppend(userConfigFileName);	
+				u.openUserCfgFileAppend(userConfigFileName);
 				u.writeUserCfgFile(addLines.toString());
-				u.closeUserCfgFile();	 
+				u.closeUserCfgFile();
 			}
 		}
 		//u.errorExit();
-		
+
 		return cfgFileValid;
 	}
-		
+
 	private static void printError(int nrLine, String line, String msg) {
 		if (!line.isEmpty()) line = ":" + line;
 		cfgOutput("Configuration file error at line " + nrLine + ". " + msg + line);
@@ -2127,11 +2274,15 @@ public class CompassConfig {
 				//u.appOutput(u.thisProc()+"sectionName=["+sectionName+"] isUserCfg=["+isUserCfg+"] line=["+line+"] ");
 				if (isUserCfg) {
 					if (line.toUpperCase().startsWith(effortTagDftTag.toUpperCase())) {
-						printError(nrLine, line, "Insert a section '["+EffortEstimateDefaultSection+"]' before effort estimate defaults");
+						printError(nrLine, line, "Insert section header '["+EffortEstimateDefaultSection+"]' before effort estimate defaults");
+						printed = true;
+					}
+					if (line.toUpperCase().startsWith(complexityTagDftTag.toUpperCase())) {
+						printError(nrLine, line, "Insert section header '["+ComplexityDefaultSection+"]' before complexity score defaults");
 						printed = true;
 					}
 				}
-				
+
 				if (!printed) printError(nrLine, line, "No section defined before key-value pairs");
 			}
 			int equalSignIndex = line.indexOf('=');
@@ -2211,5 +2362,5 @@ public class CompassConfig {
 			}
 		}
 		return sections;
-	}	
+	}
 }
