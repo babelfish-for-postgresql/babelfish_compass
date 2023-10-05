@@ -402,7 +402,7 @@ public class Compass {
 					if (!f.exists()) {
 						System.out.println("User config file ["+userConfigFilePathName+"] not found");
 						if (u.userCfgFileName.toUpperCase().startsWith(u.getDocDirPathname().toUpperCase())) {
-							System.out.println("Specify only the file name, not the pathname");							
+							System.out.println("NB: Specify only the file name, not the full pathname!");							
 						}											
 						u.errorExit();	
 					}
@@ -782,12 +782,36 @@ public class Compass {
 				}
 				u.generateCSVFormat = args[i].toLowerCase();
 				if (!u.CSVFormats.contains(u.generateCSVFormat)) {
-					u.appOutput("Invalid value for -csformat. Valid options: "+ u.CSVFormats);
+					u.appOutput("Invalid value for -csvformat. Valid options: "+ u.CSVFormats);
 					u.errorExit();
 				}
 				i++;
 				continue;
 			}																		
+			if (arg.equals("-csvitemidfile")) {	
+				if (i == args.length) {
+					u.appOutput("Must specify value with -csvitemidfile");
+					u.errorExit();
+				}
+
+				u.CustomItemIDFileName = args[i];
+				
+				String CustomItemIDPathName = "";
+				try { 
+					CustomItemIDPathName = u.getCustomItemIDPathName();
+				} catch (Exception e) {}					
+				u.customItemIDPathNameUser = true;
+				File f = new File(CustomItemIDPathName);
+				if (!f.exists()) {
+					u.appOutput("Specified file '"+CustomItemIDPathName+"' not found.");
+					if (u.CustomItemIDFileName.toUpperCase().startsWith(u.getDocDirPathname().toUpperCase())) {
+						System.out.println("NB: Specify only the file name, not the full pathname!");							
+					}						
+					u.appOutput("Continuing...");
+				}		
+				i++;
+				continue;
+			}			
 			if (CompassUtilities.devOptions) {
 				if (arg.equals("-debug")) {   // development only
 					if (i == args.length) {
@@ -1180,6 +1204,9 @@ public class Compass {
 			// create fresh symbol table and capture file
 			u.deleteReAnalyze(reportName);					
 		}
+		
+		// read custom item ID file, if applicable
+		u.openCustomItemIDFile();
 	
 		if (reportOnly) {
 			// only generate reported from already-captured items
@@ -1794,32 +1821,40 @@ public class Compass {
 			// print message
 			u.appOutput("Ignoring report name with -stdin");
 		}
+		
+		// user-defined itemID file
+		if (u.customItemIDPathNameUser) {
+			if (!u.generateCSVFormat.equals(u.CSVFormatFlat)) {
+				u.appOutput("-csvitemidfile can only be specified with '-csvformat flat'");
+				return false;					
+			}
+		}
 				
 		// some options can be used only when when doing actual analysis
 		if ((((inputFiles.size() > 0) || autoDDL) && (!(parseOnly || importOnly))) || reAnalyze) {
 			// ok
 		}
 		else {
+			String noInputFilesMsg = "";
+			if ((inputFiles.size() == 0) && (!autoDDL) && (!reAnalyze)) {
+				noInputFilesMsg = "\n(no valid input files specified)"; // add helpful msg
+			}
 			if (userSpecifiedBabelfishVersion) {
-				u.appOutput("Cannot specify -babelfish-version when not performing analysis");
+				u.appOutput("Cannot specify -babelfish-version when not performing analysis"+noInputFilesMsg);
 				return false;					
 			}			
 			if (u.rewrite) {
-				u.appOutput("Cannot specify -rewrite when not performing analysis");
+				u.appOutput("Cannot specify -rewrite when not performing analysis"+noInputFilesMsg);
 				return false;				
 			}		
 			if (u.reportSyntaxIssues) {
-				u.appOutput("Cannot specify -syntax_issues when not performing analysis");
+				u.appOutput("Cannot specify -syntax_issues when not performing analysis"+noInputFilesMsg);
 				return false;				
 			}			
 		}
 		
 		// cannot specify input files when generating DDL script
 		if (autoDDL) {		
-//			if (!CompassUtilities.onWindows) {
-//				u.appOutput("Auto-generating DDL script is supported only on Windows");
-//				return false;			
-//			}
 			if (u.checkReportExists(reportName)) {
 				if (!deleteReport) {
 					u.appOutput("Report already exist. Must specify -delete when generating DDL");
@@ -2044,7 +2079,7 @@ public class Compass {
 			if (u.analysisPass > 1) {
 				return;
 			}
-		}
+		}		
 
 		if (reAnalyze) {
 			// reprocess from the start, based on the input copy files, so no need to re-import source files
@@ -2788,11 +2823,12 @@ public class Compass {
 						charStream = CharStreams.fromString(batchText.toString());
 
 						// parse a batch and put the parse tree in the list for subsequent analysis
-						startTime = System.currentTimeMillis();
+						startTime = System.currentTimeMillis();			
 						String ptreeText = parseBatch(charStream, inFile, batchNr, batchLines, antlrSLL);
 						endTime = System.currentTimeMillis();
 						duration = (endTime - startTime);
 						timeElapsed = duration / 1000;
+						timeElapsedFile += duration;
 						timeCount.put("parseTime", timeCount.get("parseTime") + (int) duration);
 
 						if (u.debugging) u.dbgOutput("returning from parser", u.debugBatch);

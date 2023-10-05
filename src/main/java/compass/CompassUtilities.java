@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2023-08";
-	public static final String thisProgVersionDate  = "August 2023";
+	public static final String thisProgVersion      = "2023-10";
+	public static final String thisProgVersionDate  = "October 2023";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -129,13 +129,14 @@ public class CompassUtilities {
 	public static final String Ignored           = "IGNORED";
 	public static final String ObjCountOnly      = "OBJECTCOUNTONLY";
 	public static final String XRefOnly          = "XREFONLY";
+	public static final String ObjectReference   = "OBJECTREFERENCE";
 	public static final String Rewritten         = "REWRITTEN";
 	public static final String RewriteOppty      = "REWRITEOPPTY";
 
 	// TODO Convert these lists in sets for efficiency
-	public static List<String> supportOptions        = Arrays.asList(Supported,    NotSupported,    ReviewSemantics,    ReviewPerformance,    ReviewManually,    Ignored, ObjCountOnly, RewriteOppty, Rewritten, XRefOnly);
+	public static List<String> supportOptions        = Arrays.asList(Supported,    NotSupported,    ReviewSemantics,    ReviewPerformance,    ReviewManually,    Ignored, ObjCountOnly, RewriteOppty, Rewritten, XRefOnly, ObjectReference);
 	// values for default_classification in .cfg file:
-	public static List<String> supportOptionsCfgFile = Arrays.asList("Supported", "NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually",  "Ignored", ObjCountOnly, RewriteOppty, Rewritten, XRefOnly);
+	public static List<String> supportOptionsCfgFile = Arrays.asList("Supported", "NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually",  "Ignored", ObjCountOnly, RewriteOppty, Rewritten, XRefOnly, ObjectReference);
 	public static List<String> validSupportOptionsCfgFileOrig = Arrays.asList("NotSupported",  "ReviewSemantics",  "ReviewPerformance",  "ReviewManually", "Ignored");
 	public static List<String> validSupportOptionsCfgFile = new ArrayList<>();
 	// keys for default_classification in .cfg file, e.g. '-ReviewSemantics':
@@ -148,7 +149,7 @@ public class CompassUtilities {
 	public static List<String> overrideClassificationsKeys = new ArrayList<>();
 
 	// display values
-	public static List<String> supportOptionsDisplay = Arrays.asList("Supported", "Not Supported", "Review Semantics", "Review Performance", "Review Manually", "Ignored", ObjCountOnly, "Rewrite opportunities", "Rewritten by Babelfish Compass", XRefOnly);
+	public static List<String> supportOptionsDisplay = Arrays.asList("Supported", "Not Supported", "Review Semantics", "Review Performance", "Review Manually", "Ignored", ObjCountOnly, "Rewrite opportunities", "Rewritten by " + thisProgName, XRefOnly, ObjectReference);
 
 	// iteration order for report
 	public static List<String> supportOptionsIterate = Arrays.asList(NotSupported, ReviewManually, ReviewSemantics, ReviewPerformance, Ignored, Supported);
@@ -164,7 +165,8 @@ public class CompassUtilities {
 	                                                                 0,     // ObjCountOnly, not applicable
 	                                                                 0,     // RewriteOppty, not applicable
 	                                                                 100,   // Rewritten
-	                                                                 0      // XRefOnly, not applicable
+	                                                                 0,     // XRefOnly, not applicable
+	                                                                 0      // ObjectReference, not applicable
 	                                                                );
 	public final String WeightedStr = "Weighted";
 
@@ -247,6 +249,15 @@ public class CompassUtilities {
 	private static final int complexityCntTypeHi = 2;
 	private static final int complexityCntTypeCustom = 3;
 	public static Map<String, String> SQLSrvResourcesDetail = new HashMap<>();
+	
+	// custom item ID file
+	public static final String CustomItemIDFileNameDefault = "BabelfishCompassItemID.csv";
+	public static String CustomItemIDFileName = CustomItemIDFileNameDefault;	
+	public static boolean customItemIDPathNameUser = false;
+	private static List<String> customItemIDList = new ArrayList<>();
+	private static Map<String, String> customItemIDMap = new HashMap<>();
+	private static Map<String, String> customItemHintMap = new HashMap<>();	
+	private static final String customItemIdNULL = "-1";
 
 	// importformat options
 	public static final String autoFmt = "auto"; // not currently supported
@@ -665,6 +676,7 @@ tooltipsHTMLPlaceholder +
 		"ALTER FUNCTION"+tttSeparator+"ALTER FUNCTION is not currently supported; use DROP+CREATE",
 		"CREATE OR ALTER FUNCTION"+tttSeparator+"CREATE OR ALTER FUNCTION is not currently supported; use DROP+CREATE",
 		CompassAnalyze.ScalarUDFOptionalASKwd+tttSeparator+"For some function result datatypes, the AS keyword in CREATE FUNCTION is currently required; insert AS prior to BEGIN " + rewriteOption,
+		"Column+constraint without comma separator"+tttSeparator+"Add a comma between the column definition and the constraint " + rewriteOption,
 		"ALTER TRIGGER"+tttSeparator+"ALTER TRIGGER is not currently supported; use DROP+CREATE",
 		"CREATE OR ALTER TRIGGER"+tttSeparator+"CREATE OR ALTER TRIGGER is not currently supported; use DROP+CREATE",
 		"\\s*\\w+ DATABASE SCOPED"+tttSeparator+"This feature is not currently supported",
@@ -679,12 +691,12 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.AlterTable+"..ALTER COLUMN NULL"+tttSeparator+"NULL/NOT NULL is not currently supported with ALTER COLUMN. To change column nullability, use ALTER TABLE { SET | DROP } NOT NULL in PG",
 		CompassAnalyze.AlterTable+"..ALTER COLUMN NOT NULL"+tttSeparator+"NULL/NOT NULL is not currently supported with ALTER COLUMN. To change column nullability, use ALTER TABLE { SET | DROP } NOT NULL in PG",
 		CompassAnalyze.AlterTable+"..DROP <constraint"+tttSeparator+"Currently, the original constraint name cannot be used to drop a constraint. Instead, the Babelfish-internal constraint name should be used",
-		"DBCC "+tttSeparator+"DBCC statements are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
+		"DBCC "+tttSeparator+"This DBCC statement is not currently supported. Use PostgreSQL mechanisms for DBA/troubleshooting tasks",
 		"KILL "+tttSeparator+"This variant of KILL is not currently supported; only KILL <spid> is supported",
 		CompassAnalyze.ODBCScalarFunction+tttSeparator+"ODBC scalar functions are not currently supported; rewrite with an equivalent built-in function (some cases can be handled automatically with the -rewrite option)",
 		CompassAnalyze.ODBCLiterals+tttSeparator+"ODBC literal expressions are not currently supported; rewrite with CAST() to the desired datatype (some cases can be handled automatically with the -rewrite option)",
 		CompassAnalyze.ODBCOJ+tttSeparator+"ODBC Outer Join syntax is not currently supported; rewrite with regular join syntax",
-		CompassAnalyze.Traceflags+tttSeparator+"Traceflags are not currently supported. Use PostgreSQL mechanisms for DBA- or troubleshooting tasks",
+		CompassAnalyze.Traceflags+tttSeparator+"This traceflag is not currently supported. Use PostgreSQL mechanisms for DBA/troubleshooting tasks",
 		CompassAnalyze.WithRollupCubeOldSyntax+tttSeparator+"Deprecated GROUP BY...WITH CUBE/ROLLUP syntax is not currently supported; rewrite as GROUP BY CUBE/ROLLUP",
 		CompassAnalyze.GroupByAll+tttSeparator+"Deprecated GROUP BY ALL syntax is not currently supported; rewrite query",
 		"DATABASE_DEFAULT,"+tttSeparator+"Many collations are supported, but the concept of a default collation on database level is currently not available",
@@ -935,10 +947,10 @@ tooltipsHTMLPlaceholder +
 "	lineNr INT NOT NULL,                    -- line number of the item in the T-SQL batch\n"+
 "	appName VARCHAR("+pgImportAppNameLength+") NOT NULL,           -- application name \n"+
 "	srcFile VARCHAR("+pgImportSrcFileLength+") NOT NULL,          -- SQL source file name\n"+
-"	batchNrinFile INT NOT NULL,             -- batch no. of T-SQL batch in SQL source file\n"+
+"	batchNrInFile INT NOT NULL,             -- batch no. of T-SQL batch in SQL source file\n"+
 "	batchLineInFile INT NOT NULL,           -- line number in file of start of batch\n"+
 "	context VARCHAR("+pgImportContextLength+") NOT NULL,          -- name of object, or 'T-SQL batch'\n"+
-"	subcontext VARCHAR("+pgImportSubContextLength+") NOT NULL,       -- (optional) name of table in object \n"+
+"	subContext VARCHAR("+pgImportSubContextLength+") NOT NULL,       -- (optional) name of table in object \n"+
 "	misc VARCHAR(20) NOT NULL,              -- complexity score\n"+
 "	misc2 BIGINT NOT NULL,                  -- scaling effort estimate, in minutes\n"+
 "	misc3 BIGINT NOT NULL                   -- learning curve effort estimate, in minutes\n"+
@@ -951,18 +963,17 @@ tooltipsHTMLPlaceholder +
 	public String psqlImportSQLUpdate =
 "-- restore any delimiter characters occurring in actual identifiers:\n"+
 "UPDATE "+psqlImportTablePlaceholder+" SET\n"+
-"item        = REPLACE(item, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"'),\n"+
-"itemDetail  = REPLACE(itemDetail, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"'),\n"+
-"reportGroup = REPLACE(reportGroup, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"'),\n"+
-"context     = REPLACE(context, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"'),\n"+
-"subcontext  = REPLACE(subcontext, '"+captureFileSeparatorMarker+"', '"+captureFileSeparator+"')\n"+
+"item        = REPLACE(item, '"+captureFileSeparatorMarker+"' COLLATE \"default\", '"+captureFileSeparator+"'),\n"+
+"itemDetail  = REPLACE(itemDetail, '"+captureFileSeparatorMarker+"' COLLATE \"default\", '"+captureFileSeparator+"'),\n"+
+"reportGroup = REPLACE(reportGroup, '"+captureFileSeparatorMarker+"' COLLATE \"default\", '"+captureFileSeparator+"'),\n"+
+"context     = REPLACE(context, '"+captureFileSeparatorMarker+"' COLLATE \"default\", '"+captureFileSeparator+"'),\n"+
+"subcontext  = REPLACE(subcontext, '"+captureFileSeparatorMarker+"' COLLATE \"default\", '"+captureFileSeparator+"')\n"+
 ";\n";
 
 	public String psqlImportRowCount =
 "SELECT count(*) AS total_rows_in_table FROM "+psqlImportTablePlaceholder+";\n"+
 "\n"
 ;
-
 
 	// capture file
 	public boolean echoCapture = false;	// development only
@@ -1098,6 +1109,7 @@ tooltipsHTMLPlaceholder +
 	public static final String BBFDot             = BBFEncodedMark + "DOT";
 	public static final String BBFDollar          = BBFEncodedMark + "DOLLAR";
 	public static final String BBFHash            = BBFEncodedMark + "HASH";
+	public static final String BBFDoubleQuote     = BBFEncodedMark + "DOUBLEQUOTE";
 	public static final String captureFileSeparatorMarker = BBFMark + "SEPARATOR_MARKER_" + BBFMark;
 
 	// datatype groups
@@ -1133,7 +1145,6 @@ tooltipsHTMLPlaceholder +
 	public boolean debugging;
 	public int debugSpecial = 0;
 
-
 	// for recording overrides
 	public static final String overrideSeparator = ";;";
 	public Map<String, Integer> statusOverrides       = new HashMap<>();
@@ -1155,7 +1166,9 @@ tooltipsHTMLPlaceholder +
 	public static String rewriteNotes = uninitialized;
 	public static Map<String,Integer> rewriteOppties = new HashMap<>();
 	public static final String        rewriteOpptiesTotal = "totalcount";
+	public static final String        rewriteOpptiesUnique = "totalcount" + uniqueCntTag;
 	public static final String        SQLcodeRewrittenText = "SQL code sections rewritten by " + thisProgName+": ";
+	public static final String        autoRewriteOppties   = "Automatic SQL Rewrite Opportunities";	
 	public static final String rwrTag = " /*REWRITTEN*/ ";
 	public static String rwrTabRegex = "";
 	public static Integer nrRewritesDone = 0;
@@ -2572,7 +2585,6 @@ tooltipsHTMLPlaceholder +
 		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
 		rewrittenInFileReader = new BufferedReader(isr);
 		rewrittenFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(rewrittenFile), StandardCharsets.UTF_8)));
-		String now = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());
 		return;
 	}
 
@@ -2680,7 +2692,177 @@ tooltipsHTMLPlaceholder +
     public void closeExecTestFile() throws IOException {
 	    execTestWriter.close();
 	}
+	
+	public String getCustomItemIDPathName() throws IOException {
+		String CustomItemIDPathName = getFilePathname(getDocDirPathname(), CustomItemIDFileName);	
+		return CustomItemIDPathName;
+	}
+		
+	public void openCustomItemIDFile() throws IOException {
+		// only try opening this file if CSV format = flat
+		// since the itemID is added only to the CSV file in the flat format
+		if (!generateCSVFormat.equals(CSVFormatFlat)) {
+			return;
+		}
+		
+		String CustomItemIDFileSeparator = ";";
+		String CustomItemIDPathName = getCustomItemIDPathName();
+		File f = new File(CustomItemIDPathName);
+		if (!f.exists()) {
+			//appOutput(thisProc()+"CustomItemIDPathName: File not found");
+			return;
+		}
+			
+		FileInputStream fis = new FileInputStream(CustomItemIDPathName);
+		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+		BufferedReader CustomItemIDFileReader = new BufferedReader(isr);
+		
+		Map<String, Integer> itemUnique =  new HashMap<>();
+					
+		int lineNr = 0;
+		while (true) {
+			String line = CustomItemIDFileReader.readLine();
+			lineNr++;			
+			if (line == null) break;
+			String lineOrig = line;
+			int hashIx = line.indexOf("#");
+			if (hashIx > -1) {
+				line = line.substring(0,hashIx);
+			}			
+			line = line.trim();
+			//appOutput(thisProc()+"line "+lineNr+": ["+line+"] ");
+			if (line.isEmpty()) continue;			
 
+			line += CustomItemIDFileSeparator + "~"; // extra separator to avoid losing blank fields
+			List<String> tmpList = new ArrayList<String>(Arrays.asList(line.split(CustomItemIDFileSeparator)));
+			//appOutput(thisProc()+"tmpList.size()=["+tmpList.size()+"] tmpList=["+tmpList+"] ");
+			tmpList.remove(tmpList.size()-1);
+			
+			int itemIDField   = 0;
+			int itemField     = 1;
+			int itemHintField = 2;
+			int itemMaxFields = 3;
+			
+			if (tmpList.size() == 0) continue;
+			if (tmpList.size() < 2) {
+				appOutput(CustomItemIDFileName+": ignoring line "+lineNr+": must contain at least 2 fields, but contains "+tmpList.size()+":\n"+lineOrig+"\n");
+				continue;
+			}
+			if (tmpList.size() > (itemMaxFields+1)) {
+				appOutput(CustomItemIDFileName+": ignoring line "+lineNr+": must contain at most "+itemMaxFields+" fields, but contains "+tmpList.size()+":\n"+lineOrig+"\n");
+				continue;
+			}
+			if (tmpList.size() > itemMaxFields) {
+				if (!tmpList.get(itemMaxFields).trim().isEmpty()) {
+					appOutput(CustomItemIDFileName+": line "+lineNr+": ignoring unexpected text found after field #"+itemMaxFields+": ["+tmpList.get(itemMaxFields).trim()+"]:\n"+lineOrig+"\n");
+					tmpList.remove(itemMaxFields);
+				}
+			}
+			if (tmpList.get(itemField).trim().isEmpty()) {
+				appOutput(CustomItemIDFileName+": ignoring line "+lineNr+": field #"+(itemField+1)+" must contain the item, but is blank:\n"+lineOrig+"\n");
+				continue;
+			}			
+			if (tmpList.get(itemIDField).trim().isEmpty()) {
+				appOutput(CustomItemIDFileName+": warning: line "+lineNr+": field #"+(itemIDField+1)+" is expected to contain the itemID, but is blank: using '"+customItemIdNULL+"' as itemID:\n"+lineOrig+"\n");
+				tmpList.set(itemIDField, customItemIdNULL);
+			}			
+			
+			String item = tmpList.get(itemField).trim();
+			String itemID = tmpList.get(itemIDField).trim();
+			String itemHint = "";
+			if (tmpList.size() > 2) {
+				itemHint = tmpList.get(itemHintField).trim();
+			}
+			
+			int itemIDint = -1;
+			try { 
+				itemIDint = Integer.parseInt(itemID);
+				itemID = "" + itemIDint;
+			} 
+			catch (Exception ignored) {
+				appOutput(CustomItemIDFileName+": warning: line "+lineNr+": field #"+(itemIDField+1)+" contains a non-numeric value for itemID ("+itemID+"): using '"+customItemIdNULL+"' as itemID:\n"+lineOrig+"\n");
+				itemID = customItemIdNULL;				
+			}
+									
+			//appOutput(thisProc()+"line "+lineNr+": tmpList=["+tmpList+"]  item=["+item+"] itemID=["+itemID+"] itemHint=["+itemHint+"] ");
+			String itemOrig = item;
+			item = makeCSVItemLookupKey(item);
+			
+			if (itemUnique.containsKey(item)) {
+				appOutput(CustomItemIDFileName+": warning: line "+lineNr+": itemID "+itemID+" discarded since item ["+itemOrig+"] (with itemID "+customItemIDMap.get(item)+") is already defined on line "+itemUnique.get(item)+"\n");
+				continue;
+			}
+			itemUnique.put(item, lineNr);
+			
+			customItemIDList.add(item);
+			customItemIDMap.put(item, itemID);
+			customItemHintMap.put(item, itemHint);
+		}			
+		CustomItemIDFileReader.close();				
+		return;
+	}
+					
+	public String makeCSVItemLookupKey(String item) {
+		item = item.replaceAll(",", " ");
+		item = item.replaceAll(";", " ");		
+		item = collapseWhitespace(item.toUpperCase());
+		return item;
+	}
+	
+	public String matchCSVItem(String item) {
+		item = makeCSVItemLookupKey(item);
+		String found = "";
+		if (debugging) dbgOutput(thisProc()+"item=["+item+"] customItemIDList=["+customItemIDList+"] ", debugReport);		
+		for (String s : customItemIDList) {
+			if (debugging) dbgOutput(thisProc()+"s=["+s+"] ", debugReport);		
+			if ((s.indexOf(("\\d+").toUpperCase()) > -1) || (s.indexOf(("\\w+").toUpperCase()) > -1)) {
+				String rgx = escapeRegexChars(s);
+				rgx = rgx.replaceAll("\\\\\\\\D\\\\\\+", "\\\\d"+"+");
+				rgx = rgx.replaceAll("\\\\\\\\W\\\\\\+", "\\\\w"+"+");
+				if (debugging) dbgOutput(thisProc()+"rgx=["+rgx+"] ", debugReport);	
+				if (!getPatternGroup(item, "^(" + rgx + ")", 1).isEmpty()) {
+					if (debugging) dbgOutput(thisProc()+"match on regex", debugReport);	
+					found = s;
+					break;					
+				}
+			}
+			if (item.equals(s)) {
+				if (debugging) dbgOutput(thisProc()+"match on equal", debugReport);	
+				found = s;				
+				break;
+			}
+			if (item.startsWith(s)) {
+				if (debugging) dbgOutput(thisProc()+"match on start", debugReport);	
+				found = s;				
+				break;
+			}
+			// not found
+		}
+		if (found.isEmpty()) {
+			if (debugging) dbgOutput(thisProc()+"no match found", debugReport);				
+			return "";	
+		}
+				
+		if (debugging) dbgOutput(thisProc()+"final item found=["+found+"]", debugReport);
+		return found;
+	}
+				
+	public String getCSVItemID(String item) {
+		String itemKey = matchCSVItem(item);
+		if (customItemIDMap.containsKey(itemKey)) {
+			return customItemIDMap.get(itemKey);
+		}
+		return customItemIdNULL;	
+	}		
+			
+	public String getCSVItemHint(String item, String hint) {
+		String itemKey = matchCSVItem(item);
+		if (customItemHintMap.containsKey(itemKey)) {
+			if (!customItemHintMap.get(itemKey).isEmpty()) return customItemHintMap.get(itemKey);
+		}
+		return hint;	
+	}
+				
 	public String writePsqlFile(boolean append, String reportName, String cmd, boolean containsDelimiter) throws IOException {
 		String psqlImportFilePathNameRoot = getFilePathname(getReportDirPathname(reportName, capDirName), psqlImportFileName)+".";
 		String psqlImportFilePathName = psqlImportFilePathNameRoot + psqlFileSuffix;
@@ -3109,12 +3291,25 @@ tooltipsHTMLPlaceholder +
 		if (debugging) dbgOutput(thisProc() + " reportName=[" + reportName + "] ", debugDir);
 
 		String delDir = getReportDirPathname(reportName, importDirName, symTabDirName);
-		appOutput("Deleting "+ delDir);
-		deleteDirectoryTree(new File(delDir));
+		File delDirFile = new File(delDir);
+		if (delDirFile.exists()) {
+			appOutput("Deleting "+ delDir);
+			deleteDirectoryTree(delDirFile);
+		}
 
 		delDir = getReportDirPathname(reportName, capDirName);
-		appOutput("Deleting "+ delDir);
-		deleteDirectoryTree(new File(delDir));
+		delDirFile = new File(delDir);
+		if (delDirFile.exists()) {		
+			appOutput("Deleting "+ delDir);
+			deleteDirectoryTree(new File(delDir));
+		}
+		
+		delDir = getReportDirPathname(reportName, rewrittenDirName);
+		delDirFile = new File(delDir);
+		if (delDirFile.exists()) {		
+			appOutput("Deleting "+ delDir);
+			deleteDirectoryTree(new File(delDir));
+		}
 
 		//recreate
 		checkDir(getReportDirPathname(reportName, importDirName, symTabDirName), false);
@@ -3857,6 +4052,7 @@ tooltipsHTMLPlaceholder +
 		if (ID.contains("[")) ID = ID.replaceAll("\\[", BBFSqBracketOpen);
 		if (ID.contains("]")) ID = ID.replaceAll("\\]", BBFSqBracketClose);
 		if (ID.contains(".")) ID = ID.replaceAll("\\.", BBFDot);
+		if (ID.contains("\"")) ID = ID.replaceAll("\"", BBFDoubleQuote);
 		return ID;
 	}
 
@@ -3868,6 +4064,7 @@ tooltipsHTMLPlaceholder +
 		ID = ID.replaceAll(BBFSqBracketOpen, "[");
 		ID = ID.replaceAll(BBFSqBracketClose, "]");
 		ID = ID.replaceAll(BBFDot, ".");
+		ID = ID.replaceAll(BBFDoubleQuote, "\"");
 		return ID;
 	}
 
@@ -4605,7 +4802,9 @@ tooltipsHTMLPlaceholder +
 			List<String> sortedFields = new ArrayList<String>(Arrays.asList(s.split(sortKeySeparator)));
 			StringBuilder sortStatus = new StringBuilder(sortedFields.get(0));
 			StringBuilder group = new StringBuilder(sortedFields.get(1).substring(groupSortLength));
-			StringBuilder item = new StringBuilder(sortedFields.get(2));
+			StringBuilder item = new StringBuilder();
+			if (sortedFields.size() > 2) item = new StringBuilder(sortedFields.get(2));
+			else item = new StringBuilder("(item not found)");
 			//appOutput(thisProc()+"sortStatus=["+sortStatus+"] group=["+group+"] item=["+item+"] ");
 
 			if (!group.toString().equalsIgnoreCase(prevGroup.toString())) {
@@ -4688,7 +4887,10 @@ tooltipsHTMLPlaceholder +
 				}
 				else {
 					// flat format	
-					linesCSV.append(supportOptionsDisplay.get(supportOptions.indexOf(status))).append(CSVseparator).append(linesCSVGroup).append(CSVseparator).append(itemCSV).append(CSVseparator).append(itemCount.get(s).toString()).append(CSVseparator).append(hint).append(CSVseparator).append(complexityDefined).append(CSVseparator).append(effortDefinedScale).append(CSVseparator).append(effortDefinedScaleMinutes).append(CSVseparator).append(effortDefinedLearningCurve).append(CSVseparator).append(effortDefinedLearningCurveMinutes).append(CSVseparator);
+					String itemID = getCSVItemID(itemCSV);
+					hint = getCSVItemHint(itemCSV, hint);
+					
+					linesCSV.append(supportOptionsDisplay.get(supportOptions.indexOf(status))).append(CSVseparator).append(linesCSVGroup).append(CSVseparator).append(itemCSV).append(CSVseparator).append(itemCount.get(s).toString()).append(CSVseparator).append(itemID).append(CSVseparator).append(hint).append(CSVseparator).append(complexityDefined).append(CSVseparator).append(effortDefinedScale).append(CSVseparator).append(effortDefinedScaleMinutes).append(CSVseparator).append(effortDefinedLearningCurve).append(CSVseparator).append(effortDefinedLearningCurveMinutes).append(CSVseparator);
 					linesCSV.append("\n");					
 				}
 				
@@ -5456,6 +5658,7 @@ tooltipsHTMLPlaceholder +
 		boolean blank = false;
 		if ((status.equals(Supported)) || (status.equals(Ignored))) blank = true;
 		String itemHintKey = getItemHintKey(item, status);
+		//blank = true; //uncomment to suppress all hints
 		if (itemHintKey.isEmpty()) blank = true;
 		if (blank) {
 			String indent = "  <span class=\"tooltip_blank\">&nbsp;</span> ";
@@ -5710,8 +5913,8 @@ tooltipsHTMLPlaceholder +
 			moveImportedHTMLFiles(reportName);
 		}
 
-		// check for existence of rewritten cases when the report is generated without analysis
-  		if (!rewrite)  {
+		// check for existence of rewritten files when the report is generated without analysis at the same time
+  		if (!rewrite && !Compass.reAnalyze)  {
 			File reportDir = new File(getReportDirPathname(reportName, rewrittenDirName));
 	 		if (reportDir.exists()) {
 				rewriteReportOnly = true;
@@ -5949,10 +6152,18 @@ tooltipsHTMLPlaceholder +
 				if (debugging) dbgOutput(thisProc() + "capLine=[" + capLine + "] objType=[" + objType + "] item=[" + item + "] itemDetail=[" + itemDetail + "] itemGroup=[" + itemGroup + "] status=[" + status + "] lineNr=[" + lineNr + "] misc=[" + misc + "] ", debugReport);
 				assert supportOptions.contains(status) : "Invalid status value[" + status + "] in line=[" + capLine + "] ";
 
+				// skip dependency records
+				if (status.equals(ObjectReference)) {
+					continue;
+				}
+				
 				// filter out the rewriteoppty cases before going any further
 				if (status.equals(RewriteOppty)) {
 					if (!rewrite) {
 						// report the oppties
+						if (!rewriteOppties.containsKey(item)) {
+							rewriteOppties.put(rewriteOpptiesUnique, rewriteOppties.getOrDefault(rewriteOpptiesUnique, 0)+1);
+						}						
 						rewriteOppties.put(item, rewriteOppties.getOrDefault(item, 0)+1);
 						rewriteOppties.put(rewriteOpptiesTotal, rewriteOppties.getOrDefault(rewriteOpptiesTotal, 0)+1);
 					}
@@ -6294,7 +6505,7 @@ tooltipsHTMLPlaceholder +
 			if (rewriteOppties.containsKey(rewriteOpptiesTotal)) {
 				if (rewriteOppties.get(rewriteOpptiesTotal) > 0) {
 					summarySection.append("\n");
-					summarySection.append(tocLink(tagRewrite, "Automatic SQL Rewrite Opportunities", "", ""));
+					summarySection.append(tocLink(tagRewrite, autoRewriteOppties, "", ""));
 				}
 			}
 		}
@@ -6389,7 +6600,7 @@ tooltipsHTMLPlaceholder +
 			String statusUnique = reportItem+uniqueCntTag;
 			String uqCnt = "";
 			String uqFmt = "";
-			if (validSupportOptionsCfgFile.contains(reportItem.toUpperCase())) {
+			if (validSupportOptionsCfgFile.contains(reportItem.toUpperCase()) || reportItem.equals(Rewritten) || reportItem.equals(Supported)) {
 				if (statusCount.containsKey(statusUnique)) {
 					uqCnt = "/" + statusCount.get(statusUnique);
 					uqFmt = " (total/unique)";
@@ -6400,7 +6611,7 @@ tooltipsHTMLPlaceholder +
 		if (!rewrite) {
 			if (rewriteOppties.containsKey(rewriteOpptiesTotal)) {
 				if (rewriteOppties.get(rewriteOpptiesTotal) > 0) {
-					summaryTmp2.append(lineIndent).append("Automatic SQL rewrite opportunities" +  " : " + rewriteOppties.get(rewriteOpptiesTotal) + "\n");
+					summaryTmp2.append(lineIndent).append(autoRewriteOppties +  " : " + rewriteOppties.get(rewriteOpptiesTotal) + "/" + rewriteOppties.get(rewriteOpptiesUnique) + "\n");
 				}
 			}
 		}
@@ -6590,7 +6801,7 @@ tooltipsHTMLPlaceholder +
 			CSVhdr += "\n";
 		}
 
-		CSVhdr += String.join(",", "Status", "Category", "Issue", "Count", "Babelfish Compass Hint", "Complexity Score", " ");
+		CSVhdr += String.join(",", "Status", "Category", "Issue", "Count", "ItemID", "Babelfish Compass Hint", "Complexity Score", " ");
 		if (CompassConfig.effortEstimatesFound) {
 			CSVhdr += String.join(",", "Effort/Occurrence", "Effort/Occurrence (minutes)", "Effort/Learning Curve", "Effort/Learning Curve (minutes)", "Your-Calculation-Here");
 		}
@@ -6691,11 +6902,14 @@ tooltipsHTMLPlaceholder +
 				if (rewriteOppties.get(rewriteOpptiesTotal) > 0) {
 					StringBuilder rStr = new StringBuilder();
 					rStr.append("\n");
-					rStr.append(composeSeparatorBar("Automatic SQL Rewrite Opportunities", tagRewrite));
-					rStr.append("\n" + rewriteOppties.get(rewriteOpptiesTotal) + " unsupported SQL aspects that may be rewritten with the -rewrite option:\n\n");
+					String totalCntStr = "";
+					if (rewriteOppties.get(rewriteOpptiesTotal) > 0) totalCntStr = " --- (total="+rewriteOppties.get(rewriteOpptiesTotal).toString() + "/"+rewriteOppties.get(rewriteOpptiesUnique).toString()+")";
+					rStr.append(composeSeparatorBar(autoRewriteOppties + totalCntStr, tagRewrite));
+					rStr.append("\n" + "Unsupported SQL aspects that may be rewritten with the -rewrite option:\n\n");
 
 					for (String r : rewriteOppties.keySet().stream().sorted().collect(Collectors.toList())) {
 						if (r.equals(rewriteOpptiesTotal)) continue;
+						if (r.equals(rewriteOpptiesUnique)) continue;
 						Integer cnt = rewriteOppties.get(r);
 						rStr.append(lineIndent + r + " : " + cnt.toString() + "\n");
 					}
@@ -7927,7 +8141,8 @@ userCfgComplexityHdrLine202308 + "\n" +
 						startCol  = Integer.parseInt(tmp.get(4));
 						endLine = Integer.parseInt(tmp.get(6));
 						endCol  = Integer.parseInt(tmp.get(7));
-						origLen  = endPos - startPos + 1;
+						if (startPos == endPos) origLen = 0;
+						else origLen = endPos - startPos + 1;
 						rewriteType  = tmp.get(8);
 						report   = tmp.get(9);
 
@@ -8016,7 +8231,7 @@ userCfgComplexityHdrLine202308 + "\n" +
 
 							writeRewrittenFile(newStr.get(0));
 							origStrFull = "";
-						}
+						}						
 						else {
 							// original text extends to next line(s)
 							if (debugging) dbgOutput(thisProc()+"extends on next line(B), remainingLength=["+remainingLength+"]", debugRewrite);

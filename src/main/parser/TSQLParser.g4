@@ -3785,10 +3785,6 @@ full_column_name_list
     : column+=full_column_name (COMMA column+=full_column_name)*
     ;
 
-table_name_with_hint
-    : table_name with_table_hints?
-    ;
-
 bulk_option
     : id  EQUAL (bulk_option_nr=DECIMAL | bulk_option_str=char_string)
     | SINGLE_BLOB
