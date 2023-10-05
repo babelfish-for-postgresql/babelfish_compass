@@ -3,7 +3,7 @@
 - Rewrite of WITH RECOMPILE (only if no other options are present).
 - Rewrite of DROP INDEX table.index
 - When uploading with the '-pgimport' flag, the uploaded details now contain additional information for tracking object dependencies.
-- Minor report enhancements.n
+- Minor report enhancements.
 
 # 2023-08
 - Fixed an issue with non-English locale causing aborting with error "Analysis was performed for a different Babelfish version (v.) than targeted by this run (v.3.2.0)".
