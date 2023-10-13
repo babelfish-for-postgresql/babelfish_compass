@@ -6647,15 +6647,17 @@ public class CompassAnalyze {
 
 			private void captureExecOptions(String procName, List<TSQLParser.Execute_optionContext> execOptions, TerminalNode with_keywd, int lineNr) {
 				for (int i = 0; i <execOptions.size(); i++) {
-					String optionRaw = execOptions.get(i).getText().toUpperCase();
-					String option = optionRaw;
-					if (optionRaw.startsWith("RESULTSETS")) {
-						optionRaw = optionRaw.replaceFirst("SETS", " SETS ").trim();
+					String option = execOptions.get(i).getText().toUpperCase();
+					if (option.startsWith("RESULTSETS")) {
+						option = option.replaceFirst("SETS", " SETS ").trim();						
+						if (option.startsWith("RESULT SETS (")) {
+							option = "RESULT SETS(schema)";
+						}
 					}
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"execOptions i=["+i+"] option=["+option+"]  optionRaw=["+optionRaw+"]", u.debugPtree);
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"execOptions i=["+i+"] option=["+option+"]", u.debugPtree);
 					String status = featureSupportedInVersion(ExecProcedureOptions,option);
 						
-					String s = "EXECUTE procedure, WITH "+optionRaw;
+					String s = "EXECUTE procedure, WITH "+option;
 					if (option.equals("RECOMPILE") && (execOptions.size() == 1)) {
 						// rewrite RECOMPILE, but only when no other options are specified
 						if (!status.equals(u.Supported)) {

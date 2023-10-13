@@ -917,15 +917,31 @@ tooltipsHTMLPlaceholder +
   	//String hintIcon = "&#10145;";   // right arrow
   	//String hintIcon = "&#9651;";    // white triangle
 
-	public int pgImportBBFVersionLength = 20;
-	public int pgImportItemLength = 200;
-	public int pgImportItemDetailLength = 200;
-	public int pgImportReportGroupLength = 50;
-	public int pgImportStatusLength = 20;
-	public int pgImportAppNameLength = 50;
-	public int pgImportSrcFileLength = 300;
-	public int pgImportContextLength = 200;
-	public int pgImportSubContextLength = 200;
+	public static List<String> capFields = new ArrayList<>();
+	
+	public static final int capPosItem = 0;
+	public static final int capPosItemDetail = 1;
+	public static final int capPosItemGroup = 2;
+	public static final int capPosStatus = 3;
+	public static final int capPosLineNr = 4;
+	public static final int capPosAppName = 5;
+	public static final int capPosSrcFile = 6;
+	public static final int capPosBatchNr = 7;
+	public static final int capPosLineNrInFile = 8;
+	public static final int capPosContext = 9;
+	public static final int capPosSubContext = 10;
+	public static final int capPosMisc = 11;
+	public static final int capPosLastField = 11 + 2;   // last field in a capture record; used to perform check on data read; +2 is for the 0 start index plus the extra field at the end
+
+	public static final int pgImportBBFVersionLength = 20;
+	public static final int pgImportItemLength = 200;
+	public static final int pgImportItemDetailLength = 200;
+	public static final int pgImportReportGroupLength = 50;
+	public static final int pgImportStatusLength = 20;
+	public static final int pgImportAppNameLength = 50;
+	public static final int pgImportSrcFileLength = 300;
+	public static final int pgImportContextLength = 200;
+	public static final int pgImportSubContextLength = 200;
 
 	public boolean pgImportNoDoubleQuotes = false;
 
@@ -984,19 +1000,6 @@ tooltipsHTMLPlaceholder +
 	public static final char metricsLineChar1 = '*';
 	public static final String metricsLineTag = "metrics";
 	public static final String captureFileSeparator = ";";
-	public int capPosItem = 0;
-	public int capPosItemDetail = 1;
-	public int capPosItemGroup = 2;
-	public int capPosStatus = 3;
-	public int capPosLineNr = 4;
-	public int capPosAppName = 5;
-	public int capPosSrcFile = 6;
-	public int capPosBatchNr = 7;
-	public int capPosLineNrInFile = 8;
-	public int capPosContext = 9;
-	public int capPosSubContext = 10;
-	public int capPosMisc = 11;
-	public int capPosLastField = 11 + 2;   // last field in a capture record; used to perform check on data read; +2 is for the 0 start index plus the extra field at the end
 
 	// first line in capture file:
 	public final String captureFileLinePart1 = "# Captured items for report ";
@@ -7096,7 +7099,7 @@ tooltipsHTMLPlaceholder +
 		result += "_issueslist";
 		return result;
 	}
-
+	
 	public void importPG(boolean append, List<String> pgImportFlags) throws IOException {
 		// platform-dependent parts
 		String envvarSet = "SET ";
@@ -7217,11 +7220,11 @@ tooltipsHTMLPlaceholder +
 				}
 				// for items logged only to xref the report to the original cfg sections, put 'm in a buffer and discard
 				if (capLine.contains(captureFileSeparator+XRefOnly+captureFileSeparator)) {
-					List<String> capFields = new ArrayList<>(Arrays.asList(capLine.split(captureFileSeparator)));
-					String item = capFields.get(capPosItem);
-					String itemGroup = capFields.get(capPosItemGroup);
-					String lineNr = capFields.get(capPosLineNr);
-					String appName = capFields.get(capPosAppName);
+					List<String> capFieldsTmp = new ArrayList<>(Arrays.asList(capLine.split(captureFileSeparator)));
+					String item = capFieldsTmp.get(capPosItem);
+					String itemGroup = capFieldsTmp.get(capPosItemGroup);
+					String lineNr = capFieldsTmp.get(capPosLineNr);
+					String appName = capFieldsTmp.get(capPosAppName);
 					//appOutput(thisProc()+"XRefOnly line=["+capLine+"] item=["+item+"] itemGroup=["+itemGroup+"] lineNr=["+lineNr+"] appName=["+appName+"] ");
 					getXrefOnlyMappings(item, itemGroup, lineNr, appName);
 				}
@@ -7238,9 +7241,10 @@ tooltipsHTMLPlaceholder +
 			BufferedReader capFile = new BufferedReader(cfisr);
 
 			String capLine = "";
-
+			int lineNr = 0;
 			while (true) {
 				capLine = capFile.readLine();
+				lineNr++;
 				if (capLine == null) {
 					//EOF
 					break;
@@ -7262,7 +7266,7 @@ tooltipsHTMLPlaceholder +
 				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
 
 				// max length check
-				List<String> capFields = new ArrayList<>(Arrays.asList(capLine.split(captureFileSeparator)));
+				capFields = new ArrayList<>(Arrays.asList(capLine.split(captureFileSeparator)));
 				String status = capFields.get(capPosStatus);
 				String complexityDefined = "";
 				String effortDefined = "";
@@ -7270,7 +7274,7 @@ tooltipsHTMLPlaceholder +
 				String effortDefinedLearningCurve = "";
 				String effortDefinedScaleMinutes   = "0";	
 				String effortDefinedLearningCurveMinutes = "0";			
-														
+				
 				if (hasComplexityEffort(status)) {
 					String item = capFields.get(capPosItem);
 					complexityDefined = getComplexityEffort(CompassConfig.complexityTag, item.toString(), capFields.get(capPosItemGroup), status);
@@ -7291,30 +7295,17 @@ tooltipsHTMLPlaceholder +
 					
 					//appOutput(thisProc()+"status=["+status+"] item=["+item+"] group=["+capFields.get(capPosItemGroup)+"] complexityDefined=["+complexityDefined+"] effortDefined=["+effortDefined+"] effortDefinedScale=["+effortDefinedScale+"] effortDefinedLearningCurve=["+effortDefinedLearningCurve+"] ");
 				}
-				else {
-					//appOutput(thisProc()+"status=["+status+"] ");
-				}
 
 				// assuming 'captureFileFormatVersion = 1' but this is not verified since so far there is only one version
 				// field positions in capLine, and total #fields, are hard-coded here
-				boolean fieldModified = false;
+
+				// some fields could potentially be too long, and the import would fail
+				boolean fieldModified = false;				
+				fieldModified |= importPGField("Item", capPosItem, pgImportItemLength, lineNr, cf);
+				fieldModified |= importPGField("ItemDetail", capPosItemDetail, pgImportItemDetailLength, lineNr, cf);
+				fieldModified |= importPGField("SrcFile", capPosSrcFile, pgImportSrcFileLength, lineNr, cf);
+				
 				int numFields = 12;
-				if (capFields.get(capPosItemDetail).length() > pgImportItemDetailLength) {
-					// truncate field to column length, but take care not to cut through a marker
-					String s = capFields.get(capPosItemDetail);
-					int lenOrig = s.length();
-					s = s.replaceAll(captureFileSeparatorMarker, captureFileSeparator);
-					int lenShort = s.length();
-					s = s.substring(0,pgImportItemDetailLength-(lenOrig-lenShort)).replace(captureFileSeparator, captureFileSeparatorMarker);
-					capFields.set(capPosItemDetail, s);
-					fieldModified = true;
-				}
-				if (capFields.get(capPosSrcFile).length() > pgImportSrcFileLength) {
-					String tag = "(...)";
-					int offset = (capFields.get(capPosSrcFile).length() - pgImportSrcFileLength) + tag.length();
-					capFields.set(capPosSrcFile, tag + capFields.get(capPosSrcFile).substring(offset));
-					fieldModified = true;
-				}
 				if (fieldModified) {
 					capLine = String.join(captureFileSeparator, capFields);
 					if (capFields.size() < numFields-1) {
@@ -7387,6 +7378,27 @@ tooltipsHTMLPlaceholder +
 		}
 	}
 
+	private boolean importPGField(String name, int pos, int len, int lineNr, Path cf) {
+		if (capFields.get(pos).length() <= len) {
+			return false;
+		}
+		
+		// truncate field to column length, but take care not to cut through a marker
+		if (devOptions) {
+			appOutput("pgimport: Truncating line "+lineNr+" from "+capFields.get(pos).length()+" to "+len+" in field '"+name+"' in ["+cf+"]");
+		}
+		String tag = "(...)";
+		String s = capFields.get(pos);
+		int lenOrig = s.length();
+		s = s.replaceAll(captureFileSeparatorMarker, captureFileSeparator);
+		int lenShort = s.length();
+		int cutoff = len - (lenOrig-lenShort) - tag.length();
+		s = s.substring(0,cutoff).replaceAll(captureFileSeparator, captureFileSeparatorMarker) + tag;
+		capFields.set(pos, s);
+		
+		return true; // field was modified
+	}
+				
 	private void validatePGImportArg(String cmdSeparator, String envvar, String name) {
 		cmdSeparator = cmdSeparator.trim();
 		if (envvar.contains(cmdSeparator)) {
