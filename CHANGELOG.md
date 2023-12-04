@@ -1,3 +1,9 @@
+
+# 2023-11
+- Updated User Guide with sections about scaling and advanced features.
+- Additional usability features for large-scale cases.
+- Minor report enhancements.
+
 # 2023-10
 - Updated support for Babelfish v.3.3.0.
 - Rewrite of WITH RECOMPILE (only if no other options are present).

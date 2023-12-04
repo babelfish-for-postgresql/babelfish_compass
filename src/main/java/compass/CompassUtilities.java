@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2023-10";
-	public static final String thisProgVersionDate  = "October 2023";
+	public static final String thisProgVersion      = "2023-11";
+	public static final String thisProgVersionDate  = "November 2023";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -87,6 +87,8 @@ public class CompassUtilities {
 	// this string is tested for to see if the header needs to be upgraded
 	private String userCfgComplexityHdrLine202209 = "# Complexity_score overrides values defined by Compass in "+defaultCfgFileName+".";
 	private String userCfgComplexityHdrLine202308 = "#    effort_estimate=15 mins : 1 h             # 15 minutes/1 hour for any other unsupported options";
+	private String userCfgComplexityHdrLine202311 = "effort_estimate_default_Hours_Per_Day";
+	
 
 	// .cfg file format version as found in the .cfg file; this is validated
 	public static Integer cfgFileFormatVersionRead = 0;
@@ -110,8 +112,8 @@ public class CompassUtilities {
 	public String targetBabelfishVersionReportLine = "Target Babelfish version   : v."; // line in report listing the target version
 	public boolean stdReport = false;	// development only
 
-	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0", "3.2.0", "3.3.0");
-	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2",  "15.3",  "15.4");
+	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0");
+	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2",  "15.3",  "15.4",  "15.5");
 
 	// minimum Babelfish version; this is fixed
 	public static final String baseBabelfishVersion = "1.0.0";
@@ -532,6 +534,14 @@ tooltipsHTMLPlaceholder +
 	private static final String tttSeparator = "~~~";
 	private static final String tttSeparator2 = "^^^";
 	private static final List<String> toolTipsText = Arrays.asList(
+		"CHAR VARYING"+tttSeparator+"The CHAR[ACTER] VARYING syntax is not currently supported; change to VARCHAR",
+		"CHARACTER VARYING"+tttSeparator+"The CHAR[ACTER] VARYING syntax is not currently supported; change to VARCHAR",
+		"NCHAR VARYING"+tttSeparator+"The NCHAR[ACTER] VARYING syntax is not currently supported; change to NVARCHAR",
+		"NCHARACTER VARYING"+tttSeparator+"The NCHAR[ACTER] VARYING syntax is not currently supported; change to NVARCHAR",
+		"NATIONAL CHAR VARYING"+tttSeparator+"The NATIONAL CHAR[ACTER] VARYING syntax is not currently supported; change to NVARCHAR",
+		"NATIONAL CHARACTER VARYING"+tttSeparator+"The NATIONAL CHAR[ACTER] VARYING syntax is not currently supported; change to NVARCHAR",
+		"NATIONAL CHAR"+tttSeparator+"The NATIONAL CHAR[ACTER] syntax is not currently supported; change to NCHAR",
+		"NATIONAL CHARACTER"+tttSeparator+"The NATIONAL CHAR[ACTER]  syntax is not currently supported; change to NCHAR",
 		"STR("+tttSeparator+"STR() is not currently supported; rewrite with CONVERT(), but note the rounding that may be required",
 		"CHECKSUM(*)"+tttSeparator+"CHECKSUM(*) is not currently supported; CHECKSUM() with a single non-asterisk argment is supported",
 		"CHECKSUM(arg,arg,...)"+tttSeparator+"CHECKSUM() with multiple arguments is not currently supported; CHECKSUM() with a single non-asterisk argment is supported",
@@ -541,7 +551,12 @@ tooltipsHTMLPlaceholder +
 		"SQUARE("+tttSeparator+"SQUARE() is not currently supported; rewrite with POWER()",
 		"UNICODE("+tttSeparator+"UNICODE() returns the Unicode code point for the first character in a string; this is not currently supported",
 		"HASHBYTES("+tttSeparator+"HASHBYTES() currently does not support this algorithm (MD5, SHA1, SHA2_256, SHA2_512 are supported)",
-		"IDENTITY("+tttSeparator+"The IDENTITY() function in SELECT-INTO is not currently supported; rewrite with ALTER TABLE to add an identity column following the SELECT-INTO, or with the ROW_NUMBER() function",
+		CompassAnalyze.UDDForIdentity+tttSeparator+"Currently the datatype for an IDENTITY column must be a system datatype (e.g. INT, BIGINT,...) and cannot be a user-defined type",
+		CompassAnalyze.TinyintForIdentity+tttSeparator+"Currently the TINYINT datatype cannot be used for the IDENTITY() function. Change to SMALLINT or NUMERIC(3)",
+		CompassAnalyze.SelectIntoVariantFmtNoTopNoIdentityOrderBy+tttSeparator+"For a SELECT..INTO with an ORDER BY clause but no TOP clause or IDENTITY() function call, the ORDER BY is effectively ignored as it does not impact the results. Note that ORDER BY has no effect on the order of the inserted rows in the table, which is undefined in case of SELECT..INTO. This is also true in SQL Server although the resulting row order may  seem predictable, for example as a result of the query plan always being the same.",
+		CompassAnalyze.SelectIntoVariantFmtIdentityNotLast+tttSeparator+"For a SELECT..INTO with an IDENTITY() function call, Babelfish always creates the IDENTITY column as the last column in the table, irrespective of its position in the SELECT list.",
+		"IDENTITY column created as BIGINT, declared as"+tttSeparator+"IDENTITY columns declared as NUMERIC or DECIMAL are implemented as BIGINT, this might impact client applications",		
+		"IDENTITY("+tttSeparator+"The IDENTITY() function in SELECT..INTO is not currently supported; rewrite with ALTER TABLE to add an identity column following the SELECT..INTO, or with the ROW_NUMBER() function",		
 		"Precision of IDENTITY column "+tttSeparator+"The maximum supported precision of a NUMERIC/DECIMAL type for an IDENTITY column is exceeded; change the precision to stay within the supported limit",
 		"CHOOSE("+tttSeparator+"CHOOSE(): Rewrite as a CASE expression",
 		"OBJECT_SCHEMA_NAME()"+tttSeparator+"OBJECT_SCHEMA_NAME(): Rewrite as catalog query",
@@ -587,15 +602,21 @@ tooltipsHTMLPlaceholder +
 		"FREETEXTTABLE("+tttSeparator+"Fulltext search is not currently supported",
 		"FREETEXT("+tttSeparator+"Fulltext search is not currently supported",
 		"\\w+ FULLTEXT "+tttSeparator+"Fulltext search is not currently supported",
+		"CREATE TABLE "+CompassAnalyze.GlobalTmpTableFmt+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, all committed rows are visible to all sesssions, and the table is dropped automatically when the last session accessing the table disconnects",
+		"SELECT..INTO "+CompassAnalyze.GlobalTmpTableFmt+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, all committed rows are visible to all sesssions, and the table is dropped automatically when the last session accessing the table disconnects",
+		"\\w+\\(target\\) "+CompassAnalyze.GlobalTmpTableFmt+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, all committed rows are visible to all sesssions, and the table is dropped automatically when the last session accessing the table disconnects",
+		"\\w+ "+CompassAnalyze.GlobalTmpTableFmt+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, all committed rows are visible to all sesssions, and the table is dropped automatically when the last session accessing the table disconnects",		
+		"\\w+, OUTPUT INTO "+CompassAnalyze.GlobalTmpTableFmt+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, all committed rows are visible to all sesssions, and the table is dropped automatically when the last session accessing the table disconnects",		
+		"\\w+ \\w+, OUTPUT INTO "+CompassAnalyze.GlobalTmpTableFmt+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, all committed rows are visible to all sesssions, and the table is dropped automatically when the last session accessing the table disconnects",		
 		"\\s*INSERT.*, on table function"+tttSeparator+"INSERT on a table-valued function is not currently supported. Rewrite as an INSERT directly against the underlying table or view",
 		"\\s*UPDATE.*, on table function"+tttSeparator+"UPDATE on a table-valued function is not currently supported. Rewrite as an UPDATE directly against the underlying table or view",
 		"\\s*DELETE.*, on table function"+tttSeparator+"DELETE on a table-valued function is not currently supported. Rewrite as an DELETE directly against the underlying table or view",
 		"\\s*MERGE.*, on table function"+tttSeparator+"MERGE on a table-valued function is not currently supported. Rewrite as an MERGE directly against the underlying table or view",
-		"INSERT..VALUES, WITH (Common Table Expression) as target"+tttSeparator+"INSERT with a CTE as the table being modified, is not currently supported. Rewrite as an INSERT directly against underlying table",
-		"INSERT..SELECT, WITH (Common Table Expression) as target"+tttSeparator+"INSERT with a CTE as the table being modified, is not currently supported. Rewrite as an INSERT directly against underlying table",
-		"UPDATE, WITH (Common Table Expression) as target"+tttSeparator+"UPDATE with a CTE as the table being modified, is not currently supported. Rewrite as an UPDATE directly against underlying table",
-		"DELETE, WITH (Common Table Expression) as target"+tttSeparator+"DELETE with a CTE as the table being modified, is not currently supported. Rewrite as a DELETE directly against underlying table",
-		"MERGE, WITH (Common Table Expression) as target"+tttSeparator+"MERGE with a CTE as the table being modified, is not currently supported. Rewrite as a MERGE directly against underlying table",
+		"INSERT..VALUES, WITH (Common Table Expression) as target"+tttSeparator+"INSERT with a CTE as the table being modified, is not currently supported. Rewrite as an INSERT directly against the underlying table",
+		"INSERT..SELECT, WITH (Common Table Expression) as target"+tttSeparator+"INSERT with a CTE as the table being modified, is not currently supported. Rewrite as an INSERT directly against the underlying table",
+		"UPDATE, WITH (Common Table Expression) as target"+tttSeparator+"UPDATE with a CTE as the table being modified, is not currently supported. Rewrite as an UPDATE directly against the underlying table",
+		"DELETE, WITH (Common Table Expression) as target"+tttSeparator+"DELETE with a CTE as the table being modified, is not currently supported. Rewrite as a DELETE directly against the underlying table",
+		"MERGE, WITH (Common Table Expression) as target"+tttSeparator+"MERGE with a CTE as the table being modified, is not currently supported. Rewrite as a MERGE directly against the underlying table. If MERGE itself is not supported and you are using the -rewrite option, then the INSERT/UPDATE/DELETE statements resulting from -rewrite should be changed to directly modify the underlying table",
 		"DELETE, OPENQUERY()"+tttSeparator+"Passthru DELETE via OPENQUERY() is not currently supported",
 		"UPDATE, OPENQUERY()"+tttSeparator+"Passthru UPDATE via OPENQUERY() is not currently supported",
 		"INSERT..VALUES, OPENQUERY()"+tttSeparator+"Passthru INSERT via OPENQUERY() is not currently supported",
@@ -610,6 +631,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.NextValueFor+" in DECLARE"+tttSeparator+"The NEXT VALUE FOR function is supported, but not currently in a DECLARE statement. Rewrite by splitting into separate DECLARE and 'SELECT @v = NEXT VALUE FOR' statements",
 		CompassAnalyze.NextValueFor+" in "+tttSeparator+"The NEXT VALUE FOR function is supported, but not currently in this specific context. Rewrite the SQL code, or call the PG function NEXTVAL() directly",
 		CompassAnalyze.NextValueFor+" with OVER"+tttSeparator+"The NEXT VALUE FOR function is supported, but not currently in combination with OVER(). Rewrite the SQL code",
+		CompassAnalyze.NextValueFor+" with '..' syntax"+tttSeparator+"The NEXT VALUE FOR function is supported, but not with the 'db..name' syntax. Rewrite by adding the schema name",
 		CompassAnalyze.NextValueFor+tttSeparator+"The NEXT VALUE FOR function for sequence objects is not currently supported. Consider using identity columns instead, or as a workaround, call the PG function NEXTVAL() directly",
 		CompassAnalyze.ParamValueDEFAULT+tttSeparator+"Specifying DEFAULT as a parameter value in a procedure or function call is not currently supported; specify the actual default value instead " + rewriteOption + ". In case you still see this reported when using -rewrite, this probably means the declaration of the procedure or function was not found",
 		CompassAnalyze.UnQuotedString+tttSeparator+"Unquoted strings are not currently supported; enclose the string in quotes " + rewriteOption,
@@ -625,6 +647,8 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.NumericAsDateTime+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 " + rewriteOption,
 		CompassAnalyze.NumericDateTimeVarAssign+tttSeparator+"Using a numeric value in a datetime context is not currently supported. Rewrite the numeric value as an offset (in days) on top of 01-01-1900 00:00:00 " + rewriteOption,
 		CompassAnalyze.DateTimeToNumeric+tttSeparator+"Converting a datetime to a numeric value is not currently supported. Rewrite the conversion so that the resulting numeric value is an offset (in days) on top of 01-01-1900 00:00:00 ",
+		"EXECUTE procedure sp_xml_preparedocument"+tttSeparator+"sp_xml_preparedocument is not currently supported; rewrite in PG as SELECT(UNNEST(XPATH(XQuery expression, XML expression) or as a plpgsql VIEW with XMLTABLE()",
+		"EXECUTE procedure sp_xml_removedocument"+tttSeparator+"sp_xml_removedocument is not currently supported; comment out and rewrite in PG using the workaround for XML.value()",		
 		"EXECUTE procedure sp_db_vardecimal_storage_format"+tttSeparator+"This system stored procedure is not currently supported, but it may not have any function in Babelfish as it is usually part of a standard SSMS-generated DDL script",
 		"EXECUTE procedure sp_fulltext_database"+tttSeparator+"This system stored procedure is not currently supported, but it may not have any function in Babelfish as it is usually part of a standard SSMS-generated DDL script",
 		"EXECUTE procedure sp_oacreate"+tttSeparator+"This OLE system stored procedure is not currently supported",
@@ -634,6 +658,7 @@ tooltipsHTMLPlaceholder +
 		"EXECUTE procedure sp_recompile"+tttSeparator+"The recompile feature is not currently supported",
 		"EXECUTE procedure sp_refreshview"+tttSeparator+"This feature is not supported, because PG does not allow changing the schema underneath a view",
 		"EXECUTE procedure sp_dbcmptlevel"+tttSeparator+"The SQL Server compatibility level is not currently supported",
+		"EXECUTE procedure sp_addtype"+tttSeparator+"System stored procedure sp_addtype is not currently supported; rewrite as CREATE TYPE",
 		"EXECUTE procedure sp_addlogin"+tttSeparator+"System stored procedure sp_addlogin is not currently supported; rewrite as CREATE LOGIN",
 		"EXECUTE procedure sp_droplogin"+tttSeparator+"System stored procedure sp_droplogin is not currently supported; rewrite as DROP LOGIN",
 		"EXECUTE procedure sp_adduser"+tttSeparator+"System stored procedure sp_adduser is not currently supported; rewrite as CREATE USER",
@@ -651,14 +676,14 @@ tooltipsHTMLPlaceholder +
 		"EXECUTE procedure xp_cmdshell"+tttSeparator+"xp_cmdshell is not currently supported; consider implementing this using a process external to the database to execute OS commands",
 		"EXECUTE procedure xp_"+tttSeparator+"This system stored procedure is not currently supported",
 		"EXECUTE procedure, name in variable"+tttSeparator+"Executing a stored procedure whose name is in a variable (i.e. EXECUTE @p) is not currently supported. Rewrite with dynamic SQL (i.e. EXECUTE(...) or sp_executesql)",
-		"CREATE SYNONYM"+tttSeparator+"Synonyms are not currently supported; try to rewrite with views (for tables) or procedures/functions (for procedures/functions)",
+		"CREATE SYNONYM"+tttSeparator+"Synonyms are not currently supported; try to rewrite with views (for tables/views) or procedures/functions (for procedures/functions)",
 		"BACKUP DATABASE/LOG"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
 		"RESTORE DATABASE/LOG"+tttSeparator+"BACKUP/RESTORE is not currently supported, and must be handled with PostgreSQL features",
 		CompassAnalyze.CheckpointStmt+tttSeparator+"CHECKPOINT is not currently supported; in Babelfish for Aurora PostgreSQL, CHECKPOINT is meaningless due to Aurora's internal optimizations",
 		"GRANT"+tttSeparator+"This variation of GRANT is not currently supported",
 		"REVOKE"+tttSeparator+"This variation of REVOKE is not currently supported",
 		"DENY"+tttSeparator+"DENY is not currently supported",
-		"ALTER AUTHORIZATION"+tttSeparator+"ALTER AUTHORIZATION (change object ownership) is not currently supported",
+		"ALTER AUTHORIZATION"+tttSeparator+"This variation of ALTER AUTHORIZATION (change object ownership) is not currently supported",
 		"CREATE ROLE"+tttSeparator+"DB-level roles are not currently supported, except the predefined 'db_owner' role",
 		"ALTER ROLE db_datareader"+tttSeparator+"The db_datareader role is not currently supported; rewrite by granting permissions on all tables/views",
 		"ALTER ROLE db_denydatareader"+tttSeparator+"The db_denydatareader role is not currently supported; rewrite by revoking permissions on all tables/views",
@@ -731,16 +756,16 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.TriggerSchemaName+tttSeparator+"CREATE TRIGGER schemaname.triggername is not currently supported; Remove 'schemaname'",
 		"\\w+, WHERE CURRENT OF"+tttSeparator+"Updatable cursors are not currently supported. Rewrite the application to use direct UPDATE/DELETE",
 		"UPDATE STATISTICS"+tttSeparator+"UPDATE STATISTICS is not currently supported; use PG's ANALYZE instead",
-		"UPDATE("+tttSeparator+"UPDATE(): detecting in a trigger which column is updated by the triggering DML, is not currently supported",
+		"UPDATE()"+tttSeparator+"UPDATE(): detecting in a trigger which column is updated by the triggering DML, is not currently supported",
 		"COLUMNS_UPDATED("+tttSeparator+"COLUMNS_UPDATED(): detecting in a trigger which column is updated by the triggering DML, is not currently supported",
 		"EVENTDATA("+tttSeparator+"EVENTDATA(): detecting the triggering event for a DDL trigger is not currently supported",
 		"Function call, scalar, in computed column"+tttSeparator+"Calling a scalar SQL function in a computed column is supported only for PG immutable functions; consider implementing with a plpgsql immutable function or a trigger",
 		"XML(xmlschema)"+tttSeparator+"XML declarations with an XML schema are not currently supported",
-		"XML.value()"+tttSeparator+"XML .value() method is not currently supported",
-		"XML.nodes()"+tttSeparator+"XML .nodes() method is not currently supported",
+		"XML.value()"+tttSeparator+"XML .value() method is not currently supported;rewrite in PG as SELECT(UNNEST(XPATH(XQuery expression, XML expression)",
+		"XML.nodes()"+tttSeparator+"XML .nodes() method is not currently supported; rewrite in PG as SELECT(UNNEST(XPATH(XQuery expression, XML expression)",
 		"XML.modify()"+tttSeparator+"XML .modify() method is not currently supported",
-		"XML.exist()"+tttSeparator+"XML .exist() method is not currently supported",
-		"XML.query()"+tttSeparator+"XML .query() method is not currently supported",
+		"XML.exist()"+tttSeparator+"XML .exist() method is not currently supported; rewrite in PG as IF EXISTS with SELECT(UNNEST(XPATH(XQuery expression, XML expression))",
+		"XML.query()"+tttSeparator+"XML .query() method is not currently supported; rewrite in PG as SELECT(UNNEST(XPATH(XQuery expression, XML expression)",
 		"XML.write()"+tttSeparator+"XML .write() method is not currently supported",
 		"\\w+ XML SCHEMA COLLECTION"+tttSeparator+"XML SCHEMA objects are not currently supported",
 		"\\w+ XML INDEX"+tttSeparator+"XML indexes are not currently supported",
@@ -751,7 +776,7 @@ tooltipsHTMLPlaceholder +
 		"SELECT FOR XML RAW ELEMENTS"+tttSeparator+"SELECT FOR XML RAW, with ELEMENTS is not currently supported; SELECT FOR XML RAW without ELEMENTS is supported",
 		"SELECT FOR XML PATH ELEMENTS"+tttSeparator+"SELECT FOR XML PATH, with ELEMENTS is not currently supported; SELECT FOR XML PATH without ELEMENTS is supported",
 		"EXECUTE procedure sp_xml_"+tttSeparator+"This XML-related system stored procedure is not currently supported",
-		"OPENXML("+tttSeparator+"OPENXML() is not currently supported",
+		"OPENXML("+tttSeparator+"OPENXML() is not currently supported; when not using flags=0,1,2, rewrite in PG as SELECT(UNNEST(XPATH(XQuery expression, XML expression) or as a plpgsql VIEW with XMLTABLE()",
 		"OPENQUERY("+tttSeparator+"OPENQUERY() is not currently supported",
 		"OPENDATASOURCE("+tttSeparator+"OPENDATASOURCE() is not currently supported",
 		"OPENROWSET("+tttSeparator+"OPENROWSET() is not currently supported",
@@ -778,6 +803,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.DMLTableSrcFmt+tttSeparator+"A DML statement with OUTPUT clause, as source of an INSERT-SELECT, is not currently supported. Rewrite with OUTPUT into a temp table or table variable, and INSERT-SELECT from that",
 		CompassAnalyze.VarAggrAcrossRowsFmt+tttSeparator+"In SQL Server, an assignment of a variable where the same variable also occurs in the assigned expression, may carry over its value for every qualifying row, thus creating a kind of aggregation. This is not currently supported in Babelfish. Verify if more than 1 row may qualify and if so, rewrite the query manually",
 		CompassAnalyze.VarAssignDependency+tttSeparator+"Assignment of a variable depending on another variable which is itself assigned in the same statement, may produce unexpected results since the order of assignment is not guaranteed. Rewrite the query manually, for example by splitting it up into separate statements",
+		CompassAnalyze.SelectPivot+", in"+tttSeparator+"SELECT..PIVOT is supported, but currently not in this context. Rewrite manually",
 		CompassAnalyze.SelectPivot+tttSeparator+"SELECT..PIVOT is not currently supported. Rewrite manually",
 		CompassAnalyze.SelectUnpivot+tttSeparator+"SELECT..UNPIVOT is not currently supported. Rewrite manually",
 		CompassAnalyze.SelectTopWithTies+tttSeparator+"SELECT TOP WITH TIES is not currently supported. Rewrite manually",
@@ -804,7 +830,6 @@ tooltipsHTMLPlaceholder +
 		"CLUSTERED COLUMNSTORE"+tttSeparator+"CLUSTERED COLUMNSTORE indexes (without a column list) are not currently supported; review performance expectations related to such indexes",
 		"COLUMNSTORE index"+tttSeparator+"COLUMNSTORE indexes are not currently supported; review performance expectations related to such indexes",
 		"Indexed view "+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
-		"CREATE TABLE ##"+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, all committed rows are visible to all sesssions, and the table is dropped automatically when the last session accessing the table disconnects",
 		"CREATE TABLE (temporal)"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
 		"ALTER TABLE..SET SYSTEM_VERSIONING"+tttSeparator+"Temporal tables are not currently supported; not to be confused with temporary tables (#t), temporal tables -created with clause PERIOD FOR SYSTEM_TIME- contain the data contents history of a table over time",
 		CompassAnalyze.TableHint+tttSeparator+"These table hints are not currently supported by Babelfish; escape hatch "+escapeHatchTableHintsText+" will silently ignore table hints ('strict' will raise an error). Review the expected impact on concurrency or query plans in the original query and rewrite the query as needed",
@@ -816,7 +841,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.DynamicSQLEXECStringReview+tttSeparator+"Dynamic SQL with EXECUTE(string) is supported by Babelfish; however, when the actual dynamically composed SQL statements cannot be analyzed in advance, manual analysis is required. Use the '-reportoption xref' flag to find the actual occurrence of this statement",
 		CompassAnalyze.DynamicSQLEXECSPReview+tttSeparator+"Dynamic SQL with sp_executesql is supported by Babelfish; however, when the actual dynamically composed SQL statements cannot be analyzed in advance, manual analysis is required. Use the '-reportoption xref' flag to find the actual occurrence of this statement",
 		CompassAnalyze.FKrefDBname+tttSeparator+"Remove the database name from the referenced table. E.g. change: REFERENCES yourdb.dbo.yourtable(yourcol) to: REFERENCES dbo.yourtable(yourcol)",
-		CompassAnalyze.CrossDbReference+tttSeparator+"Cross-database references with 3-part object names (e.g. SELECT * FROM yourdb.dbo.yourtable) are not currently supported, except for objects inside the current database",
+		CompassAnalyze.CrossDbReference+tttSeparator+"Cross-database references with 3-part object names (e.g. yourdb.dbo.yourtable) are not currently supported for this statement type, except in some cases for objects inside the current database",
 		CompassAnalyze.RemoteObjectReference+" by UPDATE(target)"+tttSeparator+"DML on remote objects, i.e. with a 4-part object name (e.g. REMOTESRVR.somedb.dbo.sometable) is not currently supported for this statement",
 		CompassAnalyze.RemoteObjectReference+" by INSERT(target)"+tttSeparator+"DML on remote objects, i.e. with a 4-part object name (e.g. REMOTESRVR.somedb.dbo.sometable) is not currently supported for this statement",
 		CompassAnalyze.RemoteObjectReference+" by DELETE(target)"+tttSeparator+"DML on remote objects, i.e. with a 4-part object name (e.g. REMOTESRVR.somedb.dbo.sometable) is not currently supported for this statement",
@@ -1080,14 +1105,16 @@ tooltipsHTMLPlaceholder +
 	public int batchNrInFile;
 	public int linesInBatch;
 	public int constructsFound = 0;
+	public Map<String, Integer> constructsFoundDistinct = new HashMap<>();
 
 	// rudimentary symbol table, only for some very basic things needed
 	// there's a lot of room for improvement here
 	static String symTabAppRead = "";
-	static Map<String, String> objTypeSymTab = new HashMap<>();
+	static Map<String, String> tableViewSymTab = new HashMap<>();
 	static Map<String, String> UDDSymTab = new HashMap<>();
 	static Map<String, String> SUDFSymTab = new HashMap<>();
 	static Map<String, String> TUDFSymTab = new HashMap<>();
+	static Map<String, String> procSymTab = new HashMap<>();
 	static Map<String, String> colSymTab = new HashMap<>();  // columns
 	public static boolean buildColSymTab = false;  // false=no columns in symtab in pass 1
 	static Map<String, String> parSymTab = new HashMap<>();  // parameters with defaults
@@ -1207,7 +1234,7 @@ tooltipsHTMLPlaceholder +
 	public static boolean caching = false;
 	public static boolean QuotedIdentifierFlag = false;
 	public static boolean listHints = false;
-	public static boolean reportSyntaxIssues = false;
+	public static boolean reportSyntaxIssues = true;  // always true now
 	public static boolean generateCSV = true;
 	public static final String CSVFormatDefault = "default";	
 	public static final String CSVFormatFlat = "flat";	
@@ -1215,7 +1242,10 @@ tooltipsHTMLPlaceholder +
 	public static String generateCSVFormat = CSVFormatDefault; 
 	public static boolean reportComplexityScore = true;
 	public static final String CSVseparator = ",";
-
+	public static int sumEffortEstimateMinutes= 0;
+	public static int effortEstimateDaysPerWeek = 5;  // default = 5, can be overridden in user-defined .cfg file
+	public static int effortEstimateHoursPerDay = 8;  // default = 8, can be overridden in user-defined .cfg file
+	
 	// misc
 	public static final String miscDelimiter = "~!~@~!~";
 
@@ -4226,10 +4256,10 @@ tooltipsHTMLPlaceholder +
 	}
 
 	// add to symbol table
-	public void addObjectTypeSymTab(String objName, String objType) {
-		addObjectTypeSymTab(objName, objType, false);
+	public void addtableViewSymTab(String objName, String objType) {
+		addtableViewSymTab(objName, objType, false);
 	}
-	public void addObjectTypeSymTab(String objName, String objType, boolean readingSymTab)
+	public void addtableViewSymTab(String objName, String objType, boolean readingSymTab)
 	{
 		if (!readingSymTab) {
 			objName = resolveName(objName);
@@ -4240,7 +4270,7 @@ tooltipsHTMLPlaceholder +
 				return;
 			}
 		}
-		objTypeSymTab.put(objName.toUpperCase(), objType);
+		tableViewSymTab.put(objName.toUpperCase(), objType.toUpperCase());
 	}
 
 	// add to symbol table
@@ -4253,7 +4283,7 @@ tooltipsHTMLPlaceholder +
 			udfName = resolveName(udfName);
 			dataType = normalizeName(dataType);
 		}
-		SUDFSymTab.put(udfName.toUpperCase(), dataType);
+		SUDFSymTab.put(udfName.toUpperCase(), dataType.toUpperCase());
 	}
 
 	// add to symbol table
@@ -4266,7 +4296,7 @@ tooltipsHTMLPlaceholder +
 			udfName = resolveName(udfName);
 			dataType = normalizeName(dataType);
 		}
-		TUDFSymTab.put(udfName.toUpperCase(), dataType);
+		TUDFSymTab.put(udfName.toUpperCase(), dataType.toUpperCase());
 	}
 
 	// add to symbol table
@@ -4279,8 +4309,20 @@ tooltipsHTMLPlaceholder +
 			uddName = resolveName(uddName);
 			dataType = normalizeName(dataType);
 		}
-		UDDSymTab.put(uddName.toUpperCase(), dataType);
+		UDDSymTab.put(uddName.toUpperCase(), dataType.toUpperCase());
 	}
+	
+	// add to symbol table
+	public void addProcSymTab(String procName, String objType) {
+		addProcSymTab(procName, objType, false);
+	}
+	public void addProcSymTab(String procName, String objType, boolean readingSymTab)
+	{
+		if (!readingSymTab) {
+			procName = resolveName(procName);
+		}
+		procSymTab.put(procName.toUpperCase(), objType.toUpperCase());  
+	}	
 
 	// add to symbol table
 	public String makeColSymTabKey(String tableName, String colName) {
@@ -4393,8 +4435,8 @@ tooltipsHTMLPlaceholder +
 		symTabFileLineCount--;
 
 		String line = "";
-		for (String obj : objTypeSymTab.keySet()) {
-			line = "objtype" + symTabSeparator + maskChar(obj, symTabSeparator) + symTabSeparator + maskChar(objTypeSymTab.get(obj), symTabSeparator);
+		for (String obj : tableViewSymTab.keySet()) {
+			line = "objtype" + symTabSeparator + maskChar(obj, symTabSeparator) + symTabSeparator + maskChar(tableViewSymTab.get(obj), symTabSeparator);
 			writeSymTabFile(decodeIdentifier(line));
 		}
 		for (String sudf : SUDFSymTab.keySet()) {
@@ -4409,6 +4451,10 @@ tooltipsHTMLPlaceholder +
 			line = "udd" + symTabSeparator + maskChar(udd, symTabSeparator) + symTabSeparator + maskChar(UDDSymTab.get(udd), symTabSeparator);
 			writeSymTabFile(decodeIdentifier(line));
 		}
+		for (String proc : procSymTab.keySet()) {
+			line = "proc" + symTabSeparator + maskChar(proc, symTabSeparator) + symTabSeparator + maskChar(procSymTab.get(proc), symTabSeparator);
+			writeSymTabFile(decodeIdentifier(line));
+		}		
 		for (String col : colSymTab.keySet()) {
 			line = "col" + symTabSeparator + col + symTabSeparator + maskChar(colSymTab.get(col), symTabSeparator);
 			writeSymTabFile(decodeIdentifier(line));
@@ -4487,7 +4533,7 @@ tooltipsHTMLPlaceholder +
 			}
 			inFileReader.close();
 		}
-		int nrSymtab = (objTypeSymTab.size()+SUDFSymTab.size()+TUDFSymTab.size()+UDDSymTab.size()+colSymTab.size());
+		int nrSymtab = (tableViewSymTab.size()+SUDFSymTab.size()+TUDFSymTab.size()+UDDSymTab.size()+colSymTab.size()+parSymTab.size()+procSymTab.size());
 		if (debugging) dbgOutput("symtab entries=["+nrSymtab+"] ", debugSymtab);
 		if (debugSymtab) {
 			//dumpSymTab("after reading from disk");
@@ -4499,7 +4545,7 @@ tooltipsHTMLPlaceholder +
 		if (fields.get(0).equals("objtype")) {
 			String objName = unmaskChar(fields.get(1),symTabSeparator);
 			String objType = unmaskChar(fields.get(2),symTabSeparator);
-			addObjectTypeSymTab(objName, objType, true);
+			addtableViewSymTab(objName, objType, true);
 		}
 		else if (fields.get(0).equals("sudf")) {
 			String objName = unmaskChar(fields.get(1),symTabSeparator);
@@ -4526,6 +4572,11 @@ tooltipsHTMLPlaceholder +
 			String objName = unmaskChar(fields.get(1),symTabSeparator);
 			String dataType = unmaskChar(fields.get(2),symTabSeparator);
 			addUDDSymTab(objName, dataType, true);
+		}
+		else if (fields.get(0).equals("proc")) {
+			String objName = unmaskChar(fields.get(1),symTabSeparator);
+			String objType = unmaskChar(fields.get(2),symTabSeparator);			
+			addProcSymTab(objName, objType, true);
 		}
 		else if (fields.get(0).equals("col")) {
 			String tableName = unmaskChar(fields.get(1),symTabSeparator);
@@ -4554,10 +4605,11 @@ tooltipsHTMLPlaceholder +
 	// clear the symbol table
 	public static void clearSymTab()
 	{
-		objTypeSymTab.clear();
+		tableViewSymTab.clear();
 		SUDFSymTab.clear();
 		TUDFSymTab.clear();
 		UDDSymTab.clear();
+		procSymTab.clear();
 		colSymTab.clear();
 		parSymTab.clear();
 		SUDFNamesLikeXML.clear();
@@ -4573,9 +4625,9 @@ tooltipsHTMLPlaceholder +
 		int countSymTab = 0;
 		appOutput(composeOutputLine("--- Symbol Table -- "+ tag + " ", "-"));
 		appOutput("");
-		appOutput("objTypeSymTab: "+objTypeSymTab.size());
-		for (String obj: objTypeSymTab.keySet()) {
-			appOutput("objType=["+obj+"] => ["+objTypeSymTab.get(obj)+"]");
+		appOutput("tableViewSymTab: "+tableViewSymTab.size());
+		for (String obj: tableViewSymTab.keySet()) {
+			appOutput("objType=["+obj+"] => ["+tableViewSymTab.get(obj)+"]");
 			countSymTab++;
 		}
 		appOutput("");
@@ -4596,6 +4648,11 @@ tooltipsHTMLPlaceholder +
 			appOutput("udd=["+udd+"] => ["+UDDSymTab.get(udd)+"]");
 			countSymTab++;
 		}
+		appOutput("");		
+		for (String proc: procSymTab.keySet()) {
+			appOutput("proc=["+proc+"] => ["+procSymTab.get(proc)+"]");
+			countSymTab++;
+		}		
 		appOutput("");
 		appOutput("SUDFNamesLikeXML: "+SUDFNamesLikeXML.size());
 		for (String sudf: SUDFNamesLikeXML.keySet()) {
@@ -4897,6 +4954,17 @@ tooltipsHTMLPlaceholder +
 					linesCSV.append("\n");					
 				}
 				
+				// add up effort estimates
+				if (itemCount.get(s) > 0) {
+					//appOutput(thisProc()+"#occ=["+itemCount.get(s)+"] effortDefinedScaleMinutes=["+effortDefinedScaleMinutes+"] effortDefinedLearningCurveMinutes=["+effortDefinedLearningCurveMinutes+"] ");
+					if (!effortDefinedLearningCurveMinutes.isEmpty()) {
+						sumEffortEstimateMinutes += Integer.parseInt(effortDefinedLearningCurveMinutes);
+					}
+					if (!effortDefinedScaleMinutes.isEmpty()) {
+						sumEffortEstimateMinutes += itemCount.get(s) * Integer.parseInt(effortDefinedScaleMinutes);
+					}
+				}
+				
 				if (!complexityDefined.trim().isEmpty()) {
 					String c = status + "." + complexityDefined;
 					complexityScoreCount.put(c, complexityScoreCount.getOrDefault(c.toUpperCase(), 0) + itemCount.get(s));
@@ -4985,6 +5053,7 @@ tooltipsHTMLPlaceholder +
 		// relation is not always there. So we need to try a few things.
 		// The steps below will work for almost all cases. One exception is the case where a proc has > #max parameters
 		// for those cases the user must specify an effort estimate in the .csv file themselves
+		
 		String itemUserCfgCheck =  collapseWhitespace(item.replaceAll(CSVseparator, " "));
 		itemUserCfgCheck = applyPatternFirst(itemUserCfgCheck, "\\(\\)$", "");
 		if (debugging) dbgOutput(thisProc()+"tag=["+tag+"] itemUserCfgCheck=["+itemUserCfgCheck+"] item=["+item+"]  group=["+group+"] ", debugReport);
@@ -5037,7 +5106,7 @@ tooltipsHTMLPlaceholder +
 				}
 			}
 		}
-
+		
 		return result;
 	}
 
@@ -5061,7 +5130,7 @@ tooltipsHTMLPlaceholder +
 			if (xrefMap.containsKey(xrefMapKey)) {
 				String origMapStr = xrefMap.get(xrefMapKey) ;
 				List<String> origMap = new ArrayList<String>(Arrays.asList(origMapStr.split(captureFileSeparator)));
-				if (debugging) dbgOutput(thisProc()+"xref map found: xrefMapKey=["+xrefMapKey+"] origMap=["+origMap+"] origMapStr=["+origMapStr+"] ", debugReport);
+				if (debugging) dbgOutput(thisProc()+"xref map found: xrefMapKey=["+xrefMapKey+"] origMap=["+origMap+"] origMapStr=["+origMapStr+"] origMap.get(0)=["+origMap.get(0)+"] origMap.get(1)=["+origMap.get(1)+"] ", debugReport);
 				if (property.equals(CompassConfig.complexityTag))
 					result = CompassConfig.featureComplexityDefined(origMap.get(0), origMap.get(1));
 				else
@@ -5103,6 +5172,7 @@ tooltipsHTMLPlaceholder +
 		}
 
 		if (debugging) dbgOutput(thisProc()+"final: property=["+property+"] result=["+result+"] ", debugReport);
+				
 		return result;
 	}
 
@@ -5563,7 +5633,7 @@ tooltipsHTMLPlaceholder +
 		s = applyPatternAll(s, ">", "&gt;").toLowerCase();
 		s = applyPatternAll(s, "\\[", "sqbrktopen").toLowerCase();
 		s = applyPatternAll(s, "\\]", "sqbrktclose").toLowerCase();
-		s = applyPatternAll(s, "[\\s]", "").toLowerCase();
+		s = applyPatternAll(s, "[\\s]", "").toLowerCase();		
 		s = applyPatternAll(s, "[\\W]", "_");
 		s = applyPatternAll(s, "[_]+", "_");
 		if (s.startsWith("_")) s = s.substring(1);
@@ -6025,7 +6095,7 @@ tooltipsHTMLPlaceholder +
 		String fmtLinesTotal = "linesDDL";
 		String fmtLinesTotalFeatures = "totalFeatures";
 		List<String> fmtStatus = new ArrayList<String>(Arrays.asList("apps", "inputfiles", fmtBatches, fmtLinesTotal, fmtLinesSQL, fmtLinesTotalFeatures));
-		List<String> fmtStatusDisplay = new ArrayList<String>(Arrays.asList("#applications", "#input files", "#SQL batches", "#lines SQL/DDL processed", "#lines SQL in objects", "total #SQL features"));
+		List<String> fmtStatusDisplay = new ArrayList<String>(Arrays.asList("#applications", "#input files", "#SQL batches", "#lines SQL/DDL processed", "#lines SQL in objects", "Total #SQL features"));
 		for (int i = 0; i < supportOptions.size(); i++) {
 			fmtStatus.add(supportOptions.get(i));
 			fmtStatusDisplay.add(supportOptionsDisplay.get(i));
@@ -6183,6 +6253,7 @@ tooltipsHTMLPlaceholder +
 							objType = applyPatternFirst(objType, "^(.*?,.*?),.*$", "$1");
 							if (objType.startsWith("PARTITION FUNCTION,")) objType = "PARTITION FUNCTION";
 							if (objType.startsWith("TRIGGER,")) objType = "TRIGGER";
+							if (objType.startsWith("SYNONYM")) objType = "SYNONYM";
 							if (objType.startsWith("TRIGGER (DDL")) {
 								objType = "TRIGGER (DDL)";
 								if (misc.equals("0")) {
@@ -6349,6 +6420,7 @@ tooltipsHTMLPlaceholder +
 				itemCount.put(sortKey, itemCount.getOrDefault(sortKey, 0) + 1);
 				appItemListRaw.put(keyApp, appItemListRaw.getOrDefault(keyApp, 0) + 1);
 				constructsFound++;
+				if (!constructsFoundDistinct.containsKey(sortKey)) constructsFoundDistinct.put(sortKey,0);
 				sortSizeSummary += sortKey.length();
 
 				// sort key for X-ref ordered by feature
@@ -6483,6 +6555,7 @@ tooltipsHTMLPlaceholder +
 		summarySection.append(composeSeparatorBar("Executive Summary for " + babelfishProg +" v." + targetBabelfishVersion, tagExecSummary, false));
 
 		StringBuilder execSummary = new StringBuilder();
+		StringBuilder execSummaryLine = new StringBuilder("CompassExecutiveSummary:"+ targetBabelfishVersion +" report:"+reportName);
 
 		summarySection.append(execSummaryPlaceholder);
 
@@ -6571,13 +6644,18 @@ tooltipsHTMLPlaceholder +
 				}
 			}
 			else if (reportItem.equals(fmtLinesTotal)) {
-				execSummary.append("Total #lines of SQL/DDL: " +statusCount.get(fmtLinesTotal)).append("\n"+execSummaryObjCountPlaceholder+"\n\n");
+				execSummary.append("Total #lines of SQL/DDL: " + statusCount.get(fmtLinesTotal));
+				execSummary.append("      Total SQL features: " + statusCount.get(fmtLinesTotalFeatures));
+				execSummary.append("\n" + execSummaryObjCountPlaceholder+"\n\n");
+				execSummaryLine.append(" linesSQL:" + statusCount.get(fmtLinesTotal) + " featuresSQL:" + statusCount.get(fmtLinesTotalFeatures) + "/" + constructsFoundDistinct.size() + " " + execSummaryObjCountPlaceholder);
 			}
 			else if (reportItem.equals(fmtLinesSQL)) {
 				xtra = lineIndent + "(procedures/functions/triggers/views)";
 			}
 			else if (reportItem.equalsIgnoreCase(NotSupported)) {
-				execSummary.append("SQL features not supported by Babelfish (total/unique): " +statusCount.get(NotSupported) + "/" + statusCount.get(NotSupported+uniqueCntTag));
+				String c = statusCount.get(NotSupported) + "/" + statusCount.get(NotSupported+uniqueCntTag);
+				execSummary.append("SQL features not supported by Babelfish (total/unique): " + c);
+				execSummaryLine.append(" featuresNotSupported:" + c);				
 				if (reportComplexityScore) {
 					xtra = lineIndent + complexityReportPlaceholder+"."+reportItem;
 				}
@@ -6800,11 +6878,15 @@ tooltipsHTMLPlaceholder +
 				CSVhdr += "The column for 'Effort' (below) is populated from user-specified values in config file\n";
 				CSVhdr += CompassConfig.userConfigFilePathName + " (a blank value means that no user-defined value was specified).\n";
 			}
-			CSVhdr += "The user should add their own formulas to the spreadsheet for performing calculations for example in  the column marked 'Your-Calculation-Here'.\n";
+			CSVhdr += "The user should add their own formulas to the spreadsheet for performing calculations for example in the column marked 'Your-Calculation-Here'.\n";
 			CSVhdr += "\n";
 		}
 
-		CSVhdr += String.join(",", "Status", "Category", "Issue", "Count", "ItemID", "Babelfish Compass Hint", "Complexity Score", " ");
+		CSVhdr += String.join(",", "Status", "Category", "Issue", "Count"); 
+		if (generateCSVFormat.equals(CSVFormatFlat)) {
+			CSVhdr += ",ItemID";
+		}
+		CSVhdr += "," + String.join(",", "Babelfish Compass Hint", "Complexity Score", " ");
 		if (CompassConfig.effortEstimatesFound) {
 			CSVhdr += String.join(",", "Effort/Occurrence", "Effort/Occurrence (minutes)", "Effort/Learning Curve", "Effort/Learning Curve (minutes)", "Your-Calculation-Here");
 		}
@@ -6828,24 +6910,41 @@ tooltipsHTMLPlaceholder +
 		if (reportComplexityScore) {
 			List<String> cScores = Arrays.asList(CompassConfig.complexityLow, CompassConfig.complexityMedium, CompassConfig.complexityHigh, CompassConfig.complexityRefactor);
 			for (String k : validSupportOptionsCfgFileOrig) {
+				// this loop body is executed only once!
 				if (!k.equalsIgnoreCase(NotSupported)) continue;
 				String s = "";
 				for (String c : cScores) {
 					String kc = k+"."+c;
 					int z = complexityScoreCount.getOrDefault(kc.toUpperCase(), 0);
+					String complexityitem = c.toLowerCase()+ ":" +z + "/" + complexityScoreCountUnique.getOrDefault(kc.toUpperCase(), 0);
+					if (!c.equalsIgnoreCase(CompassConfig.complexityRefactor)) {
+						execSummaryLine.append(" complexity" + capitalizeInitChar(complexityitem));
+					}
 					if (z == 0) continue;
-					s += c.toLowerCase()+ ":" +z + "/" + complexityScoreCountUnique.getOrDefault(kc.toUpperCase(), 0) + " ";
+					s += complexityitem + " ";
 				}
 				String s2 = "";
 				if (!s.isEmpty()) {
 					s2 = "Estimated complexity of not-supported features (total/unique): "+ s.trim();
 					s  = "(complexity: " + s.trim() + ")";
+					execSummary.append("\n");
 				}
 				summarySection = new StringBuilder(summarySection.toString().replaceFirst(complexityReportPlaceholder+"."+k.toUpperCase(), s));
 
-				execSummary.append("\n").append(s2).append("\n\n");
+				execSummary.append(s2);
 			}
 		}
+		
+		if (sumEffortEstimateMinutes > 0) {
+			// only when the user has provided their own effort estimates (which end up in the .csv file), do we print 
+			// the sum of the estimates in the executive summary
+			String sEffortFmt = formatEffortEstimate(sumEffortEstimateMinutes);
+			String sEffort = "\nUser-defined SQL migration effort estimate (excl. data migration, tuning, testing, etc.): " + sEffortFmt;
+			sEffort += "\n(based on user-defined estimates in "+userCfgFileName+")";
+			execSummary.append("\n").append(sEffort);		
+			execSummaryLine.append(" userEffortEstimate:" + sEffortFmt.replaceAll(" " , ""));			
+		}
+		execSummary.append("\n\n");
 		
 		// report SQL Server information obtained via SMO
 		if (SQLSrvResourcesDetail.size() > 0) {
@@ -6891,8 +6990,10 @@ tooltipsHTMLPlaceholder +
 		}
 		
 		String objCountSummary = "#Procedures/functions/triggers/views: " + nrSQLObjects+"    #Tables: " + nrTables;
+		String objCountSummaryLine = "sqlObjects:" + nrSQLObjects+" tables:" + nrTables;
 		summarySection = new StringBuilder(summarySection.toString().replaceFirst(execSummaryPlaceholder, execSummary.toString()));
 		summarySection = new StringBuilder(summarySection.toString().replaceFirst(execSummaryObjCountPlaceholder, objCountSummary));
+		execSummaryLine = new StringBuilder(execSummaryLine.toString().replaceFirst(execSummaryObjCountPlaceholder, objCountSummaryLine));
 
 		writeReportFile(summarySection);
 		summarySection = new StringBuilder();
@@ -6954,7 +7055,31 @@ tooltipsHTMLPlaceholder +
 
 		appOutput("\n", false, true);
 
+		appOutput("\n\n"+execSummaryLine);
+		
 		return true;
+	}
+	
+	private String formatEffortEstimate(int nrMinutes) {	
+		// Convert #minutes to a pragmatic days/weeks effort estimate							
+		int nrHours = Math.round(nrMinutes / 60);
+		if ((nrHours < 2) && (nrMinutes % 60) > 0) nrHours++;
+		
+		int nrDays = Math.round(nrHours / CompassUtilities.effortEstimateHoursPerDay);
+		if ((nrDays < 2) && (nrHours % CompassUtilities.effortEstimateHoursPerDay) > 0) nrDays++;	
+			
+		int nrWeeks = (int) Math.round((nrDays + 0.3) / CompassUtilities.effortEstimateDaysPerWeek);
+		
+		if (debugging) dbgOutput(thisProc()+"nrMinutes=["+nrMinutes+"] nrWeeks=["+nrWeeks+"] nrDays=["+nrDays+"]  nrHours=["+nrHours+"] ", debugReport);
+		
+		String result = "0 hours";  // we should never end up with this since we should be called with a value > 0
+		if (nrWeeks > 0) {
+			result = nrWeeks + " weeks ("+effortEstimateDaysPerWeek+" days/week, "+effortEstimateHoursPerDay+" hours/day)";
+		}
+		else if (nrDays > 0) {
+			result = nrDays + " days ("+effortEstimateHoursPerDay+" hours/day)";
+		}		
+		return result;
 	}
 
 	private void getXrefOnlyMappings(String item, String itemGroup, String lineNr, String appName) {
@@ -7508,10 +7633,13 @@ userCfgComplexityHdrLine202308 + "\n" +
 "#effort_estimate_default_ReviewSemantics=<see above>\n" +
 "#effort_estimate_default_ReviewManually=<see above>\n" +
 "#effort_estimate_default_Ignored=<see above>\n" +
+"#effort_estimate_default_Ignored=<see above>\n" +
+"#"+userCfgComplexityHdrLine202311+"=8\n" +
+"#effort_estimate_default_Days_Per_Week=5\n" +
 "\n";
 		return hdr;
 	}
-
+	
 	public String openUserCfgFile(String fileName, boolean newFile) throws IOException {
 		checkDir(getDocDirPathname(), false, true);
 		String userCfgFilePathName = getUserCfgFilePathName(fileName);
@@ -7555,7 +7683,9 @@ userCfgComplexityHdrLine202308 + "\n" +
 				break;
 			}
 			//if (line.startsWith(userCfgComplexityHdrLine202209)) hasNewHdr = true;
-			if (line.startsWith(userCfgComplexityHdrLine202308)) hasNewHdr = true;
+			//if (line.startsWith(userCfgComplexityHdrLine202308)) hasNewHdr = true;
+			if (line.toUpperCase().startsWith(userCfgComplexityHdrLine202311.toUpperCase())) hasNewHdr = true;
+			if (line.toUpperCase().startsWith("#"+userCfgComplexityHdrLine202311.toUpperCase())) hasNewHdr = true;
 			if (line.length() > 0) if (line.charAt(0) == '[') bodyFound = true;
 			if (bodyFound) {
 				body += line + "\n";
@@ -7696,7 +7826,7 @@ userCfgComplexityHdrLine202308 + "\n" +
 		List<String> linesNew  = new ArrayList<>(Arrays.asList((newStr).split("\n")));
 
 		int numChars = newStr.length() - origStr.length();
-		if (debugging) dbgOutput(thisProc()+"adding: iteration=["+iteration+"] lineNo=["+lineNo+"] lineNoOrig=["+lineNoOrig+"] startColOrig=["+startColOrig+"]  numChars=["+numChars+"] linesOrig=["+linesOrig.size()+"]  //linesNew=["+linesNew.size()+"] fName=["+fName+"] rewriteType=["+rewriteType+"] ", debugRewrite);
+		if (debugging) dbgOutput(thisProc()+"adding: iteration=["+iteration+"] lineNo=["+lineNo+"] lineNoOrig=["+lineNoOrig+"] startColOrig=["+startColOrig+"]  numChars=["+numChars+"] linesOrig=["+linesOrig.size()+"] linesNew=["+linesNew.size()+"] fName=["+fName+"] rewriteType=["+rewriteType+"] ", debugRewrite);
 		if (debugging) dbgOutput(thisProc()+"origStr=["+origStr+"] ", debugRewrite);
 		if (debugging) dbgOutput(thisProc()+"reportOrigStr=["+reportOrigStr+"]  ", debugRewrite);
 		if (debugging) dbgOutput(thisProc()+"newStr=["+newStr+"] ", debugRewrite);
@@ -8153,10 +8283,15 @@ userCfgComplexityHdrLine202308 + "\n" +
 						startCol  = Integer.parseInt(tmp.get(4));
 						endLine = Integer.parseInt(tmp.get(6));
 						endCol  = Integer.parseInt(tmp.get(7));
-						if (startPos == endPos) origLen = 0;
-						else origLen = endPos - startPos + 1;
 						rewriteType  = tmp.get(8);
-						report   = tmp.get(9);
+						report   = tmp.get(9);						
+						if (startPos == endPos) {
+							if (report.startsWith(CompassAnalyze.PGOpWhitespaceFmt)) origLen = 1;
+							else origLen = 0;
+						}
+						else {
+							origLen = endPos - startPos + 1;
+						}
 
 						if (debugging) dbgOutput(thisProc()+"rewriteCount=["+rewriteCount+"] iteration=["+iteration+"] startPos=["+startPos+"] endPos=["+endPos+"] startLine=["+startLine+"] startCol=["+startCol+"] endLine=["+endLine+"] endCol=["+endCol+"] origLen=["+origLen+"] rewriteType=["+rewriteType+"] rewriteText=["+rewriteText+"] report=["+report+"]", debugRewrite);
 
@@ -8185,7 +8320,7 @@ userCfgComplexityHdrLine202308 + "\n" +
 					}
 
 					if (debugging) dbgOutput(thisProc()+"lineNo=["+lineNo+"]=["+line+"]  lineCut=["+lineCut+"]", debugRewrite);
-					if (debugging) dbgOutput(thisProc()+"startLine=["+startLine+"] remainingLength=["+remainingLength+"]", debugRewrite);
+					if (debugging) dbgOutput(thisProc()+"startLine=["+startLine+"]", debugRewrite);
 					if (lineNo == startLine) {
 						// reached startline for sub; apply it
 						if (debugging) dbgOutput(thisProc()+"*** applying rewrite=["+rewriteCount+"] origLen=["+origLen+"]", debugRewrite);
@@ -8221,7 +8356,7 @@ userCfgComplexityHdrLine202308 + "\n" +
 						String pre = line.substring(0,startCol);
 						lineCut += pre.length();
 						writeRewrittenFile(pre);
-						if (debugging) dbgOutput(thisProc()+"pre=["+pre+"] ", debugRewrite);
+						if (debugging) dbgOutput(thisProc()+"pre=["+pre+"] remainingLength=["+remainingLength+"] ", debugRewrite);
 
 						if (debugging) dbgOutput(thisProc()+"remainingLength=["+remainingLength+"] line.length()=["+line.length()+"] pre.length()=["+pre.length()+"] keepLine=["+keepLine+"] ", debugRewrite);
 						if (line.length() - pre.length() >= remainingLength) {
