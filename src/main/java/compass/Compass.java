@@ -4,7 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 */
 
 /*
- * originally adapted from ANTLR4 org/antlr/v4/gui/TestRig.java
+ * Originally adapted from ANTLR4 org/antlr/v4/gui/TestRig.java
  *
  * Copyright (c) 2012-2017 The ANTLR Project. All rights reserved.
  * Use of this file is governed by the BSD 3-clause license that
@@ -284,7 +284,8 @@ public class Compass {
 				u.appOutput("   -nodedup                     : with -importfmt, do not de-duplicate captured queries");
 				u.appOutput("   -noreportcomplexity          : do not include complexity scores in report");
 				u.appOutput("   -csvformat <fmt>             : format for generated .csv file");				
-				u.appOutput("   -syntax_issues               : also report selected Babelfish syntax errors (experimental)");				
+			  	// always set to true now:
+			  	//u.appOutput("   -syntax_issues               : also report selected Babelfish syntax errors (experimental)");				
 				u.appOutput("   -sqlendpoint <host-or-IP>[,port] : SQL Server host");				
 				u.appOutput("   -sqllogin <login-name>       : SQL Server login");				
 				u.appOutput("   -sqlpasswd <password>        : SQL Server password");				
@@ -648,11 +649,12 @@ public class Compass {
 				generateReport = false;
 				i++;
 				continue;		
-			}						
-			if (arg.equals("-syntax") || arg.equals("-syntax_issues")) {	
-				u.reportSyntaxIssues = true;	
-				continue;
-			}			
+			}	
+			// always report these syntax issues from now on:
+//			if (arg.equals("-syntax") || arg.equals("-syntax_issues")) {	
+//				u.reportSyntaxIssues = true;   	
+//				continue;
+//			}			
 			if (arg.equals("-"+CompassUtilities.reverseString("m"+"u"+"s"+"k"+"c"+"e"+"h"+"c"))) {
 				u.configOnly = true;
 				continue;
@@ -1288,16 +1290,16 @@ public class Compass {
 			// copy all files into the target report (performance optimization for very large operations only)		
 			String src = CompassUtilities.getReportDirPathname(reportName);	
 			String tgt = CompassUtilities.getReportDirPathname(mergeReport);	
-			if (CompassUtilities.onWindows) {
-				String cmd = "robocopy "+src+" "+tgt+" *.* /E /R:1 /W:1 /XX > NUL 2>&1";
-				u.appOutput("Copying details into '"+mergeReport+"' :  ["+cmd+"] ");
-				u.runOScmd(cmd);
+			u.appOutput("mergereport: copying details into '"+mergeReport+"'...");
+			copyMergeReport(src, tgt, u.importDirName);
+			copyMergeReport(src, tgt, u.capDirName);
+			copyMergeReport(src, tgt, u.logDirName);
+			if (u.rewrite && (u.nrRewritesDone > 0)) {
+				copyMergeReport(src, tgt, u.rewrittenDirName);
 			}
-			else {
-				String cmd = "cp -R "+src+"/* "+tgt+" > /dev/null";
-				u.appOutput("Copying details into '"+mergeReport+"' :  ["+cmd+"] ");
-				u.runOScmd(cmd);				
-			}
+			if (totalParseErrors > 0) {
+				copyMergeReport(src, tgt, u.errBatchDirName);	
+			}		
 		}
 		
 		// open generated report in browser
@@ -1324,6 +1326,25 @@ public class Compass {
 		}
 		
 		u.closeSessionLogFile();		
+	}
+	
+	protected static void copyMergeReport(String src, String tgt, String dirName) throws Exception {	
+		if (CompassUtilities.onWindows) {
+			String cmdA = "robocopy "+src+File.separator;
+			String cmdB = " "+tgt+File.separator;
+			String cmdC = " *.* /E /R:1 /W:1 /XX > NUL 2>&1";
+			String cmd = cmdA+dirName+cmdB+dirName+cmdC;
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "mergereport: copying '"+dirName+"' details into '"+mergeReport+"' :  ["+cmd+"]" , u.debugDir);				
+			u.runOScmd(cmd);				
+		}
+		else {
+			String cmdA = "cp -R "+src+File.separator;
+			String cmdB = File.separator+"* "+tgt+File.separator;
+			String cmdC = " > /dev/null";
+			String cmd = cmdA+dirName+cmdB+dirName+cmdC;	
+			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "mergereport: copying '"+dirName+"' details into '"+mergeReport+"' :  ["+cmd+"]" , u.debugDir);				
+			u.runOScmd(cmd);										
+		}				
 	}
 	
 	protected void encodingHelp() {			
@@ -1845,10 +1866,6 @@ public class Compass {
 			}			
 			if (u.rewrite) {
 				u.appOutput("Cannot specify -rewrite when not performing analysis"+noInputFilesMsg);
-				return false;				
-			}		
-			if (u.reportSyntaxIssues) {
-				u.appOutput("Cannot specify -syntax_issues when not performing analysis"+noInputFilesMsg);
 				return false;				
 			}			
 		}
@@ -3051,7 +3068,7 @@ public class Compass {
 			cmdOut = cmdOut.trim();
 			if (!cmdOut.equals("Unrestricted")) {
 				u.appOutput("\nERROR: The Powershell execution policy must be set to 'Unrestricted' to run script "+autoDDLScript + ",\nwhich is required for the -sqlendpoint option.\nCurrent setting: " + cmdOut);
-				u.appOutput("Run 'Set-ExecutionPolicy -ExecutionPolicy Unrestricted' in Powershell to modify the\nexecution policy; run Get-ExecutionPolicy to verify.");
+				u.appOutput("Run 'Set-ExecutionPolicy -ExecutionPolicy Unrestricted' in Powershell to modify the\nexecution policy; run 'Get-ExecutionPolicy' to verify.");
 				u.errorExit();	
 			}	
 		}	

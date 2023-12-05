@@ -136,7 +136,7 @@ public class CompassTestUtils {
         CompassUtilities.linkInNewTab = true;
         CompassUtilities.tgtBlank = " target=\"_blank\"";
         CompassUtilities.showPercentage = false;
-        CompassUtilities.objTypeSymTab = new HashMap<>();
+        CompassUtilities.tableViewSymTab = new HashMap<>();
         CompassUtilities.UDDSymTab = new HashMap<>();
         CompassUtilities.SUDFSymTab = new HashMap<>();
         CompassUtilities.TUDFSymTab = new HashMap<>();

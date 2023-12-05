@@ -87,6 +87,12 @@ public class CompassConfig {
     static final String effortUndefined       = "";
     static final String maxEffortValue        = "'5days'";
     static final int maxEffortValueMins       = 7200;  // minutes in max value
+    
+    static final String defaultEffortHoursPerDayTagStr = "Hours_Per_Day";
+    static String defaultEffortHoursPerDayTag = effortTagDftTag + defaultEffortHoursPerDayTagStr.toUpperCase();
+    
+    static final String defaultEffortDaysPerWeekTagStr = "Days_Per_Week";
+    static String defaultEffortDaysPerWeekTag = effortTagDftTag + defaultEffortDaysPerWeekTagStr.toUpperCase();       	        
 
     // these are not used by Compass, but for generating documentation
     static final String docURLTag             = "DOCURL";
@@ -122,10 +128,13 @@ public class CompassConfig {
 
     private static void initValues () {
     	// set up effort/complexity defaults
+    	effortEstimateDefaultKeys.put(defaultEffortHoursPerDayTag.toUpperCase(), defaultEffortHoursPerDayTagStr.toUpperCase());    	 	
+    	effortEstimateDefaultKeys.put(defaultEffortDaysPerWeekTag.toUpperCase(), defaultEffortDaysPerWeekTagStr.toUpperCase());    	
+    	    	
     	for (String c : complexityValues) {
     		String ck = effortTagDftTag + c;
-    		effortEstimateDefaultKeys.put(ck.toUpperCase(), c.toUpperCase());
-    	}
+    		effortEstimateDefaultKeys.put(ck.toUpperCase(), c.toUpperCase());	
+    	}    	    	
 
     	for (String c : CompassUtilities.validSupportOptionsCfgFileOrig) {
     		String ck = effortTagDftTag + c;
@@ -150,7 +159,7 @@ public class CompassConfig {
 
 	private static void setLastCfgCheck(String section, String name, String status) {
 		if (status.equals(u.Supported)) {
-			// do not wipe out a previous call by this one; it's supprored so no need ot keep it
+			// do not wipe out a previous call by this one; it's supported so no need to keep it
 			return;
 		}
 		if (section.equalsIgnoreCase(CompassAnalyze.MaxIdentifierLength)) {
@@ -158,7 +167,7 @@ public class CompassConfig {
 			return;
 		}
 
-		// this could be improved further if necessary: if first a not-supported item is found with high complexity , and then one with low complexity,
+		// this could be improved further: if first a not-supported item is found with high complexity , and then one with low complexity,
 		// and then the capture happens, we'll end up with low. So could do this differently by only overwriting if the complexty is higher.
 		// issues: custom values; and if we're going to retrieve the complexity here, why keep track of the section/name anyway and not just the complexity itself?
 		lastCfgCheckSection = section.trim();
@@ -861,7 +870,7 @@ public class CompassConfig {
 		int effortValueNum = Integer.parseInt((u.getPatternGroup(effortValue, effortPatternSingle, 1)));
 		String effortUnit = u.getPatternGroup(effortValue, effortPatternSingle, 2);
 		if (effortUnit.toUpperCase().charAt(0) == 'D') {
-			effortMinutes = effortValueNum * 1440;
+			effortMinutes = effortValueNum * 480;
 		}
 		else if (effortUnit.toUpperCase().charAt(0) == 'H') {
 			effortMinutes = effortValueNum * 60;
@@ -1927,7 +1936,7 @@ public class CompassConfig {
 							if (!validateEffortValue(optionVal)) {
 								cfgFileValid = false;
 								continue;
-							}
+							}							
 						}
 						else {
 							cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid effort default key '" + optionKey + "=': value [" + optionVal + "], must be " + effortPatternHelp);
@@ -1935,6 +1944,70 @@ public class CompassConfig {
 							continue;
 						}
 
+						// special case: # hours per day
+						if (optionKey.equals(defaultEffortHoursPerDayTag)) {
+							// expression is already validated, but this must be #hours
+							if (optionVal.indexOf(":") > -1) {
+								cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid effort default key '" + optionKey + "=[" + optionVal + "], cannot contain ':', specify single value (e.g. '6 hours')");
+								cfgFileValid = false;
+								continue;
+							}						
+							String unitVal = u.getPatternGroup(optionVal, effortPatternSingle, 1);
+							String unit = optionVal.substring(unitVal.length()).toUpperCase();
+							if (unitVal.isEmpty() && (!u.getPatternGroup(unit, "^(\\d+)$", 1).isEmpty())) {
+								unitVal = unit;
+								unit = "HOURS";
+							}
+							if (!unit.startsWith("H")) {
+								cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid effort default key '" + optionKey + "=[" + optionVal + "], must be number of hours");
+								cfgFileValid = false;
+								continue;
+							}
+							else {
+								int nrHours =  Integer.parseInt(unitVal);
+								if ((nrHours < 1) || (nrHours > 8)) {
+									cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid effort default key '" + optionKey + "=[" + optionVal + "], number of hours must be 1..8");
+									cfgFileValid = false;
+									continue;									
+								}
+								else {
+									CompassUtilities.effortEstimateHoursPerDay = nrHours;
+								}
+							}			
+						}	
+
+						// special case: # days per week
+						if (optionKey.equals(defaultEffortDaysPerWeekTag)) {
+							//  expression is already validated, but this must be #days
+							if (optionVal.indexOf(":") > -1) {
+								cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid effort default key '" + optionKey + "=[" + optionVal + "], cannot contain ':', specify single value (e.g. '5 days')");
+								cfgFileValid = false;
+								continue;
+							}						
+							String unitVal = u.getPatternGroup(optionVal, effortPatternSingle, 1);
+							String unit = optionVal.substring(unitVal.length()).toUpperCase();
+							if (unitVal.isEmpty() && (!u.getPatternGroup(unit, "^(\\d+)$", 1).isEmpty())) {
+								unitVal = unit;
+								unit = "DAYS";
+							}							
+							if (!unit.startsWith("D")) {
+								cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid effort default key '" + optionKey + "=[" + optionVal + "], must be number of days");
+								cfgFileValid = false;
+								continue;
+							}
+							else {
+								int nrDays =  Integer.parseInt(unitVal);
+								if ((nrDays < 1) || (nrDays > 5)) {
+									cfgOutput(userConfigFilePathName, "["+sectionName+"]: Invalid effort default key '" + optionKey + "=[" + optionVal + "], number of days must be 1..5");
+									cfgFileValid = false;
+									continue;									
+								}
+								else {
+									CompassUtilities.effortEstimateDaysPerWeek = nrDays;
+								}
+							}			
+						}
+							
 						// keep these defaults in a structure rather putting them in keys like the rest: the lookup logic is different
 						effortEstimateDefault.put(effortEstimateDefaultKeys.get(optionKey), optionVal);
 						continue;
