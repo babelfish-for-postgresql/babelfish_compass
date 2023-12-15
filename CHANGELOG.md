@@ -1,4 +1,7 @@
 
+# 2023-12
+- Updated support for Babelfish v.3.4.0.
+
 # 2023-11
 - Updated User Guide with sections about scaling and advanced features.
 - Additional usability features for large-scale cases.
