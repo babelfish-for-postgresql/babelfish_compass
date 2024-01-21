@@ -72,7 +72,7 @@ rem ----------------------------------------------------
 
 rem assume Java is in the PATH, this was tested above
 rem assuming 12GB is enough
-java -server -Xmx12g -enableassertions -jar compass.jar %*
+java -Duser.language=en-US -server -Xmx12g -enableassertions -jar compass.jar %*
 
 rem ----------------------------------------------------
 

@@ -33,7 +33,7 @@ fi
 
 # assume Java is in the PATH, this was tested above
 # assuming 12GB is enough
-${JAVA} -server  -Xmx12g -jar compass.jar "$@"
+${JAVA} -Duser.language=en-US -server -Xmx12g -jar compass.jar "$@"
 
 #
 # end
