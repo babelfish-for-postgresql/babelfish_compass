@@ -284,6 +284,7 @@ public class Compass {
 				u.appOutput("   -nodedup                     : with -importfmt, do not de-duplicate captured queries");
 				u.appOutput("   -noreportcomplexity          : do not include complexity scores in report");
 				u.appOutput("   -csvformat <fmt>             : format for generated .csv file");				
+				u.appOutput("   -csvitemidfile <filename>    : filename for item IDs when .csv format=flat (default=BabelfishCompassItemID.csv)");				
 			  	// always set to true now:
 			  	//u.appOutput("   -syntax_issues               : also report selected Babelfish syntax errors (experimental)");				
 				u.appOutput("   -sqlendpoint <host-or-IP>[,port] : SQL Server host");				
@@ -805,11 +806,10 @@ public class Compass {
 				u.customItemIDPathNameUser = true;
 				File f = new File(CustomItemIDPathName);
 				if (!f.exists()) {
-					u.appOutput("Specified file '"+CustomItemIDPathName+"' not found.");
+					u.appOutput("Specified item ID file '"+CustomItemIDPathName+"' not found: not generating item IDs in .csv file");
 					if (u.CustomItemIDFileName.toUpperCase().startsWith(u.getDocDirPathname().toUpperCase())) {
 						System.out.println("NB: Specify only the file name, not the full pathname!");							
 					}						
-					u.appOutput("Continuing...");
 				}		
 				i++;
 				continue;

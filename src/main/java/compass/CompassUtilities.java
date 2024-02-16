@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2023-12";
-	public static final String thisProgVersionDate  = "December 2023";
+	public static final String thisProgVersion      = "2024-02";
+	public static final String thisProgVersionDate  = "February 2024";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -112,8 +112,8 @@ public class CompassUtilities {
 	public String targetBabelfishVersionReportLine = "Target Babelfish version   : v."; // line in report listing the target version
 	public boolean stdReport = false;	// development only
 
-	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0");
-	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2",  "15.3",  "15.4",  "15.5");
+	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "4.0.0", "4.1.0");
+	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2",  "15.3",  "15.4",  "15.5",  "15.6",  "16.1",  "16.2");
 
 	// minimum Babelfish version; this is fixed
 	public static final String baseBabelfishVersion = "1.0.0";
@@ -255,6 +255,7 @@ public class CompassUtilities {
 	// custom item ID file
 	public static final String CustomItemIDFileNameDefault = "BabelfishCompassItemID.csv";
 	public static String CustomItemIDFileName = CustomItemIDFileNameDefault;	
+	public static String CustomItemIDPathName = "";	
 	public static boolean customItemIDPathNameUser = false;
 	private static List<String> customItemIDList = new ArrayList<>();
 	private static Map<String, String> customItemIDMap = new HashMap<>();
@@ -584,6 +585,7 @@ tooltipsHTMLPlaceholder +
 		"FORMAT("+tttSeparator+"This FORMAT() pattern may not currently be supported. Rewrite the formatting using available functions such as CONVERT()",
 		"FORMATMESSAGE("+tttSeparator+"FORMATMESSAGE() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
 		"STRING_AGG() WITHIN GROUP"+tttSeparator+"STRING_AGG() is not supported with the WITHIN GROUP clause. Rewrite the query",
+		"TRANSLATE()"+tttSeparator+"TRANSLATE() is not currently supported; rewrite as nested REPLACE() calls()",
 		"FILEGROUP_NAME("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"FILEPROPERTY("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"NEWSEQUENTIALID()"+tttSeparator+"NEWSEQUENTIALID() is implemented as NEWID(); the sequential nature of the generated values is however not guaranteed, as is the case in SQL Server",
@@ -597,11 +599,15 @@ tooltipsHTMLPlaceholder +
 		"\\w+PROPERTYEX\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+\\(\\),"+CompassAnalyze.withoutArgumentValidateStr+tttSeparator+"This built-in function is not currently supported when called without arguments",
 		"\\w+\\(\\),"+CompassAnalyze.withNArgumentValidateStrRegex+tttSeparator+"This built-in function is not currently supported when called with this number of arguments",
-		"CONTAINS("+tttSeparator+"Fulltext search is not currently supported",
-		"CONTAINSTABLE("+tttSeparator+"Fulltext search is not currently supported",
-		"FREETEXTTABLE("+tttSeparator+"Fulltext search is not currently supported",
-		"FREETEXT("+tttSeparator+"Fulltext search is not currently supported",
-		"\\w+ FULLTEXT "+tttSeparator+"Fulltext search is not currently supported",
+		"CONTAINS()"+tttSeparator+"The CONTAINS() function for fulltext search is not currently supported",
+		"CONTAINS("+tttSeparator+"The CONTAINS() function for fulltext search is not currently supported with this option",
+		"CONTAINS(expression"+tttSeparator+ReviewManually+tttSeparator+"The CONTAINS() function for fulltext search is supported, but not all possible values for the second argument are supported. However, Compass cannot determine if any non-supported values are used in the CONTAINS() call",
+		"CONTAINS()"+tttSeparator+ReviewManually+tttSeparator+"The CONTAINS() function for fulltext search is supported, but not all possible values for the second argument are supported. However, Compass cannot determine if any non-supported values are used in the CONTAINS() call",
+		"CONTAINSTABLE("+tttSeparator+"This fulltext search feature is not currently supported",
+		"FREETEXTTABLE("+tttSeparator+"This fulltext search feature is not currently supported",
+		"FREETEXT("+tttSeparator+"This fulltext search feature is not currently supported",
+		"CREATE FULLTEXT INDEX WITH"+tttSeparator+"CREATE FULLTEXT INDEX with additional properties is not currently supported",
+		"\\w+ FULLTEXT "+tttSeparator+"This fulltext search feature is not currently supported",
 		"CREATE TABLE "+CompassAnalyze.GlobalTmpTableFmt+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, all committed rows are visible to all sesssions, and the table is dropped automatically when the last session accessing the table disconnects",
 		"SELECT..INTO "+CompassAnalyze.GlobalTmpTableFmt+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, all committed rows are visible to all sesssions, and the table is dropped automatically when the last session accessing the table disconnects",
 		"\\w+\\(target\\) "+CompassAnalyze.GlobalTmpTableFmt+tttSeparator+"Global temporary tables are not currently supported; unlike a regular #tmptable, a ##globaltmptable is accessible by all sessions, all committed rows are visible to all sesssions, and the table is dropped automatically when the last session accessing the table disconnects",
@@ -671,6 +677,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.ExtendedPropType+" in @var"+tttSeparator+"Manually review whether the extended property type in a variable is supported",
 		CompassAnalyze.ExtendedPropType+tttSeparator+"This extended property type is not currently supported",
 		"EXECUTE procedure sp_addextendedproperty"+tttSeparator+"System stored procedure sp_addextendedproperty is not currently supported; this is most often used to create metadata comments (e.g. COMMENT ON in PostgreSQL) and does not otherwise affect SQL functionality",
+		"EXECUTE procedure sp_fulltext_database"+tttSeparator+"System stored procedure sp_fulltext_database is not currently supported, but is likely not relevant for your application as it is included in SSMS-generated scripts by default",
 		"EXECUTE procedure sp_"+tttSeparator+"This system stored procedure is not currently supported",
 		"EXECUTE procedure sp_"+tttSeparator+ReviewManually+tttSeparator+"This system stored procedure may be supported with this argument, but this cannot be determined by Compass",
 		"EXECUTE procedure xp_cmdshell"+tttSeparator+"xp_cmdshell is not currently supported; consider implementing this using a process external to the database to execute OS commands",
@@ -865,6 +872,7 @@ tooltipsHTMLPlaceholder +
 		"SET LANGUAGE"+tttSeparator+"Currently, SET LANGUAGE is not supported for languages other than English. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the resulting error message",
 		"SET SHOWPLAN_ALL"+tttSeparator+"SET SHOWPLAN_ALL is not supported; use SET BABELFISH_SHOWPLAN_ALL instead. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the error message resulting from SET SHOWPLAN_ALL",
 		"SET STATISTICS PROFILE"+tttSeparator+"SET STATISTICS PROFILE is not supported; use SET BABELFISH_STATISTICS PROFILE instead. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the error message resulting from SET STATISTICS PROFILE",
+		"SET CURSOR_CLOSE_ON_COMMIT ON"+tttSeparator+"SET CURSOR_CLOSE_ON_COMMIT ON (commonly known as a 'holdable' or 'WITH HOLD' cursor) is not supported; only the default of OFF is supported. Use escape hatch "+escapeHatchSessionSettingsText+" to suppress the error message resulting from SET CURSOR_CLOSE_ON_COMMIT ON",
 		CompassAnalyze.SetXactIsolationLevel+tttSeparator+"This transaction isolation level is not currently supported, due to PostgreSQL\'s MVCC mechanism",
 
 		CompassAnalyze.UniqueOnNullableCol+" with UNIQUE index "+tttSeparator+"SQL Server allows only one row with a NULL value in a column with a UNIQUE constraint/index. Because PostgreSQL allows multiple rows with NULL values in such a column, UNIQUE constraints/indexes on a single nullable column are not currently supported in Babelfish. Use escape hatch "+escapeHatchUniqueConstraintText+" to override and create the table anyway",
@@ -1226,6 +1234,7 @@ tooltipsHTMLPlaceholder +
 	// flags
 	public static boolean devOptions = false;
 	public static boolean execTest = false;
+	public static boolean execTestRandomArgs = false;
 	public static int     execTestPLL = 0;
 	public static boolean execTestPLLOptionsSet = false;
 	public static int     execTestStatements = 0;
@@ -1368,6 +1377,10 @@ tooltipsHTMLPlaceholder +
 		if (System.getenv().containsKey("COMPASS_EXECTEST") || System.getenv().containsKey("compass_exectest")) {
 			// useful for testing
 			execTest = true;
+			
+			if (System.getenv().containsKey("COMPASS_EXECTEST_RANDOM") || System.getenv().containsKey("compass_exectest_random")) {
+				execTestRandomArgs = true;
+			}
 		}
 
 		if (System.getenv().containsKey("COMPASS_EXECTEST_PLL") || System.getenv().containsKey("compass_exectest_pll")) {
@@ -2368,6 +2381,7 @@ tooltipsHTMLPlaceholder +
 	public void copyFile(String fnameSrc, String fnameDest) throws IOException {
 		File fsrc  = new File(fnameSrc);
 		File fdest = new File(fnameDest);
+		if (debugging) dbgOutput(thisProc()+"fsrc=["+fsrc+"] fsrc.toPath()=["+fsrc.toPath()+"] fdest=["+fdest+"] fdest.toPath()=["+fdest.toPath()+"]", debugDir);
     	Files.copy(fsrc.toPath(), fdest.toPath(), REPLACE_EXISTING);
 	}
 
@@ -2727,8 +2741,8 @@ tooltipsHTMLPlaceholder +
 	}
 	
 	public String getCustomItemIDPathName() throws IOException {
-		String CustomItemIDPathName = getFilePathname(getDocDirPathname(), CustomItemIDFileName);	
-		return CustomItemIDPathName;
+		String pathName = getFilePathname(getDocDirPathname(), CustomItemIDFileName);	
+		return pathName;
 	}
 		
 	public void openCustomItemIDFile() throws IOException {
@@ -2738,14 +2752,18 @@ tooltipsHTMLPlaceholder +
 			return;
 		}
 		
-		String CustomItemIDFileSeparator = ";";
-		String CustomItemIDPathName = getCustomItemIDPathName();
+		CustomItemIDPathName = getCustomItemIDPathName();
 		File f = new File(CustomItemIDPathName);
 		if (!f.exists()) {
-			//appOutput(thisProc()+"CustomItemIDPathName: File not found");
+			//appOutput("Item ID file "+CustomItemIDPathName+" not found");
+			CustomItemIDPathName = "";
 			return;
 		}
+		
+		appOutput("Using "+CustomItemIDPathName+" for item IDs in .csv file");		
 			
+		String CustomItemIDFileSeparator = ";";
+					
 		FileInputStream fis = new FileInputStream(CustomItemIDPathName);
 		InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
 		BufferedReader CustomItemIDFileReader = new BufferedReader(isr);
@@ -2758,11 +2776,15 @@ tooltipsHTMLPlaceholder +
 			lineNr++;			
 			if (line == null) break;
 			String lineOrig = line;
+			// treat two # chars as a single real # instead of a comment
+			String twoHashPlaceholder = "BBF_TWOHASHPLACEHOLDER";
+			line = line.replaceAll("##", twoHashPlaceholder);
 			int hashIx = line.indexOf("#");
 			if (hashIx > -1) {
 				line = line.substring(0,hashIx);
 			}			
 			line = line.trim();
+			line = line.replaceAll(twoHashPlaceholder, "#");						
 			//appOutput(thisProc()+"line "+lineNr+": ["+line+"] ");
 			if (line.isEmpty()) continue;			
 
