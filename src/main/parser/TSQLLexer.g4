@@ -162,12 +162,14 @@ CHANGES:                                         C H A N G E S;
 CHANGETABLE:                                     C H A N G E T A B L E;
 CHANGE_RETENTION:                                C H A N G E  UNDERLINE  R E T E N T I O N;
 CHANGE_TRACKING:                                 C H A N G E  UNDERLINE  T R A C K I N G;
+CHANGE_TRACKING_CONTEXT:                         C H A N G E  UNDERLINE  T R A C K I N G  UNDERLINE  C O N T E X T;
 CHECK:                                           C H E C K;
 CHECKPOINT:                                      C H E C K P O I N T;
 CHECKSUM:                                        C H E C K S U M;
 CHECKSUM_AGG:                                    C H E C K S U M  UNDERLINE  A G G;
 CHECK_EXPIRATION:                                C H E C K  UNDERLINE  E X P I R A T I O N;
 CHECK_POLICY:                                    C H E C K  UNDERLINE  P O L I C Y;
+CLASSIFICATION:									 C L A S S I F I C A T I O N;
 CLASSIFIER:                                      C L A S S I F I E R;
 CLASSIFIER_FUNCTION:                             C L A S S I F I E R  UNDERLINE  F U N C T I O N;
 CLEANUP:                                         C L E A N U P;
@@ -867,6 +869,7 @@ SEMANTICSIMILARITYDETAILSTABLE:                  S E M A N T I C S I M I L A R I
 SEMANTICSIMILARITYTABLE:                         S E M A N T I C S I M I L A R I T Y T A B L E;
 SEMI_SENSITIVE:                                  S E M I  UNDERLINE  S E N S I T I V E;
 SEND:                                            S E N D;
+SENSITIVITY:									 S E N S I T I V I T Y;
 SENT:                                            S E N T;
 SEQUENCE:                                        S E Q U E N C E;
 SEQUENCE_NUMBER:                                 S E Q U E N C E  UNDERLINE  N U M B E R;
@@ -1124,7 +1127,7 @@ DECIMAL:             DEC_DIGIT+;
 ID:                  ( [_#] | LETTER) ( [_#$@0-9] | LETTER)*;
 BINARY:              '0' [Xx] ( HEX_DIGIT | '\\' [\r]? [\n] )*;
 FLOAT:               DEC_DOT_DEC;
-REAL:                (DECIMAL | DEC_DOT_DEC) ([Ee] ([+-]? DEC_DIGIT+)?);
+REAL:                (DECIMAL | DEC_DOT_DEC) ([Ee] ([+-]? DEC_DIGIT*)?);
 
 MONEY:				 CURRENCY_SYMBOL [ ]* ('+'|'-')? (DECIMAL | DEC_DOT_DEC);
 

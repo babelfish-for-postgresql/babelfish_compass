@@ -1,4 +1,7 @@
 
+# 2024-02
+- Updated support for Babelfish v.4.0.0.
+
 # 2023-12-a
 - Added DEFAULT parameters as supported in 3.4.0 (previously omitted).
 

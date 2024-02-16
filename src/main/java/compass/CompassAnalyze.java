@@ -192,6 +192,9 @@ public class CompassAnalyze {
 	static final String AlterAuthStmt         = "ALTER AUTHORIZATION";
 	static final String AlterServerConfig     = "ALTER SERVER CONFIGURATION";
 	static final String AddSignature          = "ADD SIGNATURE";
+	static final String DropSignature         = "DROP SIGNATURE";
+	static final String AddSensitivityClass   = "ADD SENSITIVITY CLASSIFICATION";
+	static final String DropSensitivityClass  = "DROP SENSITIVITY CLASSIFICATION";
 	static final String ColonColonFunctionCall= "::function call (old syntax)";
 	static final String IFELSEblockDeclare    = "IF-ELSE-block containing only DECLARE";
 	static final String IFblockDeclare        = "IF-block containing only DECLARE";   // for reporting
@@ -247,6 +250,7 @@ public class CompassAnalyze {
 	static final String RaiserrorSybase       = "RAISERROR (Sybase syntax)";
 	static final String ExtendedPropType      = "Extended property type";
 	static final String FullTextIndex         = "FULLTEXT INDEX";
+	static final String FullTextContains      = "FULLTEXT CONTAINS";
 
 	// matching special values in the .cfg file
 	static final String cfgNonZero            = "NONZERO";
@@ -2468,24 +2472,52 @@ public class CompassAnalyze {
 				if (funcName.equals("CONTAINS")) {
 					TSQLParser.ExpressionContext expr = argList.get(0);
 					assert (expr != null) : "CONTAINS(): expr is null";
+
 					if (isString(expressionDataType(expr))) {
 						String exprStr = expr.getText();
 						if (u.isQuotedString(exprStr)) {
-							exprStr = u.stripStringQuotes(exprStr).trim().toUpperCase();
-							String keywd1 = u.getPatternGroup(exprStr, "^(\\w+)\\b", 1);
-							String keywd2 = "";
-							if (keywd1.equals("FORMSOF") || keywd1.equals("ISABOUT") || keywd1.equals("NEAR")) {
-								if (keywd1.equals("FORMSOF")) {
-									keywd2 = u.getPatternGroup(exprStr, "\\(\\s*(\\w+)\\b", 1);
-								}
-								funcNameReport = funcName + "(" + keywd1;
-								if (!keywd2.isEmpty()) funcNameReport += "(" + keywd2 + ")";
-								funcNameReport += ")";
+							// NB: this is not really parsed, so there is a small chance of mixing up with actual searched-for text strings
+							exprStr = u.stripStringQuotes(exprStr).trim().toUpperCase();							
+							if (!u.getPatternGroup(exprStr, "^([\\s\\w]+)(\\*)?$", 1).isEmpty()) {
+								// If it's a single word, assume we're good in case CONTAINS() is not-not-supported
+								if (!status.equals(u.NotSupported)) {
+									status = u.Supported;
+								}								
 							}
-						}
+							else {														
+								String keywd1 = u.getPatternGroup(exprStr, "^(\\w+)\\b", 1);
+								String keywd2 = "";
+								if (keywd1.equals("FORMSOF") || keywd1.equals("ISABOUT") || keywd1.equals("NEAR")) {
+									if (keywd1.equals("FORMSOF")) {
+										keywd2 = u.getPatternGroup(exprStr, "\\(\\s*(\\w+)\\b", 1);
+									}
+									funcNameReport = funcName + "(" + keywd1;
+									if (!keywd2.isEmpty()) funcNameReport += "(" + keywd2 + ")";
+									funcNameReport += ")";
+								}
+								if (featureExists(FullTextContains, keywd1)) {
+									if (!status.equals(u.NotSupported)) {
+										String statusContains = featureSupportedInVersion(FullTextContains, keywd1);
+										if (statusContains.equals(u.Supported)) {
+											if (!keywd2.isEmpty() && featureExists(FullTextContains, keywd2)) {
+												statusContains = featureSupportedInVersion(FullTextContains, keywd2);									
+											}
+										}
+										if (!statusContains.equals(u.Supported)) {
+											status = statusContains;
+										}
+									}
+								}
+							}	
+						}					
 					}
 					else {
 						//u.appOutput(u.thisProc()+"expr is not string");
+					}
+					
+					// clarify reported item in case of not beign able to evaluate second argument
+					if (funcNameReport.equals("CONTAINS()") && !status.equals(u.Supported)) {
+						funcNameReport = "CONTAINS(expression)";
 					}
 				}
 
@@ -3626,56 +3658,62 @@ public class CompassAnalyze {
 
 				// -syntax flag must be specified to capture NoCommaInColumnWithTableConstraint
 				if (u.reportSyntaxIssues) {
-					List<TSQLParser.Column_def_table_constraintContext> collist = ctx.column_def_table_constraint();
-					List<TerminalNode> comma = ctx.COMMA();
+					if (hasParent(ctx.parent,"create_table")) {
+						// this issue applies to table variables and to the return table definition of a TVF
+						// for regular tables, the issue does not apply						
+					}
+					else {						
+						List<TSQLParser.Column_def_table_constraintContext> collist = ctx.column_def_table_constraint();
+						List<TerminalNode> comma = ctx.COMMA();
 
-					// check for missing comma, i.e. CREATE TABLE t(a int not null primary key(a))  --> parsed as table_constraint
-					// note that this is valid:      CREATE TABLE t(a int not null primary key) --> parsed as column_constraint which is part of column_definition
-					if (comma.size() < collist.size()-1) {
-						for (int i=0; i < collist.size(); i++) {
-							if (i >= collist.size()-1) break;
+						// check for missing comma, i.e. DECLARE @tv TABLE(a int not null primary key(a))  --> parsed as table_constraint
+						// note that this is valid:      DECLARE @tv TABLE(a int not null primary key) --> parsed as column_constraint which is part of column_definition
+						if (comma.size() < collist.size()-1) {
+							for (int i=0; i < collist.size(); i++) {
+								if (i >= collist.size()-1) break;
 
-							if (collist.get(i).column_definition() == null) continue;
-							if (i < collist.size()-1) {
-								if (collist.get(i+1).table_constraint() == null) continue;
-							}
-							// can only determine whether there is a comma in between by looking at token positions
-							int ixEnd = collist.get(i).stop.getStopIndex();
-							int ixStart = collist.get(i+1).start.getStartIndex();
-							//u.appOutput(u.thisProc()+"ixStart=["+ixStart+"] collist.get(i+1).start.getCharPositionInLine()=["+collist.get(i+1).start.getCharPositionInLine()+"] ");
-							boolean commaFound = false;
-							for (int j=0; j < comma.size(); j++) {
-								int ixComma = comma.get(j).getSymbol().getStartIndex();
-								if (ixComma > ixEnd && ixComma < ixStart) {
-									 commaFound = true;
+								if (collist.get(i).column_definition() == null) continue;
+								if (i < collist.size()-1) {
+									if (collist.get(i+1).table_constraint() == null) continue;
 								}
-							}
+								// can only determine whether there is a comma in between by looking at token positions
+								int ixEnd = collist.get(i).stop.getStopIndex();
+								int ixStart = collist.get(i+1).start.getStartIndex();
+								//u.appOutput(u.thisProc()+"ixStart=["+ixStart+"] collist.get(i+1).start.getCharPositionInLine()=["+collist.get(i+1).start.getCharPositionInLine()+"] ");
+								boolean commaFound = false;
+								for (int j=0; j < comma.size(); j++) {
+									int ixComma = comma.get(j).getSymbol().getStartIndex();
+									if (ixComma > ixEnd && ixComma < ixStart) {
+										 commaFound = true;
+									}
+								}
 
-							if (commaFound) {
+								if (commaFound) {
+									i++; //skip over the table_constraint
+									continue;
+								}
+
+								if (featureExists(SyntaxIssues, NoCommaInColumnWithTableConstraint)) {
+									String status = featureSupportedInVersion(SyntaxIssues, NoCommaInColumnWithTableConstraint);
+									String s = "Column+constraint without comma separator";
+									if (!status.equals(u.Supported)) {
+										if (u.rewrite) {
+											int posInLine = collist.get(i+1).start.getCharPositionInLine()-1;
+											if (posInLine < 0) posInLine = 0;
+											
+											String rewriteText = " , ";
+											if (addRewrite(SyntaxIssues, "", u.rewriteTypeReplace, rewriteText, collist.get(i+1).start.getLine(), posInLine, collist.get(i+1).start.getLine(), posInLine, ixStart, ixStart))
+												status = u.Rewritten;
+										}
+										else {
+											addRewrite(s);
+										}
+									}
+									captureItem(s, "", SyntaxIssues, "", status, collist.get(i).stop.getLine());
+								}
+
 								i++; //skip over the table_constraint
-								continue;
 							}
-
-							if (featureExists(SyntaxIssues, NoCommaInColumnWithTableConstraint)) {
-								String status = featureSupportedInVersion(SyntaxIssues, NoCommaInColumnWithTableConstraint);
-								String s = "Column+constraint without comma separator";
-								if (!status.equals(u.Supported)) {
-									if (u.rewrite) {
-										int posInLine = collist.get(i+1).start.getCharPositionInLine()-1;
-										if (posInLine < 0) posInLine = 0;
-										
-										String rewriteText = " , ";
-										if (addRewrite(SyntaxIssues, "", u.rewriteTypeReplace, rewriteText, collist.get(i+1).start.getLine(), posInLine, collist.get(i+1).start.getLine(), posInLine, ixStart, ixStart))
-											status = u.Rewritten;
-									}
-									else {
-										addRewrite(s);
-									}
-								}
-								captureItem(s, "", SyntaxIssues, "", status, collist.get(i).stop.getLine());
-							}
-
-							i++; //skip over the table_constraint
 						}
 					}
 				}
@@ -4385,6 +4423,12 @@ public class CompassAnalyze {
 
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+" colType=["+colType+"] ", u.debugPtree);
 
+				if ((ctx.TIMESTAMP() == null) && (ctx.id() == null) && (ctx.inline_index() != null)) {
+					visitChildren(ctx);
+					if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());		
+					return null;			
+				}
+				
 				if (ctx.TIMESTAMP() != null) {
 					// a TIMESTAMP column declared only as 'timestamp'
 					String colName = "timestamp";
@@ -5409,8 +5453,10 @@ public class CompassAnalyze {
 			        	try { u.writeExecTestFile(execTest); } catch (Exception e) { };
 			        	execTest = "EXECUTE " + u.currentObjectName + " " + execParams + "\ngo\n";
 			        	try { u.writeExecTestFile(execTest); } catch (Exception e) { };
-			        	execTest = "EXECUTE " + u.currentObjectName + " " + execParamsRand + "\ngo\n";
-			        	try { u.writeExecTestFile(execTest); } catch (Exception e) { };
+			        	if (u.execTestRandomArgs) {
+			        		execTest = "EXECUTE " + u.currentObjectName + " " + execParamsRand + "\ngo\n";
+			        		try { u.writeExecTestFile(execTest); } catch (Exception e) { };
+			        	}
 			        }
 			        else if (objType.equalsIgnoreCase("FUNCTION")) {
 			       		String selectFrom = "";
@@ -5423,8 +5469,10 @@ public class CompassAnalyze {
 				        	try { u.writeExecTestFile(execTest); } catch (Exception e) { };
 				        	execTest = "SELECT " + selectFrom + u.currentObjectName + "(" + execParams + ")\ngo\n";
 				        	try { u.writeExecTestFile(execTest); } catch (Exception e) { };
-				        	execTest = "SELECT " + selectFrom + u.currentObjectName + "(" + execParamsRand + ")\ngo\n";
-				        	try { u.writeExecTestFile(execTest); } catch (Exception e) { };
+			        		if (u.execTestRandomArgs) {				        	
+					        	execTest = "SELECT " + selectFrom + u.currentObjectName + "(" + execParamsRand + ")\ngo\n";
+					        	try { u.writeExecTestFile(execTest); } catch (Exception e) { };
+					        }
 				        }
 			        }
 			    }
@@ -5790,7 +5838,7 @@ public class CompassAnalyze {
 					}
 				}
 				
-				u.appOutput(u.thisProc()+"seqName=["+seqName+"] ");
+				//u.appOutput(u.thisProc()+"seqName=["+seqName+"] ");
 				if (!CompassUtilities.getPatternGroup(seqName, "^(\\w+\\.\\.\\w+)$", 1).isEmpty()) {
 					u.appOutput(u.thisProc()+"dobueld-ot in seqname");
 					nvfContext = "DOTDOT";
@@ -8111,11 +8159,23 @@ public class CompassAnalyze {
 					captureItem("INSERT"+top+".."+typeFmt+CTE.toString()+outputClause+functionCall, itemDetail, InsertStmt, "", status, ctx.start.getLine());
 					CaptureXMLNameSpaces(ctx.parent, "INSERT", ctx.start.getLine());
 				}
+				
+				captureDMLChangeTrackingContext(InsertStmt, ctx.start.getLine(), ctx.parent);
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
 			}
+
+			private void captureDMLChangeTrackingContext(String stmtType, int lineNr, RuleContext parent) {	
+				//u.appOutput(u.thisProc()+"stmtType=["+stmtType+"] hasParent(parent,dml_statement_with_change_tracking_context)=["+hasParent(parent,"dml_statement_with_change_tracking_context")+"] ");
+				if (hasParent(parent,"dml_statement_with_change_tracking_context")) {
+					String status = featureSupportedInVersion(BuiltInFunctions,"CHANGE_TRACKING_CONTEXT");
+					//u.appOutput(u.thisProc()+"status=["+status+"] ");
+					captureItem("CHANGE_TRACKING_CONTEXT(), with "+stmtType, "", BuiltInFunctions, "", status, lineNr);
+				}					
+				return;
+			}		
 
 			private String checkDMLCTE(String stmtType, String targetTableName, TSQLParser.With_expressionContext with, String status, StringBuilder CTE, int lineNr) {
 				if (with != null) {
@@ -8422,6 +8482,8 @@ public class CompassAnalyze {
 
 					CaptureXMLNameSpaces(ctx.parent, "UPDATE", ctx.start.getLine());
 				}
+				
+				captureDMLChangeTrackingContext(UpdateStmt, ctx.start.getLine(), ctx.parent);				
 
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -8627,6 +8689,8 @@ public class CompassAnalyze {
 				}
 
 				captureUpdDelBugs("DELETE", tableNameRaw, tableName, ctx.table_sources(), ctx.start.getLine());
+				
+				captureDMLChangeTrackingContext(DeleteStmt, ctx.start.getLine(), ctx.parent);						
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -8903,6 +8967,8 @@ public class CompassAnalyze {
 
 					CaptureXMLNameSpaces(ctx.parent, "MERGE", ctx.start.getLine());
 				}
+				
+				captureDMLChangeTrackingContext(MergeStmt, ctx.start.getLine(), ctx.parent);						
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -9489,6 +9555,27 @@ public class CompassAnalyze {
 			@Override public String visitAdd_signature_statement(TSQLParser.Add_signature_statementContext ctx) {
 				String status = featureSupportedInVersion(AddSignature);
 				captureItem(AddSignature, "", AddSignature, "", status, ctx.start.getLine());
+				visitChildren(ctx);
+				return null;
+			}
+			
+			@Override public String visitDrop_signature_statement(TSQLParser.Drop_signature_statementContext ctx) {
+				String status = featureSupportedInVersion(DropSignature);
+				captureItem(DropSignature, "", DropSignature, "", status, ctx.start.getLine());
+				visitChildren(ctx);
+				return null;
+			}
+			
+			@Override public String visitAdd_sensitivity_classification(TSQLParser.Add_sensitivity_classificationContext ctx) {
+				String status = featureSupportedInVersion(AddSensitivityClass);
+				captureItem(AddSensitivityClass, "", AddSensitivityClass, "", status, ctx.start.getLine());
+				visitChildren(ctx);
+				return null;
+			}
+			
+			@Override public String visitDrop_sensitivity_classification(TSQLParser.Drop_sensitivity_classificationContext ctx) {
+				String status = featureSupportedInVersion(DropSensitivityClass);
+				captureItem(DropSensitivityClass, "", DropSensitivityClass, "", status, ctx.start.getLine());
 				visitChildren(ctx);
 				return null;
 			}
@@ -10308,7 +10395,7 @@ public class CompassAnalyze {
 				String tableName = u.normalizeName(ctx.table_name().getText());
 				String indexName = u.normalizeName(ctx.id().getText());
 				String option = "";
-				if (ctx.fulltext_with_option().size() > 0) option = "WITH";
+				if (ctx.fulltext_with_option().size() > 0) option = "WITH"; // ToDo: extract actual properties being specified and test for their status
 				captureFullTextIndex("CREATE", tableName, indexName, option, ctx.start.getLine()); 
 				visitChildren(ctx); 
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());				
@@ -10342,7 +10429,7 @@ public class CompassAnalyze {
 				//u.appOutput(u.thisProc()+"kwd=["+kwd+"] status FULLTEXT INDEX=["+status+"] ");
 				if (status.equals(u.Supported)) {
 					// check for detailed features
-					status = featureSupportedInVersion(FullTextIndex, kwd);					
+					status = featureSupportedInVersion(FullTextIndex, kwd);	
 					//u.appOutput(u.thisProc()+"kwd=["+kwd+"] status kwd=["+status+"] ");
 					if (!option.isEmpty()) {
 						if (status.equals(u.Supported)) {

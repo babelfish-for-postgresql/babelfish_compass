@@ -50,9 +50,10 @@ public class CompassConfig {
     static final String listValuesTag         = "LIST";
     static final String defaultStatusTag      = "DEFAULT_CLASSIFICATION";
     static final String reportGroupTag        = "REPORT_GROUP";
-    static final String supportedTag          = "SUPPORTED";
-    static final String ignoredTag            = "IGNORED";
-    static final String reviewSemanticsTag    = "REVIEWSEMANTICS";
+    static final String supportedTag          = CompassUtilities.Supported;
+    static final String ignoredTag            = CompassUtilities.Ignored;
+    static final String reviewSemanticsTag    = CompassUtilities.ReviewSemantics;
+    static final String reviewManuallyTag     = CompassUtilities.ReviewManually;
     static final String ruleTag               = "RULE";
     static final String versionAliasTag       = "VERSION_ALIAS";
 
@@ -521,9 +522,11 @@ public class CompassConfig {
 			if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + " featureExists: section=[" + section + "] name=[" + name + "]  requestVersion=[" + requestVersion + "]  featureDefault=[" + status + "] ", u.debugCfg);
 			Map<String, List<String>> featureList = sectionList.get(section);
 			for (String key : featureList.keySet()) {
-				if (key.startsWith(supportedTag + "/")) {
-					String foundVersion = key.substring(supportedTag.length() + 1);
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() +"supported key=[" + key + "] ", u.debugCfg);
+				if (key.startsWith(supportedTag + "/") || key.startsWith(ignoredTag + "/") || key.startsWith(reviewManuallyTag + "/") || key.startsWith(reviewSemanticsTag + "/")) {
+					String tag = key.substring(0,key.indexOf("/")).toUpperCase();
+
+					String foundVersion = key.substring(tag.length() + 1);
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() +"tag key=[" + key + "] ", u.debugCfg);
 					if (foundVersion.isEmpty()) continue;
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "foundVersion=[" + foundVersion + "] ", u.debugCfg);
 
@@ -531,28 +534,13 @@ public class CompassConfig {
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() +"featureList Key=[" + key + "] (" + thisList.size() + ") --> " + thisList, u.debugCfg);
 					if (thisList.contains(name) || thisList.contains("*")) {
 						if (isVersionSupported(requestVersion, foundVersion)) {
-							status = u.Supported;
+							status = tag;
 							break;
 						}
 					}
-				}
-				if (key.startsWith(ignoredTag + "/")) {
-					String foundVersion = key.substring(ignoredTag.length() + 1);
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() +"ignored key=[" + key + "] ", u.debugCfg);
-					if (foundVersion.isEmpty()) continue;
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "foundVersion=[" + foundVersion + "] ", u.debugCfg);
-
-					List<String> thisList = featureList.get(key);
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() +"featureList Key=[" + key + "] (" + thisList.size() + ") --> " + thisList, u.debugCfg);
-					if (thisList.contains(name) || thisList.contains("*")) {
-						if (isVersionSupported(requestVersion, foundVersion)) {
-							status = u.Ignored;
-							break;
-						}
-					}
-				}
+				}			
 			}
-			if (!status.equals(u.Supported) && !status.equals(u.Ignored) ) {
+			if (status.equals(u.NotSupported)) {
 				status = featureDefaultStatus(section, name);
 			}
 		}
@@ -1434,9 +1422,11 @@ public class CompassConfig {
 						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc() + "adding featureArgOptions for argKey=[" + sectionName + "] argN=[" + argN + "]", u.debugCfg);
 					}
 				}
-				// key: 'ignored' values
-				else if (optionKey.startsWith(ignoredTag)) {
-					String vRaw = optionKey.substring(ignoredTag.length() + 1);
+				// key: 'ignored' / 'reviewSemantics' / 'reviewManually' values		
+				else if (optionKey.startsWith(ignoredTag) || optionKey.startsWith(reviewManuallyTag) || optionKey.startsWith(reviewSemanticsTag)) {  
+					String tag = optionKey.substring(0,optionKey.indexOf(cRangeSeparator)).toUpperCase();		
+															
+					String vRaw = optionKey.substring(tag.length() + 1);
 					String v = "", vMax = "";
 					Matcher matcher = u.getMatcher(vRaw, "^([\\d]+(\\.([\\d]+|\\*))+)(" + cRangeSeparator + "([\\d]+(\\.([\\d]+|\\*))+))?$");
 					if (matcher != null && matcher.find()) {
@@ -1446,7 +1436,7 @@ public class CompassConfig {
 							vMax = "";
 						}
 					}
-					if (u.debugging) u.dbgOutput(ignoredTag + "-version key: optionKey=[" + optionKey + "] vRaw=[" + vRaw + "] version=[" + v + "] vMax=[" + vMax + "] ", u.debugCfg);
+					if (u.debugging) u.dbgOutput(tag + "-version key: optionKey=[" + optionKey + "] vRaw=[" + vRaw + "] version=[" + v + "] vMax=[" + vMax + "] ", u.debugCfg);
 
 					if (v.isEmpty()) {
 						cfgFileValid = false;
@@ -1476,52 +1466,8 @@ public class CompassConfig {
 						v = v + ("-") + (vMax);
 					}
 
-					thisKey = createKey(ignoredTag, v);
-				}
-				// key: 'ReviewSemantics' values
-				else if (optionKey.startsWith(reviewSemanticsTag)) {
-					String vRaw = optionKey.substring(reviewSemanticsTag.length() + 1);
-					String v = "", vMax = "";
-					Matcher matcher = u.getMatcher(vRaw, "^([\\d]+(\\.([\\d]+|\\*))+)(" + cRangeSeparator + "([\\d]+(\\.([\\d]+|\\*))+))?$");
-					if (matcher != null && matcher.find()) {
-						v = matcher.group(1);
-						vMax = matcher.group(5);
-						if (vMax == null) {
-							vMax = "";
-						}
-					}
-					if (u.debugging) u.dbgOutput(reviewSemanticsTag + "-version key: optionKey=[" + optionKey + "] vRaw=[" + vRaw + "] version=[" + v + "] vMax=[" + vMax + "] ", u.debugCfg);
-
-					if (v.isEmpty()) {
-						cfgFileValid = false;
-						cfgOutput("Invalid version (empty) in [" + sectionName + "/" + optionKey + "]");
-						continue;
-					}
-
-					if (!isValidBabelfishVersion(v)) {
-						cfgFileValid = false;
-						versionInvalid = true;
-						cfgOutput("Invalid version '" + v + "' in [" + sectionName + "/" + optionKey + "]");
-						continue;
-					}
-
-					if (!vMax.isEmpty()) {
-						if (!isValidBabelfishVersionWithStar(vMax)) {
-							cfgFileValid = false;
-							versionInvalid = true;
-							cfgOutput("Invalid version '" + vMax + "' in [" + sectionName + "/" + optionKey + "]");
-							continue;
-						}
-						if (!isLowerOrEqualBabelfishVersion(v, vMax)) {
-							cfgFileValid = false;
-							cfgOutput("Version " + vMax + " cannot be lower than " + v + " in [" + sectionName + "/" + optionKey + "]");
-							continue;
-						}
-						v = v + ("-") + (vMax);
-					}
-
-					thisKey = createKey(reviewSemanticsTag, v);
-				}
+					thisKey = createKey(tag, v);
+				}			
 				// key: 'default_classification' items
 				else if (optionKey.startsWith(defaultStatusTag)) {
 					// values in supportOptionsCfgFile have been converted to uppercase
@@ -1719,12 +1665,13 @@ public class CompassConfig {
 
 				featureList.put(thisKey, theseItems);
 
-				// check items in 'supported-XXX', 'report_group-xxx', default_classification-XXX'  are in the listValues key (if a list exists)
+				// check items in 'supported-XXX', 'report_group-xxx', default_classification-XXX'  (etc) are in the listValues key (if a list exists)
 				if (optionKey.startsWith(supportedTag+subKeySeparator) ||
 				    optionKey.startsWith(reportGroupTag+subKeySeparator) ||
 				    optionKey.startsWith(defaultStatusTag+subKeySeparator) ||
 				    optionKey.startsWith(ignoredTag+subKeySeparator) ||
-				    optionKey.startsWith(reviewSemanticsTag+subKeySeparator)
+				    optionKey.startsWith(reviewSemanticsTag+subKeySeparator) ||
+				    optionKey.startsWith(reviewManuallyTag+subKeySeparator)
 				   ) {
 					boolean itemValid = validateItemsListed("", optionKey, optionVal, thisKey, sectionName, featureList, theseItems);
 					cfgFileValid = cfgFileValid & itemValid;

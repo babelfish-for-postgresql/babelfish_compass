@@ -51,7 +51,8 @@ batch_level_statement
     ;
 
 sql_clauses
-    : ( dml_statement
+    : ( dml_statement_with_change_tracking_context
+    | dml_statement
     | cfl_statement
     | another_statement
     | ddl_statement
@@ -65,6 +66,14 @@ sql_clauses
     | SEMI
     ;
 
+with_change_tracking_context
+    : WITH CHANGE_TRACKING_CONTEXT LR_BRACKET ( LOCAL_ID | constant ) RR_BRACKET
+    ;    
+  
+dml_statement_with_change_tracking_context
+    : with_change_tracking_context dml_statement
+    ;
+    
 // Data Manipulation Language: https://msdn.microsoft.com/en-us/library/ff848766(v=sql.120).aspx
 dml_statement
     : merge_statement
@@ -79,6 +88,7 @@ dml_statement
 // Data Definition Language: https://msdn.microsoft.com/en-us/library/ff848799.aspx)
 ddl_statement
     : add_signature_statement
+    | add_sensitivity_classification
     | alter_application_role
     | alter_assembly
     | alter_asymmetric_key
@@ -228,6 +238,7 @@ ddl_statement
     | drop_schema
     | drop_search_property_list
     | drop_security_policy
+    | drop_sensitivity_classification
     | drop_sequence
     | drop_server_audit
     | drop_server_audit_specification
@@ -869,6 +880,14 @@ drop_signature_statement
       SEMI?
     ;
 
+add_sensitivity_classification
+    : ADD SENSITIVITY CLASSIFICATION TO full_object_name (COMMA full_object_name)* WITH LR_BRACKET id EQUAL expression (COMMA id EQUAL expression)* RR_BRACKET
+    ;
+
+drop_sensitivity_classification
+    : DROP SENSITIVITY CLASSIFICATION TO full_object_name (COMMA full_object_name)* 
+    ;
+    
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/drop-symmetric-key-transact-sql
 drop_symmetric_key
     : DROP SYMMETRIC KEY symmetric_key_name=id (REMOVE PROVIDER KEY)?
@@ -3203,7 +3222,7 @@ revert_statement
     ;
 
 declare_local
-    : LOCAL_ID AS? data_type ( EQUAL  expression)?
+    : LOCAL_ID AS? data_type ( EQUAL expression)?
     ;
 
 table_type_definition
@@ -3242,6 +3261,7 @@ column_definition
       ( column_constraint? IDENTITY (LR_BRACKET sign? seed=DECIMAL COMMA sign? increment=DECIMAL RR_BRACKET)? )? for_replication? ROWGUIDCOL?
       column_constraint* inline_index?
     | TIMESTAMP null_notnull? column_constraint?
+    | inline_index
     ;
 
 inline_index
@@ -3502,7 +3522,7 @@ subquery
 // https://msdn.microsoft.com/en-us/library/ms175972.aspx
 with_expression
     : WITH (XMLNAMESPACES LR_BRACKET xml_dec+=xml_declaration (COMMA xml_dec+=xml_declaration)* RR_BRACKET COMMA?)? (ctes+=common_table_expression (COMMA ctes+=common_table_expression)*)?
-    ;
+    ;   
 
 common_table_expression
     : expression_name=id ( LR_BRACKET columns=column_name_list RR_BRACKET )? AS LR_BRACKET cte_query=select_statement RR_BRACKET
@@ -4136,7 +4156,7 @@ file_group
     : FILEGROUP id
      ( CONTAINS FILESTREAM )?
      ( DEFAULT )?
-     ( CONTAINS MEMORY_OPTIMIZED_DATA )?
+     ( CONTAINS MEMORY_OPTIMIZED_DATA ( DEFAULT )? )?
      file_spec ( COMMA file_spec )*
     ;
 file_spec
@@ -4366,10 +4386,12 @@ keyword
     | CHANGETABLE
     | CHANGE_RETENTION
     | CHANGE_TRACKING
+    | CHANGE_TRACKING_CONTEXT
     | CHECKSUM
     | CHECKSUM_AGG
     | CHECK_EXPIRATION
     | CHECK_POLICY
+    | CLASSIFICATION
     | CLASSIFIER
     | CLASSIFIER_FUNCTION
     | CLEANUP
@@ -4925,6 +4947,7 @@ keyword
     | SELECTIVE
     | SEMI_SENSITIVE
     | SEND
+    | SENSITIVITY
     | SENT
     | SEQUENCE
     | SEQUENCE_NUMBER
