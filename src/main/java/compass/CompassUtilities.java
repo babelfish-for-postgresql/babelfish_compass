@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2024-02";
-	public static final String thisProgVersionDate  = "February 2024";
+	public static final String thisProgVersion      = "2024-04";
+	public static final String thisProgVersionDate  = "April 2024";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -584,7 +584,9 @@ tooltipsHTMLPlaceholder +
 		"FORMAT() culture"+tttSeparator+"This culture parameter for FORMAT() is not currently supported",
 		"FORMAT("+tttSeparator+"This FORMAT() pattern may not currently be supported. Rewrite the formatting using available functions such as CONVERT()",
 		"FORMATMESSAGE("+tttSeparator+"FORMATMESSAGE() is not currently supported; some format specifiers may actually work, but others do not. Rewrite the formatting using available functions such as CONVERT()",
-		"STRING_AGG() WITHIN GROUP"+tttSeparator+"STRING_AGG() is not supported with the WITHIN GROUP clause. Rewrite the query",
+		CompassAnalyze.StringAggWithinGroup+tttSeparator+"STRING_AGG() is not supported with the WITHIN GROUP clause. Rewrite the query",
+		CompassAnalyze.StringAggXMLPathMultCols+tttSeparator+"This workaround cannot be rewritten by Compass since the SELECT list contains more than 1 column: review/rewrite manually",
+		CompassAnalyze.StringAggXMLPath+tttSeparator+"This workaround will not produce correct results in Babelfish; rewrite with STRING_AGG() and a subquery "+ rewriteOption,
 		"TRANSLATE()"+tttSeparator+"TRANSLATE() is not currently supported; rewrite as nested REPLACE() calls()",
 		"FILEGROUP_NAME("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
 		"FILEPROPERTY("+tttSeparator+"File(group)-related features are not currently supported; Consider rewriting your application to avoid using these features",
@@ -809,7 +811,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.BulkInsertStmt+tttSeparator+"BULK INSERT is not currently supported. Use a different method to load data from a file, for example the 'bcp' utility (with Babelfish v.2.1.0 or later), or the PostgreSQL's COPY statement",
 		CompassAnalyze.DMLTableSrcFmt+tttSeparator+"A DML statement with OUTPUT clause, as source of an INSERT-SELECT, is not currently supported. Rewrite with OUTPUT into a temp table or table variable, and INSERT-SELECT from that",
 		CompassAnalyze.VarAggrAcrossRowsFmt+tttSeparator+"In SQL Server, an assignment of a variable where the same variable also occurs in the assigned expression, may carry over its value for every qualifying row, thus creating a kind of aggregation. This is not currently supported in Babelfish. Verify if more than 1 row may qualify and if so, rewrite the query manually",
-		CompassAnalyze.VarAssignDependency+tttSeparator+"Assignment of a variable depending on another variable which is itself assigned in the same statement, may produce unexpected results since the order of assignment is not guaranteed. Rewrite the query manually, for example by splitting it up into separate statements",
+		CompassAnalyze.VarAssignDependency+tttSeparator+"Assignment of a variable depending on another variable which is itself assigned in the same statement, may produce unexpected results since the order of assignment is not guaranteed. Rewrite the query manually by splitting it up into separate assignment statements",
 		CompassAnalyze.SelectPivot+", in"+tttSeparator+"SELECT..PIVOT is supported, but currently not in this context. Rewrite manually",
 		CompassAnalyze.SelectPivot+tttSeparator+"SELECT..PIVOT is not currently supported. Rewrite manually",
 		CompassAnalyze.SelectUnpivot+tttSeparator+"SELECT..UNPIVOT is not currently supported. Rewrite manually",
@@ -935,7 +937,7 @@ tooltipsHTMLPlaceholder +
 	);
 
 	// emoji to indicate popup info is available
-  	//static String hintIcon      = "&#x1F6C8;";  // information symbol: (i)  -- preferred emoji but it doe snto render correctly on Mac
+  	//static String hintIcon      = "&#x1F6C8;";  // information symbol: (i)  -- preferred emoji but it does not render correctly on Mac
   	static String hintIcon      = "&#x2139;";  // information symbol: i  -- use this always: since Windows users are emailing the report to Mac users, the latter user
   	                                           //                           won't be able to display the emoji which was OK on Windows
   	static String hintIconMac   = "&#x2139;";  // information symbol: i  -- x1F6C8 is not rendered correctly on some Macs
@@ -1330,6 +1332,27 @@ tooltipsHTMLPlaceholder +
 		}
     }
 
+	// On Windows envvars are case-sensitive in Java, but not in Windows itself
+	private String getEnvVar(String name) {
+		String v = null;
+		for (String e : System.getenv().keySet()) {
+			if (e.equals(name)) {
+				v = System.getenv().get(e);
+				break;
+			}	
+		}	
+		if (v == null) {
+			for (String e : System.getenv().keySet()) {
+				if (e.equalsIgnoreCase(name)) {
+					v = System.getenv().get(e);
+					break;
+				}	
+			}			
+		}
+		if (v == null) v = "";
+		return v;
+	}
+	
 	/*
 	 * Sets the operating system executable name, reports folder name based on osName.
 	 * Optionally turns on the developer options flag. Optionally sets the hint icon value for reports. Optionally turns
@@ -1362,39 +1385,34 @@ tooltipsHTMLPlaceholder +
 			hintIcon = hintIconLinux;
 		}
 
-		// ToDo: On Windows envvars are case-sensitive in Java, but no in Windows itself. So when you set 'compass_Develop'
-		// it will not be recognized below, and when you then set 'compass_develop' in Windows it will not change or
-		// remove the already-existing 'compass_Develop'. A better way is to create a function that cycles through System.getenv()
-		if (System.getenv().containsKey("COMPASS_DEVELOP") || System.getenv().containsKey("compass_develop")) {
+
+		if (!getEnvVar("COMPASS_DEVELOP").isEmpty()) {
 			devOptions = true;
 		}
 
-		if (System.getenv().containsKey("COMPASS_NOUPDATECHK") || System.getenv().containsKey("compass_noupdatechk")) {
+		if (!getEnvVar("COMPASS_NOUPDATECHK").isEmpty()) {
 			// useful for demos
 			updateCheck = false;
 		}
 
-		if (System.getenv().containsKey("COMPASS_EXECTEST") || System.getenv().containsKey("compass_exectest")) {
-			// useful for testing
+		if (!getEnvVar("COMPASS_EXECTEST").isEmpty() && (!getEnvVar("COMPASS_EXECTEST").equals("0"))) {
+			// generate calls to procedures/functions for testing
 			execTest = true;
 			
-			if (System.getenv().containsKey("COMPASS_EXECTEST_RANDOM") || System.getenv().containsKey("compass_exectest_random")) {
+			if (!getEnvVar("COMPASS_EXECTEST_RANDOM").isEmpty() && (!getEnvVar("COMPASS_EXECTEST_RANDOM").equals("0"))) {
 				execTestRandomArgs = true;
 			}
 		}
 
-		if (System.getenv().containsKey("COMPASS_EXECTEST_PLL") || System.getenv().containsKey("compass_exectest_pll")) {
+		if (!getEnvVar("COMPASS_EXECTEST_PLL").isEmpty() && (!getEnvVar("COMPASS_EXECTEST_PLL").equals("0"))) {
 			// useful for testing
-			String s = "";
-			if (System.getenv().containsKey("COMPASS_EXECTEST_PLL")) s = System.getenv().get("COMPASS_EXECTEST_PLL");
-			else s = System.getenv().get("compass_exectest_pll");
-
+			String s = getEnvVar("COMPASS_EXECTEST_PLL");
 			execTestPLL = Integer.parseInt(s);
 		}
 
-		if (System.getenv().containsKey("COMPASS_HINT_ICON") || System.getenv().containsKey("compass_hint_icon")) {
+		if (!getEnvVar("COMPASS_HINT_ICON").isEmpty()) {
 			// you can get an arbitrary emoji as icon when you specify it in envvar COMPASS_HINT_ICON
-			String iconEnv = System.getenv().get("COMPASS_HINT_ICON");
+			String iconEnv = getEnvVar("COMPASS_HINT_ICON");
 			if (getPatternGroup(iconEnv, "^((\\#)?(x)?[0-9A-F]{4,}(;)?)$", 1).isEmpty()) {
 				appOutput("COMPASS_HINT_ICON: invalid value ["+iconEnv+"]. Must be '#x<hex>' or '#<number>', denoting a Unicode Emoji.");
 			}
@@ -1405,7 +1423,7 @@ tooltipsHTMLPlaceholder +
 			}
 		}
 
-//		if (System.getenv().containsKey("COMPASS_COMPAT_PERCENTAGE") || System.getenv().containsKey("compass_compat_percentage")) {
+//		if (!getEnvVar("COMPASS_COMPAT_PERCENTAGE").isEmpty()) {
 //			showPercentage = true;
 //		}
     }
@@ -1498,7 +1516,7 @@ tooltipsHTMLPlaceholder +
 		return Pattern.compile(patt, Pattern.CASE_INSENSITIVE).matcher(s);
 	}
 
-	public static String applyPattern(String s, String patt, String replace, String options)
+	private static String applyPattern(String s, String patt, String replace, String options)
 	{
 		Pattern p;
 		int flags = 0;
@@ -2069,7 +2087,7 @@ tooltipsHTMLPlaceholder +
 		}
 		if (specifiedDbgOptions.contains("popup") || specifiedDbgOptions.contains("all")) {
 			debugPopup = true;
-		}
+		}		
 	}
 
 	public void dbgOutput(String s, boolean toDebug) {
@@ -2101,7 +2119,8 @@ tooltipsHTMLPlaceholder +
 	}
 
 	public void printStackTrace() {
-		Thread.dumpStack();
+		//new Exception().printStackTrace();   // stderr
+		new Exception().printStackTrace(System.out);  // stdout
 	}
 
 	public void errorExitStackTrace() {
@@ -7031,7 +7050,7 @@ tooltipsHTMLPlaceholder +
 					String totalCntStr = "";
 					if (rewriteOppties.get(rewriteOpptiesTotal) > 0) totalCntStr = " --- (total="+rewriteOppties.get(rewriteOpptiesTotal).toString() + "/"+rewriteOppties.get(rewriteOpptiesUnique).toString()+")";
 					rStr.append(composeSeparatorBar(autoRewriteOppties + totalCntStr, tagRewrite));
-					rStr.append("\n" + "Unsupported SQL aspects that may be rewritten with the -rewrite option:\n\n");
+					rStr.append("\n" + "Unsupported SQL aspects that may be rewritten into supported syntax by using the -rewrite option:\n\n");
 
 					for (String r : rewriteOppties.keySet().stream().sorted().collect(Collectors.toList())) {
 						if (r.equals(rewriteOpptiesTotal)) continue;
@@ -7858,6 +7877,9 @@ userCfgComplexityHdrLine202308 + "\n" +
 		offsetIteration = offsetCols.get(iteration-1);
 
 		// check for line length changes on each line
+		// assumption is that the replacement is at least as many lines as the original
+		if (linesNew.size() < linesOrig.size()) if (debugging) dbgOutput(thisProc()+"not expected: #linesNew("+linesNew.size()+") < #linesOrig("+linesOrig.size()+")", debugRewrite);
+		
 		for (int i = lineNo; i<=(lineNo+linesOrig.size()-1); i++) {
 
 			int diffLength = linesNew.get(i-lineNo).length() - linesOrig.get(i-lineNo).length();
@@ -8673,6 +8695,74 @@ userCfgComplexityHdrLine202308 + "\n" +
 			newStrNoComment = applyPatternAll(newStrNoComment, rwrTabRegex, "");
 
 		}
+		else if (rewriteType.equals(rewriteTypeBlockReplace) && report.equals(CompassAnalyze.StringAggXMLPath)) {
+			// ToDo: combine with MERGE below as parts are identical	
+			Integer rwrID = Integer.valueOf(rewriteText);
+						
+			assert (rewriteIDDetails.containsKey(rwrID)) : thisProc()+"rwrID not found: "+rwrID;
+			Map<String, List<Integer>> positions = new HashMap<>();
+			positions = rewriteIDDetails.get(rwrID);
+
+			nrMergeRewrites++;
+			String colName = "string_agg_col_rewritten_"+nrMergeRewrites;
+			String corrName = "correlation_rewritten_"+nrMergeRewrites;		
+								
+			int startCtx = positions.get("select").get(0);
+			int endStmt = positions.get("select").get(1);
+			int bifStart = positions.get("bif").get(0);			
+			int bifEnd = positions.get("bif").get(1);	
+			int bifNameStart = positions.get("bifname").get(0);			
+			int bifNameEnd = positions.get("bifname").get(1);						
+			int bifCol = positions.get("bifcol").get(0);					
+			int bifArgStart = positions.get("bifargstart").get(0);					
+			int forxmlStart = positions.get("forxml").get(0);
+			int aliasStart = -1;			
+			int aliasEnd = -1;			
+			String alias = "";			
+			if (positions.containsKey("alias")) {
+				 aliasStart = positions.get("alias").get(0);
+				 aliasEnd   = positions.get("alias").get(1);
+			}
+			String bifPrefix = stringRepeat(" ", bifCol);
+
+			String startStmt = origStrFull.substring(startCtx-bifStart, forxmlStart-startCtx+(startCtx-bifStart));
+			if (aliasStart > 0) {
+				 alias = startStmt.substring(aliasStart-startCtx,aliasEnd-startCtx+1);
+				 colName = alias;		
+			}	
+			int slistStartPos = positions.get("selectlist").get(0)-1;			
+			int slistEndPos = positions.get("selectlist").get(1);			
+			String p1 = startStmt.substring(0,slistEndPos-startCtx+1);
+			
+			String bifName = origStrFull.substring(bifNameStart-startCtx+(startCtx-bifStart), bifNameEnd-startCtx+(startCtx-bifStart));
+						
+			String bifArgs = origStrFull.substring(bifArgStart-startCtx+(startCtx-bifStart), bifEnd-startCtx+(startCtx-bifStart));
+						
+			boolean hasTop = positions.containsKey("hasTop");
+
+			if (aliasStart == -1) {
+				startStmt = startStmt.substring(0,slistEndPos-startCtx+1) + " AS " + colName + " " + startStmt.substring(slistEndPos-startCtx+1);
+			}
+
+			if (!hasTop) {
+				// SQL Server ignores ORDER BY when combined with TOP 100 PERCENT, so use a practical alternative  that will work on both SQL Server and Babelfish
+				startStmt = startStmt.substring(0,slistStartPos-startCtx+1) + " TOP 999999999999 " + startStmt.substring(slistStartPos-startCtx+1);	
+			}		
+			startStmt = startStmt.trim();
+			startStmt = startStmt.replaceFirst("  TOP ", " TOP ");
+			
+			rewriteText = "";
+			rewriteText += bifPrefix + bifName + "((SELECT STRING_AGG("+colName+",'') FROM (\n";	
+			rewriteText += bifPrefix + " " + startStmt;	
+			rewriteText += "\n"+bifPrefix+") "+ corrName + " )" + bifArgs + ")";	
+			
+			newStr = "/* original FOR XML PATH expression -- " + origStrFull + " -- end original FOR XML PATH expression */\n" + rewriteText + "\n";
+
+			// let last line past end of original text continue at original offset
+			String lastLineTmp = origStrFull.substring(origStrFull.lastIndexOf("\n")+1);
+			String lastLine = stringRepeat(" ", lastLineTmp.length());
+			newStr += lastLine;			
+		}
 		else if (rewriteType.equals(rewriteTypeBlockReplace) && report.equals(CompassAnalyze.AlterTableAddMultiple)) {
 			// ToDo: combine with MERGE below as parts are identical
 
@@ -9193,6 +9283,7 @@ userCfgComplexityHdrLine202308 + "\n" +
 		if (!updateCheck) return;
 
 		try {
+			// the call to new URL() below is deprecated in Java 20, but keeping it for backward compatibility
 			URL GHurl = new URL(compassRESTReleaseGet);
 			HttpURLConnection GHconn = (HttpURLConnection) GHurl.openConnection();
 			GHconn.setRequestMethod("GET");

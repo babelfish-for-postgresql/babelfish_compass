@@ -1,4 +1,9 @@
 
+# 2024-04
+- Added support for Babelfish v.4.1.0 and v.3.5.0.
+- Detect and rewrite often-seen FOR XML PATH workaround for STRING_AGG().
+- Various small enhancements.
+
 # 2024-02
 - Updated support for Babelfish v.4.0.0.
 
