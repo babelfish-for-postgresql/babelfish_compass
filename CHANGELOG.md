@@ -1,4 +1,11 @@
 
+# 2024-07
+- Added support for Babelfish v.4.2.0.
+- Added -anon flag to allow sharing Compass reports with customer-specific information removed.
+- Include additional geosptial aspects that were already supported in 4.1.0.
+- Include INFORMATION_SCHEMA.KEY_COLUMN_USAGE that was already supported in 3.4.0.
+- Various small fixes.
+
 # 2024-04
 - Added support for Babelfish v.4.1.0 and v.3.5.0.
 - Detect and rewrite often-seen FOR XML PATH workaround for STRING_AGG().

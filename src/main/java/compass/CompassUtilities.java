@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2024-04";
-	public static final String thisProgVersionDate  = "April 2024";
+	public static final String thisProgVersion      = "2024-07";
+	public static final String thisProgVersionDate  = "July 2024";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -173,7 +173,7 @@ public class CompassUtilities {
 	public final String WeightedStr = "Weighted";
 
 	// user-defined weight factors
-	public Map<String, Integer> userWeightFactor = new HashMap<>();
+	public static Map<String, Integer> userWeightFactor = new HashMap<>();
 
 	// overall compatibility %age
 	public String compatPctStr = uninitialized;
@@ -215,7 +215,7 @@ public class CompassUtilities {
 	public final static String uniqueCntTag = "uniqueCntTag";
 
 
-	public final String getAnonymizedItemsFilename = "anonymizedBabelfishItems.dat";
+	public final String getAnonymizedFilename = "anonymizedCaptured.tmp";
 
 	public String reportFileTextPathName = uninitialized;
 	public String reportFileHTMLPathName = uninitialized;
@@ -745,7 +745,7 @@ tooltipsHTMLPlaceholder +
 		"ROWVERSION "+tttSeparator+"The ROWVERSION (=TIMESTAMP) datatype is not currently supported",
 		"GEOGRAPHY "+tttSeparator+"The GEOGRAPHY datatype is not supported; consider using the PG PostGIS extension",
 		"GEOMETRY "+tttSeparator+"The GEOMETRY datatype is not supported; consider using the PG PostGIS extension",
-		"Spatial method "+tttSeparator+"GEOGRAPHY/GEOMETRY datatypes are not supported; consider using the PG PostGIS extension",
+		"Spatial method "+tttSeparator+"This GEOGRAPHY/GEOMETRY feature is not currently supported; consider using the PG PostGIS extension",
 		CompassAnalyze.AtAtErrorValueRef+", referenced value unclear"+tttSeparator+"The application references an @@ERROR value, but it is unclear exactly which error number is referenced.",
 		CompassAnalyze.AtAtErrorValueRef+tttSeparator+"The application references the @@ERROR value shown here, but this particular SQL Server error code is not currently supported by "+thisProgName+". Rewrite manually to check for the PostgreSQL error code",
 		CompassAnalyze.VarDeclareAtAt+tttSeparator+"Local variables or parameters starting with '@@' can be declared, but cannot currently be referenced",
@@ -1033,6 +1033,7 @@ tooltipsHTMLPlaceholder +
 	public BufferedWriter captureFileWriter;
 	public static final String symTabSeparator = ";";
 	public static final char metricsLineChar1 = '*';
+	public static final char metricsLineChar2 = '=';
 	public static final String metricsLineTag = "metrics";
 	public static final String captureFileSeparator = ";";
 
@@ -1042,7 +1043,8 @@ tooltipsHTMLPlaceholder +
 	public final String captureFileLinePart3 = " generated at ";
 	public final String captureFileLinePart4 = " with capture file format ";
 	public final String captureFileLinePart5 = " user config file ";
-	public static int captureFileAttributeMax = 5;
+	public final String captureFileLinePart6 = " , data is anonymized";
+	public static int captureFileAttributeMax = 6;
 
 	// report generation
 	public static String reportName = uninitialized;
@@ -1115,29 +1117,39 @@ tooltipsHTMLPlaceholder +
 	public int batchNrInFile;
 	public int linesInBatch;
 	public int constructsFound = 0;
-	public Map<String, Integer> constructsFoundDistinct = new HashMap<>();
-
+	public static Map<String, Integer> constructsFoundDistinct = new HashMap<>();
+	
+	// anonymization
+	public static boolean anonymizedData = false;	
+	public static int captureFilesAnon = 0;
+	public static int captureFilesNotAnon = 0;	
+	public static Map<String,String> anonFileNames = new HashMap<>();
+	public static Map<String,String> anonAppNames = new HashMap<>();
+	public static Map<String,String> anonObjNames = new HashMap<>();
+	public static Map<String,String> anonDbNames = new HashMap<>();
+	public static Map<String,String> anonUddNames = new HashMap<>();
+	
 	// rudimentary symbol table, only for some very basic things needed
 	// there's a lot of room for improvement here
-	static String symTabAppRead = "";
-	static Map<String, String> tableViewSymTab = new HashMap<>();
-	static Map<String, String> UDDSymTab = new HashMap<>();
-	static Map<String, String> SUDFSymTab = new HashMap<>();
-	static Map<String, String> TUDFSymTab = new HashMap<>();
-	static Map<String, String> procSymTab = new HashMap<>();
-	static Map<String, String> colSymTab = new HashMap<>();  // columns
+	public static String symTabAppRead = "";
+	public static Map<String, String> tableViewSymTab = new HashMap<>();
+	public static Map<String, String> UDDSymTab = new HashMap<>();
+	public static Map<String, String> SUDFSymTab = new HashMap<>();
+	public static Map<String, String> TUDFSymTab = new HashMap<>();
+	public static Map<String, String> procSymTab = new HashMap<>();
+	public static Map<String, String> colSymTab = new HashMap<>();  // columns
 	public static boolean buildColSymTab = false;  // false=no columns in symtab in pass 1
-	static Map<String, String> parSymTab = new HashMap<>();  // parameters with defaults
+	public static Map<String, String> parSymTab = new HashMap<>();  // parameters with defaults
 
 	//XML methods
-	static final List<String> XMLmethods = Arrays.asList("EXIST", "MODIFY", "QUERY", "VALUE", "NODES");
-	static Map<String, String> SUDFNamesLikeXML = new HashMap<>();
-	static Map<String, String> TUDFNamesLikeXML = new HashMap<>();
+	public static final List<String> XMLmethods = Arrays.asList("EXIST", "MODIFY", "QUERY", "VALUE", "NODES");
+	public static Map<String, String> SUDFNamesLikeXML = new HashMap<>();
+	public static Map<String, String> TUDFNamesLikeXML = new HashMap<>();
 
 	//HIERARCHYID methods
-	static final List<String> HIERARCHYIDmethodsFmt = Arrays.asList("GetAncestor", "GetDescendant", "GetLevel", "IsDescendantOf", "read", "GetReparentedValue", "ToString", "GetRoot", "Parse");  // Write cannot occur in SQL code
-	static List<String> HIERARCHYIDmethods = new ArrayList<>();
-	static Map<String, String> SUDFNamesLikeHIERARCHYID = new HashMap<>();
+	public static final List<String> HIERARCHYIDmethodsFmt = Arrays.asList("GetAncestor", "GetDescendant", "GetLevel", "IsDescendantOf", "read", "GetReparentedValue", "ToString", "GetRoot", "Parse");  // Write cannot occur in SQL code
+	public static List<String> HIERARCHYIDmethods = new ArrayList<>();
+	public static Map<String, String> SUDFNamesLikeHIERARCHYID = new HashMap<>();
 
 	// masking chars in identifiers
 	public static final String BBFMark            = "BBF_";
@@ -2267,8 +2279,8 @@ tooltipsHTMLPlaceholder +
 	}
 
 	// anon items file pathname
-    public String getAnonymizedItemsPathname(String reportName) {
-		String f = getAnonymizedItemsFilename;
+    public String getAnonymizedFilename(String reportName) {
+		String f = getAnonymizedFilename;
 		String filePath = getFilePathname(getReportDirPathname(reportName, capDirName), f);
 		return filePath;
 	}
@@ -4061,10 +4073,16 @@ tooltipsHTMLPlaceholder +
     public String captureFileAttribute(String line, int part) throws IOException {
     	assert (part >= 1 && part <= captureFileAttributeMax): "invalid part value ["+part+"] ";
     	if (part == 4) part++;
-    	else if (part == 5) part += 2;
-    	String patt = "^"+captureFileLinePart1+"[\\[](.*?)[\\]]"+captureFileLinePart2+"[\\[](.*?)[\\]]"+captureFileLinePart3+"(\\d\\d\\-.+?-\\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d)("+captureFileLinePart4+"[\\[](.*?)[\\]])?("+captureFileLinePart5+"[\\[](.*?)[\\]])?";
+    	else if (part >= 5)  part += 2;
+    	String patt = "^"+captureFileLinePart1+"[\\[](.*?)[\\]]"+captureFileLinePart2+"[\\[](.*?)[\\]]"+captureFileLinePart3+"(\\d\\d\\-.+?-\\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d)("+captureFileLinePart4+"[\\[](.*?)[\\]])?("+captureFileLinePart5+"[\\[](.*?)[\\]]("+captureFileLinePart6+")?)?";
     	String attrib = getPatternGroup(line, patt, part);
     	return attrib;
+    }
+
+	// is capture file anonymized?
+    public boolean captureFileIsAnonymized(String line) throws IOException {
+    	if (line.endsWith(captureFileLinePart6)) return true;
+    	return false;
     }
 
 	// read capture file first line
@@ -4079,7 +4097,7 @@ tooltipsHTMLPlaceholder +
 
 	// metrics line
     public static String makeMetricsLine(String srcFileName, String appName, int nrBatches, int nrBatchesError, int nrLines) {
-    	return metricsLineChar1 + metricsLineTag + "=" + srcFileName + captureFileSeparator + appName + captureFileSeparator + nrBatches + captureFileSeparator + nrBatchesError + captureFileSeparator + nrLines;
+    	return metricsLineChar1 + metricsLineTag + metricsLineChar2 + srcFileName + captureFileSeparator + appName + captureFileSeparator + nrBatches + captureFileSeparator + nrBatchesError + captureFileSeparator + nrLines;
 	}
 
 	// strip delimiters if possible
@@ -6159,7 +6177,7 @@ tooltipsHTMLPlaceholder +
 			String cfLine = captureFileFirstLine(cf.toString());   // read only first line
 			String cfReportName = captureFileAttribute(cfLine, 1);
 			if (cfReportName.isEmpty()) {
-				appOutput("\nInvalid format on line 1 of "+cf+":["+cfLine+"]; run with -analyze to fix.");
+				appOutput("\nInvalid format on line 1 of "+cf.toString()+":["+cfLine+"]; run with -analyze to fix.");			
 				errorExit();
 			}
 			if (!reportName.equalsIgnoreCase(cfReportName)) {
@@ -6167,8 +6185,31 @@ tooltipsHTMLPlaceholder +
 				cfFilename = cfFilename.substring(cfFilename.lastIndexOf(File.separator)+1);
 				String rDir = getFilePathname(getDocDirPathname(), capDirName);
 				appOutput("\nFound analysis file '"+cfFilename+"' for report '" + cfReportName + "' in " + rDir + ": adding contents to report "+reportName);
-			}
+			}			
 			if (importFilePathName == null) importFilePathName = getImportFilePathNameFromCaptured(cf.toString());			
+			
+			if (captureFileIsAnonymized(cfLine)) {
+				captureFilesAnon++;
+				if (!reportOptionXref.isEmpty()) {
+					appOutput("\nAnonymized analysis file found: "+cf.toString()+"\nAnonymized data cannot be combined with -reportion xref\n");
+					errorExit();
+				}
+				if ((captureFilesAnon > 0) && (captureFilesNotAnon > 0)) {
+					appOutput("\nCannot process mix of anonymized and not-anonymized analysis files. Re-process with -analyze [-anon]\nFile is anonymized: "+cf.toString()+"\n");
+					errorExit();					
+				}											
+			}			
+			else {
+				captureFilesNotAnon++;
+				if (anonymizedData) {	
+					appOutput("\n-anon was specified but a non-anonymized analysis file was found: "+cf.toString()+"\nRe-process with -analyze [-anon]\n");
+					errorExit();					
+				}		
+				if ((captureFilesAnon > 0) && (captureFilesNotAnon > 0)) {
+					appOutput("\nCannot process mix of anonymized and not-anonymized analysis files. Re-process with -analyze [-anon]\nFile is not anonymized: "+cf.toString()+"\n");
+					errorExit();					
+				}					
+			}			
 
 			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
 			InputStreamReader cfisr = new InputStreamReader(cfis, StandardCharsets.UTF_8);
@@ -6197,7 +6238,7 @@ tooltipsHTMLPlaceholder +
 
 				// check for metrics lines
 				if (capLine.charAt(0) == metricsLineChar1) {
-					String metricsLine = getPatternGroup(capLine, "^." + metricsLineTag + "=(.*)$", 1);
+					String metricsLine = getPatternGroup(capLine, "^." + metricsLineTag + metricsLineChar2 + "(.*)$", 1);
 
 					assert !metricsLine.isEmpty() : "metricsLine cannot be blank";
 
@@ -6226,6 +6267,8 @@ tooltipsHTMLPlaceholder +
 					appOutput("["+capLine+"]");
 					continue;
 				}
+				
+				
 
 				String objType = getPatternGroup(itemList.get(capPosItem), "^CREATE (OR ALTER )?(.*)$", 2);
 				if (objType.isEmpty()) {
@@ -7027,7 +7070,11 @@ tooltipsHTMLPlaceholder +
 				srvInfo += alignColumn(srvInfoTmp, " : ", "before", "left") + "\n";
 			}
 			srvInfo = composeSeparatorBar("SQL Server Information" + nStr, tagSQLSrvSummary, false) + removeLastChar(srvInfo);
-			execSummary.append(srvInfo).append("\n");			
+			if (anonymizedData) execSummary.append("SQL Server Information: anonymized\n");
+			else execSummary.append(srvInfo).append("\n");			
+		}
+		if (anonymizedData || (captureFilesAnon > 0 && captureFilesNotAnon == 0)) {
+			execSummary.append("Note: this report has been anonymized by removing all customer-specific identifiers\n\n");
 		}
 		
 		String objCountSummary = "#Procedures/functions/triggers/views: " + nrSQLObjects+"    #Tables: " + nrTables;
@@ -7333,7 +7380,7 @@ tooltipsHTMLPlaceholder +
 				firstCfUserCfgFileInit = true;
 			}
 			if (cfReportName.isEmpty()) {
-				appOutput("Invalid format in "+cfReportName+"; run with -analyze to fix.");
+				appOutput("\nInvalid format on line 1 of "+cf.toString()+":["+cfLine+"]; run with -analyze to fix.");				
 				errorExit();
 			}
 			if (!reportName.equalsIgnoreCase(cfReportName)) {
@@ -7344,7 +7391,6 @@ tooltipsHTMLPlaceholder +
 			}
 
 			// check if the original user-defined cfg filename matches the one used during import. Tell user if not.
-			//appOutput(thisProc()+"cf=["+cf+"] cfUserCfgFile=["+cfUserCfgFile+"] userCfgFileName=["+userCfgFileName+"] ");
 			if (cfUserCfgFile != null) {
 				if (!cfUserCfgFile.equalsIgnoreCase(userCfgFileName)) {
 					if (cfUserCfgFile.equalsIgnoreCase(optimisticUserCfgFileName)) {
@@ -7366,6 +7412,24 @@ tooltipsHTMLPlaceholder +
 				}
 			}
 
+			if (captureFileIsAnonymized(cfLine)) {
+				captureFilesAnon++;
+				if ((captureFilesAnon > 0) && (captureFilesNotAnon > 0)) {
+					appOutput("\nCannot process mix of anonymized and not-anonymized analysis files. Re-process with -analyze [-anon]\nFile is anonymized: "+cf.toString()+"\n");
+					errorExit();					
+				}											
+			}			
+			else {
+				captureFilesNotAnon++;
+				if (anonymizedData) {	
+					appOutput("\n-anon was specified but a non-anonymized analysis file was found: "+cf.toString()+"\nRe-process with -analyze [-anon]\n");
+					errorExit();					
+				}		
+				if ((captureFilesAnon > 0) && (captureFilesNotAnon > 0)) {
+					appOutput("\nCannot process mix of anonymized and not-anonymized analysis files. Re-process with -analyze [-anon]\nFile is not anonymized: "+cf.toString()+"\n");
+					errorExit();					
+				}					
+			}
 
 			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
 			InputStreamReader cfisr = new InputStreamReader(cfis, StandardCharsets.UTF_8);
@@ -7381,7 +7445,7 @@ tooltipsHTMLPlaceholder +
 				}
 				capLine = capLine.trim();
 				if (capLine.isEmpty()) continue;
-				if ((capLine.charAt(0) == '#') || (capLine.charAt(0) == '*')) {
+				if ((capLine.charAt(0) == '#') || (capLine.charAt(0) == metricsLineChar1)) {
 					continue;
 				}
 				// for items logged only to xref the report to the original cfg sections, put 'm in a buffer and discard
@@ -7417,7 +7481,7 @@ tooltipsHTMLPlaceholder +
 				}
 				capLine = capLine.trim();
 				if (capLine.isEmpty()) continue;
-				if ((capLine.charAt(0) == '#') || (capLine.charAt(0) == '*')) {
+				if ((capLine.charAt(0) == '#') || (capLine.charAt(0) == metricsLineChar1)) {
 					continue;
 				}
 				if (capLine.contains(captureFileSeparator+ObjCountOnly+captureFileSeparator)) continue;
@@ -9146,7 +9210,11 @@ userCfgComplexityHdrLine202308 + "\n" +
 		return s;
 	}
 
-	public void createAnonymizedReport() throws IOException {
+	// When specifying the -anon flag, all customer-specific identifiers will be removed and replaced by
+	// names like 'procedureN', 'appN', etc. (N=1,2,3....)
+	// This is for cases where a report (or the capture files will be shared with a 3rd party and there are concerns about 
+	// exposing confidential information. 
+	public void anonymizeCapturedData() throws IOException {
 		// get capture files
 		List<Path> captureFiles = getCaptureFiles(reportName);
 		if (debugging) dbgOutput(thisProc() + "captureFiles(" + captureFiles.size() + ")=[" + captureFiles + "] ", debugReport);
@@ -9160,38 +9228,34 @@ userCfgComplexityHdrLine202308 + "\n" +
 			appOutput(cfv);
 			errorExit();
 		}
+		
 		String cfVersion = captureFilesValid("tgtversion", captureFiles, true);
 
 		Date now = new Date();
 		String nowFmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now);
 
-		BufferedWriter anonItemsFileWriter = null;
-    	String anonItemPathName = getAnonymizedItemsPathname(reportName);
+		BufferedWriter anonFileWriter = null;
+    	String anonPathName = getAnonymizedFilename(reportName);
     	checkDir(getReportDirPathname(reportName, capDirName), true);
-		anonItemsFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(anonItemPathName), StandardCharsets.UTF_8)));
 
 		int itemCount = 0;
-		Map<String,String> appNames = new HashMap<>();
-		Map<String,String> objNames = new HashMap<>();
-		Map<String,String> dbNames = new HashMap<>();
 		for (Path cf : captureFiles) {
 			String cfLine = captureFileFirstLine(cf.toString());   // read only first line
 			String cfReportName = captureFileAttribute(cfLine, 1);
 			if (cfReportName.isEmpty()) {
-				appOutput("Invalid format in "+cfReportName+"; run with -analyze to fix.");
+				appOutput("\nInvalid format on line 1 of "+cf.toString()+":["+cfLine+"]; run with -analyze to fix.");							
 				errorExit();
 			}
-			if (!reportName.equalsIgnoreCase(cfReportName)) {
-				String rDir = getFilePathname(getDocDirPathname(), capDirName);
-				appOutput("Found analysis file for report '" + cfReportName + "' in " + rDir + ": adding to import");
+			if (captureFileIsAnonymized(cfLine)) {
+				appOutput("Capture file "+cf.toString()+" is already anonymized.");	
+				continue;										
 			}
-
 			FileInputStream cfis = new FileInputStream(new File(cf.toString()));
 			InputStreamReader cfisr = new InputStreamReader(cfis, StandardCharsets.UTF_8);
 			BufferedReader capFile = new BufferedReader(cfisr);
+			anonFileWriter = new BufferedWriter((new OutputStreamWriter(new FileOutputStream(anonPathName), StandardCharsets.UTF_8)));
 
 			String capLine = "";
-
 			while (true) {
 				capLine = capFile.readLine();
 				if (capLine == null) {
@@ -9200,11 +9264,39 @@ userCfgComplexityHdrLine202308 + "\n" +
 				}
 				capLine = capLine.trim();
 				if (capLine.isEmpty()) continue;
-				if ((capLine.charAt(0) == '#') || (capLine.charAt(0) == '*')) {
+				if (capLine.charAt(0) == '#') {				
+					// uncomment the below to anonymize report name; note that the report file name is still not anonymized
+					// we keep the report name otherwise it's not possile to identify the customer/app for whom the report is
+					//capLine = captureFileLinePart1 + "[" + "anon" + capLine.substring(capLine.indexOf("]"));
+					
+					// anonymize user-defined cfg file if not using the defaults
+					String cfgFileName = captureFileAttribute(cfLine, 5);	
+					//appOutput(thisProc()+"cfLine=["+cfLine+"] cfgFileName=["+cfgFileName+"] ");
+					if (!cfgFileName.equalsIgnoreCase(defaultUserCfgFileName) && !cfgFileName.equalsIgnoreCase(optimisticUserCfgFileName)) {
+						capLine = capLine.substring(0,capLine.lastIndexOf("[")+1) + "anonymized]";
+					}		
+					
+					// mark file as anonymized
+					if (!capLine.endsWith(captureFileLinePart6)) capLine += captureFileLinePart6;
+					
+					anonFileWriter.write(capLine+"\n");
 					continue;
 				}
-				if (capLine.contains(captureFileSeparator+ObjCountOnly+captureFileSeparator)) continue;
-				if (capLine.contains(captureFileSeparator+XRefOnly+captureFileSeparator)) continue;
+				if (capLine.charAt(0) == metricsLineChar1) {
+					// handle metrics line
+					List<String> tmp = new ArrayList<>(Arrays.asList(capLine.split(captureFileSeparator)));
+					tmp.set(0, tmp.get(0).substring(tmp.get(0).indexOf(metricsLineChar2)+1));
+					tmp.set(0, tmp.get(0).replaceAll("\\\\", "\\\\\\\\"));
+					if (!anonFileNames.containsKey(tmp.get(0).toLowerCase())) anonFileNames.put(tmp.get(0).toLowerCase(), "file"+(anonFileNames.size()+1));
+					tmp.set(0,anonFileNames.get(tmp.get(0).toLowerCase()));			
+										
+					if (!anonAppNames.containsKey(tmp.get(1).toLowerCase())) anonAppNames.put(tmp.get(1).toLowerCase(), "file"+(anonAppNames.size()+1));
+					tmp.set(1,anonAppNames.get(tmp.get(1).toLowerCase()));								
+					capLine = metricsLineChar1 + metricsLineTag + metricsLineChar2 + String.join(captureFileSeparator, tmp) + captureFileSeparator;
+
+					anonFileWriter.write(capLine+"\n");
+					continue;
+				}
 
 				itemCount++;
 
@@ -9212,73 +9304,118 @@ userCfgComplexityHdrLine202308 + "\n" +
 				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
 				capLine = capLine.substring(0,capLine.lastIndexOf(captureFileSeparator));
 				capLine = unEscapeHTMLChars(capLine);
-
+				
 				// remove customer-specific items
 				List<String> tmp = new ArrayList<>(Arrays.asList(capLine.split(captureFileSeparator)));
-
+				
+				int n = tmp.size();
+				for (int i = 0; i < (12-n); i++) {
+					tmp.add("");  // compensate for some empty fields
+				}
+									
 				if (!(tmp.get(9).equals(BatchContext))) {
-					// wipe out identifiers in context
+					// anonymize identifiers in context
 					String objType = getPatternGroup(tmp.get(9),"^(\\w+)\\s+(.*)$",1);
 					String objName = getPatternGroup(tmp.get(9),"^(\\w+)\\s+(.*)$",2).toLowerCase();
-					if (!objNames.containsKey(objName)) objNames.put(objName, objType.toLowerCase()+(objNames.size()+1));
-					tmp.set(9, objType+" "+objNames.get(objName));
-				}
-				if (tmp.size() >= 11) {
-					if (!tmp.get(10).isEmpty()) {
-						// wipe out identifiers in context
-						String objType = getPatternGroup(tmp.get(10),"^(\\w+)\\s+(.*)$",1);
-						String objName = getPatternGroup(tmp.get(10),"^\\w+\\s+(.*)$",1).toLowerCase();
-						if (!objNames.containsKey(objName)) objNames.put(objName, "table"+(objNames.size()+1));
-						tmp.set(10, objType+" "+objNames.get(objName));
+					if (!objType.isEmpty()) {
+						if (!anonObjNames.containsKey(objName)) anonObjNames.put(objName, objType.toLowerCase()+(anonObjNames.size()+1));
+						tmp.set(9, objType+" "+anonObjNames.get(objName));
 					}
 				}
-
-				// remove user-specific fields
-				if (tmp.size() >= 12) {
-					tmp.remove(11);
+				
+				if (tmp.size() >= 11) {
+					if (!tmp.get(10).isEmpty()) {
+						// anonymize identifiers in context
+						String objType = getPatternGroup(tmp.get(10),"^(\\w+)\\s+(.*)$",1);
+						String objName = getPatternGroup(tmp.get(10),"^\\w+\\s+(.*)$",1).toLowerCase();
+						if (!objType.isEmpty()) {
+							if (!anonObjNames.containsKey(objName)) anonObjNames.put(objName, "table"+(anonObjNames.size()+1));
+							tmp.set(10, objType+" "+anonObjNames.get(objName));
+						}
+					}
 				}
-				tmp.remove(8);
-				tmp.remove(7);
-				tmp.remove(6);
+								
+				// anonymize input file name
+				if (!anonFileNames.containsKey(tmp.get(6).toLowerCase())) anonFileNames.put(tmp.get(6).toLowerCase(), "file"+(anonFileNames.size()+1));
+				tmp.set(6,anonFileNames.get(tmp.get(6).toLowerCase()));				
 
-				// wipe out appname
-				if (!appNames.containsKey(tmp.get(5).toLowerCase())) appNames.put(tmp.get(5).toLowerCase(), "app"+(appNames.size()+1));
-				tmp.set(5,appNames.get(tmp.get(5).toLowerCase()));
+				// anonymize appname
+				if (!anonAppNames.containsKey(tmp.get(5).toLowerCase())) anonAppNames.put(tmp.get(5).toLowerCase(), "app"+(anonAppNames.size()+1));
+				tmp.set(5,anonAppNames.get(tmp.get(5).toLowerCase()));
 
-				tmp.remove(4);
-				tmp.remove(3);
-				tmp.remove(1);
+				tmp.set(1, anonField(tmp.get(1)));
 
-				// wipe out UDD name
+				// anonymize UDD name
 				if (tmp.get(0).indexOf(" (UDD ") > -1) {
-					tmp.set(0, tmp.get(0).substring(0, tmp.get(0).indexOf(" (UDD "))+" (UDD)" + tmp.get(0).substring(tmp.get(0).lastIndexOf(")")+1));
+					String uddName = tmp.get(0).substring(tmp.get(0).indexOf(" (UDD ")+6).toLowerCase();
+					uddName = uddName.substring(0,uddName.lastIndexOf(")"));
+					if (!anonUddNames.containsKey(uddName)) anonUddNames.put(uddName, "udd"+(anonUddNames.size()+1));	
+					tmp.set(0, tmp.get(0).substring(0, tmp.get(0).indexOf(" (UDD "))+" (UDD "+anonUddNames.get(uddName)+")" + tmp.get(0).substring(tmp.get(0).lastIndexOf(")")+1));
+				}
+				else if (tmp.get(0).indexOf(" (UDD, ") > -1) {
+					String uddName = tmp.get(0).substring(0,tmp.get(0).indexOf(" (UDD, ")+6).toLowerCase();
+					if (!anonUddNames.containsKey(uddName)) anonUddNames.put(uddName, "udd"+(anonUddNames.size()+1));	
+					tmp.set(0, anonUddNames.get(uddName) + tmp.get(0).substring(tmp.get(0).indexOf(" (UDD, ")));
 				}
 
-				// wipe out DB name
+				// anonymize DB name		
 				if (tmp.get(0).startsWith("USE ")) {
 					String dbName = tmp.get(0).substring(4).toLowerCase();
-					if (!dbNames.containsKey(dbName)) dbNames.put(dbName, "db"+(dbNames.size()+1));
-					tmp.set(0, "USE " +dbNames.get(dbName));
+					tmp.set(0, "USE " +anonDbName(dbName, anonDbNames));
 				}
 				if (tmp.get(0).contains(" DATABASE ")) {
 					String dbName = tmp.get(0).substring(tmp.get(0).indexOf(" DATABASE ")+" DATABASE ".length()).toLowerCase();
-					if (!dbNames.containsKey(dbName)) dbNames.put(dbName, "db"+(dbNames.size()+1));
-					tmp.set(0, tmp.get(0).substring(0, tmp.get(0).indexOf(" DATABASE ")+" DATABASE ".length())+dbNames.get(dbName));
+					tmp.set(0, tmp.get(0).substring(0, tmp.get(0).indexOf(" DATABASE ")+" DATABASE ".length())+anonDbName(dbName, anonDbNames));
 				}
+				tmp.add("~");
+				capLine = String.join(captureFileSeparator, tmp) + captureFileSeparator;
 
-				capLine = String.join(captureFileSeparator, tmp);
-
-				// add babelfish version & compass version
-				capLine = cfVersion + captureFileSeparator + thisProgVersion + captureFileSeparator + capLine;
-				anonItemsFileWriter.write(capLine+"\n");
+				anonFileWriter.write(capLine+"\n");
 			}
 			capFile.close();
+			anonFileWriter.close();
+			
+			// Replace original capture file with just-created file
+			if (debugging) dbgOutput(thisProc() + "Renaming anonPathName=["+anonPathName+"]  to cf.toString()=["+cf.toString()+"] ", debugReport);			
+			File fSrc  = new File(anonPathName);
+			File fDest = new File(cf.toString());
+	    	Files.move(fSrc.toPath(), fDest.toPath(), StandardCopyOption.REPLACE_EXISTING);		
+			appOutput("All identifiers and customer-specific details have been removed from\n"+cf.toString());	    		    		
 		}
-		anonItemsFileWriter.close();
-		appOutput("Items for anonymized reporting: "+itemCount);
-		appOutput("All identifiers and customer-specific details have been removed from the captured items\nin "+anonItemPathName);
+
+	}
+	
+	private String anonField(String s) {
+		if (s.trim().length() == 0) return s.trim();
+		List<String> valuesOK = Arrays.asList("schema::", "dbo", "guest", "master", "tempdb", "msdb", "model", "db_owner", "on", "off", "\\.", "\\W+");
+		s = applyPatternAll(s, "^([@]+)\\w+\\b", "$1" + "anonvar");
+		String s2 = s;
+		s2 = applyPatternAll(s2, "^[@]+anonvar", " ");
+		for (int i = 0; i < valuesOK.size(); i++) {
+			String k = valuesOK.get(i);
+			s2 = applyPatternFirst(s2, "\\b"+k+"\\b", " ");
+		}
+		if (s2.trim().length() == 0) return s;
+		return "anonymized";
 	}
 
+	
+	private String anonDbName(String s, Map<String,String> anonDbNames) {
+		if (s.trim().length() == 0) return s.trim();
+		List<String> valuesOK = Arrays.asList("master", "tempdb", "msdb", "model");
+		String s2 = s.toLowerCase();		
+		for (int i = 0; i < valuesOK.size(); i++) {
+			String k = valuesOK.get(i);
+			s2 = applyPatternFirst(s2, "\\b"+k+"\\b", " ");
+		}
+		if (s2.trim().length() == 0) return s;
+		
+		s = s.toLowerCase();
+		if (anonDbNames.size() == 1) anonDbNames.put("", ""); // avoid confusion	
+		if (!anonDbNames.containsKey(s)) anonDbNames.put(s, "db"+(anonDbNames.size()+1));			
+		return anonDbNames.get(s);
+	}
+	
 	public void checkForUpdate () {
 		if (!updateCheck) return;
 
