@@ -109,7 +109,6 @@ public class Compass {
 	protected static boolean pgImport = false;
 	protected static boolean pgImportAppend = false;
 	protected static boolean pgImportTable = false;
-	protected static boolean anonymizedReport = false;
 	protected static boolean importFormatArg = false;	
 	protected static String mergeReport = "";
 	protected static String userCfgFile = "";		
@@ -133,6 +132,7 @@ public class Compass {
 	public static String sessionLog;
 	
 	public static List<String> inputFiles = new ArrayList<>();
+	public static Map<String, Integer> inputFilesLastLine = new HashMap<>();
 	public static List<String> inputFilesOrig = new ArrayList<>();
 	public static Map<String,String> inputFilesMapped = new HashMap<>();
 	public static List<String> cmdFlags = new ArrayList<>();
@@ -278,6 +278,7 @@ public class Compass {
 				u.appOutput("   -recursive                   : recursively add files if inputfile is a directory");
 				u.appOutput("   -include <list>              : pattern of input file types to include (e.g.: .txt,.ddl)");
 				u.appOutput("   -exclude <list>              : pattern of input file types to exclude (e.g.: .pptx)");
+  				u.appOutput("   -anon                        : remove all customer-specific identifiers");
   				u.appOutput("   -rewrite                     : rewrites selected unsupported SQL features");
   				u.appOutput("   -noupdatechk                 : do not check for " + CompassUtilities.thisProgName + " updates");
 				u.appOutput("   -importformat <fmt>          : process special-format captured query files");
@@ -721,7 +722,10 @@ public class Compass {
 				i++;
 				continue;
 			}						
-						
+			if (arg.equals("-anon")) { 
+				u.anonymizedData = true;
+				continue;
+			}							
 			if (arg.equals("-sqlendpoint")) { 
 				if (i >= args.length) {
 					System.out.println("Must specify value with -sqlendpoint");
@@ -889,11 +893,7 @@ public class Compass {
 				if (arg.equals("-symtab_all")) { // development only: load symtab for all applications -- but we shouldn't need this
 					u.symTabAll = true;
 					continue;
-				}					
-				if (arg.equals("-anon")) { // development only
-					anonymizedReport = true;
-					continue;
-				}			
+				}							
 			}
 			// arguments must start with [A-Za-z0-9 _-./] : anything else is invalid
 			if (CompassUtilities.getPatternGroup(arg.substring(0,1), "^([\\w\\-\\.\\/])$", 1).isEmpty()) {
@@ -1038,13 +1038,7 @@ public class Compass {
 		// generate DDL through SMO
 		if (autoDDL) {
 			getAutoDDL();
-		}
-				
-		// generate anon report file
-		if (anonymizedReport) {
-			runAnonymizedReport();
-			return;			
-		}		
+		}					
 
 		// only for debugging the config class:
 //		if (u.debugCfg) {
@@ -1209,7 +1203,7 @@ public class Compass {
 		
 		// read custom item ID file, if applicable
 		u.openCustomItemIDFile();
-	
+		
 		if (reportOnly) {
 			// only generate reported from already-captured items
 			startTime = System.currentTimeMillis();
@@ -1275,7 +1269,7 @@ public class Compass {
 		endRun = System.currentTimeMillis();
 		endRunFmt = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());		
 		elapsedRun = (endRun - startRun)/ 1000;
-
+				
 		comp.reportFinalStats();
 		if (generateReport) {
 			if (!(parseOnly || importOnly)) {
@@ -1590,13 +1584,17 @@ public class Compass {
 			}
 		}
 		
- 		if (anonymizedReport) {
- 			if (readStdin || listContents || importOnly || reAnalyze || deleteReport || reportOnly) {
+ 		if (u.anonymizedData) {
+ 			if (readStdin || listContents) {
 				u.appOutput("-anon cannot be combined with other options");
 				return false;
 			}
- 			if ((inputFiles.size() > 0) || autoDDL) {
-				u.appOutput("-anon cannot be combined with input files");
+ 			if (reportOption) {
+				u.appOutput("-anon cannot be combined with -reportoption");
+				return false;
+			}
+ 			if ((inputFiles.size() == 0) && !pgImport && !reportOnly && !reAnalyze) {
+				u.appOutput("-anon can only be specified when analyzing input files");
 				return false;
 			}
 			return true;
@@ -1947,25 +1945,20 @@ public class Compass {
 	}
 	
 	private static void runPGImport () throws Exception { 
-		// import the captured.dat file into a PG table
-					
-	//	try { 
-			u.importPG(pgImportAppend, pgImportFlags);
-			// } 
-//		catch (Exception e) { 
-//			u.appOutput(u.thisProc()+"error in importPG");
-//			throw e;
-//		}		
+		// import the captured.dat file into a PG table					
+		u.importPG(pgImportAppend, pgImportFlags);	
 		
 		//Note: by exiting here, the password entered on command line is not getting written into the log files		
 		// If this is ever changed, the password should be blanked out in the command-line argument before written to the log file
 		u.errorExit();
 	}
 
-	private static void runAnonymizedReport () { 
+	private static void anonymizeCapturedData () { 
 		// generated anon report file 		
-		try { u.createAnonymizedReport(); } catch (Exception e) { /*nothing*/ }		
-		u.errorExit();
+		try { u.anonymizeCapturedData(); } catch (Exception e) { 
+			//System.out.println(e.toString());
+			e.printStackTrace();
+		}		
 	}
 
 	private void reportFinalStats() throws Exception {
@@ -2390,10 +2383,16 @@ public class Compass {
 			// set QUOTED_IDENTIFIER to the default value at the start of the input file
 			a.setQuotedIdentifier(quotedIdentifier);			
 
-			// process input file line by line, identifying batches to be parsed
-			// this follows the 'sqlcmd' utility which uses 'go' and 'reset' as batch terminators
-			// other sqlcmd commands/directives are not handled except 'exit'/'quit'; such sqlcmd 
-			// commands/directives can only be handled by sqlcmd itself
+			// Process input file line by line, identifying batches to be parsed
+			// This follows the 'sqlcmd' utility which uses 'go' and 'reset' as batch terminators
+			// Other sqlcmd commands/directives are not handled except 'exit'/'quit'
+			// Note that we are not trying to parse the entire input file, which would require the
+			// sqlcmd commands to be part of the grammar. Not only would this complicate the grammar,
+			// slow down parsing and complicate overall processing, but more importantly it would lead 
+			// to the entire file being rejected if there is a single syntax error or bad character 
+			// somewhere, instead of just rejecting the offending batch.
+			// The price to pay is having to work through each input file to properly process these 
+			// sqlcmd commands.
 
 			StringBuilder batchText = new StringBuilder();
 			int batchLines = 0;
@@ -2436,19 +2435,35 @@ public class Compass {
 			dynamicSQLContext = "";
 			dynamicSQLSubContext = "";
 			u.dynamicSQLFlag = false;
+			
+			int lastLineWithoutTerminator = -1;
+			if (u.analysisPass == 2) {
+				if (inputFilesLastLine.containsKey(inFile)) {
+					lastLineWithoutTerminator = inputFilesLastLine.get(inFile);
+					if (u.debugging) u.dbgOutput(u.thisProc()+"getting lastLineWithoutTerminator for inFile=["+inFile+"]=["+lastLineWithoutTerminator+"] ", u.debugBatch||u.debugDynamicSQL);
+				}
+			}			
 
 			while (true) {
 				boolean somethingFoundOnLine = false;
 				boolean orphanSquareBracket = false;
 				if (!lastLineRead) {
-					line = inFileReader.readLine();
+					if ((u.analysisPass == 2) && (lastLineWithoutTerminator == lineNr)) {
+						if (u.debugging) u.dbgOutput("inserting lastLineWithoutTerminator, lineNr=["+lineNr+"]",  u.debugBatch||u.debugDynamicSQL);
+						line = "go";   // this only applies in case the last batch does not have a terminator AND there is dynamic SQL to process
+					}
+					else {
+						line = inFileReader.readLine();
+					}
 				}
 				else if (u.analysisPass == 2) {
+					if (u.debugging) u.dbgOutput(u.thisProc()+"dynSQLCount=["+dynSQLCount+"] u.dynamicSQLBuffer.size()=["+u.dynamicSQLBuffer.size()+"] ", u.debugDynamicSQL);		
 					if (dynSQLCount < u.dynamicSQLBuffer.size()) {
 						if (!analyzingDynamicSQL) {
 							u.dynamicSQLBuffer.add(0, "go");
-							analyzingDynamicSQL = true;
+							analyzingDynamicSQL = true;							
 						}
+						if (u.debugging) u.dbgOutput(u.thisProc()+"u.dynamicSQLBuffer=["+u.dynamicSQLBuffer+"] ", u.debugDynamicSQL);							
 						line = u.dynamicSQLBuffer.get(dynSQLCount);
 						dynSQLCount++;
 						if (u.debugging) u.dbgOutput(u.thisProc()+"dynamic SQL: line=["+line+"] ", u.debugDynamicSQL);		
@@ -2471,6 +2486,11 @@ public class Compass {
 						line = null;
 					}
 				}
+				if ((line == null) && (u.analysisPass == 1)  && !lastLineRead && !startOfNewBatch) {	
+					// this only matters in case there is dynamic SQL to process AND the last batch does not have a terminator			
+					inputFilesLastLine.put(inFile, lineNr);
+					if (u.debugging) u.dbgOutput("last line read without GO: lineNr=["+lineNr+"] startOfNewBatch=["+startOfNewBatch+"] lastLineWithoutTerminator=["+inputFilesLastLine.get(lineNr)+"]" , u.debugBatch||u.debugDynamicSQL);	
+				}				
 				if ((line == null) && (u.analysisPass == 2)  && !lastLineRead) {
 					lastLineRead = true;		
 					if (u.debugging) u.dbgOutput("last line was read! ", u.debugBatch);			
@@ -2507,7 +2527,7 @@ public class Compass {
 									if (!u.importFileAttribute(line,2).isEmpty()) {
 										// this is the header line from the import copy, abort
 										u.appOutput("This file contains a header line that indicates it was taken from an 'imported' subdirectory\nof a "+u.thisProgName+" report.");
-										u.appOutput("Remove the first line; when reprocessing, ensure the file is encoded as UTF-8, or use '-encoding utf8'.");
+										u.appOutput("You must remove the first line; when reprocessing, ensure the file is encoded as UTF-8, or use '-encoding utf8'.");
 										u.appOutput("Aborting...");
 										u.errorExit();
 									}
@@ -2882,6 +2902,7 @@ public class Compass {
 						}
 
 						if ((u.analysisPass == 1) || ((u.analysisPass == 2) && analyzingDynamicSQL)) {
+							if (u.debugging) u.dbgOutput("u.analysisPass=["+u.analysisPass+"]  analyzingDynamicSQL=["+analyzingDynamicSQL+"] dumpParseTree=["+dumpParseTree+"] ", u.debugBatch);
 							if (hasParseError) {
 								// write error batch
 								if (u.errBatchFileWriter == null) {
@@ -2922,7 +2943,7 @@ public class Compass {
 							} 
 							else if (exportedParseTree != null) {
 								// even with -parseonly, we need to run analysis in order to process set quoted_identifier, which affects parsing
-								if (u.debugging) u.dbgOutput("Analyzing tree for batch", u.debugBatch);
+								if (u.debugging) u.dbgOutput("pass=["+u.analysisPass+"] Analyzing tree for batchNr=["+batchNr+"] batchLines=["+batchLines+"] ", u.debugBatch);
 								String phase = "analysisTimeP" + u.analysisPass;
 								startTime = System.currentTimeMillis();
 
@@ -2999,7 +3020,7 @@ public class Compass {
 				}
 			}
 
-			if (u.analysisPass == 2) {
+			if (u.analysisPass == 2) {	
 				if (CompassUtilities.devOptions) {
 					// temporary, for development
 					int secs = ((int) timeElapsedFile / 1000);
@@ -3026,6 +3047,14 @@ public class Compass {
 				u.closeErrBatchFile();
 			}		
 		} //for inputfiles
+		
+	
+		// generate anonymized capture files
+		if (u.analysisPass == 2) {
+			if (u.anonymizedData) {
+				anonymizeCapturedData();		
+			}			
+		}
 	}
 	
 	private static void getAutoDDL () throws Exception {
@@ -3317,7 +3346,7 @@ public class Compass {
 			}
 
 			// export the parse tree
-			if (batchNr > 0) {
+			if ((batchNr > 0) || (batchNr == 0) && analyzingDynamicSQL) {
 				exportedParseTree = tree;
 			}
 

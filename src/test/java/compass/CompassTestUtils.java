@@ -74,7 +74,6 @@ public class CompassTestUtils {
         Compass.listContents = false;
         Compass.pgImport = false;
         Compass.pgImportAppend = false;
-        Compass.anonymizedReport = false;
 
         Compass.antlrSLL = true;
         Compass.antlrShowTokens = false;

@@ -6883,6 +6883,8 @@ public class CompassAnalyze {
 				if (!proc_var.isEmpty()) {
 					String procStatus = featureSupportedInVersion(ProcExecAsVariable);
 					captureItem("EXECUTE procedure"+proc_var+return_status, ctx.proc_var.getText(), ProcExecAsVariable, "", procStatus, ctx.start.getLine());
+					//String args= getTextSpaced(ctx.execute_statement_arg());
+					//u.appOutput(u.thisProc()+"EXECUTE procedure"+proc_var+return_status+":" + args);
 				}
 
 				if (!execImm.isEmpty()) {
@@ -7772,7 +7774,7 @@ public class CompassAnalyze {
 					}
 				}
 				 // ctx.getText() could be very long due to embedded expressions
-				captureItem(ODBCScalarFunction+" { fn "+funcName+"() }", ctx.getText(), ODBCScalarFunction, funcName, status, ctx.start.getLine());
+				captureItem(ODBCScalarFunction+" { fn "+funcName+"() }", "{ fn "+funcName+"() }", ODBCScalarFunction, funcName, status, ctx.start.getLine());
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -8052,8 +8054,30 @@ public class CompassAnalyze {
 				String id = u.normalizeName(idOrig).toUpperCase();
 
 				if (!u.getPatternGroup(idOrig, "^(GEOGRAPHY|GEOMETRY)\\s*::", 1).isEmpty()) {
-					String spatialCall = u.getPatternGroup(idOrig, "^\\w+\\s*::\\s*(\\w+)\\b", 1);
+					String spatialCall = u.getPatternGroup(idOrig, "^\\w+\\s*::\\s*(\\w+)\\b", 1);					
 					String status = featureSupportedInVersion(Geospatial,spatialCall);
+					if (status.equals(u.Supported)) {
+						if (featureExists(spatialCall)) {
+							// for function calls like STGeomFromText, assuming this is about validating the first argument only
+							if (parentRuleName(ctx.parent,1).equals("func_proc_name_server_database_schema") && parentRuleName(ctx.parent,2).equals("function_call")) {
+								TSQLParser.Function_callContext f = (TSQLParser.Function_callContext) ctx.getParent().getParent();
+								if (f.function_arg_list() != null) {
+									int nrArgs = argListCount( f.function_arg_list());
+									if (nrArgs >= 1) {
+										String arg1 = f.function_arg_list().expression().get(0).getText();
+										String spatialFunction = "expression";
+										if (isStringConstant(arg1)) {
+											arg1 = u.stripStringQuotes(arg1).trim();
+											spatialFunction = CompassUtilities.getPatternGroup(arg1, "^(\\w+)\\b", 1).toUpperCase(); // not 100% watertight but good enough
+										}			
+										String status2 = featureSupportedInVersion(spatialCall, spatialFunction);
+										status = status2;
+										spatialCall += "("+spatialFunction+")";
+									}
+								}
+							}
+						}
+					}
 					captureItem(SpatialMethodCallFmt + " " + spatialCall, "", SpatialReportGroup, "", status, ctx.start.getLine());
 				}
 				else {
@@ -10002,6 +10026,7 @@ public class CompassAnalyze {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 
  				String name = u.normalizeName(ctx.role_name.getText().toLowerCase());
+ 				String memberName = u.normalizeName(ctx.database_principal.getText().toLowerCase());
 
  				// find out if ALTER ROLE is supported for this release
  				String status = featureSupportedInVersion(AlterDbRole);
@@ -10029,7 +10054,7 @@ public class CompassAnalyze {
 					}
 				}
 
-				captureItem(AlterDbRole+" "+u.escapeHTMLChars(fmtRole) + " " + option, name, UsersReportGroup, "", status, ctx.start.getLine());
+				captureItem(AlterDbRole+" "+ u.escapeHTMLChars(fmtRole) + " " + option, u.escapeHTMLChars(memberName), UsersReportGroup, "", status, ctx.start.getLine());
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
