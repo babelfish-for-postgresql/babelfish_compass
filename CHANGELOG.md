@@ -1,3 +1,6 @@
+# 2024-10
+- Added support for Babelfish v.4.3.0.
+- Various small fixes.
 
 # 2024-07
 - Added support for Babelfish v.4.2.0.
