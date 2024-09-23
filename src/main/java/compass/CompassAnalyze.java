@@ -6932,7 +6932,7 @@ public class CompassAnalyze {
 						String DynamicSQLStatus = featureSupportedInVersion(DynamicSQL);
 						captureItem(DynamicSQLEXECStringReview, "", DynamicSQL, "", DynamicSQLStatus, ctx.start.getLine());
 					}
-				}			
+				}
 
 				// process any options
 				captureExecOptions(procName, ctx.execute_option(), ctx.WITH(), ctx.start.getLine());
@@ -7999,7 +7999,7 @@ public class CompassAnalyze {
 					String option = options.get(i).getText().toUpperCase();
 					String optionChk = option;
 					//if (option.equals("CATALOG_COLLATION=DATABASE_DEFAULT")) continue;
-					
+
 					String status = u.uninitialized;
 					boolean captured = false;
 					if (option.startsWith("CATALOG_COLLATION=")) {
@@ -8021,7 +8021,7 @@ public class CompassAnalyze {
 						captureItem("Option "+option+", in CREATE DATABASE", option, CreateDatabaseOptions, option, status, options.get(i).start.getLine());
 					}
 				}
-				
+
 				if (ctx.CONTAINMENT() != null) {
 					String option = "CONTAINMENT";
 					String optionValue = ctx.containment.getText().toUpperCase();
