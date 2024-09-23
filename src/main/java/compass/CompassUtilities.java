@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2024-07";
-	public static final String thisProgVersionDate  = "July 2024";
+	public static final String thisProgVersion      = "2024-09";
+	public static final String thisProgVersionDate  = "September 2024";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -112,8 +112,8 @@ public class CompassUtilities {
 	public String targetBabelfishVersionReportLine = "Target Babelfish version   : v."; // line in report listing the target version
 	public boolean stdReport = false;	// development only
 
-	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "4.0.0", "4.1.0");
-	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2",  "15.3",  "15.4",  "15.5",  "15.6",  "16.1",  "16.2");
+	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "4.0.0", "4.1.0", "4.2.0", "4.3.0");
+	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2",  "15.3",  "15.4",  "15.5",  "15.6",  "16.1",  "16.2",  "16.3",  "16.4");
 
 	// minimum Babelfish version; this is fixed
 	public static final String baseBabelfishVersion = "1.0.0";
@@ -597,6 +597,7 @@ tooltipsHTMLPlaceholder +
 		"SUSER_SID()"+tttSeparator+"SUSER_SID() is not currently supported; rewrite as SUSER_ID()",
 		"STDEV()"+tttSeparator+"STDEV() is not currently supported; rewrite as SQRT(SUM(SQUARE(c-AVG(c))))/COUNT(c)-1)",
 		"STDEVP()"+tttSeparator+"STDEV() is not currently supported; rewrite as SQRT(SUM(SQUARE(c-AVG(c))))/COUNT(c))",
+		"BINARY_CHECKSUM()"+tttSeparator+"BINARY_CHECKSUM() is not currently supported; try using CHECKUM() instead",
 		"\\w+PROPERTY\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+PROPERTYEX\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+\\(\\),"+CompassAnalyze.withoutArgumentValidateStr+tttSeparator+"This built-in function is not currently supported when called without arguments",
@@ -886,13 +887,16 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.DropIndex+" table.index"+tttSeparator+"Syntax 'DROP INDEX table.indexname' is not currently supported; use 'DROP INDEX indexname ON tablename'",
 		CompassAnalyze.DropIndex+" schema.table.index"+tttSeparator+"Syntax 'DROP INDEX schema.table.indexname' is not currently supported; use 'DROP INDEX indexname ON tablename'",
 
-		"Partitioning, CREATE "+tttSeparator+"Table/index partitioning is not currently supported.",
-		"$PARTITION.function"+tttSeparator+"Table/index partitioning is not currently supported.",
-		"ALTER TABLE..SWITCH"+tttSeparator+"Table/index partitioning is not currently supported.",
-		"\\w+ PARTITION"+tttSeparator+"Table/index partitioning is not currently supported.",
+		"CREATE PARTITION FUNCTION, RANGE LEFT"+tttSeparator+"This table/index partitioning feature is not currently supported.",
+		"Partitioning, CREATE "+tttSeparator+"This table/index partitioning feature is not currently supported.",
+		"$PARTITION.function"+tttSeparator+"This table/index partitioning feature is not currently supported.",
+		"ALTER TABLE..SWITCH"+tttSeparator+"This table/index partitioning feature is not currently supported.",
+		"\\w+ PARTITION"+tttSeparator+"This table/index partitioning feature is not currently supported.",
 
 		"CREATE DEFAULT"+tttSeparator+"DEFAULT objects are not currently supported; use column defaults instead",
 		"CREATE RULE"+tttSeparator+"RULE objects are not currently supported; use CHECK constraints instead",
+		
+		"CREATE DATABASE...COLLATE"+tttSeparator+"COLLATE is not currently supported with CREATE DATABASE",
 
 		"Special column name IDENTITYCOL"+tttSeparator+"The special column name IDENTITYCOL is not currently supported. Replace it by the actual name of the identity column",
 		CompassAnalyze.LeadingDotsId+tttSeparator+"Remove leading dots for identifiers, i.e. change 'SELECT * FROM ..mytable' to 'SELECT * FROM mytable'",
@@ -913,6 +917,7 @@ tooltipsHTMLPlaceholder +
 		"CREATE FUNCTION, \\w+( \\w+)?, atomic"+tttSeparator+"Atomic natively compiled functions are not currently supported; rewrite as a regular SQL functions",
 		"CREATE FUNCTION, \\w+( \\w+)?, external"+tttSeparator+"External functions are not currently supported; rewrite as a regular SQL functions",
 		"CREATE FUNCTION, \\w+( \\w+)?, CLR"+tttSeparator+"CLR functions are not currently supported; rewrite as a regular SQL functions",
+		"CREATE TYPE, external"+tttSeparator+"External data types are not currently supported; rewrite as a regular SQL data type",
 		"CREATE \\w+, atomic"+tttSeparator+"Atomic natively compiled procedures/triggers are not currently supported; rewrite as a regular SQL object",
 		"CREATE \\w+, external"+tttSeparator+"External procedures/triggers are not currently supported; rewrite as a regular SQL object",
 		"CREATE \\w+, CLR"+tttSeparator+"CLR functions are not currently supported; rewrite as a regular SQL functions",
@@ -1678,6 +1683,9 @@ tooltipsHTMLPlaceholder +
 	// mask char literals
 	// this is not 100% fool-proof, think of bracketed identifiers containing quotes, but this should not be a showstopper
 	public String maskStringConstants(String s, String tag) {
+		return maskStringConstants(s, tag, true);
+	}
+	public String maskStringConstants(String s, String tag, boolean allowAbort) {
 		if (!s.contains("'") && !s.contains("\"")) return s;
 
 		s = applyPatternAll(s, "''", "' '");
@@ -1703,9 +1711,11 @@ tooltipsHTMLPlaceholder +
 			char c = s.charAt(0);
 			String qs = getPatternGroup(s, "^("+c+".*?"+c+")", 1, "multiline");
 			if (qs.isEmpty()) {
-				// should not happen
-				appOutput("Internal error s=["+s+"] c=["+c+"] . Continuing, but errors may occur");
-				if (devOptions) errorExit();
+				// can happen when finding a lone quote, like resulting from embedded quotes; ignore it
+				if (devOptions) {
+					appOutput(thisProc()+"Internal error s=["+s+"] c=["+c+"], lone quote found?");		
+					if (allowAbort) errorExitStackTrace();
+				}
 				break;
 			}
 			sNew += marker;
