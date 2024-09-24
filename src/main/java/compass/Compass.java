@@ -1863,8 +1863,13 @@ public class Compass {
 				return false;					
 			}			
 			if (u.rewrite) {
-				u.appOutput("Cannot specify -rewrite when not performing analysis"+noInputFilesMsg);
-				return false;				
+				if (optimisticFlag) {
+					// -rewrite is implied by -optimistic , which can also be used with non-analysis cases so no need to warn 
+				}
+				else {
+					// -rewrite only applies to analysis, but it's harmless when specified otherwise
+					u.appOutput("Ignoring -rewrite when not performing analysis"+noInputFilesMsg);
+				}			
 			}			
 		}
 		
