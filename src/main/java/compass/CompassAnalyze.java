@@ -3052,6 +3052,15 @@ public class CompassAnalyze {
 											if (chk2.contains(".VALUE")) xType = ", with .VALUE()";
 										}
 									}
+									
+									// do not try to rewrite a case 'SELECT *', instead of 'SELECT column'
+									if (selectListElem == 1) {
+										String col = ctx.select_statement().query_expression().query_specification().select_list().select_list_elem().get(0).getText();
+										if (col.startsWith("*")) {
+											isOK = false;											
+										}
+									}
+									
 									//u.appOutput(u.thisProc()+"f ("+(u.lineNrInFile + ctx.start.getLine() - 1)+")=["+getTextSpaced(f)+"] selectListElem=["+selectListElem+"] ");
 									if (isOK) {
 										String xStatus = u.NotSupported;
@@ -3335,9 +3344,7 @@ public class CompassAnalyze {
 				String usrDefined = "";
 				if (exprInt >= 50000) {
 					usrDefined = " (user-defined)";
-					if (!via.isEmpty()) {
-						status = u.Supported;
-					}
+					status = u.Supported;
 				}
 				captureItem(AtAtErrorValueRef+ " " +String.format("%6d",exprInt)+usrDefined+via, via, AtAtErrorValueRef, exprInt.toString(), status, lineNr);
 			}
@@ -3632,7 +3639,12 @@ public class CompassAnalyze {
 				String UDDdatatype = "";
 				String section = UDDatatypes;
 				String statusDataType = u.Supported;
-				if (ctx.FROM() != null) {
+				if (ctx.external_type() != null) {
+					// EXTERNAL NAME
+					statusDataType = featureSupportedInVersion(Datatypes, "EXTERNAL NAME");
+					UDDdatatype = "EXTERNAL NAME";
+				}
+				else if (ctx.FROM() != null) {
 					// scalar UDD
 					UDDdatatype = u.normalizeName(ctx.data_type().getText().toUpperCase(), "datatype");
 					if (featureExists(Datatypes, getBaseDataType(UDDdatatype))) {
@@ -6900,12 +6912,14 @@ public class CompassAnalyze {
 							break;
 						}
 						String quote = u.getPatternGroup(a, "(['\"])", 1);
-						a = u.stripStringQuotes(a);
+						a = u.stripStringQuotes(a);						
 						a = u.applyPatternAll(a, quote+quote, quote);
 						stringArg += a;
-					}
-					if (u.debugging) u.dbgOutput("capturing dynamic SQL query: EXECUTE(): stringArgFound=["+stringArgFound+"]  stringArg=["+stringArg+"] ", u.debugDynamicSQL);
-					if (stringArgFound && (!stringArg.trim().isEmpty())) {
+					}			
+					// Don't process exec-imm strings that have '?' placeholders -- test can be improved by first removing any strings, but this is less obvious than it looks
+					String hasPlaceholder = u.getPatternGroup(stringArg, "(\\?)", 1);						
+					if (u.debugging) u.dbgOutput("capturing dynamic SQL query: EXECUTE(): stringArgFound=["+stringArgFound+"]  stringArg=["+stringArg+"] hasPlaceholder=["+hasPlaceholder+"] ", u.debugDynamicSQL);					
+					if (stringArgFound && (!stringArg.trim().isEmpty()) && (hasPlaceholder.isEmpty())) {
 						u.dynamicSQLBuffer.add(u.dynamicSQLBatchLine+arg.get(0).start.getLine()+","+u.batchNrInFile+","+u.lineNrInFile+","+(u.currentObjectType + " " + u.currentObjectName).trim()+",EXECUTE()");
 						u.dynamicSQLBuffer.add(stringArg);
 						u.dynamicSQLBuffer.add("go");
@@ -7909,7 +7923,7 @@ public class CompassAnalyze {
 				}
 				else if (hasParent(ctx.parent,"create_database")) {
 					context = "in CREATE DATABASE";
-					contextCS = "DATABASE";
+					contextCS = "DATABASE";	
 				}
 				else if (hasParent(ctx.parent,"alter_database")) {
 					context = "in ALTER DATABASE";
@@ -7927,7 +7941,48 @@ public class CompassAnalyze {
 						}
 					}
 				}
-				captureItem(CSmsg+collationName+", "+context, columnName, Collations, "", status, ctx.COLLATE().getSymbol().getLine());
+				
+				String msg = CSmsg+collationName+", "+context;
+				
+				if (hasParent(ctx.parent,"create_database")) {
+					// Sort out the status of COLLATE - this is a bit messy due to how support in Babelfish developed over time
+					//u.appOutput(u.thisProc()+"collationName=["+collationName+"]");
+					
+					String statusCrdb = featureSupportedInVersion(CreateDatabaseOptions, "COLLATE");
+					String statusCrdbV24 = "";
+					if (statusCrdb.equals(u.NotSupported)) {
+						msg = "CREATE DATABASE...COLLATE";
+						status = statusCrdb;						
+					}			
+					else {
+						status = statusCrdbV24 = statusCrdb;  // CREATE DATABASE...COLLATE is IGNORED
+						
+						statusCrdb= featureSupportedInVersion(CreateDatabaseOptions, "COLLATE ANY");
+						if (statusCrdb.equals(u.Supported)) {
+							msg = CSmsg+collationName+", "+context;
+							status = statusCrdb;							
+						}
+						else {
+							statusCrdb = featureSupportedInVersion(CreateDatabaseOptions, "COLLATE " + collationName);
+							String statusv31 = featureSupportedInVersion(CreateDatabaseOptions,"COLLATE SQL_LATIN1_GENERAL_CP1_CI_AS");							
+							if (statusCrdb.equals(u.Supported)) {
+								msg = CSmsg+collationName+", "+context;
+								status = statusCrdb;							
+							}	
+							else {
+								if (statusv31.equals(u.Supported)) {
+									status = u.NotSupported;
+								}
+								else {
+									status = statusCrdbV24;
+								}
+							}								
+						} 						
+															
+					}
+				}
+				
+				captureItem(msg, columnName, Collations, "", status, ctx.COLLATE().getSymbol().getLine());
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -7956,6 +8011,7 @@ public class CompassAnalyze {
 							}
 						}
 					}
+			
 					if (status.equals(u.uninitialized) && !captured) {
 						status = featureSupportedInVersion(CreateDatabaseOptions,optionChk);
 					}
@@ -9261,15 +9317,34 @@ public class CompassAnalyze {
 			}
 
 			private void capturePartitioning(String stmt, String tableName, int lineNr) {
+				capturePartitioning(stmt, stmt, tableName, lineNr, "");
+			}
+			private void capturePartitioning(String stmt, String stmtFmt, String tableName, int lineNr) {
+				capturePartitioning(stmt, stmtFmt, tableName, lineNr, "");
+			}
+			
+			private void capturePartitioning(String stmt, String stmtFmt, String tableName, int lineNr, String dataType) {
 				String status = featureSupportedInVersion(Partitioning,stmt);
-				String fmt = "Partitioning, "+stmt;
-				if (stmt.startsWith("CREATE PARTITION") || stmt.startsWith("ALTER PARTITION") || stmt.startsWith("DROP PARTITION")) fmt = stmt;
+				String fmt = "Partitioning, "+stmtFmt;
+				if (stmt.startsWith("CREATE PARTITION") || stmt.startsWith("ALTER PARTITION") || stmt.startsWith("DROP PARTITION")) fmt = stmtFmt;
 				else if (stmt.equals("$PARTITION")) fmt = "$PARTITION.function()";
 				else if (stmt.endsWith("SPLIT")) fmt = "ALTER TABLE..SPLIT partition";
 				else if (stmt.endsWith("MERGE")) fmt = "ALTER TABLE..MERGE partition";
 				else if (stmt.endsWith("SWITCH")) fmt = "ALTER TABLE..SWITCH partition";
 				else if (stmt.endsWith("TABLE REBUILD")) fmt = "ALTER TABLE..REBUILD partition";
 				else if (stmt.endsWith("INDEX REBUILD")) fmt = "ALTER INDEX..REBUILD partition";
+				
+				if (status.equals(u.Supported)) {
+					if (stmt.startsWith("CREATE PARTITION FUNCTION")) {
+						if (dataType.equalsIgnoreCase("SQL_VARIANT")) {
+							String statusSV = featureSupportedInVersion(Partitioning,"SQL_VARIANT");
+							if (! statusSV.equals(u.Supported)) {
+								status = statusSV;
+								fmt = "CREATE PARTITION FUNCTION, on SQL_VARIANT datatype";
+							}
+						}					
+					}
+				}
 				captureItem(fmt, tableName, Partitioning, stmt, status, lineNr);
 			}
 
@@ -9299,9 +9374,9 @@ public class CompassAnalyze {
 				if (ctx.expression_list() != null) {  // should never be null, but seen it been empty in customer scripts
 					nrPfValues = argListCount(ctx.expression_list());
 				}
-				String pfValues = ", for " + nrPfValues + " " + dt + " values";
+				String pfValues = ", for " + nrPfValues + " " + dt + " values";				
 
-				capturePartitioning("CREATE PARTITION FUNCTION, RANGE "+rl+pfValues, u.normalizeName(ctx.partition_function_name.getText()), ctx.start.getLine());
+				capturePartitioning("CREATE PARTITION FUNCTION RANGE "+rl, "CREATE PARTITION FUNCTION, RANGE "+rl+pfValues, u.normalizeName(ctx.partition_function_name.getText()), ctx.start.getLine(), dt);
 				visitChildren(ctx);	return null;
 			}
 

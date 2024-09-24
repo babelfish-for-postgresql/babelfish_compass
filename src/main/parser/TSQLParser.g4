@@ -2620,10 +2620,15 @@ create_type
       (FROM data_type null_notnull? default_value=expression?)?
       (AS TABLE LR_BRACKET column_def_table_constraints (COMMA? inline_index)* RR_BRACKET)?
       table_options?
+      external_type?      
     ;
 
 drop_type:
     DROP TYPE if_exists? simple_name
+    ;
+    
+external_type:
+    EXTERNAL NAME id (DOT id)?
     ;
 
 rowset_function
@@ -2907,7 +2912,7 @@ execute_body_batch
 
 execute_body
     : (return_status=LOCAL_ID EQUAL)? (func_proc_name_server_database_schema (SEMI proc_version=DECIMAL)? | proc_var=LOCAL_ID)  execute_statement_arg? (WITH execute_option (COMMA execute_option)* )?
-    | LR_BRACKET execute_var_string (PLUS execute_var_string)* (COMMA execarg2=expression execarg2output=(OUT | OUTPUT)? )? RR_BRACKET (execute_var_string_option (COMMA execute_var_string_option)* )?
+    | LR_BRACKET execute_var_string (PLUS execute_var_string)* (COMMA execarg2=expression execarg2output=(OUT | OUTPUT)? )* RR_BRACKET (execute_var_string_option (COMMA execute_var_string_option)* )?
     ;
 
 execute_var_string_option
