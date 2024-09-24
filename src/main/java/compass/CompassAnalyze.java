@@ -3344,9 +3344,7 @@ public class CompassAnalyze {
 				String usrDefined = "";
 				if (exprInt >= 50000) {
 					usrDefined = " (user-defined)";
-					if (!via.isEmpty()) {
-						status = u.Supported;
-					}
+					status = u.Supported;
 				}
 				captureItem(AtAtErrorValueRef+ " " +String.format("%6d",exprInt)+usrDefined+via, via, AtAtErrorValueRef, exprInt.toString(), status, lineNr);
 			}
