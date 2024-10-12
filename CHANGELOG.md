@@ -1,3 +1,6 @@
+# 2024-10a
+- Detect and rewrite redundant unary '+' operators for strings.
+
 # 2024-10
 - Added support for Babelfish v.4.3.0.
 - Various small fixes.
