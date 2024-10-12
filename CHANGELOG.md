@@ -1,4 +1,4 @@
-# 2024-10a
+# 2024-10b
 - Detect and rewrite redundant unary '+' operators for strings.
 
 # 2024-10
