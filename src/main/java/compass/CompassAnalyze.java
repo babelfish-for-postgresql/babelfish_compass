@@ -239,6 +239,7 @@ public class CompassAnalyze {
 	static final String PGOpWhitespace        = "PG operator requiring whitespace";
 	static final String PGOpWhitespaceFmt     = "Operator requiring whitespace";
 	static final String ComparisonOperator    = "Comparison operator";
+	static final String UnaryStringPlusOp     = "Unary string '+' operator";
 	static final String LikeSquareBrackets    = "LIKE '[...]'";
 	static final String LikeSquareBracketsCfg = "LIKE '[...";  // for checking against the cfg file; when reading it we lose the closing square bracket and  beyond
 	static final String StringAggWithinGroup  = "STRING_AGG() WITHIN GROUP";
@@ -446,6 +447,10 @@ public class CompassAnalyze {
 	}
 
 	//--- rule names ------------------------------------------------------------
+	//	currentRuleName(ctx.getRuleIndex())	: [expression]						
+	//	ctx.getClass().getName()            : [parser.TSQLParser$Constant_exprContext]						
+	//	ctx.getClass().getSimpleName()      : [Constant_exprContext]						
+	
 	private String currentRuleName(int ruleIndex) {
 		return  CompassUtilities.grammarRuleNames[ruleIndex];
 	}
@@ -1927,8 +1932,8 @@ public class CompassAnalyze {
 				}
 
 				if ((expr instanceof TSQLParser.Unary_op_exprContext))  {
-					String result = "";
-					result = CompassUtilities.BBFNumericType;
+					TSQLParser.Unary_op_exprContext x = (TSQLParser.Unary_op_exprContext) expr;
+					String result = expressionDataType(x.expression());
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"Unary_op_exprContext: result=["+result+"] ", u.debugPtree);
 					return result;
 				}
@@ -7575,8 +7580,30 @@ public class CompassAnalyze {
 			}
 
 			@Override public String visitUnary_op_expr(TSQLParser.Unary_op_exprContext ctx) {
-				// only report BIT-NOT here
-				if (ctx.BIT_NOT() != null) captureItem("Bitwise operator ~ (NOT)", "", OperatorsReportGroup, "", u.Supported, ctx.start.getLine());
+				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"op=["+ctx.op.getText()+"]  expr=["+ctx.expression().getText()+"] ctx=["+ctx.getText()+"] ", u.debugPtree);
+				if (ctx.BIT_NOT() != null) {
+					captureItem("Bitwise operator ~ (NOT)", "", OperatorsReportGroup, "", u.Supported, ctx.start.getLine());
+				}					
+				else if (ctx.PLUS() != null) {
+					// detect '+' operators for string expressions
+					if (isString(expressionDataType(ctx.expression()))) {
+						if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"Unary plus operator for string ", u.debugPtree);						
+						String origText = "+";						
+						String item = UnaryStringPlusOp;
+						String status = featureSupportedInVersion(item);
+						if (status.equals(u.NotSupported)) {
+							if (u.rewrite) {
+								String rewriteText = "";
+								if (addRewrite(item, origText, u.rewriteTypeReplace, rewriteText, ctx.PLUS().getSymbol().getLine(), ctx.PLUS().getSymbol().getCharPositionInLine(), ctx.PLUS().getSymbol().getLine(), ctx.PLUS().getSymbol().getCharPositionInLine(), ctx.PLUS().getSymbol().getStartIndex(), ctx.PLUS().getSymbol().getStopIndex()))
+									status = u.Rewritten; 
+							}
+							else {
+								addRewrite(item);
+							}
+						}
+						captureItem(item, "", OperatorsReportGroup, "", status, ctx.PLUS().getSymbol().getLine());						
+					}
+				}
 				visitChildren(ctx);
 				return null;
 			}
@@ -7601,7 +7628,7 @@ public class CompassAnalyze {
 					List<TSQLParser.ExpressionContext> expr = ctx.expression();
 					String lhsType = expressionDataType(expr.get(0));
 					String rhsType = expressionDataType(expr.get(1));
-					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"lhs=["+expr.get(0).getText()+"] rhs=["+expr.get(1).getText()+"] ", u.debugPtree);
+					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"lhs=["+expr.get(0).getText()+"] op=["+ctx.op.getText()+"] rhs=["+expr.get(1).getText()+"] ", u.debugPtree);
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"lhsType=["+lhsType+"] rhsType=["+rhsType+"] ctx=["+ctx.getText()+"] ", u.debugPtree);
 					if (op.equals("+")) {
 						opFmt = "Arithmetic operator +";

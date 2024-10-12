@@ -636,6 +636,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.ComparisonOperator+" !>"+tttSeparator+"This operator is not currently supported; rewrite as '<='" + rewriteOption,
 		CompassAnalyze.CompoundOpWhitespaceFmt+tttSeparator+"Whitespace inside this compound operator is not currently supported; remove the whitespace " + rewriteOption,
 		CompassAnalyze.PGOpWhitespaceFmt+tttSeparator+"At least a space is required between the comparison operator and the subsequent '@@' of the variable in the predicate" + rewriteOption,
+		CompassAnalyze.UnaryStringPlusOp+tttSeparator+"A unary '+' operator is not currently supported for a string expression; remove the '+'" + rewriteOption,
 		CompassAnalyze.NextValueFor+" in SET"+tttSeparator+"The NEXT VALUE FOR function is supported, but not currently for variable assignment with SET. Rewrite as 'SELECT @v = NEXT VALUE FOR'",
 		CompassAnalyze.NextValueFor+" in DECLARE"+tttSeparator+"The NEXT VALUE FOR function is supported, but not currently in a DECLARE statement. Rewrite by splitting into separate DECLARE and 'SELECT @v = NEXT VALUE FOR' statements",
 		CompassAnalyze.NextValueFor+" in "+tttSeparator+"The NEXT VALUE FOR function is supported, but not currently in this specific context. Rewrite the SQL code, or call the PG function NEXTVAL() directly",
@@ -8405,6 +8406,7 @@ userCfgComplexityHdrLine202308 + "\n" +
 						report   = tmp.get(9);						
 						if (startPos == endPos) {
 							if (report.startsWith(CompassAnalyze.PGOpWhitespaceFmt)) origLen = 1;
+							else if (report.startsWith(CompassAnalyze.UnaryStringPlusOp)) origLen = 1;
 							else origLen = 0;
 						}
 						else {
