@@ -7657,7 +7657,7 @@ public class CompassAnalyze {
 									}
 								}
 							}
-						}						
+						}
 					}
 					else {
 						// op = '-'
