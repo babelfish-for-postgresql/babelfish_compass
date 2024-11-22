@@ -48,6 +48,7 @@ jobs:
         cp target/compass-*-jar-with-dependencies.jar BabelfishCompass/
         cp LICENSE BabelfishCompass/
         cp NOTICE BabelfishCompass/
+        cp BabelfishCompass_UserGuide.pdf BabelfishCompass/
         chmod +x BabelfishCompass.sh
         cp BabelfishCompass.sh BabelfishCompass/
         mv BabelfishCompass/compass-*-jar-with-dependencies.jar BabelfishCompass/compass.jar
