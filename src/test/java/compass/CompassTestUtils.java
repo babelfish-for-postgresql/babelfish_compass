@@ -34,7 +34,6 @@ public class CompassTestUtils {
         Compass.startRunFmt = null;
         Compass.endRun = 0;
         Compass.endRunFmt = null;
-        Compass.elapsedRun = 0;
 
         Compass.startTime = 0;
         Compass.endTime = 0;
