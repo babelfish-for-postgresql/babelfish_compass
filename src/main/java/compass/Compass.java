@@ -65,13 +65,13 @@ public class Compass {
 	static String startRunFmt;
 	static long endRun;
 	static String endRunFmt;
-	static long elapsedRun;
 	
 	static long startTime = 0;
 	static long endTime = 0;
 	static long duration = 0;	
 
-	static Map<String, Integer> timeCount = new HashMap<>();
+	static Map<String, Long>   timeCount = new HashMap<>();
+	static Map<String, String> timeCountStr = new HashMap<>();
 
 	protected static boolean quitNow = false;
 	
@@ -113,6 +113,7 @@ public class Compass {
 	protected static String mergeReport = "";
 	protected static String userCfgFile = "";		
 	protected static boolean optimisticFlag = false;		
+	protected static boolean popupwindow = true;		
 
 	protected static boolean antlrSLL = true;
 	protected static boolean antlrShowTokens = false;
@@ -281,6 +282,7 @@ public class Compass {
   				u.appOutput("   -anon                        : remove all customer-specific identifiers");
   				u.appOutput("   -rewrite                     : rewrites selected unsupported SQL features");
   				u.appOutput("   -noupdatechk                 : do not check for " + CompassUtilities.thisProgName + " updates");
+				u.appOutput("   -nopopupwindow               : do not automatically open report in browser");  				
 				u.appOutput("   -importformat <fmt>          : process special-format captured query files");
 				u.appOutput("   -nodedup                     : with -importfmt, do not de-duplicate captured queries");
 				u.appOutput("   -noreportcomplexity          : do not include complexity scores in report");
@@ -309,6 +311,7 @@ public class Compass {
 				u.appOutput("   -showtokens                  : print lexer tokens");
 				u.appOutput("   -antlrtrace                  : print ANTLR parsing trace");
 				u.appOutput("   -antlrdiagnostics            : print ANTLR diagnostics");
+				u.appOutput("   -popupwindow                 : automatically open report in browser");				
 				}
 				u.appOutput("");
 				u.appOutput(CompassUtilities.userDocText+": "+CompassUtilities.userDocURL);
@@ -493,31 +496,39 @@ public class Compass {
 			if (arg.equals("-noreport")) {
 				generateReport = false;
 				continue;
-			}	
+			}
 			if (arg.equals("-reportonly")) {
 				reportOnly = true;
 				continue;
-			}	
+			}
 			if (arg.equals("-analyze")) {
 				reAnalyze = true;
 				continue;
-			}	
+			}
 			if (arg.equals("-importonly")) {
 				importOnly = true;
 				continue;
-			}			
+			}
 			if (arg.equals("-rewrite")) {
 				u.rewrite = true;
 				continue;
-			}								
+			}						
 			if (arg.equals("-noupdatechk")) {
 				u.updateCheck = false;
 				continue;
-			}				
+			}
+			if (arg.equals("-nopopupwindow")) {
+				popupwindow = false;
+				continue;
+			}	
+			if (arg.equals("-popupwindow")) {  // should only be used in develop mode but it does not hurt
+				popupwindow = true;
+				continue;
+			}												
 			if (arg.equals("-noreportcomplexity")) {
 				u.reportComplexityScore = false;
 				continue;
-			}				
+			}		
 			if (arg.equals("-encoding")) {
 				if (i >= args.length) {
 					System.out.println("missing encoding on -encoding");
@@ -529,7 +540,7 @@ public class Compass {
 				}
 				i++; 
 				continue;
-			}						
+			}			
 			if ((arg.equals("-reportoption") || arg.equals("-reportoptions"))) {   
 				if (i == args.length) {
 					u.appOutput("Must specify arguments for -reportoption ");
@@ -621,7 +632,7 @@ public class Compass {
 			if (arg.equals("-pgimportnodoublequotes")) {	
 				u.pgImportNoDoubleQuotes = true;	
 				continue;
-			}						
+			}	
 			if (arg.equals("-pgimporttable")) {	
 				pgImportTable = true;					
 				if (i >= args.length) {
@@ -651,7 +662,7 @@ public class Compass {
 				generateReport = false;
 				i++;
 				continue;		
-			}	
+			}
 			// always report these syntax issues from now on:
 //			if (arg.equals("-syntax") || arg.equals("-syntax_issues")) {	
 //				u.reportSyntaxIssues = true;   	
@@ -660,7 +671,7 @@ public class Compass {
 			if (arg.equals("-"+CompassUtilities.reverseString("m"+"u"+"s"+"k"+"c"+"e"+"h"+"c"))) {
 				u.configOnly = true;
 				continue;
-			}		
+			}
 			if (arg.equals("-mergereport")) { // special purpose only, to process Very Large Numbers of SQL files		
 				if (i >= args.length) {
 					System.out.println("Must specify target report name with -mergereport");
@@ -689,7 +700,7 @@ public class Compass {
 				}
 				
 				continue;								
-			}				
+			}
 			if (arg.equals("-recursive")) {
 				recursiveInputFiles = true;
 				continue;
@@ -721,7 +732,7 @@ public class Compass {
 				excludePattern = parseInputPattern(args[i]);
 				i++;
 				continue;
-			}						
+			}
 			if (arg.equals("-anon")) { 
 				u.anonymizedData = true;
 				continue;
@@ -737,7 +748,7 @@ public class Compass {
 				CompassUtilities.reportOptionApps = "apps";					
 				i++;
 				continue;
-			}				
+			}
 			if (arg.equals("-sqllogin")) { 
 				if (i >= args.length) {
 					System.out.println("Must specify value with -sqllogin");
@@ -748,7 +759,7 @@ public class Compass {
 				sqlLogin = u.stripStringQuotes(sqlLogin).trim();							
 				i++;				
 				continue;
-			}		
+			}
 			// Note: all variations should be tested for when remove the password from the cmdline for the report header
 			if (arg.equals("-sqlpasswd") || arg.equals("-sqlpassword")) {   
 				if (i >= args.length) {
@@ -766,7 +777,7 @@ public class Compass {
 				}				
 				i++;					
 				continue;
-			}	
+			}
 			if (arg.equals("-sqldblist")) { 
 				if (i >= args.length) {
 					System.out.println("Must specify value with -sqldblist");
@@ -778,10 +789,15 @@ public class Compass {
 					System.out.println("Generating DDL for SQL Server system database '"+systemDB+"' not supported");
 					u.errorExit();					
 				}
+				systemDB = CompassUtilities.getPatternGroup(sqlDBList, "^.*?\\b(rdsadmin)\\b.*$", 1); 
+				if (!systemDB.isEmpty()) {
+					System.out.println("Generating DDL for '"+systemDB+"' database not supported");
+					u.errorExit();
+				}				
 				sqlDBList = u.stripStringQuotes(sqlDBList).trim();					
 				i++;					
 				continue;
-			}			
+			}
 			if (arg.equals("-csvformat") || arg.equals("-csvfmt")) {	
 				if (i == args.length) {
 					u.appOutput("Must specify value with -csvformat");
@@ -794,7 +810,7 @@ public class Compass {
 				}
 				i++;
 				continue;
-			}																		
+			}												
 			if (arg.equals("-csvitemidfile")) {	
 				if (i == args.length) {
 					u.appOutput("Must specify value with -csvitemidfile");
@@ -817,8 +833,13 @@ public class Compass {
 				}		
 				i++;
 				continue;
-			}			
+			}
 			if (CompassUtilities.devOptions) {
+				popupwindow = false;				
+				if (arg.equals("-popupwindow")) { 
+					popupwindow = true;
+					continue;
+				}							
 				if (arg.equals("-debug")) {   // development only
 					if (i == args.length) {
 						u.appOutput("Must specify arguments for -debug ");
@@ -858,7 +879,7 @@ public class Compass {
 					dumpParseTree = true;
 					dumpBatchFile = true;
 					continue;
-				}
+				} 
 				if (arg.equals("-stdin")) {  // development only
 					readStdin = true;
 					dumpParseTree = true;
@@ -893,7 +914,7 @@ public class Compass {
 				if (arg.equals("-symtab_all")) { // development only: load symtab for all applications -- but we shouldn't need this
 					u.symTabAll = true;
 					continue;
-				}							
+				}											
 			}
 			// arguments must start with [A-Za-z0-9 _-./] : anything else is invalid
 			if (CompassUtilities.getPatternGroup(arg.substring(0,1), "^([\\w\\-\\.\\/])$", 1).isEmpty()) {
@@ -1188,10 +1209,15 @@ public class Compass {
 			u.appOutput("");
 		}
 		// init time counters
-		timeCount.put("parseTime",0);
-		timeCount.put("analysisTimeP1",0);
-		timeCount.put("analysisTimeP2",0);
-		timeCount.put("report",0);
+		timeCount.put("elapsedRun",0L);
+		timeCount.put("parseTime",0L);
+		timeCount.put("parseTimeMax",0L);
+		timeCount.put("rewriteTimeMax",0L);
+		timeCount.put("analysisTimeP1",0L);
+		timeCount.put("analysisTimeP1Max",0L);
+		timeCount.put("analysisTimeP2",0L);
+		timeCount.put("analysisTimeP2Max",0L);
+		timeCount.put("report",0L);
 
 		// start
 		startRun = System.currentTimeMillis();								
@@ -1203,7 +1229,7 @@ public class Compass {
 		
 		// read custom item ID file, if applicable
 		u.openCustomItemIDFile();
-		
+
 		if (reportOnly) {
 			// only generate reported from already-captured items
 			startTime = System.currentTimeMillis();
@@ -1260,7 +1286,7 @@ public class Compass {
 						u.createReport(reportName);
 						endTime = System.currentTimeMillis();
 						duration = (endTime - startTime);
-						timeCount.put("report", timeCount.get("report") + (int) duration);						
+						timeCount.put("report", timeCount.get("report") + duration);						
 					}
 				}		
 			}
@@ -1268,7 +1294,7 @@ public class Compass {
 
 		endRun = System.currentTimeMillis();
 		endRunFmt = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss").format(new Date());		
-		elapsedRun = (endRun - startRun)/ 1000;
+		timeCount.put("elapsedRun", (endRun - startRun));
 				
 		comp.reportFinalStats();
 		if (generateReport) {
@@ -1297,8 +1323,8 @@ public class Compass {
 		}
 		
 		// open generated report in browser
-		if (!CompassUtilities.devOptions) {
-			if (generateReport) {
+		if (generateReport) {
+			if (popupwindow) {
 				if (!(parseOnly || importOnly)) {
 					// TODO consider replacing this with java.awt.Desktop::open
 					if (CompassUtilities.onWindows) {
@@ -1941,7 +1967,7 @@ public class Compass {
 		
 		// ensure report-only case is reflected in the flag
 		if ((inputFiles.size() == 0) && (!reportOnly)) { 
-			if ((!reAnalyze) && (!autoDDL)) {
+			if ((!reAnalyze) && (!autoDDL) && (!readStdin)) {
 				reportOnly = true;
 			}
 		}
@@ -1989,13 +2015,20 @@ public class Compass {
 			parseErrorMsg = "  (see "+u.getReportDirPathname(reportName, u.errBatchDirName)+File.separator+"*."+u.errBatchFileSuffix+")";
 		}
 		
+		
+		// convert durations to seconds
+		for (String k : timeCount.keySet()) {
+			if (k.contains("Batch")) continue;
+			timeCount.put(k, timeCount.get(k)/1000);
+		}
+				
 		int linesSQL=0;
 		if (CompassUtilities.linesSQLInReport > 0) linesSQL = CompassUtilities.linesSQLInReport;
 		else if (nrLinesTotalP1 > 0) linesSQL = nrLinesTotalP1;
 		else if (nrLinesTotalP2 > 0) linesSQL = nrLinesTotalP2;
 		
 		String linesSQLPerSecFmt = "";
-		Long linesSQLPerSec = (elapsedRun > 0) ? (linesSQL / elapsedRun) : linesSQL;	
+		Long linesSQLPerSec = (timeCount.get("elapsedRun") > 0) ? (linesSQL / timeCount.get("elapsedRun")) : linesSQL;	
 		if (linesSQLPerSec > 0) linesSQLPerSecFmt = "  ("+linesSQLPerSec.toString()+" lines/sec)";
 
 		boolean writeToReport = true;
@@ -2005,41 +2038,62 @@ public class Compass {
 		u.appOutput(u.composeOutputLine("--- Run Metrics ", "-"), writeToReport);
 		u.appOutput("Run start            : "+ startRunFmt, writeToReport);
 		u.appOutput("Run end              : "+ endRunFmt, writeToReport);
-		u.appOutput("Run time             : "+ elapsedRun + " seconds", writeToReport);
+		u.appOutput("Run time             : "+ timeCount.get("elapsedRun") + " seconds", writeToReport);
 		u.appOutput("#Lines of SQL        : "+ linesSQL + linesSQLPerSecFmt, writeToReport);
 		
 		if ((totalParseErrors > 0) || CompassUtilities.devOptions) {
 			u.appOutput("#syntax errors       : "+ totalParseErrors + parseErrorMsg, writeToReport);
 		}
-		
+			
 		if (CompassUtilities.devOptions) {
-		u.appOutput("#input files         : "+ nrFiles+errFiles);
-		u.appOutput("#batches             : "+ totalBatches);
-		u.appOutput("#dynamic SQL         : "+ u.dynamicSQLNrStmts);
-		u.appOutput("#lines of SQL ph.1   : "+ nrLinesTotalP1);
-		u.appOutput("#lines of SQL ph.2   : "+ nrLinesTotalP2);
-		u.appOutput("#SQL features        : "+ u.constructsFound, writeToReport);
-		u.appOutput("Parse time           : "+ timeCount.get("parseTime")/1000 + " seconds");
-		u.appOutput("Analysis time ph.1   : "+ timeCount.get("analysisTimeP1")/1000 + " seconds");
-		u.appOutput("Analysis time ph.2   : "+ timeCount.get("analysisTimeP2")/1000 + " seconds");
-		u.appOutput("Report gen time      : "+ timeCount.get("report")/1000 + " seconds");
+			String parseMax = "";
+			if (timeCount.get("parseTimeMax") > 0) {
+				String batchFile = "";  
+				if (inputFiles.size() > 1) batchFile = "/"+timeCountStr.get("parseTimeMaxBatchFile");
+				parseMax += " -- batch max time: " + timeCount.get("parseTimeMax") + " sec(in pass "+ timeCount.get("parseTimeMaxBatchPass") + "), " + timeCount.get("parseTimeMaxBatchLines") + " lines: batch " + timeCount.get("parseTimeMaxBatchNr") + " at line " + timeCount.get("parseTimeMaxBatchLine") + batchFile;
+			}
+			String p1Max = "";
+			if (timeCount.get("analysisTimeP1Max") > 0) {
+				String batchFile = "";  
+				if (inputFiles.size() > 1) batchFile = "/"+timeCountStr.get("analysisTimeP1MaxBatchFile");
+				p1Max += " -- batch max time: " + timeCount.get("analysisTimeP1Max") + " sec(in pass "+ timeCount.get("analysisTimeP1MaxBatchPass") + "), " + timeCount.get("analysisTimeP1MaxBatchLines") + " lines: batch " + timeCount.get("analysisTimeP1MaxBatchNr") + " at line " + timeCount.get("analysisTimeP1MaxBatchLine") + batchFile;
+			}
+			String p2Max = "";			
+			if (timeCount.get("analysisTimeP2Max") > 0) {
+				String batchFile = "";  
+				if (inputFiles.size() > 1) batchFile = "/"+timeCountStr.get("analysisTimeP2MaxBatchFile");
+				p2Max += " -- batch max time: " + timeCount.get("analysisTimeP2Max") + " sec(in pass "+ timeCount.get("analysisTimeP2MaxBatchPass") + "), " + timeCount.get("analysisTimeP2MaxBatchLines") + " lines: batch " + timeCount.get("analysisTimeP2MaxBatchNr") + " at line " + timeCount.get("analysisTimeP2MaxBatchLine") + batchFile;
+			}								
+			
+			u.appOutput("#input files         : "+ nrFiles+errFiles);
+			u.appOutput("#batches             : "+ totalBatches);
+			u.appOutput("#dynamic SQL         : "+ u.dynamicSQLNrStmts);
+			u.appOutput("#lines of SQL pass 1 : "+ nrLinesTotalP1);
+			u.appOutput("#lines of SQL pass 2 : "+ nrLinesTotalP2);
+			u.appOutput("#SQL features        : "+ u.constructsFound, writeToReport);
+			u.appOutput("Parse time           : "+ timeCount.get("parseTime") + " seconds"+parseMax);
+			u.appOutput("Analysis time pass 1 : "+ timeCount.get("analysisTimeP1") + " seconds"+p1Max);
+			u.appOutput("Analysis time pass 2 : "+ timeCount.get("analysisTimeP2") + " seconds"+p2Max);
+			u.appOutput("Report gen time      : "+ timeCount.get("report") + " seconds");
 
-		Integer retryPct = 0;
-		String SLL_fmt = "-noSLL";
-		if (antlrSLL) {
-			if (passCount.size() == 2) retrySLL = retrySLL/2;
-			if (totalBatches > 0) { retryPct = (retrySLL*100/totalBatches); }
-			SLL_fmt = retrySLL.toString() + "/"+totalBatches.toString()+ " ("+retryPct.toString()+"%)";
+			Integer retryPct = 0;
+			String SLL_fmt = "-noSLL";
+			if (antlrSLL) {
+				if (passCount.size() == 2) retrySLL = retrySLL/2;
+				if (totalBatches > 0) { retryPct = (retrySLL*100/totalBatches); }
+				SLL_fmt = retrySLL.toString() + "/"+totalBatches.toString()+ " ("+retryPct.toString()+"%)";
+			}
+			
+			u.appOutput("#SLL retries         : "+ SLL_fmt);
+			if (u.showPercentage) {
+				u.appOutput("Compatibility        : "+ u.compatPctStr + "%   (uncorrected: "+u.compatPctStrRaw+"%)" );
+			}
 		}
 		
-		u.appOutput("#SLL retries         : "+ SLL_fmt);
-		if (u.showPercentage) {
-			u.appOutput("Compatibility        : "+ u.compatPctStr + "%   (uncorrected: "+u.compatPctStrRaw+"%)" );
-		}
-		}
-		
-		if (u.rewrite) u.appOutput("SQL rewrites         : "+ u.nrRewritesDone, writeToReport);
-		else           u.appOutput("SQL rewrite oppties  : "+ u.rewriteOppties.getOrDefault(u.rewriteOpptiesTotal,0), writeToReport);
+		String rewriteSecs = "";
+		if (u.nrRewritesDone > 0) rewriteSecs = " in " + timeCount.get("secsRewrite") + " seconds";
+		if (u.rewrite) u.appOutput("#SQL rewrites        : "+ u.nrRewritesDone + rewriteSecs , writeToReport);
+		else           u.appOutput("#SQL rewrite oppties : "+ u.rewriteOppties.getOrDefault(u.rewriteOpptiesTotal,0), writeToReport);
 		if (u.execTest)u.appOutput("ExecTest statements  : "+ u.execTestStatements, writeToReport);
 		
 		if (u.queriesExtractedAll > 0) {
@@ -2064,7 +2118,7 @@ public class Compass {
 
 	}
 
-	private void processInput(String runStartTime) throws Exception {			
+	private void processInput(String runStartTime) throws Exception {		
 		if (readStdin) {
 			// quick parse option, for development only
 			if (u.analysisPass > 1) return;
@@ -2869,9 +2923,18 @@ public class Compass {
 						String ptreeText = parseBatch(charStream, inFile, batchNr, batchLines, antlrSLL);
 						endTime = System.currentTimeMillis();
 						duration = (endTime - startTime);
-						timeElapsed = duration / 1000;
+						timeElapsed = duration;
 						timeElapsedFile += duration;
-						timeCount.put("parseTime", timeCount.get("parseTime") + (int) duration);
+						timeCount.put("parseTime", timeCount.get("parseTime") + duration);
+												
+						if (duration > timeCount.get("parseTimeMax")) {
+							timeCount.put("parseTimeMax", duration);
+							timeCount.put("parseTimeMaxBatchNr", (long) batchNr);
+							timeCount.put("parseTimeMaxBatchLine", (long) startBatchLineNr);
+							timeCount.put("parseTimeMaxBatchLines", (long) batchLines);
+							timeCount.put("parseTimeMaxBatchPass", (long) u.analysisPass);
+							timeCountStr.put("parseTimeMaxBatchFile", u.currentSrcFile.substring(u.currentSrcFile.lastIndexOf(File.separator) + 1));
+						}
 
 						if (u.debugging) u.dbgOutput("returning from parser", u.debugBatch);
 
@@ -2879,7 +2942,7 @@ public class Compass {
 							if (!hasParseError) {
 								u.writeBatchFile(ptreeText);
 							}
-							u.writeBatchFile("Batch " + batchNr + ": lines=" + batchLines + ", parse time(secs)=" + timeElapsed);
+							u.writeBatchFile("Batch " + batchNr + ": lines=" + batchLines + ", parse time(secs)=" + (timeElapsed/1000));
 						}
 
 						if (hasParseError) {
@@ -2937,7 +3000,7 @@ public class Compass {
 								if (!hasParseError) {
 									u.appOutput(ptreeText);
 								}
-								u.appOutput("Batch " + batchNr + ": lines=" + batchLines + ", parse time(secs)=" + timeElapsed);
+								u.appOutput("Batch " + batchNr + ": lines=" + batchLines + ", parse time(secs)=" + (timeElapsed/1000));
 							}
 						}
 
@@ -2950,15 +3013,24 @@ public class Compass {
 								// even with -parseonly, we need to run analysis in order to process set quoted_identifier, which affects parsing
 								if (u.debugging) u.dbgOutput("pass=["+u.analysisPass+"] Analyzing tree for batchNr=["+batchNr+"] batchLines=["+batchLines+"] ", u.debugBatch);
 								String phase = "analysisTimeP" + u.analysisPass;
-								startTime = System.currentTimeMillis();
+								startTime = System.currentTimeMillis(); 								
 
 								a.analyzeTree(exportedParseTree, batchNr, batchLines, u.analysisPass);
 								
 								endTime = System.currentTimeMillis();
 								duration = (endTime - startTime);
-								timeElapsed = duration / 1000;
+								timeElapsed = duration;
 								timeElapsedFile += duration;
-								timeCount.put(phase, timeCount.get(phase) + (int) duration);
+								timeCount.put(phase, timeCount.get(phase) + duration);
+								
+								if (duration > timeCount.get(phase+"Max")) {
+									timeCount.put(phase+"Max", duration);
+									timeCount.put(phase+"MaxBatchNr", (long) batchNr);
+									timeCount.put(phase+"MaxBatchLine", (long) startBatchLineNr);
+									timeCount.put(phase+"MaxBatchLines", (long) batchLines);
+									timeCount.put(phase+"MaxBatchPass", (long) u.analysisPass);
+									timeCountStr.put(phase+"MaxBatchFile", u.currentSrcFile.substring(u.currentSrcFile.lastIndexOf(File.separator) + 1));
+								}
 							}
 						}
 
@@ -3020,8 +3092,16 @@ public class Compass {
 				
 			if (u.analysisPass == 2) {
 				// if substitutions required, apply them
-				if (u.rewriteTextList.size() > 0) {					
-					u.performRewriting(reportName, u.currentAppName,inFileCopy);			
+				if (u.rewriteTextList.size() > 0) {
+					long startRewrite = System.currentTimeMillis();							
+					u.performRewriting(reportName, u.currentAppName,inFileCopy);	
+					long endRewrite = System.currentTimeMillis();										
+					long secsRewrite = endRewrite - startRewrite;	
+					timeCount.put("secsRewrite", secsRewrite);
+											
+					if (CompassUtilities.devOptions) {	  
+						u.appOutput("SQL rewrite time     : " + (timeCount.get("secsRewrite")/1000) + " seconds" );
+					} 										
 				}
 			}
 
@@ -3148,7 +3228,7 @@ public class Compass {
 		}
 						
 		// In case of databases = ALL, show list of all DBs first, as it could potentially take long to process all
-		// In any case, find out the approx roundtrip time first so that we can issue a warnign if it may take a long time
+		// In any case, find out the approx roundtrip time first so that we can issue a warning if it looks like it may take a long time
 		int loopCnt = 0;
 		while (true) {
 			loopCnt++;
@@ -3234,25 +3314,41 @@ public class Compass {
 				u.appOutput("\nERROR: No user databases found in SQL Server "+sqlEndpoint+"\n");
 				u.errorExit();				
 			}
-						
-			if (cmdOut.contains("Script transfer failed") || cmdOut.contains("Cannot find path")) {
-				// something went wrong though
+			if (cmdOut.contains("Cannot find path")) {
+				// something went wrong 
 				u.appOutput("\nERROR: Error while running Powershell SMO script\n");
-				u.appOutput(cmdOut);			
+				u.appOutput(cmdOut);
 				u.errorExit();				
-			}				
-			if (cmdOut.contains("Specified database not found")) {			
-				String dbNotfound = CompassUtilities.getPatternGroup(cmdOut, "^.*?Specified database not found: ('.*?').*$", 1, "multiline");
-				u.appOutput("\nERROR: Specified database "+dbNotfound+ " not found in SQL Server "+sqlEndpoint+"\n");
-				u.errorExit();				
-			}
-			
+			}			
+					
 			// exit loop
 			if (loopCnt >= 2) { 
 				break;
-			}						
+			}																						
 		}
-//}// for testing without SMO invocation
+//}// uncomment for testing without SMO invocation
+
+		//  Check output for errors
+		if (u.debugging) u.dbgOutput("cmdOut=["+cmdOut+"] ", u.debugAutoDDL);			
+		String s = cmdOut;
+		while (true) {
+			String errLine = CompassUtilities.getPatternGroup(s, "(^.*?\nERROR:)", 1, "multiline");
+			if (errLine.isEmpty()) {
+				break;
+			}
+			s = s.substring(errLine.length());
+			errLine  = CompassUtilities.getPatternGroup(s, "(^.*?)[\n\r]", 1, "multiline");
+			if (errLine.isEmpty()) errLine = s;
+			if (errLine.contains("Specified database not found")) {			
+				String dbName = CompassUtilities.getPatternGroup(errLine, "Specified database not found: ('.*?')", 1);
+				u.appOutput("ERROR: Specified database "+dbName+ " not found in SQL Server "+sqlEndpoint+"\n");							
+			}		
+			if (errLine.contains("Script transfer failed")) {
+				// Something did not work, for example the database is offline or not accessible		
+				String dbName = CompassUtilities.getPatternGroup(errLine, "ScriptTransfer\\(\\) for database \\[(.*?)\\] to ", 1);
+				u.appOutput("ERROR: Error generating script for database '"+dbName+ "' in SQL Server "+sqlEndpoint+"\n");										
+			}		
+		}
 
 		// generated DDL, now proceed to run Compass analysis on the DDL
 		u.appOutput("DDL generated in "+SMOOutputFolder + " :");

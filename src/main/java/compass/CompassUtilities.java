@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2024-10b";
-	public static final String thisProgVersionDate  = "October 2024";
+	public static final String thisProgVersion      = "2024-11";
+	public static final String thisProgVersionDate  = "November 2024";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -852,6 +852,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.DynamicSQLEXECStringReview+tttSeparator+"Dynamic SQL with EXECUTE(string) is supported by Babelfish; however, when the actual dynamically composed SQL statements cannot be analyzed in advance, manual analysis is required. Use the '-reportoption xref' flag to find the actual occurrence of this statement",
 		CompassAnalyze.DynamicSQLEXECSPReview+tttSeparator+"Dynamic SQL with sp_executesql is supported by Babelfish; however, when the actual dynamically composed SQL statements cannot be analyzed in advance, manual analysis is required. Use the '-reportoption xref' flag to find the actual occurrence of this statement",
 		CompassAnalyze.FKrefDBname+tttSeparator+"Remove the database name from the referenced table. E.g. change: REFERENCES yourdb.dbo.yourtable(yourcol) to: REFERENCES dbo.yourtable(yourcol)",
+		CompassAnalyze.CrossDbReference+" by SELECT..INTO"+tttSeparator+"SELECT..INTO into a different database is not currently supported; rewrite as  a cross-database CREATE TABLE, followed by a cross-database INSERT..SELECT",
 		CompassAnalyze.CrossDbReference+tttSeparator+"Cross-database references with 3-part object names (e.g. yourdb.dbo.yourtable) are not currently supported for this statement type, except in some cases for objects inside the current database",
 		CompassAnalyze.RemoteObjectReference+" by UPDATE(target)"+tttSeparator+"DML on remote objects, i.e. with a 4-part object name (e.g. REMOTESRVR.somedb.dbo.sometable) is not currently supported for this statement",
 		CompassAnalyze.RemoteObjectReference+" by INSERT(target)"+tttSeparator+"DML on remote objects, i.e. with a 4-part object name (e.g. REMOTESRVR.somedb.dbo.sometable) is not currently supported for this statement",
@@ -3955,6 +3956,7 @@ tooltipsHTMLPlaceholder +
 			writeExtractedFile("-- Batches extracted from input file: "+queriesExtracted);
 			writeExtractedFile("-- No de-duplication performed. /*");
 			writeExtractedFile("reset");
+			writeExtractedFile("go");
 		}
 
 		closeExtractedFile();
@@ -8606,6 +8608,7 @@ userCfgComplexityHdrLine202308 + "\n" +
 				}
 				writeRewrittenFile("*/\n");
 				writeRewrittenFile("reset\n");
+				writeRewrittenFile("go\n");
 			}
 			closeRewrittenFile();
 
