@@ -3100,7 +3100,7 @@ public class Compass {
 					timeCount.put("secsRewrite", secsRewrite);
 											
 					if (CompassUtilities.devOptions) {	  
-						u.appOutput("SQL rewrite time     : " + (timeCount.get("secsRewrite")/1000) + " seconds" );
+						u.appOutput("SQL rewrite time: " + (timeCount.get("secsRewrite")/1000) + " seconds" );
 					} 										
 				}
 			}
@@ -3464,8 +3464,6 @@ public class Compass {
 				retrySLLFile++;
 				parseErrorMsg = new StringBuilder();
 				hasParseError = false;
-				// retry with SLL = false
-				//u.appOutput("retrying w/o SLL: batchNr=["+batchNr+"] batchTextCopy=["+batchTextCopy+"] ");
 				return parseBatch(CharStreams.fromString(batchTextCopy), fileName, batchNr, batchLines, false);
 			}
 
