@@ -223,6 +223,10 @@ public class CompassAnalyze {
 	static final String MoneyLiteral          = "MONEY literal";
 	static final String AtAtVariable          = "@@variable";
 	static final String VarDeclareAtAt        = "Regular variable named @@v";
+	static final String ProcParDeclareAtAt    = "Procedure parameter named @@v";
+	static final String FuncParDeclareAtAt    = "Function parameter named @@v";
+	static final String FuncTypeDeclareAtAt   = "Function return table named @@v";
+	static final String NamedArgAtAt          = "Named procedure call argument named @@v";
 	static final String AtAtErrorValueRef     = "@@ERROR value";
 	static final String AlterIndex            = "ALTER INDEX";
 	static final String AlterTable            = "ALTER TABLE";
@@ -284,6 +288,9 @@ public class CompassAnalyze {
 	static final String TrigMultiDMLAttr      = "TRIGGER_MULTI_DML";
 	static final String SelectIntoVariantFmtNoTopNoIdentityOrderBy = "SELECT..INTO with ORDER BY";
 	static final String SelectIntoVariantFmtIdentityNotLast = "SELECT..INTO with IDENTITY()";
+	static final String globalAtAtVarDeclared  = ", declaring predefined @@variable name";
+	static final String globalAtAtVarNamedArg  = ", using predefined @@variable name as named argument";
+	static final String globalAtAtVarReference = ", reference"; 
 
 	// use when there's no name
 	static final String Undefined = "-undefined-";
@@ -1826,19 +1833,43 @@ public class CompassAnalyze {
 			}
 
 			private void captureAtAtVariables(String varName, int lineNr) {
-				// Catch references to @@ variables. User can also declare @@variables (supported) but not reference them, so basically it's not supported
+				captureAtAtVariables(varName, lineNr, "reference");
+			}
+			private void captureAtAtVariables(String varName, int lineNr, String type) {
+				// Catch references to @@ variables. @@PGERROR is a special case
 				if (varName.startsWith("@@")) {
 					if (inAtAtErrorPredicate && varName.equalsIgnoreCase("@@ERROR")) return;  // this is captured elsewhere
 					if (!CompassUtilities.getPatternGroup(varName, "^\\@\\@(["+u.identifierChars+"]*)$", 1).isEmpty()) {
+						String varType = "variable";
+						if (u.currentObjectType.equals("PROCEDURE")) varType = "procedure parameter";
+						if (u.currentObjectType.equals("FUNCTION")) varType = "function parameter";
+						if (type.equals("named_arg")) varType = "named procedure argument";
+						
 						// is this a known global variable, or a user-defined variable starting with '@@' ?
 						if (featureExists(AtAtVariable, varName)) {
-							String status = featureSupportedInVersion(AtAtVariable, varName);
-							captureItem(varName, "", AtAtVariable, varName, status, lineNr);
+							String status = u.NotSupported;
+							String msg = "";
+							if (type.equals("declare") || type.equals("named_arg")) {
+								// predefined @@globalvar names not allowed here; in older BBF versions it would not raise an error but would produce incorrect results
+								status = u.NotSupported;
+								msg = globalAtAtVarDeclared;
+								if (type.equals("named_arg")) msg = globalAtAtVarNamedArg;
+							}
+							else {
+								status = featureSupportedInVersion(AtAtVariable, varName);
+								msg = globalAtAtVarReference;
+							}
+							captureItem(varName+msg, "", AtAtVariable, varName, status, lineNr);
 						}
 						else {
 							// it's a user-defined name
+							String varTypeReport = VarDeclareAtAt;
+							if (varType.startsWith("procedure")) varTypeReport = ProcParDeclareAtAt;
+							if (varType.startsWith("function")) varTypeReport = FuncParDeclareAtAt;
+							if (type.equals("named_arg")) varTypeReport = NamedArgAtAt;
+							
 							String status = featureSupportedInVersion(VarDeclareAtAt);
-							captureItem(VarDeclareAtAt, varName, "", varName, status, lineNr);
+							captureItem(varTypeReport, varName, "", varName, status, lineNr);
 						}
 					}
 				}
@@ -3244,6 +3275,15 @@ public class CompassAnalyze {
 			@Override public String visitLocal_id_expr(TSQLParser.Local_id_exprContext ctx) {
 				if (ctx.LOCAL_ID() != null) {
 					captureAtAtVariables(ctx.LOCAL_ID().getText().toUpperCase(), ctx.start.getLine());
+				}
+				visitChildren(ctx);
+				return null;
+			}
+
+			@Override public String visitExecute_statement_arg_named(TSQLParser.Execute_statement_arg_namedContext ctx) {
+				if (u.debugging) u.dbgOutput(u.thisProc()+"ctx=["+getTextSpaced(ctx)+"] ", u.debugPtree);
+				if (ctx.LOCAL_ID() != null) {
+					captureAtAtVariables(ctx.LOCAL_ID().getText().toUpperCase(), ctx.start.getLine(), "named_arg");
 				}
 				visitChildren(ctx);
 				return null;
@@ -5286,6 +5326,7 @@ public class CompassAnalyze {
 					udfType = "table";
 					inMultiStmtTUDF = true;
 					options = ctx.func_body_returns_table().function_option();
+					captureAtAtVariables(ctx.func_body_returns_table().LOCAL_ID().getText().toUpperCase(), ctx.func_body_returns_table().LOCAL_ID().getSymbol().getLine(), "declare");	
 					// this is captured as a RETURN statement instead
 //					captureItem("RETURN"+" result set, in function", "", ControlFlowReportGroup, "RETURN", u.Supported, ctx.func_body_returns_table().RETURN().getSymbol().getLine());
 				}
@@ -5461,7 +5502,7 @@ public class CompassAnalyze {
 				return null;
 			}
 
-			public void captureParameters(String objType, String objName, String funcType, List<TSQLParser.Procedure_paramContext> params) {
+			public void captureParameters(String objType, String objName, String funcType, List<TSQLParser.Procedure_paramContext> params) { 
 				if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"objType=["+objType+"] objName=["+objName+"] nr.params=["+params.size()+"] ", u.debugPtree);
 
 				String execParams = "";
@@ -5473,6 +5514,7 @@ public class CompassAnalyze {
 		            String parDft = params.get(i).default_val != null ? params.get(i).default_val.getText() : "";
 		            String parOpt = params.get(i).param_option != null ? params.get(i).param_option.getText().toUpperCase() : "";
 		            addLocalVar(parName, dataType);
+					captureAtAtVariables(parName.toUpperCase(), params.get(i).start.getLine(), "declare");		            
 
 					String UDD = lookupUDD(dataType);
 					String UDDfmt = "";
@@ -6451,6 +6493,8 @@ public class CompassAnalyze {
 					u.setContext("TABLE", varName);
 					String status = featureSupportedInVersion(TableVariables);
 					captureItem("TABLE variable declaration", varName, TableVariablesType, "", status, ctx.start.getLine());
+					
+					captureAtAtVariables(varName.toUpperCase(), ctx.LOCAL_ID().getSymbol().getLine(), "declare");	
 				}
 				visitChildren(ctx);
 
@@ -6466,6 +6510,7 @@ public class CompassAnalyze {
 				String varName  = ctx.LOCAL_ID().getText();
 				String dataType = u.normalizeName(ctx.data_type().getText().toUpperCase(), "datatype");
 				String varDft = ctx.expression() != null ? ctx.expression().getText() : "";
+				captureAtAtVariables(varName.toUpperCase(), ctx.LOCAL_ID().getSymbol().getLine(), "declare");	
 
 				String varItem = dataType+" variable";
 				String statusDataType = u.Supported;
