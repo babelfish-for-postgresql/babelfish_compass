@@ -1560,7 +1560,7 @@ public class CompassAnalyze {
 			@Override public String visitExecute_body_batch(TSQLParser.Execute_body_batchContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 				if (ctx.func_proc_name_server_database_schema() != null) {
-					HandleSystemProcPass1(ctx.func_proc_name_server_database_schema(), ctx.execute_statement_arg().get(0));
+					HandleSystemProcPass1(ctx.func_proc_name_server_database_schema(), (ctx.execute_statement_arg().size() == 0) ? null : ctx.execute_statement_arg().get(0));
 				}
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
@@ -7349,7 +7349,10 @@ public class CompassAnalyze {
 					}
 				}
 				else if (ctx.IDENTITY_INSERT() != null) {
-					captureSEToption("SET IDENTITY_INSERT", ctx.on_off().getText().toUpperCase(), "", ctx.start.getLine(), ctx.table_name().getText().toUpperCase());
+					String tableNameRaw = ctx.table_name().getText().toUpperCase();
+					String tableName = u.normalizeName(tableNameRaw);					
+					captureSEToption("SET IDENTITY_INSERT", ctx.on_off().getText().toUpperCase(), "", ctx.start.getLine(), tableName);
+					CaptureIdentifier(tableNameRaw, tableName, "SET IDENTITY_INSERT", ctx.start.getLine());					
 				}
 				else if (ctx.ROWCOUNT() != null) {
 					String setValue = "";
