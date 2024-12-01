@@ -7141,11 +7141,15 @@ public class CompassAnalyze {
 									String statusArgN = u.NotSupported;
 									int argNum = Integer.parseInt(argN.substring(3));
 									String argNValue = u.stripStringQuotes(getArgProcExec(argNum, procName, arg)).trim().toUpperCase();
+									if (argNValue.isEmpty()) argNValue="NULL_OR_BLANK"; 						
 									if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"validating arg=["+argN+"] argNValue=["+argNValue+"] for system proc=["+sysProcName+"]", u.debugPtree);
 									if (!argNValue.isEmpty()) {
 										if (argNValue.charAt(0) != '@') {
 											statusArgN = featureArgSupportedInVersion(procName, argN, argNValue);
 											argMsg = ", '"+argNValue+"'";
+											if (argNValue.equals("NULL_OR_BLANK")) {
+												argMsg = ", no value for argument #"+argNum;
+											}	
 										}
 										else {
 											statusArgN = u.ReviewManually;
