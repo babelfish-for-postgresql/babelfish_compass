@@ -217,7 +217,7 @@ public class CompassAnalyze {
 	static final String OpenKeyStmt           = "OPEN KEY";
 	static final String CloseKeyStmt          = "CLOSE KEY";
 	static final String Collations            = "Collations";
-	static final String CaseSensitiveCollation = "Case-sensitive collation";
+	static final String CaseSensitiveCollation= "Case-sensitive collation";
 	static final String DBAStmts              = "DBA statements";
 	static final String MiscObjects           = "Miscellaneous objects";
 	static final String MoneyLiteral          = "MONEY literal";
@@ -8011,6 +8011,7 @@ public class CompassAnalyze {
 
 				String status = featureSupportedInVersion(Collations,collationName);
 				String CSmsg = "";
+
 				if (collationName.toUpperCase().contains("_CS_")) {
 					if (status.equals(u.Supported)) {
 						String CSstatus = featureSupportedInVersion(CaseSensitiveCollation,contextCS);
@@ -8031,33 +8032,25 @@ public class CompassAnalyze {
 					String statusCrdbV24 = "";
 					if (statusCrdb.equals(u.NotSupported)) {
 						msg = "CREATE DATABASE...COLLATE";
-						status = statusCrdb;						
-					}			
+						status = statusCrdb;
+					}
 					else {
 						status = statusCrdbV24 = statusCrdb;  // CREATE DATABASE...COLLATE is IGNORED
 						
-						statusCrdb= featureSupportedInVersion(CreateDatabaseOptions, "COLLATE ANY");
+						statusCrdb = featureSupportedInVersion(CreateDatabaseOptions, "COLLATE " + collationName);
+						String statusv31 = featureSupportedInVersion(CreateDatabaseOptions,"COLLATE SQL_LATIN1_GENERAL_CP1_CI_AS");
 						if (statusCrdb.equals(u.Supported)) {
 							msg = CSmsg+collationName+", "+context;
-							status = statusCrdb;							
+							status = statusCrdb;
 						}
 						else {
-							statusCrdb = featureSupportedInVersion(CreateDatabaseOptions, "COLLATE " + collationName);
-							String statusv31 = featureSupportedInVersion(CreateDatabaseOptions,"COLLATE SQL_LATIN1_GENERAL_CP1_CI_AS");							
-							if (statusCrdb.equals(u.Supported)) {
-								msg = CSmsg+collationName+", "+context;
-								status = statusCrdb;							
-							}	
+							if (statusv31.equals(u.Supported)) {
+								status = u.NotSupported;
+							}
 							else {
-								if (statusv31.equals(u.Supported)) {
-									status = u.NotSupported;
-								}
-								else {
-									status = statusCrdbV24;
-								}
-							}								
-						} 						
-															
+								status = statusCrdbV24;
+							}
+						}
 					}
 				}
 				
