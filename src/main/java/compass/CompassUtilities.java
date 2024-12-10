@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2024-11";
-	public static final String thisProgVersionDate  = "November 2024";
+	public static final String thisProgVersion      = "2024-12";
+	public static final String thisProgVersionDate  = "December 2024";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -112,8 +112,8 @@ public class CompassUtilities {
 	public String targetBabelfishVersionReportLine = "Target Babelfish version   : v."; // line in report listing the target version
 	public boolean stdReport = false;	// development only
 
-	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "4.0.0", "4.1.0", "4.2.0", "4.3.0");
-	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2",  "15.3",  "15.4",  "15.5",  "15.6",  "16.1",  "16.2",  "16.3",  "16.4");
+	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "4.0.0", "4.1.0", "4.2.0", "4.3.0", "4.4.0");
+	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2",  "15.3",  "15.4",  "15.5",  "15.6",  "16.1",  "16.2",  "16.3",  "16.4",  "16.6");
 
 	// minimum Babelfish version; this is fixed
 	public static final String baseBabelfishVersion = "1.0.0";
@@ -6035,6 +6035,14 @@ tooltipsHTMLPlaceholder +
 	}
 
 	public String formatPGversion(String bbfVersion) {
+		// we forgot to update the BBF version list or PG version list
+		if (BabelfishVersionList.size() != BabelfishPGVersionList.size()) {
+			if (devOptions) {
+				appOutput(thisProc()+"Internal error: BabelfishVersionList does not match BabelfishPGVersionList");
+				errorExitStackTrace();
+			}
+		}
+
 		String s = "";
 		for (int i = 0; i < BabelfishVersionList.size(); i++) {
 			String v1 = BabelfishVersionList.get(i);
@@ -6045,6 +6053,13 @@ tooltipsHTMLPlaceholder +
 		}
 		if (!s.isEmpty()) {
 			s = " (PG "+s+")";
+		}
+		else {
+			// we forgot to update the BBF version list or PG version list
+			if (devOptions) {
+				appOutput(thisProc()+"Internal error: BabelfishVersionList/BabelfishPGVersionList not updated for '"+bbfVersion+"'");
+				errorExitStackTrace();
+			}
 		}
 		return s;
 	}
