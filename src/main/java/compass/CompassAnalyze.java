@@ -8654,29 +8654,40 @@ public class CompassAnalyze {
 				}
 				if (objName.contains(".")) {
 					List<String> parts = new ArrayList<String>(Arrays.asList(objName.split("\\.")));
-
-					if (parts.size() == 3) {
-						String dbName = u.getDBNameFromID(objName);
-						String status = "";
-						String ownDB = "";
-						if (dbName.equalsIgnoreCase(u.currentDatabase)) {
-							status = u.Supported;
-							ownDB = " (in current database)";
-						}
-						else {
-							String stmtTest = stmt;
-							stmtTest = u.applyPatternFirst(stmtTest, "\\(target\\)$", "");
-							stmtTest = u.applyPatternFirst(stmtTest, "^EXECUTE procedure$", "EXECUTE");
-							//u.appOutput(u.thisProc()+"stmt=["+stmt+"]  stmtTest=["+stmtTest+"] ");
-							status = featureSupportedInVersion(CrossDbReference,stmtTest);
-						}
-						captureItem(CrossDbReference+" by "+stmt+ownDB, objName.toUpperCase(), CrossDbReference, stmt, status, lineNr);
+					
+					boolean ObjTypeSupported = true;
+					if (stmt.equals("CREATE SYNONYM")) {
+						String statusObj = featureSupportedInVersion(MiscObjects, "SYNONYM");
+						u.appOutput(u.thisProc()+"statusObj=["+statusObj+"] ");
+						if (!statusObj.equals(u.Supported))  ObjTypeSupported = false;
 					}
 
-					if (parts.size() == 4) {
-						String serverName = u.getServerNameFromID(objName);
-						String status = featureSupportedInVersion(RemoteObjectReference, stmt);
-						captureItem(RemoteObjectReference+" by "+stmt, objName.toUpperCase()+fmt, RemoteObjectReference, stmt, status, lineNr);
+					if (ObjTypeSupported) {
+						if (parts.size() == 3) {
+							String dbName = u.getDBNameFromID(objName);
+							String status = "";
+							String ownDB = "";
+							if (dbName.equalsIgnoreCase(u.currentDatabase)) {
+								status = u.Supported;
+								ownDB = " (in current database)";
+							}
+							else {
+								String stmtTest = stmt;
+								stmtTest = u.applyPatternFirst(stmtTest, "\\(target\\)$", "");
+								stmtTest = u.applyPatternFirst(stmtTest, "^EXECUTE procedure$", "EXECUTE");
+								//u.appOutput(u.thisProc()+"stmt=["+stmt+"]  stmtTest=["+stmtTest+"] ");
+								status = featureSupportedInVersion(CrossDbReference,stmtTest);
+							}
+							captureItem(CrossDbReference+" by "+stmt+ownDB, objName.toUpperCase(), CrossDbReference, stmt, status, lineNr);
+						}
+					}
+
+					if (ObjTypeSupported) {
+						if (parts.size() == 4) {
+							String serverName = u.getServerNameFromID(objName);
+							String status = featureSupportedInVersion(RemoteObjectReference, stmt);						
+							captureItem(RemoteObjectReference+" by "+stmt, objName.toUpperCase()+fmt, RemoteObjectReference, stmt, status, lineNr);
+						}
 					}
 				}
 
@@ -9975,6 +9986,7 @@ public class CompassAnalyze {
 				words.remove(0);
 				String obj = String.join(" ", words);
 				String status = featureSupportedInVersion(MiscObjects, obj);
+				u.appOutput(u.thisProc()+"obj=["+obj+"] status=["+status+"] ");
 				captureItem(kwd + " " + obj + misc, objectName, MiscObjects, obj, status, lineNr);
 				if (!kwd.equals("CREATE") && !kwd.equals("DROP")) {
 					captureItem("CREATE " + obj, objectName, "", "", u.ObjCountOnly, 0, 0);
