@@ -8658,7 +8658,6 @@ public class CompassAnalyze {
 					boolean ObjTypeSupported = true;
 					if (stmt.equals("CREATE SYNONYM")) {
 						String statusObj = featureSupportedInVersion(MiscObjects, "SYNONYM");
-						u.appOutput(u.thisProc()+"statusObj=["+statusObj+"] ");
 						if (!statusObj.equals(u.Supported))  ObjTypeSupported = false;
 					}
 
@@ -9986,7 +9985,6 @@ public class CompassAnalyze {
 				words.remove(0);
 				String obj = String.join(" ", words);
 				String status = featureSupportedInVersion(MiscObjects, obj);
-				u.appOutput(u.thisProc()+"obj=["+obj+"] status=["+status+"] ");
 				captureItem(kwd + " " + obj + misc, objectName, MiscObjects, obj, status, lineNr);
 				if (!kwd.equals("CREATE") && !kwd.equals("DROP")) {
 					captureItem("CREATE " + obj, objectName, "", "", u.ObjCountOnly, 0, 0);
