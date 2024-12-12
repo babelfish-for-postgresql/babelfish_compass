@@ -217,7 +217,7 @@ public class CompassAnalyze {
 	static final String OpenKeyStmt           = "OPEN KEY";
 	static final String CloseKeyStmt          = "CLOSE KEY";
 	static final String Collations            = "Collations";
-	static final String CaseSensitiveCollation = "Case-sensitive collation";
+	static final String CaseSensitiveCollation= "Case-sensitive collation";
 	static final String DBAStmts              = "DBA statements";
 	static final String MiscObjects           = "Miscellaneous objects";
 	static final String MoneyLiteral          = "MONEY literal";
@@ -8011,6 +8011,7 @@ public class CompassAnalyze {
 
 				String status = featureSupportedInVersion(Collations,collationName);
 				String CSmsg = "";
+
 				if (collationName.toUpperCase().contains("_CS_")) {
 					if (status.equals(u.Supported)) {
 						String CSstatus = featureSupportedInVersion(CaseSensitiveCollation,contextCS);
@@ -8031,33 +8032,25 @@ public class CompassAnalyze {
 					String statusCrdbV24 = "";
 					if (statusCrdb.equals(u.NotSupported)) {
 						msg = "CREATE DATABASE...COLLATE";
-						status = statusCrdb;						
-					}			
+						status = statusCrdb;
+					}
 					else {
 						status = statusCrdbV24 = statusCrdb;  // CREATE DATABASE...COLLATE is IGNORED
 						
-						statusCrdb= featureSupportedInVersion(CreateDatabaseOptions, "COLLATE ANY");
+						statusCrdb = featureSupportedInVersion(CreateDatabaseOptions, "COLLATE " + collationName);
+						String statusv31 = featureSupportedInVersion(CreateDatabaseOptions,"COLLATE SQL_LATIN1_GENERAL_CP1_CI_AS");
 						if (statusCrdb.equals(u.Supported)) {
 							msg = CSmsg+collationName+", "+context;
-							status = statusCrdb;							
+							status = statusCrdb;
 						}
 						else {
-							statusCrdb = featureSupportedInVersion(CreateDatabaseOptions, "COLLATE " + collationName);
-							String statusv31 = featureSupportedInVersion(CreateDatabaseOptions,"COLLATE SQL_LATIN1_GENERAL_CP1_CI_AS");							
-							if (statusCrdb.equals(u.Supported)) {
-								msg = CSmsg+collationName+", "+context;
-								status = statusCrdb;							
-							}	
+							if (statusv31.equals(u.Supported)) {
+								status = u.NotSupported;
+							}
 							else {
-								if (statusv31.equals(u.Supported)) {
-									status = u.NotSupported;
-								}
-								else {
-									status = statusCrdbV24;
-								}
-							}								
-						} 						
-															
+								status = statusCrdbV24;
+							}
+						}
 					}
 				}
 				
@@ -8661,29 +8654,39 @@ public class CompassAnalyze {
 				}
 				if (objName.contains(".")) {
 					List<String> parts = new ArrayList<String>(Arrays.asList(objName.split("\\.")));
-
-					if (parts.size() == 3) {
-						String dbName = u.getDBNameFromID(objName);
-						String status = "";
-						String ownDB = "";
-						if (dbName.equalsIgnoreCase(u.currentDatabase)) {
-							status = u.Supported;
-							ownDB = " (in current database)";
-						}
-						else {
-							String stmtTest = stmt;
-							stmtTest = u.applyPatternFirst(stmtTest, "\\(target\\)$", "");
-							stmtTest = u.applyPatternFirst(stmtTest, "^EXECUTE procedure$", "EXECUTE");
-							//u.appOutput(u.thisProc()+"stmt=["+stmt+"]  stmtTest=["+stmtTest+"] ");
-							status = featureSupportedInVersion(CrossDbReference,stmtTest);
-						}
-						captureItem(CrossDbReference+" by "+stmt+ownDB, objName.toUpperCase(), CrossDbReference, stmt, status, lineNr);
+					
+					boolean ObjTypeSupported = true;
+					if (stmt.equals("CREATE SYNONYM")) {
+						String statusObj = featureSupportedInVersion(MiscObjects, "SYNONYM");
+						if (!statusObj.equals(u.Supported))  ObjTypeSupported = false;
 					}
 
-					if (parts.size() == 4) {
-						String serverName = u.getServerNameFromID(objName);
-						String status = featureSupportedInVersion(RemoteObjectReference, stmt);
-						captureItem(RemoteObjectReference+" by "+stmt, objName.toUpperCase()+fmt, RemoteObjectReference, stmt, status, lineNr);
+					if (ObjTypeSupported) {
+						if (parts.size() == 3) {
+							String dbName = u.getDBNameFromID(objName);
+							String status = "";
+							String ownDB = "";
+							if (dbName.equalsIgnoreCase(u.currentDatabase)) {
+								status = u.Supported;
+								ownDB = " (in current database)";
+							}
+							else {
+								String stmtTest = stmt;
+								stmtTest = u.applyPatternFirst(stmtTest, "\\(target\\)$", "");
+								stmtTest = u.applyPatternFirst(stmtTest, "^EXECUTE procedure$", "EXECUTE");
+								//u.appOutput(u.thisProc()+"stmt=["+stmt+"]  stmtTest=["+stmtTest+"] ");
+								status = featureSupportedInVersion(CrossDbReference,stmtTest);
+							}
+							captureItem(CrossDbReference+" by "+stmt+ownDB, objName.toUpperCase(), CrossDbReference, stmt, status, lineNr);
+						}
+					}
+
+					if (ObjTypeSupported) {
+						if (parts.size() == 4) {
+							String serverName = u.getServerNameFromID(objName);
+							String status = featureSupportedInVersion(RemoteObjectReference, stmt);						
+							captureItem(RemoteObjectReference+" by "+stmt, objName.toUpperCase()+fmt, RemoteObjectReference, stmt, status, lineNr);
+						}
 					}
 				}
 

@@ -1,3 +1,11 @@
+# 2024-12
+- Added support for Babelfish v.4.4.0.
+- Detect object type argument to sp_rename.
+- Detect cross-database references by SET IDENTITY_INSERT.
+- Added -nopopupwindow flag to suppress automatically opening the report in the browser.
+- Automatic DDL generation (with -sqlendpoint) for multiple databases continues when a database does not exist or is not accessible.
+- Include Compass User Guide in distro .zip file.
+
 # 2024-10b
 - Detect and rewrite redundant unary '+' operators for strings.
 
