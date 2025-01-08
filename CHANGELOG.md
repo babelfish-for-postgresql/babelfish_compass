@@ -1,3 +1,7 @@
+# 2025-01
+- Added support for Babelfish v.5.0.0.
+- Detect various server-level and database-level fixed roles.
+
 # 2024-12
 - Added support for Babelfish v.4.4.0.
 - Detect object type argument to sp_rename.
