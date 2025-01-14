@@ -918,6 +918,7 @@ tooltipsHTMLPlaceholder +
 
 		"Special column name IDENTITYCOL"+tttSeparator+"The special column name IDENTITYCOL is not currently supported. Replace it by the actual name of the identity column",
 		CompassAnalyze.LeadingDotsId+tttSeparator+"Remove leading dots for identifiers, i.e. change 'SELECT * FROM ..mytable' to 'SELECT * FROM mytable'",
+		"Legacy schema name"+tttSeparator+"This is a legacy schema name that is not supported by Babelfish by default; either create the schema or use a different schema name instead",
 		CompassAnalyze.SpecialCharsIdentifier+tttSeparator+"Some characters are not currently supported in identifiers; go to the cross-reference section to find the specific case",
 		CompassAnalyze.SpecialCharsParameter+tttSeparator+"Some characters are not currently supported in parameter declarations; go to the cross-reference section to find the specific case",
 		"EXECUTE AS"+tttSeparator+"The EXECUTE AS statement (not to be confused with the EXECUTE AS clause in CREATE PROCEDURE/FUNCTION/etc.) is not currently supported",

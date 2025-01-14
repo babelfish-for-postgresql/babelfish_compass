@@ -258,6 +258,7 @@ public class CompassAnalyze {
 	static final String FullTextContains      = "FULLTEXT CONTAINS";
 	static final String StringAggXMLPath      = "STRING_AGG() workaround with FOR XML PATH";
 	static final String StringAggXMLPathMultCols = "STRING_AGG() workaround with FOR XML PATH with multiple SELECT columns";
+	static final String LegacySchemaNames     = "Legacy Schema Names";
 
 	// matching special values in the .cfg file
 	static final String cfgNonZero            = "NONZERO";
@@ -2322,7 +2323,10 @@ public class CompassAnalyze {
 							statusArgN = status = featureArgSupportedInVersion(funcName, argN, argStrValidate);
 							funcNameReport = funcName + "("+ argStrReport.toLowerCase()+")";
 
-							if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"funcName=["+funcName+"] funcNameReport=["+funcNameReport+"] argStr=["+argStr+"] argStrValidate=["+argStrValidate+"] argStrReport=["+argStrReport+"] argN=["+argN+"] nrArgs=["+nrArgs+"] status=["+status+"] ", u.debugPtree);
+							String argReportGrp = featureGroup(funcName, u.stripStringQuotes(argStrValidate));
+							if (!argReportGrp.isEmpty()) groupCapture = argReportGrp;
+
+							if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"funcName=["+funcName+"] funcNameReport=["+funcNameReport+"] argStr=["+argStr+"] argStrValidate=["+argStrValidate+"] argStrReport=["+argStrReport+"] argN=["+argN+"] nrArgs=["+nrArgs+"] status=["+status+"] argReportGrp=["+argReportGrp+"] ", u.debugPtree);
 						}
 					}
 
@@ -2511,6 +2515,7 @@ public class CompassAnalyze {
 				if (funcName.equals("CONTAINS")) {
 					TSQLParser.ExpressionContext expr = argList.get(0);
 					assert (expr != null) : "CONTAINS(): expr is null";
+					groupCapture = FullTextSearchReportGroup;
 
 					if (isString(expressionDataType(expr))) {
 						String exprStr = expr.getText();
@@ -8711,6 +8716,15 @@ public class CompassAnalyze {
 					catName = "INFORMATION_SCHEMA." + name.toUpperCase();
 					reportGroup = InformationSchema;
 					section = InformationSchema;
+				}
+				if (!schema.isEmpty()) {
+					// check for legacy schema names
+					if (featureExists(LegacySchemaNames,schema)) {
+						String statusLegacySchema = featureSupportedInVersion(LegacySchemaNames,schema);
+						if (!statusLegacySchema.equals(u.Supported)) {
+							captureItem("Legacy schema name "+schema, "", LegacySchemaNames, "", statusLegacySchema, lineNr);
+						}
+					}
 				}
 				if (!catName.isEmpty()) {
 					String status = featureSupportedInVersion(section,name);
