@@ -1,8 +1,5 @@
 # 2025-02
-- Added support for Babelfish versions: v.5.1.0., v.4.5.0.
-
-# 2025-01
-- Added support for Babelfish v.5.0.0.
+- Added support for Babelfish v.5.0.0, v.4.5.0.
 - Detect various server-level and database-level fixed roles.
 
 # 2024-12
