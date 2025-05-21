@@ -713,6 +713,7 @@ tooltipsHTMLPlaceholder +
 		"ALTER SERVER ROLE"+tttSeparator+"ALTER SERVER ROLE for this server-level role is not currently supported",
 		"CREATE USER"+tttSeparator+"DB users are not currently supported, except 'dbo' and 'guest'",
 		"ALTER USER"+tttSeparator+"DB users are not currently supported, except 'dbo' and 'guest'",
+		"ALTER VIEW with trigger"+tttSeparator+"ALTER VIEW on View having trigger is not supported",
 		"ALTER VIEW"+tttSeparator+"ALTER VIEW is not currently supported; use DROP+CREATE",
 		"CREATE OR ALTER VIEW"+tttSeparator+"CREATE OR ALTER VIEW is not currently supported; use DROP+CREATE",
 		"ALTER PROCEDURE"+tttSeparator+"ALTER PROCEDURE is not currently supported; use DROP+CREATE",
@@ -1056,6 +1057,7 @@ tooltipsHTMLPlaceholder +
 	public String captureFilePathName;
 	public BufferedWriter captureFileWriter;
 	public static final String symTabSeparator = ";";
+	public static final String symTabSeparator2 = "~~";
 	public static final char metricsLineChar1 = '*';
 	public static final char metricsLineChar2 = '=';
 	public static final String metricsLineTag = "metrics";
@@ -1161,6 +1163,7 @@ tooltipsHTMLPlaceholder +
 	public static Map<String, String> SUDFSymTab = new HashMap<>();
 	public static Map<String, String> TUDFSymTab = new HashMap<>();
 	public static Map<String, String> procSymTab = new HashMap<>();
+	public static Map<String, String> trigSymTab = new HashMap<>();
 	public static Map<String, String> colSymTab = new HashMap<>();  // columns
 	public static boolean buildColSymTab = false;  // false=no columns in symtab in pass 1
 	public static Map<String, String> parSymTab = new HashMap<>();  // parameters with defaults
@@ -4411,7 +4414,21 @@ tooltipsHTMLPlaceholder +
 			procName = resolveName(procName);
 		}
 		procSymTab.put(procName.toUpperCase(), objType.toUpperCase());  
-	}	
+	}
+
+	// add to symbol table
+	public void addTrigSymTab(String trigName, String trigType, String baseTable) {
+		addTrigSymTab(trigName, trigType, baseTable, false);
+	}
+	public void addTrigSymTab(String trigName, String trigType, String baseTable, boolean readingSymTab)
+	{
+		if (!readingSymTab) {
+			trigName = resolveName(trigName);
+			baseTable = resolveName(baseTable);
+		}
+		String value = trigType.toUpperCase() + symTabSeparator2 + baseTable;
+		trigSymTab.put(trigName.toUpperCase(), value);  
+	}
 
 	// add to symbol table
 	public String makeColSymTabKey(String tableName, String colName) {
@@ -4543,6 +4560,10 @@ tooltipsHTMLPlaceholder +
 		for (String proc : procSymTab.keySet()) {
 			line = "proc" + symTabSeparator + maskChar(proc, symTabSeparator) + symTabSeparator + maskChar(procSymTab.get(proc), symTabSeparator);
 			writeSymTabFile(decodeIdentifier(line));
+		}
+		for (String trig : trigSymTab.keySet()) {
+			line = "trig" + symTabSeparator + maskChar(trig, symTabSeparator) + symTabSeparator + maskChar(trigSymTab.get(trig), symTabSeparator);
+			writeSymTabFile(decodeIdentifier(line));
 		}		
 		for (String col : colSymTab.keySet()) {
 			line = "col" + symTabSeparator + col + symTabSeparator + maskChar(colSymTab.get(col), symTabSeparator);
@@ -4622,7 +4643,7 @@ tooltipsHTMLPlaceholder +
 			}
 			inFileReader.close();
 		}
-		int nrSymtab = (tableViewSymTab.size()+SUDFSymTab.size()+TUDFSymTab.size()+UDDSymTab.size()+colSymTab.size()+parSymTab.size()+procSymTab.size());
+		int nrSymtab = (tableViewSymTab.size()+SUDFSymTab.size()+TUDFSymTab.size()+UDDSymTab.size()+colSymTab.size()+parSymTab.size()+procSymTab.size()+trigSymTab.size());
 		if (debugging) dbgOutput("symtab entries=["+nrSymtab+"] ", debugSymtab);
 		if (debugSymtab) {
 			//dumpSymTab("after reading from disk");
@@ -4667,6 +4688,14 @@ tooltipsHTMLPlaceholder +
 			String objType = unmaskChar(fields.get(2),symTabSeparator);			
 			addProcSymTab(objName, objType, true);
 		}
+		else if (fields.get(0).equals("trig")) {
+			String objName = unmaskChar(fields.get(1),symTabSeparator);
+			String rawAttributes = unmaskChar(fields.get(2),symTabSeparator);    
+			List<String> trigAttributes = new ArrayList<String>(Arrays.asList(rawAttributes.split(symTabSeparator2)));
+			String trigType = trigAttributes.get(0);            
+			String baseTable = trigAttributes.get(1);            
+			addTrigSymTab(objName, trigType, baseTable, true);
+		}
 		else if (fields.get(0).equals("col")) {
 			String tableName = unmaskChar(fields.get(1),symTabSeparator);
 			String colName   = unmaskChar(fields.get(2),symTabSeparator);
@@ -4699,6 +4728,7 @@ tooltipsHTMLPlaceholder +
 		TUDFSymTab.clear();
 		UDDSymTab.clear();
 		procSymTab.clear();
+		trigSymTab.clear();
 		colSymTab.clear();
 		parSymTab.clear();
 		SUDFNamesLikeXML.clear();
@@ -4743,6 +4773,10 @@ tooltipsHTMLPlaceholder +
 			countSymTab++;
 		}		
 		appOutput("");
+		for (String trig: trigSymTab.keySet()) {
+			appOutput("trig=["+trig+"] => ["+trigSymTab.get(trig)+"]");
+			countSymTab++;
+		}
 		appOutput("SUDFNamesLikeXML: "+SUDFNamesLikeXML.size());
 		for (String sudf: SUDFNamesLikeXML.keySet()) {
 			appOutput("sudf=["+sudf+"] => ["+SUDFNamesLikeXML.get(sudf)+"]");
