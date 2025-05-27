@@ -713,7 +713,7 @@ tooltipsHTMLPlaceholder +
 		"ALTER SERVER ROLE"+tttSeparator+"ALTER SERVER ROLE for this server-level role is not currently supported",
 		"CREATE USER"+tttSeparator+"DB users are not currently supported, except 'dbo' and 'guest'",
 		"ALTER USER"+tttSeparator+"DB users are not currently supported, except 'dbo' and 'guest'",
-		"ALTER VIEW with trigger"+tttSeparator+"ALTER VIEW on View having trigger is not supported",
+		"ALTER VIEW, with TRIGGER"+tttSeparator+"ALTER VIEW on VIEW that has INSTEAD-OF trigger attached is not currently supported",
 		"ALTER VIEW"+tttSeparator+"ALTER VIEW is not currently supported; use DROP+CREATE",
 		"CREATE OR ALTER VIEW"+tttSeparator+"CREATE OR ALTER VIEW is not currently supported; use DROP+CREATE",
 		"ALTER PROCEDURE"+tttSeparator+"ALTER PROCEDURE is not currently supported; use DROP+CREATE",

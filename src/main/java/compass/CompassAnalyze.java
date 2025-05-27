@@ -769,21 +769,21 @@ public class CompassAnalyze {
 
 	// is there a trigger on this view? this can only be an INSTEAD-OF trigger
 	private String lookupTrigOnView(String viewName) {
-	    u.appOutput("viewName=["+viewName+"] ");
-	    viewName = u.resolveName(viewName);
-	    u.appOutput("viewName resolved=["+viewName+"] ");	    
-	    String trigName = "";
+		// u.appOutput("viewName=["+viewName+"] ");
+		viewName = u.resolveName(viewName);
+		// u.appOutput("viewName resolved=["+viewName+"] ");	    
+		String trigName = "";
 		for (String trig : CompassUtilities.trigSymTab.keySet()) {
-		    String rawAttributes = CompassUtilities.trigSymTab.get(trig);
+			String rawAttributes = CompassUtilities.trigSymTab.get(trig);
 			List<String> trigAttributes = new ArrayList<String>(Arrays.asList(rawAttributes.split(u.symTabSeparator2)));
 			String trigType = trigAttributes.get(0);			
 			String baseTable = trigAttributes.get(1);	
-            if (!trigType.equals("INSTEAD OF")) continue;	
-            u.appOutput("trigAttributes=["+trigAttributes+"] baseTable=["+baseTable+"] viewName=["+viewName+"] ");		
-            if (baseTable.equals(viewName)) {
-                trigName = trig;
-                break;
-            }		                        
+			if (!trigType.equals("INSTEAD OF")) continue;	
+			// u.appOutput("trigAttributes=["+trigAttributes+"] baseTable=["+baseTable+"] viewName=["+viewName+"] ");		
+			if (baseTable.equals(viewName)) {
+				trigName = trig;
+				break;
+			}
 		}	
 		return trigName;
 	}
@@ -1674,7 +1674,7 @@ public class CompassAnalyze {
 					trigType = "INSTEAD OF";
 				}
 				String trigBaseTable = ctx.table_name().getText();				
-                u.addTrigSymTab(trigName, trigType, trigBaseTable);
+				u.addTrigSymTab(trigName, trigType, trigBaseTable);
 
 				// set context
 				u.setContext("TRIGGER", trigName);
@@ -5753,21 +5753,22 @@ public class CompassAnalyze {
 
 				String kwd = "CREATE";
 				String status = u.Supported;
-				String hasTrigger = null;
+				String statusDependObjChk = "";
+				String statusDependObjChkFmt = "";
 				if (ctx.ALTER() != null) {
 					kwd = "ALTER";
 					if (ctx.CREATE() != null) kwd = "CREATE OR ALTER";
-					status = featureSupportedInVersion("ALTER VIEW");  // ALTER and CREATE OR ALTER go together
-					
-					String trigName = lookupTrigOnView(viewName);
-					if (!trigName.isEmpty()) {
-						status = u.NotSupported;
-						hasTrigger = "with trigger";
+					status = featureSupportedInVersion("ALTER VIEW", "VIEW");  // ALTER and CREATE OR ALTER go together
+					if (status.equals(u.Supported)){
+						String trigName = lookupTrigOnView(viewName);
+						if (!trigName.isEmpty()) {
+							statusDependObjChk = "TRIGGER";
+							statusDependObjChkFmt = ", with " + statusDependObjChk;
+							status = featureSupportedInVersion("ALTER VIEW", statusDependObjChk);
+						}
 					}
 				}
-				if (!hasTrigger) {
-					captureItem(kwd + " VIEW" + hasTrigger, viewName, ViewsReportGroup, kwd + " VIEW" + hasTrigger, status, ctx.start.getLine(), batchLines.toString());
-				}
+				captureItem(kwd + " VIEW" + statusDependObjChkFmt, viewName, ViewsReportGroup, "", status, ctx.start.getLine(), batchLines.toString());
 
 				// set context
 				u.setContext("VIEW", viewName);
