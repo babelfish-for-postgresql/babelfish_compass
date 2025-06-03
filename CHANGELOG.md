@@ -1,3 +1,8 @@
+# 2025-06
+- Added support for Babelfish v.5.2.0 and v.4.6.0.
+- Detect ALTER VIEW and UNPIVOT operations.
+- Detect geospatial functions: STDimension, STDisjoint, STIntersects, STIsClosed, STIsEmpty, STIsValid
+
 # 2025-04
 - Added support for Babelfish v.5.1.0 and v.4.5.0.
 - Detect various server-level and database-level fixed roles.
