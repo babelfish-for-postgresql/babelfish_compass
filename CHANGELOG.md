@@ -1,6 +1,7 @@
 # 2025-09
 - Added support for Babelfish v.5.3.0 and v.4.7.0.
 - Detect geospatial functions: HasZ, HasM, Z, M
+- Detect stored procedures: sp_helplogins
 
 # 2025-06
 - Added support for Babelfish v.5.2.0 and v.4.6.0.
