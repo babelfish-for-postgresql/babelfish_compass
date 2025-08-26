@@ -9,6 +9,7 @@
 - Detect geospatial functions: STDimension, STDisjoint, STIntersects, STIsClosed, STIsEmpty, STIsValid
 - Detect views: sql_logins, server_permissions
 - Detect function: fn_varbintohexsubstring
+- Detect FULLTEXT CONTAINS with column_list
 
 # 2025-04
 - Added support for Babelfish v.5.1.0 and v.4.5.0.
