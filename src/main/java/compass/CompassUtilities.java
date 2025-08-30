@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2025-06";
-	public static final String thisProgVersionDate  = "June 2025";
+	public static final String thisProgVersion      = "2025-09";
+	public static final String thisProgVersionDate  = "September 2025";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
@@ -112,8 +112,8 @@ public class CompassUtilities {
 	public String targetBabelfishVersionReportLine = "Target Babelfish version   : v."; // line in report listing the target version
 	public boolean stdReport = false;	// development only
 
-	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "4.0.0", "4.1.0", "4.2.0", "4.3.0", "4.4.0", "4.5.0", "4.6.0", "5.1.0", "5.2.0");
-	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2",  "15.3",  "15.4",  "15.5",  "15.6",  "16.1",  "16.2",  "16.3",  "16.4",  "16.6", "16.8",  "16.9", "17.4", "17.5");
+	public static List<String> BabelfishVersionList   = Arrays.asList("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0", "2.1.0",  "2.2.0", "2.3.0", "2.4.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "4.0.0", "4.1.0", "4.2.0", "4.3.0", "4.4.0", "4.5.0", "4.6.0", "4.7.0", "5.1.0", "5.2.0", "5.3.0");
+	public static List<String> BabelfishPGVersionList = Arrays.asList("13.4",  "13.5",  "13.6",  "13.7",  "13.8",  "13.9",  "14.3/4", "14.5",  "14.6",  "14.7",  "15.2",  "15.3",  "15.4",  "15.5",  "15.6",  "16.1",  "16.2",  "16.3",  "16.4",  "16.6",  "16.8",  "16.9",  "16.10", "17.4",  "17.5",  "17.6");
 
 	// minimum Babelfish version; this is fixed
 	public static final String baseBabelfishVersion = "1.0.0";
@@ -602,10 +602,14 @@ tooltipsHTMLPlaceholder +
 		"\\w+PROPERTYEX\\("+tttSeparator+"This particular attribute for this PROPERTY function is not currently supported; consider rewriting it as a catalog query",
 		"\\w+\\(\\),"+CompassAnalyze.withoutArgumentValidateStr+tttSeparator+"This built-in function is not currently supported when called without arguments",
 		"\\w+\\(\\),"+CompassAnalyze.withNArgumentValidateStrRegex+tttSeparator+"This built-in function is not currently supported when called with this number of arguments",
-		"CONTAINS()"+tttSeparator+"The CONTAINS() function for fulltext search is not currently supported",
-		"CONTAINS("+tttSeparator+"The CONTAINS() function for fulltext search is not currently supported with this option",
-		"CONTAINS(expression"+tttSeparator+ReviewManually+tttSeparator+"The CONTAINS() function for fulltext search is supported, but not all possible values for the second argument are supported. However, Compass cannot determine if any non-supported values are used in the CONTAINS() call",
-		"CONTAINS()"+tttSeparator+ReviewManually+tttSeparator+"The CONTAINS() function for fulltext search is supported, but not all possible values for the second argument are supported. However, Compass cannot determine if any non-supported values are used in the CONTAINS() call",
+		"CONTAINS(column_name"+tttSeparator+"The CONTAINS() function for fulltext search is not currently supported",
+		"CONTAINS((column_list)"+tttSeparator+"The CONTAINS() function for fulltext search with column list is not currently supported",
+		"CONTAINS(PROPERTY"+tttSeparator+"The CONTAINS() function for fulltext search with PROPERTY is not currently supported",
+		"CONTAINS(*"+tttSeparator+"The CONTAINS() function for fulltext search with * is not currently supported",
+		"CONTAINS(column_name"+tttSeparator+ReviewManually+tttSeparator+"The CONTAINS() function for fulltext search is supported, but not all possible values for the second argument are supported. However, Compass cannot determine if any non-supported values are used in the CONTAINS() call",
+		"CONTAINS((column_list)"+tttSeparator+ReviewManually+tttSeparator+"The CONTAINS() function for fulltext search with column list is supported, but not all possible values for the second argument are supported. However, Compass cannot determine if any non-supported values are used in the CONTAINS() call",
+		"CONTAINS(PROPERTY"+tttSeparator+ReviewManually+tttSeparator+"The CONTAINS() function for fulltext search with PROPERTY is supported, but not all possible values for the second argument are supported. However, Compass cannot determine if any non-supported values are used in the CONTAINS() call",
+		"CONTAINS(*"+tttSeparator+ReviewManually+tttSeparator+"The CONTAINS() function for fulltext search with * is supported, but not all possible values for the second argument are supported. However, Compass cannot determine if any non-supported values are used in the CONTAINS() call",
 		"CONTAINSTABLE("+tttSeparator+"This fulltext search feature is not currently supported",
 		"FREETEXTTABLE("+tttSeparator+"This fulltext search feature is not currently supported",
 		"FREETEXT("+tttSeparator+"This fulltext search feature is not currently supported",
@@ -944,7 +948,7 @@ tooltipsHTMLPlaceholder +
 		"\\w+, WITH SCHEMABINDING: created in PG as without SCHEMABINDING"+tttSeparator+"WITH SCHEMABINDING is not currently supported for procedures/functions/triggers; these will be created in PG as if SCHEMABINDING was not specified",
 		"\\w+, option WITH ENCRYPTION"+tttSeparator+"Encryption of the SQL source code of an object is not currently supported",
 		"\\w+, option WITH NATIVE_COMPILATION"+tttSeparator+"Native compilation is not currently supported; rewrite as a regular SQL object",
-		"View, without SCHEMABINDING"+tttSeparator+"PostgreSQL only supports views with the equivalent of WITH SCHEMABINDING, i.e. a table cannot be dropped if a view depends on it. A view without the SCHEMABINDING clause will still be created by Babelfish, but as if WITH SCHEMABINDING was specified",
+		"View, without SCHEMABINDING"+tttSeparator+"PostgreSQL only supports views with the equivalent of WITH SCHEMABINDING, i.e. a table cannot be dropped if a view depends on it. By default, a view without the SCHEMABINDING clause will still be created by Babelfish, but as if WITH SCHEMABINDING was specified. However, weak schemabinding can be enabled via the GUC 'babelfishpg_tsql.weak_view_binding'. When this GUC is ON, views created without SCHEMABINDING clause will have weak schemabinding, while views explicitly created WITH SCHEMABINDING maintain strong binding regardless of the GUC setting.",
 		"View, with CHECK OPTION"+tttSeparator+"WITH CHECK OPTION is not currently supported for views; remove the option",
 		"\\w+ MATERIALIZED VIEW"+tttSeparator+"Materialized views are not currently supported; consider implementing these via PostgreSQL",
 		"\\w+ TRANSACTION not supported with PostgreSQL SECURITY DEFINER"+tttSeparator+"T-SQL objects created with EXECUTE AS OWNER are mapped to PostgreSQL SECURITY DEFINER; PostgreSQL does not support transaction mgmt statementds for objects created with SECURITY DEFINER",

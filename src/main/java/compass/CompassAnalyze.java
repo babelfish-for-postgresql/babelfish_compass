@@ -2547,6 +2547,15 @@ public class CompassAnalyze {
 					assert (expr != null) : "CONTAINS(): expr is null";
 					groupCapture = FullTextSearchReportGroup;
 
+					if (featureExists(FullTextContains, options)) {
+						if (!status.equals(u.NotSupported)) {
+							String statusContains = featureSupportedInVersion(FullTextContains, options);
+							if (!statusContains.equals(u.Supported)) {
+								status = statusContains;
+							}
+						}
+					}
+
 					if (isString(expressionDataType(expr))) {
 						String exprStr = expr.getText();
 						if (u.isQuotedString(exprStr)) {
@@ -2589,9 +2598,14 @@ public class CompassAnalyze {
 						//u.appOutput(u.thisProc()+"expr is not string");
 					}
 
-					// clarify reported item in case of not beign able to evaluate second argument
-					if (funcNameReport.equals("CONTAINS()") && !status.equals(u.Supported)) {
-						funcNameReport = "CONTAINS(expression)";
+					if (funcNameReport.equals("CONTAINS()")) {
+						String fmtOption = "";
+						if (options.contains("SINGLE_COLUMN")) fmtOption = "column_name, expression";
+						if (options.contains("MULTI_COLUMN")) fmtOption = "(column_list), expression";
+						if (options.contains("PROPERTY")) fmtOption = "PROPERTY(column_name, 'property_name'), expression";
+						if (options.contains("STAR")) fmtOption = "*, expression";
+
+						funcNameReport = "CONTAINS(" + fmtOption + ")";
 					}
 				}
 
@@ -6280,16 +6294,21 @@ public class CompassAnalyze {
 			@Override public String visitFreetext_predicate(TSQLParser.Freetext_predicateContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
 				String funcType = "";
+				String options = "";
 				if (ctx.CONTAINS() != null) {
 					funcType = "CONTAINS";
-					//u.appOutput(u.thisProc()+"CONTAINS() ["+getTextSpaced(ctx)+"] ");
+				
+					if (ctx.full_column_name_list() != null) options = "MULTI_COLUMN";
+					else if (ctx.STAR() != null) options = "STAR";
+					else if (ctx.PROPERTY() != null) options = "PROPERTY";
+					else options = "SINGLE_COLUMN";
 				}
 				else if (ctx.FREETEXT() != null) {
 					funcType = "FREETEXT";
 				}
 
 				int nrArgs = 2;
-				captureBIF(funcType, ctx.start.getLine(), "", nrArgs, ctx.expression());
+				captureBIF(funcType, ctx.start.getLine(), options, nrArgs, ctx.expression());
 
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());

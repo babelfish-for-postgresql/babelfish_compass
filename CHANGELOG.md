@@ -1,7 +1,15 @@
+# 2025-09
+- Added support for Babelfish v.5.3.0 and v.4.7.0.
+- Detect geospatial functions: HasZ, HasM, Z, M
+- Detect stored procedure: sp_helplogins
+
 # 2025-06
 - Added support for Babelfish v.5.2.0 and v.4.6.0.
 - Detect ALTER VIEW and UNPIVOT operations.
 - Detect geospatial functions: STDimension, STDisjoint, STIntersects, STIsClosed, STIsEmpty, STIsValid
+- Detect views: sql_logins, server_permissions
+- Detect function: fn_varbintohexsubstring
+- Detect FULLTEXT CONTAINS with column_list
 
 # 2025-04
 - Added support for Babelfish v.5.1.0 and v.4.5.0.
