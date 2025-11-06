@@ -1,0 +1,951 @@
+SELECT set_config('babelfishpg_tsql.escape_hatch_fulltext', 'ignore', 'false')
+GO
+
+-- Test sys.babelfish_fts_contains_pgconfig
+SELECT * FROM fts_contains_pgconfig_v1
+GO
+
+-- Full syntax of CONTAINS: https://github.com/MicrosoftDocs/sql-docs/blob/live/docs/t-sql/queries/contains-transact-sql.md
+
+-- test basic CONTAINS use: ... CONTAINS(col_name, <simple_term>) ...
+-- <simple_term> ::= { word | "phrase" }
+
+-- tab character in search string
+EXEC fts_contains_vu_prepare_p1 '"due	to"'
+GO
+
+-- line break
+EXEC fts_contains_vu_prepare_p1 '"due
+to"'
+GO
+
+-- no-break space character
+declare @my_str varchar(50) = '"due'+char(160)+'to"';
+EXEC fts_contains_vu_prepare_p1 @my_str
+GO
+
+EXEC fts_contains_vu_prepare_p1 '天'
+GO
+
+EXEC fts_contains_vu_prepare_p1 N'שלום'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"one 天 two"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'Tópicos'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '天'
+GO
+
+-- colons, semicolons, pipes, parenthesis, etc.
+EXEC fts_contains_vu_prepare_p1 '"one : two"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'one;two'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'one|two'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"one (two)"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"one * two"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"one<two"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"one&two"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"one~two"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"one|two"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"one$two"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'love'
+GO
+
+-- Case sensitive tests
+EXEC fts_contains_vu_prepare_p1 'LOVE'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'Love'
+GO
+
+-- Test for empty string input, should throw error
+EXEC fts_contains_vu_prepare_p1 ''
+GO
+
+-- Test for empty string input, should throw error
+EXEC fts_contains_vu_prepare_p1 '            '
+GO
+
+-- Test for empty string input, should throw error
+EXEC fts_contains_vu_prepare_p1 NULL
+GO
+
+EXEC fts_contains_vu_prepare_p1 '  "" '
+GO
+
+EXEC fts_contains_vu_prepare_p1 '  ""'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"" '
+GO
+
+EXEC fts_contains_vu_prepare_p1 '" "'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'other'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'arts'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'performing'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'performance'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'quick'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'grow'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'actually'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'helped'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'version'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"come       back"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"  come          back    "'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"due to"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"per cent"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"so-called"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"stand up"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"every month"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"as a result"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"in Australia"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"daily news"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '" daily"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"daily "'
+GO
+
+EXEC fts_contains_vu_prepare_p1 ' "daily news"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"daily news" '
+GO
+
+-- Transactionality test
+BEGIN TRANSACTION;
+EXEC fts_contains_vu_prepare_p1 '   "  daily news            " '
+COMMIT TRANSACTION;
+GO
+
+-- Prefix Term support
+EXEC fts_contains_vu_prepare_p1 '"conf*"', 20
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"conf      *"', 20
+GO
+
+-- Generation Term not supported
+EXEC fts_contains_vu_prepare_p1 'FORMSOF(THESAURUS, love)'
+GO
+
+-- Boolean operators support
+-- AND operator
+EXEC fts_contains_vu_prepare_p1 '"test" AND "love"';
+GO
+
+EXEC fts_contains_vu_prepare_p1 'test AND love';
+GO
+
+EXEC fts_contains_vu_prepare_p1 'Resveratrol AND "red grapes"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'Resveratrol and "red grapes"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'Resveratrol aNd "red grapes"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'beer anD wine'
+GO
+
+SELECT * FROM fts_contains_vu_t WHERE CONTAINS(txt, 'cancer and pain & stress')
+GO
+
+SELECT * FROM fts_contains_vu_t WHERE CONTAINS(txt, 'Dupal And "Croissant*"')
+GO
+
+SELECT * FROM fts_contains_vu_t WHERE CONTAINS(txt, 'French And "Croissant*" & tart')
+GO
+
+DECLARE @a VARCHAR(100)
+SET @a = 'beer'+ char(10) +'And' + char(10) + ' wine'
+EXEC fts_contains_vu_prepare_p1 @a
+GO
+
+-- OR operator
+EXEC fts_contains_vu_prepare_p1 'wine OR beer'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"clinical" | "treatment*"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'pastry or "croissant*"'
+GO
+
+DECLARE @a VARCHAR(100)
+SET @a = '"french' + char(10) + 'tarts"' + char(9) + ' or ' + char(10) + 'pastry'
+EXEC fts_contains_vu_prepare_p1 @a
+GO
+
+
+-- AND NOT operator
+EXEC fts_contains_vu_prepare_p1 'wine AND NoT resveratrol'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'wine &! resveratrol'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'wine AND            NoT resveratrol'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'wine    &        !   resveratrol'
+GO
+
+DECLARE @a VARCHAR(100)
+SET @a = 'wine And'+ char(9) + char(10) + ' nOt resveratrol'
+EXEC fts_contains_vu_prepare_p1 @a
+GO
+
+DECLARE @a VARCHAR(100)
+SET @a = 'aircraft anD '+ char(10) + char(10) + ' NoT "helicopter*"'
+EXEC fts_contains_vu_prepare_p1 @a
+GO
+
+DECLARE @a VARCHAR(100)
+SET @a = 'aircraft & '+ char(10) + char(10) + ' ! "helicopter*"'
+EXEC fts_contains_vu_prepare_p1 @a
+GO
+
+DECLARE @a VARCHAR(100)
+SET @a = 'aircraft anD '+ char(9) + 'Not' + char(9) + '"helicopter*"'
+EXEC fts_contains_vu_prepare_p1 @a
+GO
+
+DECLARE @a VARCHAR(100)
+SET @a = 'aircraft' + char(9) + 'anD ' + char(10) + char(10) + ' NoT' + char(10) + '"helicopter*"'
+EXEC fts_contains_vu_prepare_p1 @a
+GO
+
+
+-- complex boolean expressions
+SELECT * FROM fts_contains_vu_t WHERE CONTAINS(txt, 'cancer and pain or stress')
+GO
+
+SELECT * FROM fts_contains_vu_t WHERE CONTAINS(txt, 'cancer and pain or stress and not "lone*"')
+GO
+
+EXEC fts_contains_vu_prepare_p1 'Resveratrol AND (Rats or ("hear*" | "loud noises"))'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'Resveratrol anD (Rats oR ("hear*" | "loud noises"))'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '(depression AND Botox) AND ("clinical" OR "treatment*")'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '("The Warriors" AND (film or "gam*")) & (Rockstar | video)'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '(farm AND credit) AND ("loan board" OR FCC)'
+GO
+
+DECLARE @a VARCHAR(100)
+SET @a = 'Resveratrol' + char(9) + 'AND (Rats or ("hear*" | "loud' + char(9) + 'noises"))'
+EXEC fts_contains_vu_prepare_p1 @a
+GO
+
+SELECT * FROM fts_contains_v1
+GO
+
+
+-- Not operator
+EXEC fts_contains_vu_prepare_p1 'NOT Resveratrol'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'Resveratrol & wine noT "loud noise*"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'Resveratrol or wine ! "loud noise*"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '! "hospital*"'
+GO
+
+DECLARE @a VARCHAR(100)
+SET @a = 'not' + char(10) + '"hospital*"'
+EXEC fts_contains_vu_prepare_p1 @a
+GO
+
+DECLARE @a VARCHAR(100)
+SET @a = '"treatment*"' + char(9) + 'not' + char(9) + '"hospital*"'
+EXEC fts_contains_vu_prepare_p1 @a
+GO
+
+
+-- negative test cases
+-- consecutive occurences of same boolean operators
+EXEC fts_contains_vu_prepare_p1 '(diversity && leadership) AND ANd ("visible minorit*" OR | women)'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"clinical" OR or "treatment*"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"clinical" | | "treatment*"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 '"clinical" | or "treatment*"'
+GO
+
+-- invalid combinations of boolean operators
+EXEC fts_contains_vu_prepare_p1 'Resveratrol and Or "red grapes"'
+GO
+
+EXEC fts_contains_vu_prepare_p1 'Resveratrol and  not And "red grapes"'
+GO
+
+DECLARE @a VARCHAR(100)
+SET @a = 'Resveratrol oR' + char(10) + 'Not "red grapes"'
+EXEC fts_contains_vu_prepare_p1 @a
+GO
+
+DECLARE @a VARCHAR(100)
+SET @a = 'Resveratrol' + char(10) + 'OR' + char(9)+ '& "red grapes"'
+EXEC fts_contains_vu_prepare_p1 @a
+GO
+
+
+-- Common Table Expression
+WITH fts_contains_vu_cte1 AS (
+    SELECT *
+    FROM fts_contains_vu_t
+    WHERE CONTAINS(txt, 'resveratrol or (grape and wine)')
+)
+SELECT * FROM fts_contains_vu_cte1
+GO
+
+WITH fts_contains_vu_cte2 AS (
+    SELECT *
+    FROM fts_contains_vu_t
+)
+SELECT *
+FROM fts_contains_vu_cte2
+WHERE CONTAINS(txt, 'resveratrol or (grape and wine)')
+GO
+
+-- Special Character cases
+select * from test_special_char_t where contains(name, '"one           two"');
+go
+
+select * from test_special_char_t where contains(name, 'one''two');
+select * from test_special_char_t where contains(name, 'one`two');
+select * from test_special_char_t where contains(name, 'one_two');
+go
+
+select * from test_special_char_t where contains(name, 'one@two');
+go
+
+select * from test_special_char_t where contains(name, 'one#two');
+go
+
+select * from test_special_char_t where contains(name, 'one$two');
+go
+
+select * from test_special_char_t where contains(name, 'one%two');
+go
+
+select * from test_special_char_t where contains(name, 'one*two');
+go
+
+select * from test_special_char_t where contains(name, 'one-two');
+go
+
+select * from test_special_char_t where contains(name, 'one+two');
+go
+
+select * from test_special_char_t where contains(name, 'one=two');
+go
+
+select * from test_special_char_t where contains(name, 'one\two');
+go
+
+select * from test_special_char_t where contains(name, 'one;two');
+go
+
+select * from test_special_char_t where contains(name, 'one<two');
+go
+
+select * from test_special_char_t where contains(name, 'one>two');
+go
+
+select * from test_special_char_t where contains(name, 'one.two');
+go
+
+select * from test_special_char_t where contains(name, 'one?two');
+go
+
+select * from test_special_char_t where contains(name, 'one/two');
+go
+
+select * from test_special_char_t where contains(name, 'one:two');
+go
+
+select * from test_special_char_t where contains(name, '"one: two"');
+go
+
+-- syntax error test_special_char_ts
+select * from test_special_char_t where contains(name, 'one(two');
+go
+
+select * from test_special_char_t where contains(name, 'one)two');
+go
+
+select * from test_special_char_t where contains(name, 'one{two');
+go
+
+select * from test_special_char_t where contains(name, 'one}two');
+go
+
+select * from test_special_char_t where contains(name, 'one[two');
+go
+
+select * from test_special_char_t where contains(name, 'one]two');
+go
+
+select * from test_special_char_t where contains(name, 'one(two)');
+go
+
+select * from test_special_char_t where contains(name, 'one{two}');
+go
+
+select * from test_special_char_t where contains(name, 'one[two]');
+go
+
+-- double quotes test_special_char_t
+select * from test_special_char_t where contains(name, '"one(two"');
+go
+
+select * from test_special_char_t where contains(name, '"one)two"');
+go
+
+select * from test_special_char_t where contains(name, '"one{two"');
+go
+
+select * from test_special_char_t where contains(name, '"one}two"');
+go
+
+select * from test_special_char_t where contains(name, '"one[two"');
+go
+
+select * from test_special_char_t where contains(name, '"one]two"');
+go
+
+select * from test_special_char_t where contains(name, '"one(two)"');
+go
+
+select * from test_special_char_t where contains(name, '"one{two}"');
+go
+
+select * from test_special_char_t where contains(name, '"one[two]"');
+go
+
+select * from test_special_char_t where contains(name, '"one(two)(}[]three"');
+go
+
+select * from test_special_char_t where contains(name, '"one"two"');
+go
+
+select * from test_special_char_t where contains(name, '"one      `  two"');
+go
+
+select * from test_special_char_t where contains(name, '"one '' two"');
+go
+
+select * from test_special_char_t where contains(name, '"one _ two"');
+go
+
+select * from test_special_char_t where contains(name, '"one : two"');
+go
+
+select * from test_special_char_t where contains(name, '"one(two)"');
+go
+
+select * from test_special_char_t where contains(name, 'one');
+go
+
+select * from test_special_char_t where contains(name, 'one:');
+go
+
+select * from test_special_char_t where contains(name, ':one');
+go
+
+select * from test_special_char_t where contains(name, ':one:');
+go
+
+select * from test_special_char_t where contains(name, '":one"');
+go
+
+select * from test_special_char_t where contains(name, '" :one"');
+go
+
+select * from test_special_char_t where contains(name, '"one:"');
+go
+
+select * from test_special_char_t where contains(name, '"one: "');
+go
+
+select * from test_special_char_t where contains(name, 'one@#$two');
+go
+
+select * from test_special_char_t where contains(name, '"one $%#! two"');
+go
+
+select * from test_special_char_t where contains(name, '"one # $ % ^ two"');
+go
+
+select * from test_special_char_t where contains(name, '"one #        $ %    ^      two"');
+go
+
+select * from test_special_char_t where contains(name, '"one$two three %$@ four"');
+go
+
+select * from test_special_char_t where contains(name, 'one@two@three');
+go
+
+select * from test_special_char_t where contains(name, '"one _?` two"');
+go
+
+select * from test_special_char_t where contains(name, '"one `'' two __` three"');
+go
+
+select * from test_special_char_t where contains(name, 'one``two');
+go
+
+select * from test_special_char_t where contains(name, 'one__two');
+go
+
+-- Tests for 2 special characters combination strings
+select * from test_special_char_t where contains(name, '"one   @  two      @ three"');
+go
+
+select * from test_special_char_t where contains(name, '"one   @  two * three"');
+go
+
+select * from test_special_char_t where contains(name, '"one   ^  two ` three"');
+go
+
+select * from test_special_char_t where contains(name, '"one   %  two _ three"');
+go
+
+select * from test_special_char_t where contains(name, '"one   #  two '' three"');
+go
+
+-- Tests for 3 special characters combination strings
+select * from test_special_char_t where contains(name, 'one@two@three@four');
+go
+
+select * from test_special_char_t where contains(name, 'one@two`three_four');
+go
+
+select * from test_special_char_t where contains(name, 'one''two`three_four');
+go
+
+select * from test_special_char_t where contains(name, 'one#two''three`four');
+go
+
+select * from test_special_char_t where contains(name, '"one @ two @ three @ four"');
+go
+
+select * from test_special_char_t where contains(name, '"one   # two ` three _ four"');
+go
+
+select * from test_special_char_t where contains(name, '"one * two '' three ` four"');
+go
+
+select * from test_special_char_t where contains(name, '"one _ two % three # four"');
+go
+
+-- Tests for 4 special characters combination strings
+select * from test_special_char_t where contains(name, 'one@two@three@four@five');
+go
+
+select * from test_special_char_t where contains(name, 'one`two-three_four''five');
+go
+
+select * from test_special_char_t where contains(name, 'one_two`three*four%five');
+go
+
+select * from test_special_char_t where contains(name, '"one @ two ` three _ four '' five "');
+go
+
+select * from test_special_char_t where contains(name, '"one % two '' three - four ` five"');
+go
+
+select * from test_special_char_t where contains(name, '"one * two < three > four : five"');
+go
+
+select * from test_special_char_t where contains(name, '"one < two _ three '' four `     five"');
+go
+
+select * from test_special_char_t where contains(name, '"');
+go
+
+select t.name from test_special_char_t t where contains(t.name, '"one two"');
+go
+
+select * from test_special_char_t t where contains(t.name, 'one');
+go
+
+select * from test_special_char_t t where contains(t.name, 'two');
+go
+
+select t.* from test_special_char_t t where contains(t.name, 'one');
+go
+
+select t.name from test_special_char_t t where contains(.t.name, 'one');
+go
+
+select * from test_special_char_t t where contains(t..name, 'one');
+go
+
+select t..name from test_special_char_t t where contains(t.name, 'one');
+go
+
+select t.name from test_special_char_t where contains(t.name, 'one');
+go
+
+select t.name from test_special_char_t t where contains(x.name, 'one');
+go
+
+select t.name from test_special_char_t t where contains(x.t.name, 'one');
+go
+
+select t.name from test_special_char_t t where contains(t,name, 'one');
+go
+
+select t.name from test_special_char_t t where contains(.name, 'one');
+go
+
+select t.name from test_special_char_t t where contains(t., 'one');
+go
+
+select t.name from test_special_char_t t where contains(t.., 'one');
+go
+
+select t.name from test_special_char_t t where contains(, 'one');
+go
+
+select t.name from test_special_char_t t where contains(t.txt, 'one');
+go
+
+select t.name from test_special_char_t t where contains(b, 'one');
+go
+
+select t.name from test_special_char_t t where .t.name = 'one';
+go
+
+select t.name from test_special_char_t t where contains('t.name', '"one two"');
+go
+
+select name as txt from test_special_char_t where contains(txt, 'hello');
+go
+
+select * from new_schema_fts_t.test t where contains(t.name, 'one');
+go
+
+select * from new_schema_fts_t.test t where contains(new_schema_fts_t.t.name, 'one');
+go
+
+select * from new_schema_fts_t.test t where contains(new_schema_fts_t.test.name, 'one');
+go
+
+select * from new_schema_fts_t.test where contains(name, 'one');
+go
+
+use fts_test_db;
+go
+
+select * from fts_test_db.new_schema_fts.test t where contains(t.name, 'one');
+go
+
+select * from fts_test_db.new_schema_fts.test t where contains(fts_test_db.new_schema_fts.t.name, 'one');
+go
+
+select * from fts_test_db.new_schema_fts.test where contains(name, 'one');
+go
+
+select * from fts_test_db.new_schema_fts.test where contains(fts_test_db.new_schema_fts.test.name, 'one');
+go
+
+-- Test case to check the limit of the fulltext index
+CREATE FULLTEXT INDEX ON ft_index_limit_t(col1, col2, col3, col4, col5,
+                                          col6, col7, col8, col9, col10,
+                                          col11, col12, col13, col14, col15,
+                                          col16, col17, col18, col19, col20,
+                                          col21, col22, col23, col24, col25,
+                                          col26, col27, col28, col29, col30,
+                                          col31, col32, col33, col34, col35,
+                                          col36 ) KEY INDEX uft
+GO
+
+-- Multiple column Test cases for the relation fts_contains_multicol_t
+
+-- gives error as fulltext index is still not created
+SELECT * FROM fts_contains_multicol_t WHERE contains(txt1, '"human or quantum')
+GO
+
+CREATE FULLTEXT INDEX ON fts_contains_multicol_t(
+        txt1, 
+        txt2, 
+        txt3, 
+        txt4) KEY INDEX uid
+GO
+
+select * from fts_contains_multicol_t where contains((txt1, txt2, txt4), '"Artificial Intelligence"' )
+GO
+
+DROP FULLTEXT INDEX ON fts_contains_multicol_t
+GO
+
+CREATE FULLTEXT INDEX ON fts_contains_multicol_t(
+        txt1, 
+        txt2) KEY INDEX uid
+GO
+
+SELECT * FROM fts_contains_multicol_t WHERE contains((txt1, txt2), '"The human genome"' )
+GO
+
+-- negative test
+-- should throw an error as there exists no column with the name txt5
+SELECT * FROM fts_contains_multicol_t WHERE contains((txt1, txt5), '"The Industrial Revolution"')
+GO
+
+-- NULL test
+SELECT * FROM fts_contains_multicol_t WHERE contains((txt1, txt2), '')
+GO
+
+DROP FULLTEXT INDEX ON fts_contains_multicol_t
+GO
+
+CREATE FULLTEXT INDEX ON fts_contains_multicol_t(
+        txt1, 
+        txt2,
+        txt3,
+        txt4) KEY INDEX uid
+GO
+
+--Boolean operators support for multiple columns
+SELECT * FROM fts_contains_multicol_t WHERE CONTAINS((
+        txt1, 
+        txt2,
+        txt3,
+        txt4), 'genome AND DNA');
+GO
+
+SELECT * FROM fts_contains_multicol_t WHERE CONTAINS((
+        txt1,
+        txt2,
+        txt3,
+        txt4), 'Renaissance OR "Ancient Egyptian*"');
+GO
+
+SELECT * FROM fts_contains_multicol_t WHERE CONTAINS((
+        txt1, 
+        txt2,
+        txt3,
+        txt4), '("Artificial Intelligence" OR AI) AND (technology OR computing)');
+GO
+
+SELECT * FROM fts_contains_multicol_t WHERE CONTAINS((
+        txt1, 
+        txt2,
+        txt3,
+        txt4), '(art OR "artist*") AND NOT Picasso');
+GO
+
+SELECT * FROM fts_contains_multicol_t WHERE CONTAINS((
+        txt1, 
+        txt2,
+        txt3,
+        txt4), '(quantum OR physics) AND (computing OR "calculation*") AND NOT genome');
+GO
+
+SELECT * FROM fts_contains_multicol_t WHERE CONTAINS((
+        txt1, 
+        txt2,
+        txt3,
+        txt4), '(blockchain OR "cloud computing") AND technology AND NOT (genome OR DNA)');
+GO
+
+SELECT * FROM fts_contains_multicol_t WHERE CONTAINS((
+        txt1, 
+        txt2,
+        txt3,
+        txt4), '("Starry Night" OR symphony) AND (Mozart OR "van Gogh") AND NOT Shakespeare');
+GO
+
+-- Test cases for the relation new_schema_fts.multicol_tb
+
+SELECT * FROM new_schema_fts.multicol_tb WHERE contains((txt, val), 'Product-A123')
+GO
+
+-- should throw an error as the previous full text index is not dropped
+CREATE FULLTEXT INDEX ON new_schema_fts.multicol_tb(
+        val, 
+        chr) KEY INDEX usr
+GO
+
+DROP FULLTEXT INDEX ON new_schema_fts.multicol_tb
+GO
+
+CREATE FULLTEXT INDEX ON new_schema_fts.multicol_tb(
+        txt, 
+        val, 
+        chr) KEY INDEX usr
+GO
+
+SELECT * FROM new_schema_fts.multicol_tb WHERE contains((
+        multicol_tb.txt, 
+        val), '"brown fox"')
+GO
+
+SELECT * FROM new_schema_fts.multicol_tb WHERE contains((
+        multicol_tb.val, 
+        multicol_tb.chr), 'TEST-999')
+GO
+
+SELECT * FROM new_schema_fts.multicol_tb WHERE contains((
+        new_schema_fts.multicol_tb.txt, 
+        multicol_tb.chr), 'three')
+GO
+
+SELECT * FROM new_schema_fts.multicol_tb WHERE contains((
+        new_schema_fts.multicol_tb.txt, 
+        new_schema_fts.multicol_tb.val, 
+        chr), 'Invoice/001')
+GO
+
+-- NULL test
+SELECT * FROM new_schema_fts.multicol_tb WHERE contains((
+        txt, 
+        val, 
+        chr), '')
+GO
+
+-- A stop word used as a predicate, should give warning that only a stop word is used in predicate, but does not give the warning
+SELECT * FROM new_schema_fts.multicol_tb WHERE contains((
+        txt, 
+        val, 
+        chr), 'The')
+GO
+
+-- Phrase made of only stop words is used as a predicate, should give warning and no result, but gives ambiguous result result
+SELECT * FROM new_schema_fts.multicol_tb WHERE contains((
+        txt,
+        val, 
+        chr), '"To be"')
+GO
+
+-- Throws error as the column name is not valid
+SELECT * FROM new_schema_fts.multicol_tb WHERE contains(( 
+        ,
+        val, 
+        chr), '"and no play"')
+GO
+
+-- Throws error as NULL is passed as a column
+SELECT * FROM new_schema_fts.multicol_tb WHERE contains((
+        txt, 
+        NULL, 
+        chr), 'Order_789')
+GO
+
+-- Test cases for content_table
+CREATE UNIQUE INDEX ucid ON content_table(id)
+GO
+
+CREATE FULLTEXT INDEX ON content_table(
+        text_column,
+        char_column,
+        varchar_column,
+        ntext_column,
+        nchar_column) KEY INDEX ucid
+GO
+
+SELECT * FROM content_table WHERE contains((
+        text_column, 
+        char_column, 
+        varchar_column), '"Planning phase"')
+GO
+
+-- Case sensitivity of column names
+SELECT * FROM content_table WHERE contains((
+        TEXT_COLUMN, 
+        char_column, 
+        Varchar_Column), '"Planning phase"')
+GO
+
+-- should throw error as 'nvarchar_column' is not fulltext index
+SELECT * FROM content_table WHERE contains((
+        text_column,
+        char_column,
+        varchar_column,
+        nvarchar_column,
+        ntext_column,
+        nchar_column), 'documentation')
+GO
+
+-- disable FULLTEXT
+SELECT set_config('babelfishpg_tsql.escape_hatch_fulltext', 'strict', 'false')
+GO

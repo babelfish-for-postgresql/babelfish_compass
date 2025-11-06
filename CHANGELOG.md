@@ -1,4 +1,10 @@
+# 2026-01
+- Added support for Babelfish v.5.4.0 and v.4.8.0.
+- Detect SELECT TOP PERCENT
+
 # 2025-11
+
+# 2025-09
 - Added support for Babelfish v.5.3.0 and v.4.7.0.
 - Detect geospatial functions: HasZ, HasM, Z, M
 - Detect stored procedure: sp_helplogins
