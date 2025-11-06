@@ -839,7 +839,7 @@ tooltipsHTMLPlaceholder +
 		CompassAnalyze.SelectPivot+tttSeparator+"SELECT..PIVOT is not currently supported. Rewrite manually",
 		CompassAnalyze.SelectUnpivot+tttSeparator+"SELECT..UNPIVOT is not currently supported. Rewrite manually",
 		CompassAnalyze.SelectTopWithTies+tttSeparator+"SELECT TOP WITH TIES is not currently supported. Rewrite manually",
-		// "SELECT TOP <number> PERCENT"+tttSeparator+"Only TOP 100 PERCENT is currently supported. Rewrite as TOP without PERCENT. Rewrite manually",
+		"SELECT TOP <number> PERCENT"+tttSeparator+"Only TOP 100 PERCENT is currently supported. Rewrite as TOP without PERCENT. Rewrite manually",
 		CompassAnalyze.SelectTopInTUDF+tttSeparator+"A Table-Valued Function containing a SELECT TOP statement can be created, but cannot be called. Rewrite without TOP on the highest level, for example by moving TOP into a subquery",
 		"CROSS APPLY"+tttSeparator+"CROSS APPLY: lateral joins are not currently supported. Rewrite manually",
 		"OUTER APPLY"+tttSeparator+"OUTER APPLY: lateral joins are not currently supported. Rewrite manually",
