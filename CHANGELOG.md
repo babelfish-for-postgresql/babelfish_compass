@@ -1,5 +1,6 @@
 # 2026-01
 - Added support for Babelfish v.5.4.0 and v.4.8.0.
+- Detect geospatial function: STLineFromText
 - Detect SELECT TOP PERCENT
 
 # 2025-11
