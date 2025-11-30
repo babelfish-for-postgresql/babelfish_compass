@@ -8515,7 +8515,13 @@ public class CompassAnalyze {
 						}
 					}
 				}
-				else if (ctx.insert_statement_value().DEFAULT() != null) type = "DEFAULT VALUES";
+				else if (ctx.insert_statement_value().DEFAULT() != null) {
+					type = "DEFAULT VALUES";
+					// Check if OUTPUT clause is present
+					if (ctx.output_clause() != null) {
+						type = "DEFAULT VALUES OUTPUT";
+					}
+				}
 
 				String status = u.Supported;
 				String top = "";
