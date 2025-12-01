@@ -1,6 +1,6 @@
 # 2026-01
 - Added support for Babelfish v.5.4.0 and v.4.8.0.
-- Detect geospatial function: STLineFromText
+- Detect geospatial function: STLINEFROMTEXT , geospatial feature: LINESTRING 
 - Detect SELECT TOP PERCENT
 - Detect INSERT...DEFAULT VALUES
 - Detect stored procedure: sp_xml_preparedocument, sp_xml_removedocument
