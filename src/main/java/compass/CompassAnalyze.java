@@ -2949,7 +2949,9 @@ public class CompassAnalyze {
 
 					String topClauseCopy = topClauseText;
 					String topClauseTest = topClauseText;
-					if (!CompassUtilities.getPatternGroup(topClauseText, "^(\\d+)$", 1).isEmpty()) {
+					
+					// Number should support both integer and decimal
+					if (!CompassUtilities.getPatternGroup(topClauseText, "^(\\d+(?:\\.\\d+)?)$", 1).isEmpty()) {
 						if (!topClauseText.equals("0") && !(topClauseText.equals("100")&&(hasPercent))) {
 							topClauseTest = cfgNonZero;
 							topClauseText = u.escapeHTMLChars("<number>");
@@ -2962,9 +2964,18 @@ public class CompassAnalyze {
 					else {
 						String topSubq = getTextSpaced(ctx.top_clause());
 						if (topSubq.toUpperCase().contains(" SELECT ")) {
-							topClauseText = u.escapeHTMLChars("(subquery)");
-						}
-						else {
+							// Remove all spaces and check if it starts with (SELECT ..
+							String topExpr = topClauseCopy.replaceAll("\\s+", "").toUpperCase();
+							if (topExpr.startsWith("(SELECT")) {
+								// Pure subquery: (SELECT ...)
+								topClauseText = u.escapeHTMLChars("(subquery)");
+							} else {
+								// Expression containing subquery
+								topClauseTest = cfgExpression;
+								topClauseText = u.escapeHTMLChars("(expression)");
+							}
+						} else {
+							// No SELECT, so it's an expression
 							topClauseTest = cfgExpression;
 							topClauseText = u.escapeHTMLChars("(expression)");
 						}
@@ -11235,6 +11246,18 @@ public class CompassAnalyze {
 			}
 			@Override public String visitCreate_statistics (TSQLParser.Create_statisticsContext ctx) {
 				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
+			}
+
+			@Override public String visitTop_percent(TSQLParser.Top_percentContext ctx) {
+				if (ctx.expression() != null) {
+					String topExpr = ctx.expression().getText().replaceAll("\\s+", " ").trim();
+					if (topExpr.matches("^\\(?SELECT\\s+.*\\)?$")) {
+						captureItem("SELECT TOP (subquery) PERCENT", "", "DML", "", u.NotSupported, ctx.start.getLine());
+					} else {
+						captureItem("SELECT TOP (expression) PERCENT", "", "DML", "", u.Supported, ctx.start.getLine());
+					}
+				}
+				visitChildren(ctx); return null;
 			}
 
 		};
