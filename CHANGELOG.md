@@ -7,6 +7,7 @@
 - Detect XML function: OPENXML
 - Detect XML Datatype method: .VALUE()
 - Detect catalog view: time_zone_info
+- Detect CAST: Datetime to Varbinary
 
 # 2025-11
 - Added support for Babelfish v.5.3.0 and v.4.7.0.
