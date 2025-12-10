@@ -11248,18 +11248,6 @@ public class CompassAnalyze {
 				captureSimpleStmt(currentRuleName(ctx.getRuleIndex()), ctx, ctx.start.getLine()); visitChildren(ctx); return null;
 			}
 
-			@Override public String visitTop_percent(TSQLParser.Top_percentContext ctx) {
-				if (ctx.expression() != null) {
-					String topExpr = ctx.expression().getText().replaceAll("\\s+", " ").trim();
-					if (topExpr.matches("^\\(?SELECT\\s+.*\\)?$")) {
-						captureItem("SELECT TOP (subquery) PERCENT", "", "DML", "", u.NotSupported, ctx.start.getLine());
-					} else {
-						captureItem("SELECT TOP (expression) PERCENT", "", "DML", "", u.Supported, ctx.start.getLine());
-					}
-				}
-				visitChildren(ctx); return null;
-			}
-
 		};
 
 		assert (tree != null) : "parse tree is null";
