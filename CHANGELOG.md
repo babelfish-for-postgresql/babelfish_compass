@@ -1,13 +1,13 @@
-# 2026-01
+# 2025-12
 - Added support for Babelfish v.5.4.0 and v.4.8.0.
-- Detect geospatial function: STLINEFROMTEXT , geospatial feature: LINESTRING 
-- Detect SELECT TOP PERCENT
-- Detect INSERT...DEFAULT VALUES
-- Detect stored procedure: sp_xml_preparedocument, sp_xml_removedocument
-- Detect XML function: OPENXML
-- Detect XML Datatype method: .VALUE()
-- Detect catalog view: time_zone_info
-- Detect CAST/CONVERT: Datetime to Varbinary
+- Added geospatial function: STLINEFROMTEXT, geospatial feature: LINESTRING as supported 
+- Added SELECT TOP PERCENT as supported
+- Added INSERT...DEFAULT VALUES as supported
+- Added stored procedure: sp_xml_preparedocument, sp_xml_removedocument as supported
+- Added XML function: OPENXML as supported
+- Added XML Datatype method: .VALUE() as supported
+- Added catalog view: time_zone_info as supported
+- Added CAST/CONVERT: Datetime to (Var)binary as supported
 
 # 2025-11
 - Added support for Babelfish v.5.3.0 and v.4.7.0.
