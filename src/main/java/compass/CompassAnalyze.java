@@ -2949,7 +2949,9 @@ public class CompassAnalyze {
 
 					String topClauseCopy = topClauseText;
 					String topClauseTest = topClauseText;
-					if (!CompassUtilities.getPatternGroup(topClauseText, "^(\\d+)$", 1).isEmpty()) {
+					
+					// Number should support both integer and decimal
+					if (!CompassUtilities.getPatternGroup(topClauseText, "^(\\d+(?:\\.\\d+)?)$", 1).isEmpty()) {
 						if (!topClauseText.equals("0") && !(topClauseText.equals("100")&&(hasPercent))) {
 							topClauseTest = cfgNonZero;
 							topClauseText = u.escapeHTMLChars("<number>");
@@ -2962,9 +2964,18 @@ public class CompassAnalyze {
 					else {
 						String topSubq = getTextSpaced(ctx.top_clause());
 						if (topSubq.toUpperCase().contains(" SELECT ")) {
-							topClauseText = u.escapeHTMLChars("(subquery)");
-						}
-						else {
+							// Remove all spaces and check if it starts with (SELECT ..
+							String topExpr = topClauseCopy.replaceAll("\\s+", "").toUpperCase();
+							if (topExpr.startsWith("(SELECT")) {
+								// Pure subquery: (SELECT ...)
+								topClauseText = u.escapeHTMLChars("(subquery)");
+							} else {
+								// Expression containing subquery
+								topClauseTest = cfgExpression;
+								topClauseText = u.escapeHTMLChars("(expression)");
+							}
+						} else {
+							// No SELECT, so it's an expression
 							topClauseTest = cfgExpression;
 							topClauseText = u.escapeHTMLChars("(expression)");
 						}
@@ -8515,7 +8526,13 @@ public class CompassAnalyze {
 						}
 					}
 				}
-				else if (ctx.insert_statement_value().DEFAULT() != null) type = "DEFAULT VALUES";
+				else if (ctx.insert_statement_value().DEFAULT() != null) {
+					type = "DEFAULT VALUES";
+					// Check if OUTPUT clause is present
+					if (ctx.output_clause() != null) {
+						type = "DEFAULT VALUES OUTPUT";
+					}
+				}
 
 				String status = u.Supported;
 				String top = "";
