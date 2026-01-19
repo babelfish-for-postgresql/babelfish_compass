@@ -1,3 +1,7 @@
+# 2026-03
+- Added support for Babelfish v.6.0.0 and v.5.5.0.
+- Added function: fn_varbintohexstr
+
 # 2025-12
 - Added support for Babelfish v.5.4.0 and v.4.8.0.
 - Added geospatial function: STLINEFROMTEXT, geospatial feature: LINESTRING as supported 
