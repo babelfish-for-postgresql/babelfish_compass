@@ -1,5 +1,5 @@
 # 2026-04
-- Added support for Babelfish v.5.5.0.
+- Added support for Babelfish v.5.5.0 and v.6.0.0.
 - Added function: fn_varbintohexstr
 - Added geospatial function: STPOLYFROMTEXT, geospatial feature: POLYGON as supported 
 
