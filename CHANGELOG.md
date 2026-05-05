@@ -1,3 +1,6 @@
+# 2026-05
+- Added support for Babelfish v.6.0.0.
+
 # 2026-04
 - Added support for Babelfish v.5.5.0.
 - Added function: fn_varbintohexstr
