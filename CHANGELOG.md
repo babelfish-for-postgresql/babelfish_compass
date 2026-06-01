@@ -1,4 +1,4 @@
-# 2026-05
+# 2026-06
 - Added support for Babelfish v.6.0.0.
 
 # 2026-04
