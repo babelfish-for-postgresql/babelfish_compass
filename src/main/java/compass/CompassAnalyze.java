@@ -6217,7 +6217,17 @@ public class CompassAnalyze {
 
 			@Override public String visitHierarchyid_coloncolon_methods(TSQLParser.Hierarchyid_coloncolon_methodsContext ctx) {
 				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
-				captureHIERARCHYIDFeature("HIERARCHYID.", ctx.method.getText().toUpperCase(), "()", ctx.start.getLine());
+				String method = ctx.method.getText().toUpperCase();
+				// PARSE/GETROOT with a GEOMETRY/GEOGRAPHY prefix (e.g. geometry::Parse(...)) is a spatial call, not HIERARCHYID
+				String prefix = (ctx.id() != null) ? u.normalizeName(ctx.id().getText()).toUpperCase() : "";
+				if (prefix.equals("GEOMETRY") || prefix.equals("GEOGRAPHY")) {
+					String status = featureSupportedInVersion(Geospatial, method);
+					// display the method with its original case, consistent with the other spatial-method paths
+					captureItem(SpatialMethodCallFmt + " " + ctx.method.getText(), "", SpatialReportGroup, "", status, ctx.start.getLine());
+				}
+				else {
+					captureHIERARCHYIDFeature("HIERARCHYID.", method, "()", ctx.start.getLine());
+				}
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
