@@ -40,8 +40,8 @@ public class CompassUtilities {
 	public static boolean onLinux    = false;
 	public static String  onPlatform = uninitialized;
 
-	public static final String thisProgVersion      = "2026-06";
-	public static final String thisProgVersionDate  = "June 2026";
+	public static final String thisProgVersion      = "2026-07";
+	public static final String thisProgVersionDate  = "July 2026";
 	public static final String thisProgName         = "Babelfish Compass";
 	public static final String thisProgNameLong     = "Compatibility assessment tool for Babelfish for PostgreSQL";
 	public static final String thisProgNameExec     = "Compass";
