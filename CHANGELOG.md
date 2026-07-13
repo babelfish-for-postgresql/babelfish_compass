@@ -1,3 +1,9 @@
+# 2026-07
+- Added support for Babelfish v.5.6.0 and v.6.1.0.
+- Added geospatial function: MAKEVALID, STNUMPOINTS, PARSE, STGEOMETRYTYPE, STMPOINTFROMTEXT as supported
+- Added geospatial feature: MULTIPOINT (STGeomFromText) as supported
+- Added SELECT FOR XML PATH ELEMENTS, SELECT FOR XML RAW ELEMENTS as supported
+
 # 2026-06
 - Added support for Babelfish v.6.0.0.
 
