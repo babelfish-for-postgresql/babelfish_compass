@@ -1,3 +1,6 @@
+# 2026-09
+- Added support for Babelfish v.5.7.0 and v.6.2.0.
+
 # 2026-07
 - Added support for Babelfish v.5.6.0 and v.6.1.0.
 - Added geospatial function: MAKEVALID, STNUMPOINTS, PARSE, STGEOMETRYTYPE, STMPOINTFROMTEXT as supported
