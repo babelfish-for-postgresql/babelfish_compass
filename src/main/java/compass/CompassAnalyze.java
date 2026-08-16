@@ -256,6 +256,7 @@ public class CompassAnalyze {
 	static final String ExtendedPropType      = "Extended property type";
 	static final String FullTextIndex         = "FULLTEXT INDEX";
 	static final String FullTextContains      = "FULLTEXT CONTAINS";
+	static final String SpatialIndex          = "SPATIAL INDEX";
 	static final String StringAggXMLPath      = "STRING_AGG() workaround with FOR XML PATH";
 	static final String StringAggXMLPathMultCols = "STRING_AGG() workaround with FOR XML PATH with multiple SELECT columns";
 	static final String LegacySchemaNames     = "Legacy Schema Names";
@@ -10932,6 +10933,22 @@ public class CompassAnalyze {
 				captureItem(kwd + " " + FullTextIndex + " " + option, objectName, FullTextSearchReportGroup, objectName2, status, lineNr);
 
 				return;
+			}
+
+			@Override public String visitCreate_spatial_index(TSQLParser.Create_spatial_indexContext ctx) {
+				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
+				String tableName = u.normalizeName(ctx.table_name().getText());
+				String indexName = u.normalizeName(ctx.id(0).getText());
+				captureSpatialIndex("CREATE", tableName, indexName, ctx.start.getLine());
+				visitChildren(ctx);
+				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
+				return null;
+			}
+
+			private void captureSpatialIndex(String kwd, String objectName, String objectName2, int lineNr) {
+				kwd = kwd.trim().toUpperCase();
+				String status = featureSupportedInVersion(SpatialIndex, kwd);
+				captureItem(kwd + " " + SpatialIndex, objectName, SpatialReportGroup, objectName2, status, lineNr);
 			}
 
 			@Override public String visitCreate_application_role(TSQLParser.Create_application_roleContext ctx) {
