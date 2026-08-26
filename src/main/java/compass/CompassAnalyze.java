@@ -10940,6 +10940,16 @@ public class CompassAnalyze {
 				String tableName = u.normalizeName(ctx.table_name().getText());
 				String indexName = u.normalizeName(ctx.id(0).getText());
 				captureSpatialIndex("CREATE", tableName, indexName, ctx.start.getLine());
+				// The USING <scheme> clause and the WITH (...) options clause are not
+				// supported by Babelfish: by default they raise an error, and are only
+				// silently discarded when escape_hatch_spatial_index='ignore'. Capture
+				// them separately so they are classified against the supported list.
+				if (ctx.spatial_grid_clause() != null) {
+					captureSpatialIndexOption("USING", tableName, indexName, ctx.spatial_grid_clause().start.getLine());
+				}
+				if (ctx.spatial_grid_option_clause() != null) {
+					captureSpatialIndexOption("WITH OPTIONS", tableName, indexName, ctx.spatial_grid_option_clause().start.getLine());
+				}
 				visitChildren(ctx);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -10949,6 +10959,12 @@ public class CompassAnalyze {
 				kwd = kwd.trim().toUpperCase();
 				String status = featureSupportedInVersion(SpatialIndex, kwd);
 				captureItem(kwd + " " + SpatialIndex, objectName, SpatialReportGroup, objectName2, status, lineNr);
+			}
+
+			private void captureSpatialIndexOption(String option, String objectName, String objectName2, int lineNr) {
+				option = option.trim().toUpperCase();
+				String status = featureSupportedInVersion(SpatialIndex, option);
+				captureItem("CREATE " + SpatialIndex + " " + option, objectName, SpatialReportGroup, objectName2, status, lineNr);
 			}
 
 			@Override public String visitCreate_application_role(TSQLParser.Create_application_roleContext ctx) {
