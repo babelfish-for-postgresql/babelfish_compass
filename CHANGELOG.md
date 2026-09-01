@@ -1,3 +1,13 @@
+# 2026-09
+- Added support for Babelfish v.5.7.0 and v.6.2.0.
+- Added geospatial functions: STMLINEFROMTEXT, STMLINEFROMWKB, STMPOINTFROMWKB as supported
+- Added geospatial feature: MULTILINESTRING (STGeomFromText) as supported
+- Added CREATE SPATIAL INDEX as supported; USING/WITH tuning options reported as not supported
+- Added SELECT FOR XML AUTO, SELECT FOR XML AUTO ELEMENTS as supported
+- Added XML .query() method as supported
+- Added dynamic sql support for insert-exec
+
+
 # 2026-07
 - Added support for Babelfish v.5.6.0 and v.6.1.0.
 - Added geospatial function: MAKEVALID, STNUMPOINTS, PARSE, STGEOMETRYTYPE, STMPOINTFROMTEXT as supported
