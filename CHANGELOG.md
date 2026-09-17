@@ -6,7 +6,7 @@
 - Added SELECT FOR XML AUTO, SELECT FOR XML AUTO ELEMENTS as supported
 - Added XML .query() method as supported
 - Added dynamic sql support for insert-exec
-
+- Added regular variable named @@v as supported
 
 # 2026-07
 - Added support for Babelfish v.5.6.0 and v.6.1.0.
