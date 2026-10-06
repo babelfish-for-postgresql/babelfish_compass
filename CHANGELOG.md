@@ -1,3 +1,6 @@
+# 2026-12
+- Added support for Babelfish v.5.8.0 and v.6.3.0.
+
 # 2026-09
 - Added support for Babelfish v.5.7.0 and v.6.2.0.
 - Added geospatial functions: STMLINEFROMTEXT, STMLINEFROMWKB, STMPOINTFROMWKB as supported
