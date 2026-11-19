@@ -801,6 +801,7 @@ tooltipsHTMLPlaceholder +
 		"XML.write()"+tttSeparator+"XML .write() method is not currently supported",
 		"\\w+ XML SCHEMA COLLECTION"+tttSeparator+"XML SCHEMA objects are not currently supported",
 		"\\w+ XML INDEX"+tttSeparator+"XML indexes are not currently supported",
+		"WITH XMLNAMESPACES DEFAULT"+tttSeparator+"DEFAULT in WITH XMLNAMESPACES is not currently supported in a statement that calls XML data type methods (.value(), .query(), .exist(), .modify(), .nodes()); declare the namespace with a prefix instead",
 		"WITH XMLNAMESPACES"+tttSeparator+"XML namespaces are not currently supported",
 		"XML COLUMN_SET"+tttSeparator+"XML column sets are not currently supported",
 		"SELECT FOR XML AUTO"+tttSeparator+"SELECT FOR XML AUTO is not currently supported; SELECT FOR XML RAW/PATH are supported",

@@ -378,6 +378,8 @@ public class CompassAnalyze {
 	static boolean inCompCol = false;
 	static String  inCompColType = "";
 
+	static int xmlMethodCallCount = 0;
+
 	// see mostRecentDatatype();
 	static String mostRecentDatatypeSpatialOrHierarchy = "";
 
@@ -1362,7 +1364,29 @@ public class CompassAnalyze {
 		}
 	}
 
+	private int xmlNameSpacesDefaultLine(List<TSQLParser.Xml_declarationContext> xmlDecs) {
+		if (xmlDecs == null) return 0;
+		for (TSQLParser.Xml_declarationContext dec : xmlDecs) {
+			if (dec.DEFAULT() != null) return dec.start.getLine();
+		}
+		return 0;
+	}
+
+	private int xmlNameSpacesDefaultLine(TSQLParser.With_expressionContext with) {
+		if (with == null) return 0;
+		return xmlNameSpacesDefaultLine(with.xml_dec);
+	}
+
+	// DEFAULT works with FOR XML, but not in a statement that calls an XML data type method
+	private void captureXMLNameSpacesDefault(int defaultLineNr, int xmlMethodCallCountBefore) {
+		if (defaultLineNr == 0) return;
+		if (xmlMethodCallCount == xmlMethodCallCountBefore) return;
+		String status = featureSupportedInVersion(XMLFeatures, "WITH XMLNAMESPACES DEFAULT");
+		captureItem("WITH XMLNAMESPACES DEFAULT, with XML methods", "", XMLFeatures, "WITH XMLNAMESPACES DEFAULT", status, defaultLineNr);
+	}
+
 	private void captureXMLFeature (String stmt, String feature, String fmt, int lineNr) {
+		if (stmt.equals("XML.")) xmlMethodCallCount++;
 		String status = featureSupportedInVersion(XMLFeatures, feature);
 		String compCol = "";
 		if (inCompCol) {
@@ -2832,7 +2856,10 @@ public class CompassAnalyze {
 					addStmtAttribute("WITH");
 					if (u.debugging) u.dbgOutput(CompassUtilities.thisProc()+"added WITH...SELECT in standalone", u.debugPtree);
 				}
+				int xmlnsDefaultLineNr = xmlNameSpacesDefaultLine(ctx.with_expression());
+				int xmlMethodCallCountBefore = xmlMethodCallCount;
 				visitChildren(ctx);
+				captureXMLNameSpacesDefault(xmlnsDefaultLineNr, xmlMethodCallCountBefore);
 				inSelectStandalone = false;
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
@@ -8580,7 +8607,10 @@ public class CompassAnalyze {
 
 				captureDMLChangeTrackingContext(InsertStmt, ctx.start.getLine(), ctx.parent);
 
+				int xmlnsDefaultLineNr = xmlNameSpacesDefaultLine(ctx.with_expression());
+				int xmlMethodCallCountBefore = xmlMethodCallCount;
 				visitChildren(ctx);
+				captureXMLNameSpacesDefault(xmlnsDefaultLineNr, xmlMethodCallCountBefore);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
 			}
@@ -8906,7 +8936,10 @@ public class CompassAnalyze {
 				variableAssignDepends.clear();
 				updVarAssign = "";
 
+				int xmlnsDefaultLineNr = xmlNameSpacesDefaultLine(ctx.with_expression());
+				int xmlMethodCallCountBefore = xmlMethodCallCount;
 				visitChildren(ctx);
+				captureXMLNameSpacesDefault(xmlnsDefaultLineNr, xmlMethodCallCountBefore);
 
 				if (!updateTVFStatus.equals(u.Supported)) {
 					if (updateTVFStatus.equals(u.NotSupported)) status = u.NotSupported;
@@ -9136,7 +9169,10 @@ public class CompassAnalyze {
 
 				captureDMLChangeTrackingContext(DeleteStmt, ctx.start.getLine(), ctx.parent);
 
+				int xmlnsDefaultLineNr = xmlNameSpacesDefaultLine(ctx.with_expression());
+				int xmlMethodCallCountBefore = xmlMethodCallCount;
 				visitChildren(ctx);
+				captureXMLNameSpacesDefault(xmlnsDefaultLineNr, xmlMethodCallCountBefore);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
 			}
@@ -9414,7 +9450,10 @@ public class CompassAnalyze {
 
 				captureDMLChangeTrackingContext(MergeStmt, ctx.start.getLine(), ctx.parent);
 
+				int xmlnsDefaultLineNr = xmlNameSpacesDefaultLine(ctx.with_expression());
+				int xmlMethodCallCountBefore = xmlMethodCallCount;
 				visitChildren(ctx);
+				captureXMLNameSpacesDefault(xmlnsDefaultLineNr, xmlMethodCallCountBefore);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
 			}
@@ -9873,6 +9912,16 @@ public class CompassAnalyze {
 				}
 
 				visitChildren(ctx);
+				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
+				return null;
+			}
+
+			@Override public String visitDeclare_xmlnamespaces_statement(TSQLParser.Declare_xmlnamespaces_statementContext ctx) {
+				if (u.debugging) dbgTraceVisitEntry(CompassUtilities.thisProc());
+				int xmlnsDefaultLineNr = xmlNameSpacesDefaultLine(ctx.xml_dec);
+				int xmlMethodCallCountBefore = xmlMethodCallCount;
+				visitChildren(ctx);
+				captureXMLNameSpacesDefault(xmlnsDefaultLineNr, xmlMethodCallCountBefore);
 				if (u.debugging) dbgTraceVisitExit(CompassUtilities.thisProc());
 				return null;
 			}

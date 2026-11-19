@@ -2,6 +2,7 @@
 - Added support for Babelfish v.5.8.0 and v.6.3.0.
 - Added WITH XMLNAMESPACES as supported
 - Added XML .nodes() method as supported
+- Added WITH XMLNAMESPACES DEFAULT with XML data type methods as not supported
 
 # 2026-09
 - Added support for Babelfish v.5.7.0 and v.6.2.0.
